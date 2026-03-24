@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 120
 
+    legacy_api_base_url: str = "https://analise-operacional.onrender.com"
+
     import_secret: str
     legacy_database_url: str | None = None
     legacy_source_system: str = "analise-operacional"

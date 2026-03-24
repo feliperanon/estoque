@@ -9,11 +9,67 @@
     <title>{{ app_name }}</title>
   </head>
   <body>
-    <main class="hero">
-      <h1>{{ app_name }}</h1>
-      <p>Base inicial do novo app paralelo com backend FastAPI e banco dedicado.</p>
-      <a href="/docs">Abrir Swagger</a>
-    </main>
+
+    <!-- ── TELA DE LOGIN ── -->
+    <div id="view-login">
+      <div class="login-card">
+        <div class="login-logo">
+          <span class="logo-icon" aria-hidden="true">📦</span>
+          <h1>{{ app_name }}</h1>
+          <p>Sistema de Gestão</p>
+        </div>
+
+        <form id="login-form" autocomplete="on" novalidate>
+          <div class="field">
+            <label for="username">Usuário</label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              placeholder="Seu usuário"
+              autocomplete="username"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="password">Senha</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="Sua senha"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+
+          <div class="field-error" id="login-error" role="alert" aria-live="assertive"></div>
+
+          <button type="submit" id="btn-login">
+            <span class="btn-label">Entrar</span>
+            <span class="btn-spinner" id="btn-spinner" aria-hidden="true"></span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── TELA PRINCIPAL ── -->
+    <div id="view-dashboard">
+      <header class="topbar">
+        <span class="topbar-title">{{ app_name }}</span>
+        <div class="topbar-user">
+          <span id="user-display" class="user-badge"></span>
+          <button id="btn-logout" class="btn-secondary">Sair</button>
+        </div>
+      </header>
+      <main class="dashboard-content">
+        <h2>Bem-vindo!</h2>
+        <p class="muted">O sistema está em construção. As funcionalidades serão adicionadas em breve.</p>
+      </main>
+    </div>
+
+    <script src="/static/app.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

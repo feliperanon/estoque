@@ -1,11 +1,18 @@
+/* ── Variáveis ─────────────────────────────────────── */
 :root {
-  --bg: #f2f3ef;
-  --ink: #1b1f1b;
-  --accent: #0b3d2e;
+  --bg:       #f2f3ef;
+  --ink:      #1b1f1b;
+  --accent:   #0b3d2e;
   --accent-2: #f4a300;
+  --error:    #c0392b;
+  --white:    #ffffff;
+  --border:   #d0d5ce;
+  --shadow:   rgba(11, 61, 46, 0.15);
+  --muted:    #666;
 }
 
-* {
+/* ── Reset básico ──────────────────────────────────── */
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -13,47 +20,211 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 16px;
   color: var(--ink);
   background: radial-gradient(circle at 20% 20%, #ffffff 0%, var(--bg) 45%, #d8ddd5 100%);
 }
 
-.hero {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 12vh 24px;
+/* ── Views ─────────────────────────────────────────── */
+#view-login {
+  display: none;            /* controlado pelo app.js */
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+#view-dashboard {
+  display: none;            /* controlado pelo app.js */
+}
+
+/* ── Card de login ─────────────────────────────────── */
+.login-card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 40px var(--shadow);
+}
+
+.login-logo {
   text-align: center;
+  margin-bottom: 36px;
 }
 
-h1 {
-  font-size: clamp(2.2rem, 5vw, 4rem);
+.logo-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.login-logo h1 {
+  font-size: 1.9rem;
   color: var(--accent);
-  margin-bottom: 0.8rem;
+  margin: 0 0 4px;
 }
 
-p {
-  font-size: 1.1rem;
-  line-height: 1.6;
+.login-logo p {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0;
 }
 
-a {
-  display: inline-block;
-  margin-top: 20px;
-  padding: 12px 18px;
-  border-radius: 10px;
-  color: white;
-  background: linear-gradient(120deg, var(--accent), #146b51);
-  text-decoration: none;
+/* ── Formulário ────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.field label {
+  font-size: 0.85rem;
   font-weight: 600;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  color: #444;
 }
 
-a:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(11, 61, 46, 0.25);
+.field input {
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--white);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-@media (max-width: 640px) {
-  .hero {
-    padding-top: 10vh;
+.field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(11, 61, 46, 0.1);
+}
+
+.field-error {
+  min-height: 18px;
+  font-size: 0.85rem;
+  color: var(--error);
+  margin-bottom: 10px;
+}
+
+/* ── Botão primário ────────────────────────────────── */
+button[type="submit"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(120deg, var(--accent), #146b51);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+button[type="submit"]:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Spinner ───────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.btn-spinner {
+  display: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: var(--white);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Topbar ────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--accent);
+  color: var(--white);
+  padding: 14px 24px;
+  box-shadow: 0 2px 10px var(--shadow);
+}
+
+.topbar-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.9rem;
+}
+
+.user-badge {
+  opacity: 0.85;
+  font-style: italic;
+}
+
+/* ── Botão secundário (logout) ─────────────────────── */
+.btn-secondary {
+  padding: 6px 16px;
+  background: transparent;
+  color: var(--white);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Dashboard ─────────────────────────────────────── */
+.dashboard-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.dashboard-content h2 {
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ── Responsivo ────────────────────────────────────── */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 32px 20px;
+  }
+
+  .topbar {
+    padding: 12px 16px;
   }
 }
