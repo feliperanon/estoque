@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+﻿from datetime import date, datetime, timezone
 
 from sqlalchemy import JSON, Column, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
@@ -15,7 +15,7 @@ class SourceTracked(SQLModel):
     updated_at: datetime = Field(default_factory=utcnow)
 
 
-class Employee(SQLModel, SourceTracked, table=True):
+class Employee(SourceTracked, table=True):
     __tablename__ = "employees"
     __table_args__ = ({"schema": "app_core"},)
 
@@ -41,7 +41,7 @@ class Employee(SQLModel, SourceTracked, table=True):
     mobile_access_escala: bool = Field(default=False)
 
 
-class User(SQLModel, SourceTracked, table=True):
+class User(SourceTracked, table=True):
     __tablename__ = "users"
     __table_args__ = ({"schema": "app_core"},)
 
@@ -55,7 +55,7 @@ class User(SQLModel, SourceTracked, table=True):
     google_sub: str | None = Field(default=None, max_length=255)
 
 
-class ClientGroup(SQLModel, SourceTracked, table=True):
+class ClientGroup(SourceTracked, table=True):
     __tablename__ = "client_groups"
     __table_args__ = (UniqueConstraint("name", name="uq_client_group_name"), {"schema": "app_core"})
 
@@ -63,7 +63,7 @@ class ClientGroup(SQLModel, SourceTracked, table=True):
     name: str = Field(max_length=150, index=True)
 
 
-class Client(SQLModel, SourceTracked, table=True):
+class Client(SourceTracked, table=True):
     __tablename__ = "clients"
     __table_args__ = ({"schema": "app_core"},)
 
@@ -101,7 +101,7 @@ class Client(SQLModel, SourceTracked, table=True):
     geocoding_status: str | None = Field(default=None, max_length=30)
 
 
-class Vehicle(SQLModel, SourceTracked, table=True):
+class Vehicle(SourceTracked, table=True):
     __tablename__ = "vehicles"
     __table_args__ = ({"schema": "app_core"},)
 
@@ -251,3 +251,4 @@ class FailedImportRow(SQLModel, table=True):
     error_message: str = Field(max_length=500)
     row_payload: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     created_at: datetime = Field(default_factory=utcnow)
+
