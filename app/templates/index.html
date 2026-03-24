@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0B3D2E" />
+    <link rel="manifest" href="/static/manifest.json" />
+    <link rel="stylesheet" href="/static/style.css" />
+    <title>{{ app_name }}</title>
+  </head>
+  <body>
+    <main class="hero">
+      <h1>{{ app_name }}</h1>
+      <p>Base inicial do novo app paralelo com backend FastAPI e banco dedicado.</p>
+      <a href="/docs">Abrir Swagger</a>
+    </main>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/static/service-worker.js");
+        });
+      }
+    </script>
+  </body>
+</html>
