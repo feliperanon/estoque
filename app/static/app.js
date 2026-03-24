@@ -66,9 +66,15 @@ loginForm.addEventListener('submit', async (e) => {
 
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
+  const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username);
 
   if (!username || !password) {
-    loginError.textContent = 'Preencha usuário e senha.';
+    loginError.textContent = 'Preencha e-mail e senha.';
+    return;
+  }
+
+  if (!looksLikeEmail) {
+    loginError.textContent = 'Informe um e-mail corporativo válido.';
     return;
   }
 
@@ -83,7 +89,7 @@ loginForm.addEventListener('submit', async (e) => {
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
-      loginError.textContent = err.detail || 'Usuário ou senha incorretos.';
+      loginError.textContent = err.detail || 'E-mail ou senha incorretos.';
       return;
     }
 
@@ -100,7 +106,7 @@ loginForm.addEventListener('submit', async (e) => {
 
 // ── Dashboard ───────────────────────────────────────────────────
 function initDashboard(user) {
-  const label = user?.name || user?.username || 'Usuário';
+  const label = user?.name || user?.email || user?.username || 'Usuário';
   userDisplay.textContent = label;
   showDashboard();
 }

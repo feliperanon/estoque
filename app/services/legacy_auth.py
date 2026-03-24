@@ -1,15 +1,22 @@
-"""
-Serviço de autenticação contra o sistema legado (analise-operacional).
+"""Serviço de autenticação contra o Portal Operacional legado.
 
-Fluxo:
-  1. POST /api/auth/login no legado com username/password (OAuth2 form).
-  2. Se retornar token, busca dados do usuário em GET /admin/users.
-  3. Retorna dict com dados do usuário ou None em caso de falha.
+O legado usa login por formulário web com sessão/cookies em ``/login``.
+Após autenticar, o acesso a ``/admin/users`` depende dessa sessão.
 """
+
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 
 from app.core.config import get_settings
+
+
+def _extract_error_from_location(location: str | None) -> str | None:
+    if not location:
+        return None
+    parsed = urlparse(location)
+    error_values = parse_qs(parsed.query).get("error", [])
+    return error_values[0] if error_values else None
 
 
 def authenticate_with_legacy(username: str, password: str) -> dict | None:
@@ -17,38 +24,36 @@ def authenticate_with_legacy(username: str, password: str) -> dict | None:
     base_url = settings.legacy_api_base_url.rstrip("/")
 
     try:
-        with httpx.Client(timeout=10.0) as client:
-            # Autenticar contra o endpoint padrão OAuth2 do sistema legado
+        with httpx.Client(timeout=10.0, follow_redirects=False) as client:
             login_resp = client.post(
-                f"{base_url}/api/auth/login",
-                data={"username": username, "password": password},
+                f"{base_url}/login",
+                data={"email": username, "password": password, "remember": "on"},
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
-            if login_resp.status_code != 200:
+
+            location = login_resp.headers.get("location")
+            error_message = _extract_error_from_location(location)
+            if error_message:
                 return None
 
-            legacy_token: str | None = login_resp.json().get("access_token")
-            if not legacy_token:
+            if login_resp.status_code not in (200, 302, 303):
                 return None
 
-            # Buscar dados detalhados do usuário no cadastro do sistema legado
-            users_resp = client.get(
-                f"{base_url}/admin/users",
-                headers={"Authorization": f"Bearer {legacy_token}"},
-            )
+            users_resp = client.get(f"{base_url}/admin/users")
+            if users_resp.status_code not in (200, 302, 303):
+                return None
 
-            user_data: dict = {"username": username}
-            if users_resp.status_code == 200:
-                payload = users_resp.json()
-                users_list = payload if isinstance(payload, list) else payload.get("items", [])
-                match = next(
-                    (u for u in users_list if u.get("username") == username),
-                    None,
-                )
-                if match:
-                    user_data = match
+            # Se o legado redirecionou de volta para /login, a sessão não foi criada.
+            redirected_to = users_resp.headers.get("location", "")
+            if "/login" in redirected_to:
+                return None
 
-            return user_data
+            return {
+                "username": username,
+                "name": username.split("@")[0] if "@" in username else username,
+                "email": username,
+                "role": "legacy-user",
+            }
 
     except httpx.RequestError:
         return None

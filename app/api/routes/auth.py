@@ -34,7 +34,7 @@ def login_legacy(body: LegacyLoginInput) -> TokenWithUser:
     if user_data is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciais inválidas ou sistema indisponível",
+            detail="E-mail ou senha inválidos no portal legado",
         )
 
     token = create_access_token(user_data.get("username") or body.username)
