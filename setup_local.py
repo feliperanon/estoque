@@ -15,7 +15,7 @@ from app.models import *  # garante que todos os modelos estão registrados  # n
 from app.services.bootstrap import ensure_admin_user
 
 settings = get_settings()
-engine = create_engine(settings.database_url, connect_args={"check_same_thread": False})
+engine = create_engine(settings.sqlalchemy_database_url, connect_args={"check_same_thread": False})
 
 # SQLite não suporta schemas — remove-os temporariamente para criação local
 for table in SQLModel.metadata.tables.values():

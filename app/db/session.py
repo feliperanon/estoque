@@ -5,9 +5,10 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-_is_sqlite = settings.database_url.startswith("sqlite")
+_database_url = settings.sqlalchemy_database_url
+_is_sqlite = _database_url.startswith("sqlite")
 _connect_args = {"check_same_thread": False} if _is_sqlite else {}
-engine = create_engine(settings.database_url, pool_pre_ping=True, connect_args=_connect_args)
+engine = create_engine(_database_url, pool_pre_ping=True, connect_args=_connect_args)
 
 # SQLite não suporta schemas — remove-os para compatibilidade local
 if _is_sqlite:

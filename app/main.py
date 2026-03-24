@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.db.session import SessionLocal
-from app.services.bootstrap import ensure_admin_user
+from app.services.bootstrap import ensure_admin_user, ensure_database_ready
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name)
@@ -18,6 +18,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 @app.on_event("startup")
 def startup_tasks() -> None:
+    ensure_database_ready()
     with SessionLocal() as session:
         ensure_admin_user(session)
 
