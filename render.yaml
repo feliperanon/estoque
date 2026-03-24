@@ -29,4 +29,4 @@ services:
 
 databases:
   - name: estoque-db
-    plan: starter
+    plan: Basic-256mb
