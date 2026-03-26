@@ -505,6 +505,21 @@
                 <div class="field"><label for="param-prioridade">Prioridade</label><input id="param-prioridade" type="text" placeholder="Ex.: Grupo 1; Grupo 2" /></div>
                 <button type="submit">Salvar parâmetros</button>
               </form>
+              <div class="search-row" style="margin-top: 12px;">
+                <select id="param-remove-field" class="search-input">
+                  <option value="cod_grup_sp">Cod Grup SP</option>
+                  <option value="cod_grup_cia">Cod Grup Cia</option>
+                  <option value="cod_grup_tipo">Cod Grup Tipo</option>
+                  <option value="cod_grup_familia">Cod Grup Familia</option>
+                  <option value="cod_grup_segmento">Cod Grup Segmento</option>
+                  <option value="cod_grup_marca">Cod Grup Marca</option>
+                  <option value="cod_grup_sku">SKU</option>
+                  <option value="status">Status</option>
+                  <option value="grup_prioridade">Prioridade</option>
+                </select>
+                <select id="param-remove-value" class="search-input"></select>
+                <button id="btn-param-remove" type="button" class="btn-secondary btn-dark">Remover valor</button>
+              </div>
               <div id="product-params-feedback" class="field-feedback" aria-live="polite"></div>
             </section>
           </div>

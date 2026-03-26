@@ -136,6 +136,21 @@ class Product(SourceTracked, table=True):
     cod_grup_sku: str = Field(max_length=120, index=True)
     status: str | None = Field(default=None, max_length=40)
     grup_prioridade: str | None = Field(default=None, max_length=80)
+    price: float | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class ProductHistory(SQLModel, table=True):
+    __tablename__ = "product_history"
+    __table_args__ = ({"schema": "app_core"},)
+
+    id: int | None = Field(default=None, primary_key=True)
+    product_id: int = Field(foreign_key="app_core.products.id", index=True)
+    field_name: str = Field(max_length=100)
+    old_value: str | None = Field(default=None, max_length=500)
+    new_value: str | None = Field(default=None, max_length=500)
+    changed_by: str | None = Field(default=None, max_length=100)
+    changed_at: datetime = Field(default_factory=utcnow)
 
 
 class DriverVehicleAssignment(SQLModel, table=True):

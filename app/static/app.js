@@ -50,16 +50,51 @@ let selectedProductFile = null;
 let currentRole = 'conferente';
 
 const MODULE_ACCESS = {
-  count: ['conferente', 'administrativo', 'admin'],
+  contagem: ['conferente', 'administrativo', 'admin'],
   cadastro: ['administrativo', 'admin'],
   acesso: ['administrativo', 'admin'],
+};
+
+const SUB_MODULES = ['count', 'recount', 'pull', 'return', 'break', 'direct-sale'];
+const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'];
+const SUB_TO_PARENT = {};
+SUB_MODULES.forEach(s => { SUB_TO_PARENT[s] = 'contagem'; });
+CADASTRO_SUBS.forEach(s => { SUB_TO_PARENT[s] = 'cadastro'; });
+
+const PRODUCT_DEFAULTS_KEY = 'estoque_product_defaults_v1';
+const DEFAULT_PRODUCT_PARAMS = {
+  cod_grup_sp: [],
+  cod_grup_cia: [],
+  cod_grup_tipo: [],
+  cod_grup_familia: [],
+  cod_grup_segmento: [],
+  cod_grup_marca: [],
+  cod_grup_sku: [],
+  status: ['ativo', 'inativo'],
+  grup_prioridade: [],
+};
+const PRODUCT_PARAM_LABELS = {
+  cod_grup_sp: 'Cod Grup SP',
+  cod_grup_cia: 'Cod Grup Cia',
+  cod_grup_tipo: 'Cod Grup Tipo',
+  cod_grup_familia: 'Cod Grup Familia',
+  cod_grup_segmento: 'Cod Grup Segmento',
+  cod_grup_marca: 'Cod Grup Marca',
+  cod_grup_sku: 'SKU',
+  status: 'Status',
+  grup_prioridade: 'Prioridade',
 };
 
 const ACCESS_CATEGORIES = [
   {
     category: 'Operacao',
     subcategories: [
-      { module: 'Contagem', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Contagem de Estoque', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Recontagem', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Puxada', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Devolucao', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Quebra', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Venda Direta', roles: ['conferente', 'administrativo', 'admin'] },
     ],
   },
   {
@@ -98,23 +133,62 @@ function canAccessModule(moduleKey) {
   return allowed.includes(currentRole);
 }
 
+function setActiveSub(subKey) {
+  const parent = SUB_TO_PARENT[subKey];
+  const parentEl = document.getElementById(`module-${parent}`);
+  if (!parentEl) return;
+  parentEl.querySelectorAll('.sub-section').forEach((s) => s.classList.remove('active'));
+
+  const target = document.getElementById(`sub-${subKey}`);
+  if (target) target.classList.add('active');
+
+  if (subKey === 'produtos') {
+    searchProdutos();
+  } else if (subKey === 'preco-produtos') {
+    searchPrecoProducts();
+  }
+}
+
+function showModuleHome(moduleKey) {
+  const parentEl = document.getElementById(`module-${moduleKey}`);
+  if (!parentEl) return;
+  parentEl.querySelectorAll('.sub-section').forEach((s) => s.classList.remove('active'));
+  const home = document.getElementById(`${moduleKey}-home`);
+  if (home) home.classList.add('active');
+}
+
 function setActiveModule(moduleKey, updateHistory = true) {
+  const parentKey = SUB_TO_PARENT[moduleKey];
+  const actualModule = parentKey || moduleKey;
+  const subKey = parentKey ? moduleKey : null;
+
   document.querySelectorAll('.module-section').forEach((section) => {
     section.classList.remove('active');
   });
 
-  const target = document.getElementById(`module-${moduleKey}`);
-  if (target) {
-    target.classList.add('active');
-  }
+  const target = document.getElementById(`module-${actualModule}`);
+  if (target) target.classList.add('active');
 
   document.querySelectorAll('.module-btn').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.module === moduleKey);
+    btn.classList.toggle('active', btn.dataset.module === actualModule);
   });
 
-  if (updateHistory && window.location.hash.slice(1) !== moduleKey) {
-    history.pushState(null, '', `${APP_BASE_PATH}#${moduleKey}`);
+  if (subKey) {
+    setActiveSub(subKey);
+  } else if (actualModule === 'contagem' || actualModule === 'cadastro') {
+    showModuleHome(actualModule);
   }
+
+  const hashValue = subKey || actualModule;
+  if (updateHistory && window.location.hash.slice(1) !== hashValue) {
+    history.pushState(null, '', `${APP_BASE_PATH}#${hashValue}`);
+  }
+}
+
+function canAccessHash(hashKey) {
+  const parent = SUB_TO_PARENT[hashKey];
+  if (parent) return canAccessModule(parent);
+  return canAccessModule(hashKey);
 }
 
 function renderModuleNav() {
@@ -132,7 +206,7 @@ function renderModuleNav() {
 
   if (firstVisible) {
     const hashModule = window.location.hash.slice(1);
-    if (hashModule && canAccessModule(hashModule)) {
+    if (hashModule && canAccessHash(hashModule)) {
       setActiveModule(hashModule, false);
     } else {
       setActiveModule(firstVisible);
@@ -478,6 +552,155 @@ function getAuthHeaders() {
   };
 }
 
+function loadProductDefaults() {
+  try {
+    const raw = localStorage.getItem(PRODUCT_DEFAULTS_KEY);
+    if (!raw) return { ...DEFAULT_PRODUCT_PARAMS };
+    const parsed = JSON.parse(raw);
+    return {
+      cod_grup_sp: parsed.cod_grup_sp?.length ? parsed.cod_grup_sp : DEFAULT_PRODUCT_PARAMS.cod_grup_sp,
+      cod_grup_cia: parsed.cod_grup_cia?.length ? parsed.cod_grup_cia : DEFAULT_PRODUCT_PARAMS.cod_grup_cia,
+      cod_grup_tipo: parsed.cod_grup_tipo?.length ? parsed.cod_grup_tipo : DEFAULT_PRODUCT_PARAMS.cod_grup_tipo,
+      cod_grup_familia: parsed.cod_grup_familia?.length ? parsed.cod_grup_familia : DEFAULT_PRODUCT_PARAMS.cod_grup_familia,
+      cod_grup_segmento: parsed.cod_grup_segmento?.length ? parsed.cod_grup_segmento : DEFAULT_PRODUCT_PARAMS.cod_grup_segmento,
+      cod_grup_marca: parsed.cod_grup_marca?.length ? parsed.cod_grup_marca : DEFAULT_PRODUCT_PARAMS.cod_grup_marca,
+      cod_grup_sku: parsed.cod_grup_sku?.length ? parsed.cod_grup_sku : DEFAULT_PRODUCT_PARAMS.cod_grup_sku,
+      status: parsed.status?.length ? parsed.status : DEFAULT_PRODUCT_PARAMS.status,
+      grup_prioridade: parsed.grup_prioridade?.length ? parsed.grup_prioridade : DEFAULT_PRODUCT_PARAMS.grup_prioridade,
+    };
+  } catch {
+    return { ...DEFAULT_PRODUCT_PARAMS };
+  }
+}
+
+function saveProductDefaults(params) {
+  localStorage.setItem(PRODUCT_DEFAULTS_KEY, JSON.stringify(params));
+}
+
+function appendOptionAndSelect(selectId, value) {
+  const select = document.getElementById(selectId);
+  if (!select || !value) return;
+  const normalized = value.trim();
+  if (!normalized) return;
+
+  const exists = [...select.options].some((opt) => opt.value.toLowerCase() === normalized.toLowerCase());
+  if (!exists) {
+    const option = document.createElement('option');
+    option.value = normalized;
+    option.textContent = normalized;
+    select.appendChild(option);
+  }
+  select.value = normalized;
+}
+
+function updateDefaultsFromFormSelections() {
+  const nextDefaults = {
+    cod_grup_sp: [document.getElementById('prod-cod-sp')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_sp[0]],
+    cod_grup_cia: [document.getElementById('prod-cod-cia')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_cia[0]],
+    cod_grup_tipo: [document.getElementById('prod-cod-tipo')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_tipo[0]],
+    cod_grup_familia: [document.getElementById('prod-cod-familia')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_familia[0]],
+    cod_grup_segmento: [document.getElementById('prod-cod-segmento')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_segmento[0]],
+    cod_grup_marca: [document.getElementById('prod-cod-marca')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_marca[0]],
+    cod_grup_sku: [document.getElementById('prod-sku')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_sku[0]],
+    status: [document.getElementById('prod-status')?.value || 'ativo', 'inativo'].filter((v, i, arr) => arr.indexOf(v) === i),
+    grup_prioridade: [document.getElementById('prod-prioridade')?.value || DEFAULT_PRODUCT_PARAMS.grup_prioridade[0]],
+  };
+  saveProductDefaults(nextDefaults);
+}
+
+function fillSelect(selectId, options, selected = null) {
+  const el = document.getElementById(selectId);
+  if (!el) return;
+  el.innerHTML = '';
+  if (!Array.isArray(options) || options.length === 0) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Selecione...';
+    placeholder.selected = true;
+    el.appendChild(placeholder);
+    return;
+  }
+  for (const opt of options) {
+    const option = document.createElement('option');
+    option.value = opt;
+    option.textContent = opt === 'ativo' ? 'Ativo' : opt === 'inativo' ? 'Inativo' : opt;
+    if (selected != null && String(selected).toLowerCase() === String(opt).toLowerCase()) {
+      option.selected = true;
+    }
+    el.appendChild(option);
+  }
+  if (selected != null && !options.some((v) => String(v).toLowerCase() === String(selected).toLowerCase())) {
+    const custom = document.createElement('option');
+    custom.value = selected;
+    custom.textContent = selected;
+    custom.selected = true;
+    el.appendChild(custom);
+  }
+}
+
+function parseParamList(rawValue) {
+  return (rawValue || '')
+    .split(';')
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+function mergeUnique(baseValues, newValues) {
+  const out = [...baseValues];
+  for (const value of newValues) {
+    if (!out.some((v) => String(v).toLowerCase() === String(value).toLowerCase())) {
+      out.push(value);
+    }
+  }
+  return out;
+}
+
+function applyProductDefaultsToForms() {
+  const defaults = loadProductDefaults();
+  const pairs = [
+    ['cod_grup_sp', 'prod-cod-sp', 'edit-cod-sp'],
+    ['cod_grup_cia', 'prod-cod-cia', 'edit-cod-cia'],
+    ['cod_grup_tipo', 'prod-cod-tipo', 'edit-cod-tipo'],
+    ['cod_grup_familia', 'prod-cod-familia', 'edit-cod-familia'],
+    ['cod_grup_segmento', 'prod-cod-segmento', 'edit-cod-segmento'],
+    ['cod_grup_marca', 'prod-cod-marca', 'edit-cod-marca'],
+    ['cod_grup_sku', 'prod-sku', 'edit-sku'],
+    ['status', 'prod-status', 'edit-status'],
+    ['grup_prioridade', 'prod-prioridade', 'edit-prioridade'],
+  ];
+  for (const [key, createId, editId] of pairs) {
+    fillSelect(createId, defaults[key]);
+    fillSelect(editId, defaults[key]);
+  }
+  renderParamRemoveValues(defaults);
+}
+
+function renderParamRemoveValues(defaults = null) {
+  const fieldEl = document.getElementById('param-remove-field');
+  const valueEl = document.getElementById('param-remove-value');
+  if (!fieldEl || !valueEl) return;
+
+  const currentDefaults = defaults || loadProductDefaults();
+  const fieldKey = fieldEl.value || 'cod_grup_sp';
+  const values = currentDefaults[fieldKey] || [];
+
+  valueEl.innerHTML = '';
+  if (!values.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Nenhum valor cadastrado';
+    valueEl.appendChild(opt);
+    return;
+  }
+
+  for (const value of values) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = value;
+    valueEl.appendChild(opt);
+  }
+}
+
 function readProductPayloadFromForm() {
   return {
     cod_grup_sp: document.getElementById('prod-cod-sp').value.trim() || null,
@@ -490,6 +713,7 @@ function readProductPayloadFromForm() {
     cod_grup_sku: document.getElementById('prod-sku').value.trim(),
     status: document.getElementById('prod-status').value.trim() || null,
     grup_prioridade: document.getElementById('prod-prioridade').value.trim() || null,
+    price: parseFloat(document.getElementById('prod-price').value) || null,
     source_system: 'manual',
   };
 }
@@ -529,6 +753,20 @@ async function loadProducts() {
       return;
     }
     const products = await response.json();
+    const defaults = loadProductDefaults();
+    const mergedDefaults = {
+      cod_grup_sp: mergeUnique(defaults.cod_grup_sp, products.map((p) => (p.cod_grup_sp || '').trim()).filter(Boolean)),
+      cod_grup_cia: mergeUnique(defaults.cod_grup_cia, products.map((p) => (p.cod_grup_cia || '').trim()).filter(Boolean)),
+      cod_grup_tipo: mergeUnique(defaults.cod_grup_tipo, products.map((p) => (p.cod_grup_tipo || '').trim()).filter(Boolean)),
+      cod_grup_familia: mergeUnique(defaults.cod_grup_familia, products.map((p) => (p.cod_grup_familia || '').trim()).filter(Boolean)),
+      cod_grup_segmento: mergeUnique(defaults.cod_grup_segmento, products.map((p) => (p.cod_grup_segmento || '').trim()).filter(Boolean)),
+      cod_grup_marca: mergeUnique(defaults.cod_grup_marca, products.map((p) => (p.cod_grup_marca || '').trim()).filter(Boolean)),
+      cod_grup_sku: mergeUnique(defaults.cod_grup_sku, products.map((p) => (p.cod_grup_sku || '').trim()).filter(Boolean)),
+      status: mergeUnique(defaults.status, products.map((p) => (p.status || '').trim().toLowerCase()).filter(Boolean)),
+      grup_prioridade: mergeUnique(defaults.grup_prioridade, products.map((p) => (p.grup_prioridade || '').trim()).filter(Boolean)),
+    };
+    saveProductDefaults(mergedDefaults);
+    applyProductDefaultsToForms();
     renderProducts(products);
   } catch {
     setProductFeedback('Falha de conexao ao carregar produtos.', true);
@@ -556,11 +794,73 @@ async function saveProductManual() {
     }
 
     productForm.reset();
+    applyProductDefaultsToForms();
     setProductFeedback('Produto salvo com sucesso.');
     await loadProducts();
   } catch {
     setProductFeedback('Sem conexao para salvar agora. Tente novamente.', true);
   }
+}
+
+function bindProductParamsEvents() {
+  const form = document.getElementById('product-params-form');
+  const feedback = document.getElementById('product-params-feedback');
+  const removeField = document.getElementById('param-remove-field');
+  const removeValue = document.getElementById('param-remove-value');
+  const removeBtn = document.getElementById('btn-param-remove');
+  if (!form || !feedback) return;
+
+  document.getElementById('param-status').value = 'ativo';
+  renderParamRemoveValues();
+
+  if (removeField) {
+    removeField.addEventListener('change', () => renderParamRemoveValues());
+  }
+
+  if (removeBtn && removeValue && removeField) {
+    removeBtn.addEventListener('click', () => {
+      const defaults = loadProductDefaults();
+      const fieldKey = removeField.value;
+      const selectedValue = removeValue.value;
+      if (!fieldKey || !selectedValue) {
+        feedback.textContent = 'Selecione um campo e um valor para remover.';
+        feedback.style.color = 'var(--error)';
+        return;
+      }
+
+      const list = defaults[fieldKey] || [];
+      defaults[fieldKey] = list.filter((v) => String(v).toLowerCase() !== String(selectedValue).toLowerCase());
+      saveProductDefaults(defaults);
+      applyProductDefaultsToForms();
+      renderParamRemoveValues(defaults);
+      const fieldLabel = PRODUCT_PARAM_LABELS[fieldKey] || fieldKey;
+      feedback.textContent = `Valor removido de ${fieldLabel}.`;
+      feedback.style.color = 'var(--accent)';
+    });
+  }
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const defaults = loadProductDefaults();
+    const nextDefaults = {
+      cod_grup_sp: mergeUnique(defaults.cod_grup_sp, parseParamList(document.getElementById('param-cod-sp').value)),
+      cod_grup_cia: mergeUnique(defaults.cod_grup_cia, parseParamList(document.getElementById('param-cod-cia').value)),
+      cod_grup_tipo: mergeUnique(defaults.cod_grup_tipo, parseParamList(document.getElementById('param-cod-tipo').value)),
+      cod_grup_familia: mergeUnique(defaults.cod_grup_familia, parseParamList(document.getElementById('param-cod-familia').value)),
+      cod_grup_segmento: mergeUnique(defaults.cod_grup_segmento, parseParamList(document.getElementById('param-cod-segmento').value)),
+      cod_grup_marca: mergeUnique(defaults.cod_grup_marca, parseParamList(document.getElementById('param-cod-marca').value)),
+      cod_grup_sku: mergeUnique(defaults.cod_grup_sku, parseParamList(document.getElementById('param-sku').value)),
+      status: [document.getElementById('param-status').value || 'ativo', 'inativo'].filter((v, i, arr) => arr.indexOf(v) === i),
+      grup_prioridade: mergeUnique(defaults.grup_prioridade, parseParamList(document.getElementById('param-prioridade').value)),
+    };
+    saveProductDefaults(nextDefaults);
+    applyProductDefaultsToForms();
+    renderParamRemoveValues(nextDefaults);
+    form.reset();
+    document.getElementById('param-status').value = 'ativo';
+    feedback.textContent = 'Parâmetros salvos com sucesso.';
+    feedback.style.color = 'var(--accent)';
+  });
 }
 
 async function uploadProductsExcel() {
@@ -616,24 +916,561 @@ function bindProductEvents() {
   btnProductUpload.addEventListener('click', async () => {
     await uploadProductsExcel();
   });
+
+  document.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-new-option-target]');
+    if (!btn) return;
+    const targetId = btn.dataset.newOptionTarget;
+    const label = btn.parentElement?.querySelector('label')?.textContent || 'campo';
+    const value = prompt(`Digite um novo valor para ${label}:`);
+    if (!value) return;
+
+    appendOptionAndSelect(targetId, value);
+
+    const linkedId = targetId.startsWith('prod-') ? targetId.replace('prod-', 'edit-') : targetId.replace('edit-', 'prod-');
+    appendOptionAndSelect(linkedId, value);
+
+    updateDefaultsFromFormSelections();
+    setProductFeedback(`${label}: novo valor "${value.trim()}" adicionado.`);
+  });
+}
+
+// ── Sub-módulo: Produtos (listagem completa, edição, toggle, delete, histórico) ──
+
+function setProdutosFeedback(msg, isError = false) {
+  const el = document.getElementById('produtos-feedback');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+function setEditFeedback(msg, isError = false) {
+  const el = document.getElementById('product-edit-feedback');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatPrice(v) {
+  if (v == null) return '—';
+  return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+async function searchProdutos() {
+  const q = document.getElementById('produtos-search').value.trim();
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=300` : `${API_PRODUCTS}?limit=300`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) { setProdutosFeedback('Falha ao buscar produtos.', true); return; }
+    const data = await resp.json();
+    renderProdutosTable(data);
+  } catch {
+    setProdutosFeedback('Sem conexão.', true);
+  }
+}
+
+function renderProdutosTable(products) {
+  const tbody = document.getElementById('produtos-tbody');
+  const total = document.getElementById('produtos-result-total');
+  tbody.innerHTML = '';
+  total.textContent = products.length;
+
+  if (!products.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Nenhum produto encontrado.</td></tr>';
+    return;
+  }
+
+  for (const p of products) {
+    const tr = document.createElement('tr');
+    const statusClass = (p.status || 'ativo').toLowerCase() === 'ativo' ? 'badge-active' : 'badge-inactive';
+    tr.innerHTML = `
+      <td>${p.cod_grup_sku || '—'}</td>
+      <td>${p.cod_grup_descricao || '—'}</td>
+      <td>${formatPrice(p.price)}</td>
+      <td><span class="status-badge ${statusClass}">${p.status || 'ativo'}</span></td>
+      <td>${formatDate(p.created_at)}</td>
+      <td class="actions-cell">
+        <button class="btn-icon" data-action="edit" data-id="${p.id}" title="Editar">✏️</button>
+        <button class="btn-icon" data-action="toggle" data-id="${p.id}" title="Ativar/Inativar">🔄</button>
+        <button class="btn-icon" data-action="history" data-id="${p.id}" data-label="${p.cod_grup_sku}" title="Histórico">📜</button>
+        <button class="btn-icon btn-danger-icon" data-action="delete" data-id="${p.id}" title="Excluir">🗑️</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+async function openEditProduct(id) {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const resp = await fetch(`${API_PRODUCTS}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) { setProdutosFeedback('Produto não encontrado.', true); return; }
+    const p = await resp.json();
+
+    document.getElementById('edit-product-id').value = p.id;
+    const defaults = loadProductDefaults();
+    fillSelect('edit-cod-sp', defaults.cod_grup_sp, p.cod_grup_sp || '');
+    fillSelect('edit-cod-cia', defaults.cod_grup_cia, p.cod_grup_cia || '');
+    fillSelect('edit-cod-tipo', defaults.cod_grup_tipo, p.cod_grup_tipo || '');
+    fillSelect('edit-cod-familia', defaults.cod_grup_familia, p.cod_grup_familia || '');
+    fillSelect('edit-cod-segmento', defaults.cod_grup_segmento, p.cod_grup_segmento || '');
+    fillSelect('edit-cod-marca', defaults.cod_grup_marca, p.cod_grup_marca || '');
+    document.getElementById('edit-descricao').value = p.cod_grup_descricao || '';
+    fillSelect('edit-sku', defaults.cod_grup_sku, p.cod_grup_sku || '');
+    fillSelect('edit-status', defaults.status, (p.status || 'ativo').toLowerCase());
+    fillSelect('edit-prioridade', defaults.grup_prioridade, p.grup_prioridade || '');
+    document.getElementById('edit-price').value = p.price != null ? p.price : '';
+
+    document.getElementById('product-edit-panel').style.display = 'block';
+    document.getElementById('product-history-inline').style.display = 'none';
+    setEditFeedback('');
+  } catch {
+    setProdutosFeedback('Falha ao carregar produto para edição.', true);
+  }
+}
+
+async function updateProduct() {
+  const id = document.getElementById('edit-product-id').value;
+  const token = getToken();
+  if (!token || !id) return;
+
+  const payload = {
+    cod_grup_sp: document.getElementById('edit-cod-sp').value.trim() || null,
+    cod_grup_cia: document.getElementById('edit-cod-cia').value.trim() || null,
+    cod_grup_tipo: document.getElementById('edit-cod-tipo').value.trim() || null,
+    cod_grup_familia: document.getElementById('edit-cod-familia').value.trim() || null,
+    cod_grup_segmento: document.getElementById('edit-cod-segmento').value.trim() || null,
+    cod_grup_marca: document.getElementById('edit-cod-marca').value.trim() || null,
+    cod_grup_descricao: document.getElementById('edit-descricao').value.trim(),
+    cod_grup_sku: document.getElementById('edit-sku').value.trim(),
+    status: document.getElementById('edit-status').value.trim() || null,
+    grup_prioridade: document.getElementById('edit-prioridade').value.trim() || null,
+    price: parseFloat(document.getElementById('edit-price').value) || null,
+  };
+
+  if (!payload.cod_grup_descricao || !payload.cod_grup_sku) {
+    setEditFeedback('Descrição e SKU são obrigatórios.', true);
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_PRODUCTS}/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      setEditFeedback(err.detail || 'Falha ao atualizar produto.', true);
+      return;
+    }
+    setEditFeedback('Produto atualizado com sucesso.');
+    document.getElementById('product-edit-panel').style.display = 'none';
+    await searchProdutos();
+    await loadProducts();
+  } catch {
+    setEditFeedback('Sem conexão.', true);
+  }
+}
+
+async function toggleProductStatus(id) {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const resp = await fetch(`${API_PRODUCTS}/${id}/toggle-status`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) { setProdutosFeedback('Falha ao alternar status.', true); return; }
+    const data = await resp.json();
+    setProdutosFeedback(`Status alterado para: ${data.status}`);
+    await searchProdutos();
+    await loadProducts();
+  } catch {
+    setProdutosFeedback('Sem conexão.', true);
+  }
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const resp = await fetch(`${API_PRODUCTS}/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) { setProdutosFeedback('Falha ao excluir.', true); return; }
+    setProdutosFeedback('Produto excluído.');
+    await searchProdutos();
+    await loadProducts();
+  } catch {
+    setProdutosFeedback('Sem conexão.', true);
+  }
+}
+
+async function showProductHistory(id, label) {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const resp = await fetch(`${API_PRODUCTS}/${id}/history`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) { setProdutosFeedback('Falha ao carregar histórico.', true); return; }
+    const items = await resp.json();
+
+    const panel = document.getElementById('product-history-inline');
+    const list = document.getElementById('product-history-list');
+    document.getElementById('history-product-label').textContent = `Produto: ${label || id}`;
+
+    list.innerHTML = '';
+    if (!items.length) {
+      list.innerHTML = '<li><span>Nenhuma alteração registrada.</span></li>';
+    } else {
+      for (const h of items) {
+        const li = document.createElement('li');
+        li.innerHTML = `<span><strong>${h.field_name}</strong>: "${h.old_value || '—'}" → "${h.new_value || '—'}" <small>(por ${h.changed_by || '?'} em ${formatDate(h.changed_at)})</small></span>`;
+        list.appendChild(li);
+      }
+    }
+    panel.style.display = 'block';
+  } catch {
+    setProdutosFeedback('Sem conexão.', true);
+  }
+}
+
+function bindProdutosEvents() {
+  const btnSearch = document.getElementById('btn-produtos-search');
+  const searchInput = document.getElementById('produtos-search');
+  const tbody = document.getElementById('produtos-tbody');
+  const btnCancelEdit = document.getElementById('btn-cancel-edit');
+  const btnOpenHistoryInline = document.getElementById('btn-open-history-inline');
+  const btnCloseHistoryInline = document.getElementById('btn-close-history-inline');
+  const editForm = document.getElementById('product-edit-form');
+
+  if (!btnSearch) return;
+
+  btnSearch.addEventListener('click', () => searchProdutos());
+  searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchProdutos(); } });
+
+  tbody.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+    if (action === 'edit') openEditProduct(id);
+    else if (action === 'toggle') toggleProductStatus(id);
+    else if (action === 'delete') deleteProduct(id);
+    else if (action === 'history') showProductHistory(id, btn.dataset.label);
+  });
+
+  if (btnCancelEdit) {
+    btnCancelEdit.addEventListener('click', () => {
+      document.getElementById('product-edit-panel').style.display = 'none';
+    });
+  }
+
+  if (btnOpenHistoryInline) {
+    btnOpenHistoryInline.addEventListener('click', async () => {
+      const id = document.getElementById('edit-product-id').value;
+      const label = document.getElementById('edit-sku').value;
+      if (!id) return;
+      await showProductHistory(id, label);
+    });
+  }
+
+  if (btnCloseHistoryInline) {
+    btnCloseHistoryInline.addEventListener('click', () => {
+      document.getElementById('product-history-inline').style.display = 'none';
+    });
+  }
+
+  if (editForm) {
+    editForm.addEventListener('submit', (e) => { e.preventDefault(); updateProduct(); });
+  }
+}
+
+// ── Sub-módulo: Preço de Produtos ──
+
+function setPrecoFeedback(msg, isError = false) {
+  const el = document.getElementById('preco-feedback');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+async function searchPrecoProducts() {
+  const q = document.getElementById('preco-search').value.trim();
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=300` : `${API_PRODUCTS}?limit=300`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) { setPrecoFeedback('Falha ao buscar.', true); return; }
+    const data = await resp.json();
+    renderPrecoTable(data);
+  } catch {
+    setPrecoFeedback('Sem conexão.', true);
+  }
+}
+
+function renderPrecoTable(products) {
+  const tbody = document.getElementById('preco-tbody');
+  tbody.innerHTML = '';
+
+  if (!products.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Nenhum produto encontrado.</td></tr>';
+    return;
+  }
+
+  for (const p of products) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.cod_grup_sku || '—'}</td>
+      <td>${p.cod_grup_descricao || '—'}</td>
+      <td>
+        <input type="number" step="0.01" min="0" class="price-inline-input" data-id="${p.id}" value="${p.price != null ? p.price : ''}" placeholder="0.00" />
+      </td>
+      <td class="actions-cell">
+        <button class="btn-icon" data-price-save="${p.id}" title="Salvar preço">💾</button>
+        <button class="btn-icon" data-price-history="${p.id}" data-label="${p.cod_grup_sku}" title="Histórico de preços">📜</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+async function saveInlinePrice(id, inputEl) {
+  const token = getToken();
+  if (!token) return;
+  const newPrice = parseFloat(inputEl.value);
+  if (isNaN(newPrice) || newPrice < 0) { setPrecoFeedback('Preço inválido.', true); return; }
+
+  try {
+    const resp = await fetch(`${API_PRODUCTS}/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ price: newPrice }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      setPrecoFeedback(err.detail || 'Falha ao salvar preço.', true);
+      return;
+    }
+    setPrecoFeedback('Preço atualizado com sucesso.');
+    await loadProducts();
+  } catch {
+    setPrecoFeedback('Sem conexão.', true);
+  }
+}
+
+async function showPriceHistory(id, label) {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const resp = await fetch(`${API_PRODUCTS}/${id}/history`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) { setPrecoFeedback('Falha ao carregar histórico.', true); return; }
+    const items = await resp.json();
+
+    const panel = document.getElementById('price-history-panel');
+    const list = document.getElementById('price-history-list');
+    document.getElementById('price-history-label').textContent = `Produto: ${label || id}`;
+
+    const priceItems = items.filter(h => h.field_name === 'price');
+    list.innerHTML = '';
+    if (!priceItems.length) {
+      list.innerHTML = '<li><span>Nenhuma alteração de preço registrada.</span></li>';
+    } else {
+      for (const h of priceItems) {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${formatPrice(h.old_value)} → ${formatPrice(h.new_value)} <small>(por ${h.changed_by || '?'} em ${formatDate(h.changed_at)})</small></span>`;
+        list.appendChild(li);
+      }
+    }
+    panel.style.display = 'block';
+    panel.scrollIntoView({ behavior: 'smooth' });
+  } catch {
+    setPrecoFeedback('Sem conexão.', true);
+  }
+}
+
+function bindPrecoEvents() {
+  const btnSearch = document.getElementById('btn-preco-search');
+  const searchInput = document.getElementById('preco-search');
+  const tbody = document.getElementById('preco-tbody');
+  const btnCloseHistory = document.getElementById('btn-close-price-history');
+
+  if (!btnSearch) return;
+
+  btnSearch.addEventListener('click', () => searchPrecoProducts());
+  searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchPrecoProducts(); } });
+
+  tbody.addEventListener('click', (e) => {
+    const saveBtn = e.target.closest('[data-price-save]');
+    if (saveBtn) {
+      const id = saveBtn.dataset.priceSave;
+      const input = tbody.querySelector(`input[data-id="${id}"]`);
+      if (input) saveInlinePrice(id, input);
+      return;
+    }
+    const histBtn = e.target.closest('[data-price-history]');
+    if (histBtn) {
+      showPriceHistory(histBtn.dataset.priceHistory, histBtn.dataset.label);
+    }
+  });
+
+  if (btnCloseHistory) {
+    btnCloseHistory.addEventListener('click', () => {
+      document.getElementById('price-history-panel').style.display = 'none';
+    });
+  }
+}
+
+// ── Modulos extras (offline-first local storage) ────────────────
+const EXTRA_MODULES = [
+  { key: 'recount',      storageKey: 'estoque_recount_v1',      label: 'Recontagem' },
+  { key: 'pull',         storageKey: 'estoque_pull_v1',         label: 'Puxada' },
+  { key: 'return',       storageKey: 'estoque_return_v1',       label: 'Devolucao' },
+  { key: 'break',        storageKey: 'estoque_break_v1',        label: 'Quebra' },
+  { key: 'direct-sale',  storageKey: 'estoque_directsale_v1',   label: 'Venda Direta' },
+];
+
+function loadModuleEvents(storageKey) {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function saveModuleEvents(storageKey, events) {
+  localStorage.setItem(storageKey, JSON.stringify(events));
+}
+
+function renderModuleList(mod) {
+  const list = document.getElementById(`${mod.key}-list`);
+  const total = document.getElementById(`${mod.key}-total`);
+  if (!list) return;
+
+  const events = loadModuleEvents(mod.storageKey);
+  const totals = new Map();
+  for (const e of events) {
+    totals.set(e.item_code, (totals.get(e.item_code) || 0) + e.quantity);
+  }
+
+  list.innerHTML = '';
+  if (totals.size === 0) {
+    list.innerHTML = `<li><span>Nenhum registro de ${mod.label.toLowerCase()} ainda.</span><strong>0</strong></li>`;
+  } else {
+    for (const [code, qty] of [...totals.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${code}</span><strong>${qty}</strong>`;
+      list.appendChild(li);
+    }
+  }
+  if (total) total.textContent = `${totals.size} itens`;
+}
+
+function setModuleFeedback(moduleKey, message, isError = false) {
+  const el = document.getElementById(`${moduleKey}-feedback`);
+  if (!el) return;
+  el.textContent = message;
+  el.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+function bindExtraModules() {
+  for (const mod of EXTRA_MODULES) {
+    const form = document.getElementById(`${mod.key}-form`);
+    if (!form) continue;
+
+    renderModuleList(mod);
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const itemInput = form.querySelector('input[type="text"]');
+      const qtyInput = form.querySelector('input[type="number"]');
+      const itemCode = normalizeItemCode(itemInput.value);
+      const quantity = Number(qtyInput.value);
+
+      if (!itemCode) {
+        setModuleFeedback(mod.key, 'Informe o item para registrar.', true);
+        return;
+      }
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        setModuleFeedback(mod.key, 'Informe uma quantidade inteira maior que zero.', true);
+        return;
+      }
+
+      const events = loadModuleEvents(mod.storageKey);
+      events.push({
+        client_event_id: makeEventId(),
+        item_code: itemCode,
+        quantity,
+        observed_at: new Date().toISOString(),
+        device_name: getDeviceName(),
+        synced: false,
+      });
+      saveModuleEvents(mod.storageKey, events);
+      renderModuleList(mod);
+      setModuleFeedback(mod.key, `${mod.label} salva: ${itemCode} (+${quantity}).`);
+
+      itemInput.value = '';
+      qtyInput.value = '1';
+      itemInput.focus();
+    });
+  }
 }
 
 function bindModuleEvents() {
   moduleNav.addEventListener('click', (event) => {
     const btn = event.target.closest('.module-btn');
     if (!btn) return;
-
     const moduleKey = btn.dataset.module;
-    if (!canAccessModule(moduleKey)) {
-      return;
-    }
+    if (!canAccessModule(moduleKey)) return;
     setActiveModule(moduleKey);
   });
 
+  // Card grid clicks -> navega para sub-módulo
+  document.addEventListener('click', (event) => {
+    const card = event.target.closest('.module-card');
+    if (card) {
+      const subKey = card.dataset.sub;
+      if (subKey) {
+        setActiveSub(subKey);
+        history.pushState(null, '', `${APP_BASE_PATH}#${subKey}`);
+      }
+      return;
+    }
+
+    // Botão Voltar -> retorna ao grid do módulo-mãe
+    const backBtn = event.target.closest('.back-btn');
+    if (backBtn) {
+      const parentModule = backBtn.dataset.back;
+      showModuleHome(parentModule);
+      history.pushState(null, '', `${APP_BASE_PATH}#${parentModule}`);
+      return;
+    }
+  });
+
   window.addEventListener('hashchange', () => {
-    const moduleKey = window.location.hash.slice(1);
-    if (moduleKey && canAccessModule(moduleKey)) {
-      setActiveModule(moduleKey, false);
+    const hashKey = window.location.hash.slice(1);
+    if (hashKey && canAccessHash(hashKey)) {
+      setActiveModule(hashKey, false);
     }
   });
 }
@@ -666,13 +1503,24 @@ loginForm.addEventListener('submit', async (e) => {
   setLoading(true);
 
   try {
-    const resp = await fetch(API_LOGIN, {
+    const doLoginRequest = () => fetch(API_LOGIN, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ username, password }),
     });
 
+    let resp = await doLoginRequest();
+    if (resp.status === 503) {
+      loginError.textContent = 'Servidor iniciando. Tentando novamente...';
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      resp = await doLoginRequest();
+    }
+
     if (!resp.ok) {
+      if (resp.status === 503) {
+        loginError.textContent = 'Servidor temporariamente indisponível. Tente novamente em alguns segundos.';
+        return;
+      }
       const err = await resp.json().catch(() => ({}));
       loginError.textContent = err.detail || 'E-mail ou senha incorretos.';
       return;
@@ -715,9 +1563,14 @@ btnLogout.addEventListener('click', () => {
 
 // ── Inicialização ───────────────────────────────────────────────
 (function init() {
+  applyProductDefaultsToForms();
   bindCountEvents();
   bindProductEvents();
+  bindProductParamsEvents();
+  bindProdutosEvents();
+  bindPrecoEvents();
   bindModuleEvents();
+  bindExtraModules();
   const token = getToken();
   const user  = getUser();
 

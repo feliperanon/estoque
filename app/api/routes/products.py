@@ -1,6 +1,7 @@
 from io import BytesIO
 import re
 import unicodedata
+from datetime import timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from openpyxl import load_workbook
@@ -8,8 +9,8 @@ from sqlmodel import Session, select
 
 from app.api.deps import get_current_user, require_roles
 from app.db.session import get_session
-from app.models import Product, User
-from app.schemas.products import ProductCreate, ProductImportPayload, ProductRead
+from app.models import Product, ProductHistory, User
+from app.schemas.products import ProductCreate, ProductHistoryRead, ProductImportPayload, ProductRead, ProductUpdate
 from app.services.audit import log_change
 from app.services.imports import apply_common_source_fields
 
@@ -80,7 +81,18 @@ def list_products(
         statement = statement.where(
             Product.cod_grup_descricao.contains(q) | Product.cod_grup_sku.contains(q),
         )
-    return list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+
+    products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+
+    # Alguns registros legados podem ter datetime sem timezone;
+    # padroniza para UTC para evitar erro de serializacao em resposta.
+    for product in products:
+        for field_name in ("updated_at", "created_at", "imported_at"):
+            value = getattr(product, field_name, None)
+            if value is not None and getattr(value, "tzinfo", None) is None:
+                setattr(product, field_name, value.replace(tzinfo=timezone.utc))
+
+    return products
 
 
 @router.post("", response_model=ProductRead)
@@ -263,3 +275,112 @@ async def import_products_excel(
     )
     session.commit()
     return {"created": created, "updated": updated, "ignored": ignored, "failed": failed}
+
+
+def _record_history(session: Session, product_id: int, field: str, old_val, new_val, actor: str) -> None:
+    session.add(ProductHistory(
+        product_id=product_id,
+        field_name=field,
+        old_value=str(old_val) if old_val is not None else None,
+        new_value=str(new_val) if new_val is not None else None,
+        changed_by=actor,
+    ))
+
+
+@router.get("/{product_id}", response_model=ProductRead)
+def get_product(
+    product_id: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("administrativo", "admin")),
+) -> Product:
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Produto nao encontrado")
+    return product
+
+
+@router.put("/{product_id}", response_model=ProductRead)
+def update_product(
+    product_id: int,
+    payload: ProductUpdate,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_roles("administrativo", "admin")),
+) -> Product:
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Produto nao encontrado")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, new_value in update_data.items():
+        old_value = getattr(product, field, None)
+        if str(old_value) != str(new_value):
+            _record_history(session, product.id, field, old_value, new_value, user.username)
+            setattr(product, field, new_value)
+
+    from app.models.entities import utcnow
+    product.updated_at = utcnow()
+    session.add(product)
+    session.flush()
+    log_change(session, "products", product.id, "update", user.username, update_data)
+    session.commit()
+    session.refresh(product)
+    return product
+
+
+@router.patch("/{product_id}/toggle-status", response_model=ProductRead)
+def toggle_product_status(
+    product_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_roles("administrativo", "admin")),
+) -> Product:
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Produto nao encontrado")
+
+    old_status = product.status
+    new_status = "inativo" if (old_status or "").lower() != "inativo" else "ativo"
+    _record_history(session, product.id, "status", old_status, new_status, user.username)
+    product.status = new_status
+
+    from app.models.entities import utcnow
+    product.updated_at = utcnow()
+    session.add(product)
+    session.flush()
+    log_change(session, "products", product.id, "toggle_status", user.username, {"old": old_status, "new": new_status})
+    session.commit()
+    session.refresh(product)
+    return product
+
+
+@router.delete("/{product_id}")
+def delete_product(
+    product_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_roles("administrativo", "admin")),
+) -> dict:
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Produto nao encontrado")
+
+    log_change(session, "products", product.id, "delete", user.username, {"sku": product.cod_grup_sku})
+    session.delete(product)
+    session.commit()
+    return {"ok": True}
+
+
+@router.get("/{product_id}/history", response_model=list[ProductHistoryRead])
+def get_product_history(
+    product_id: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("administrativo", "admin")),
+) -> list[ProductHistory]:
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Produto nao encontrado")
+
+    rows = session.exec(
+        select(ProductHistory)
+        .where(ProductHistory.product_id == product_id)
+        .order_by(ProductHistory.changed_at.desc())
+    ).all()
+    return list(rows)
