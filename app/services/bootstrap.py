@@ -34,6 +34,7 @@ def ensure_database_ready() -> None:
         for table in SQLModel.metadata.tables.values():
             table.schema = None
         SQLModel.metadata.create_all(engine)
+        _ensure_users_compat_columns(is_sqlite=True)
         _ensure_products_compat_columns(is_sqlite=True)
         return
 
@@ -41,7 +42,27 @@ def ensure_database_ready() -> None:
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS legacy_snapshot"))
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS app_core"))
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
+    _ensure_users_compat_columns(is_sqlite=False)
     _ensure_products_compat_columns(is_sqlite=False)
+
+
+def _ensure_users_compat_columns(*, is_sqlite: bool) -> None:
+    inspector = inspect(engine)
+    table_schema = None if is_sqlite else "app_core"
+    if not inspector.has_table("users", schema=table_schema):
+        return
+    columns = {col["name"] for col in inspector.get_columns("users", schema=table_schema)}
+    with engine.begin() as connection:
+        if "full_name" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR(150)"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS full_name VARCHAR(150)"))
+        if "phone" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN phone VARCHAR(30)"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)"))
 
 
 def _ensure_products_compat_columns(*, is_sqlite: bool) -> None:

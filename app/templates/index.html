@@ -52,32 +52,6 @@
           </button>
         </form>
 
-        <hr style="margin: 18px 0; border: 0; border-top: 1px solid #e5e7eb;" />
-        <h3 style="margin: 0 0 10px; color: #244437;">Cadastrar novo usuário</h3>
-        <form id="register-form" autocomplete="off" novalidate>
-          <div class="field">
-            <label for="register-name">Nome</label>
-            <input id="register-name" type="text" required />
-          </div>
-          <div class="field">
-            <label for="register-email">E-mail</label>
-            <input id="register-email" type="email" required />
-          </div>
-          <div class="field">
-            <label for="register-phone">Telefone</label>
-            <input id="register-phone" type="text" />
-          </div>
-          <div class="field">
-            <label for="register-password">Senha</label>
-            <input id="register-password" type="password" required />
-          </div>
-          <div class="field">
-            <label for="register-pages">Páginas liberadas (separar por ;)</label>
-            <input id="register-pages" type="text" placeholder="contagem;count;cadastro-produto" />
-          </div>
-          <button type="submit">Cadastrar usuário</button>
-          <div class="field-feedback" id="register-feedback" aria-live="polite"></div>
-        </form>
       </div>
     </div>
 
@@ -549,6 +523,22 @@
             <h2>Categorias e subcategorias de acesso</h2>
             <p class="muted">Controle por perfil: cada modulo e submodulo tem papeis permitidos.</p>
             <ul id="access-matrix-list" class="list"></ul>
+          </section>
+          <section class="card" style="margin-top:16px;">
+            <h2>Cadastro de usuários (admin)</h2>
+            <form id="register-form" class="product-form" autocomplete="off" novalidate>
+              <div class="field"><label for="register-name">Nome</label><input id="register-name" type="text" required /></div>
+              <div class="field"><label for="register-email">E-mail</label><input id="register-email" type="email" required /></div>
+              <div class="field"><label for="register-phone">Telefone</label><input id="register-phone" type="text" /></div>
+              <div class="field"><label for="register-password">Senha</label><input id="register-password" type="password" required /></div>
+              <div class="field"><label for="register-pages">Páginas liberadas (separar por ;)</label><input id="register-pages" type="text" placeholder="contagem;cadastro;acesso" /></div>
+              <button type="submit">Cadastrar usuário</button>
+            </form>
+            <div class="field-feedback" id="register-feedback" aria-live="polite"></div>
+            <div class="card-head" style="margin-top:12px;">
+              <h3>Usuários cadastrados</h3>
+            </div>
+            <ul id="users-list" class="list"></ul>
           </section>
         </section>
       </main>

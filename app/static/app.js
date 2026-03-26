@@ -47,6 +47,7 @@ const loginForm     = document.getElementById('login-form');
 const loginError    = document.getElementById('login-error');
 const registerForm  = document.getElementById('register-form');
 const registerFeedback = document.getElementById('register-feedback');
+const usersList = document.getElementById('users-list');
 const btnLogin      = document.getElementById('btn-login');
 const btnSpinner    = document.getElementById('btn-spinner');
 const btnLogout     = document.getElementById('btn-logout');
@@ -377,6 +378,36 @@ function setRegisterFeedback(message, isError = false) {
   if (!registerFeedback) return;
   registerFeedback.textContent = message;
   registerFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+function renderUsersList(users) {
+  if (!usersList) return;
+  usersList.innerHTML = '';
+  if (!users.length) {
+    usersList.innerHTML = '<li><span>Nenhum usuário cadastrado.</span><strong>0</strong></li>';
+    return;
+  }
+  for (const user of users) {
+    const li = document.createElement('li');
+    li.innerHTML = `<span>${user.full_name || user.username} (${user.username})</span><strong>${user.role || 'conferente'}</strong>`;
+    usersList.appendChild(li);
+  }
+}
+
+async function loadUsersAdminList() {
+  if (!usersList || currentRole !== 'admin') return;
+  const token = getToken();
+  if (!token) return;
+  try {
+    const resp = await apiFetch('/users', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) return;
+    const users = await resp.json();
+    renderUsersList(Array.isArray(users) ? users : []);
+  } catch {
+    // silencia para nao quebrar UX
+  }
 }
 
 function renderCountProducts(products) {
@@ -1784,6 +1815,10 @@ loginForm.addEventListener('submit', async (e) => {
 if (registerForm) {
   registerForm.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (currentRole !== 'admin') {
+      setRegisterFeedback('Apenas admin pode cadastrar usuários.', true);
+      return;
+    }
     setRegisterFeedback('');
     const name = document.getElementById('register-name')?.value.trim() || '';
     const email = document.getElementById('register-email')?.value.trim() || '';
@@ -1819,6 +1854,7 @@ if (registerForm) {
       }
       setRegisterFeedback('Usuário cadastrado com sucesso. Faça login com o novo e-mail/senha.');
       registerForm.reset();
+      await loadUsersAdminList();
     } catch {
       setRegisterFeedback('Erro de conexão ao cadastrar usuário.', true);
     }
@@ -1848,6 +1884,7 @@ function initDashboard(user) {
   loadCountProducts();
   syncPendingEvents();
   loadProducts();
+  loadUsersAdminList();
   showDashboard();
 }
 

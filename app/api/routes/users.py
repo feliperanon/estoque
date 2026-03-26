@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_roles
 from app.core.security import get_password_hash
 from app.db.session import get_session
 from app.models import User
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.get("", response_model=list[UserRead])
 def list_users(
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles("admin")),
 ) -> list[User]:
     return list(session.exec(select(User).order_by(User.username)).all())
 
@@ -24,7 +24,7 @@ def list_users(
 def create_user(
     payload: UserCreate,
     session: Session = Depends(get_session),
-    actor: User = Depends(get_current_user),
+    actor: User = Depends(require_roles("admin")),
 ) -> User:
     user = User(
         username=payload.username,
