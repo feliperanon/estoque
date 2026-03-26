@@ -39,12 +39,14 @@ def authenticate_with_legacy(username: str, password: str) -> dict | None:
             if login_resp.status_code not in (200, 302, 303):
                 return None
 
-            users_resp = client.get(f"{base_url}/admin/users")
-            if users_resp.status_code not in (200, 302, 303):
+            # Nao use rota administrativa para validar login: usuarios comuns
+            # podem autenticar com sucesso e ainda assim nao ter permissao em /admin/users.
+            probe_resp = client.get(f"{base_url}/", follow_redirects=False)
+            if probe_resp.status_code not in (200, 302, 303):
                 return None
 
-            # Se o legado redirecionou de volta para /login, a sessão não foi criada.
-            redirected_to = users_resp.headers.get("location", "")
+            # Se redirecionar para /login, sessao nao foi criada.
+            redirected_to = probe_resp.headers.get("location", "")
             if "/login" in redirected_to:
                 return None
 
