@@ -414,6 +414,7 @@ function renderCountProducts(products) {
   if (!countProductsList || !countProductsTotal) return;
   countProductsList.innerHTML = '';
   countProductsTotal.textContent = `${products.length}`;
+  const totalsByItem = new Map(computeTotals(loadCountEvents()).map((row) => [row.itemCode, row.qty]));
 
   if (!products.length) {
     countProductsList.innerHTML = '<li><span>Nenhum produto encontrado para o filtro atual.</span><strong>0</strong></li>';
@@ -423,15 +424,75 @@ function renderCountProducts(products) {
   for (const product of products) {
     const li = document.createElement('li');
     li.className = 'count-product-item';
-    const statusLabel = (product.status || 'ativo').toLowerCase() === 'inativo' ? 'Inativo' : 'Ativo';
-    li.innerHTML = `<span>${product.cod_grup_sku || '—'} - ${product.cod_grup_descricao || 'Sem descrição'} (${product.cod_grup_marca || 'Sem marca'})</span><strong>${statusLabel}</strong>`;
-    li.addEventListener('click', () => {
+    const itemCode = normalizeItemCode(product.cod_produto || product.cod_grup_sku || product.cod_grup_descricao || '');
+    const itemTotal = itemCode ? (totalsByItem.get(itemCode) || 0) : 0;
+    const label = document.createElement('span');
+    label.className = 'count-product-label';
+    label.textContent = `${product.cod_produto || '—'} - ${product.cod_grup_descricao || 'Sem descricao'} (${product.cod_grup_marca || 'Sem marca'})`;
+
+    const controls = document.createElement('div');
+    controls.className = 'count-product-controls';
+
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.min = '1';
+    qtyInput.step = '1';
+    qtyInput.value = '1';
+    qtyInput.className = 'count-product-qty';
+    qtyInput.setAttribute('aria-label', `Quantidade para ${itemCode || 'item sem codigo'}`);
+
+    const minusBtn = document.createElement('button');
+    minusBtn.type = 'button';
+    minusBtn.className = 'btn-count-adjust btn-minus';
+    minusBtn.textContent = '-';
+    minusBtn.setAttribute('aria-label', `Diminuir ${itemCode || 'item'}`);
+
+    const plusBtn = document.createElement('button');
+    plusBtn.type = 'button';
+    plusBtn.className = 'btn-count-adjust btn-plus';
+    plusBtn.textContent = '+';
+    plusBtn.setAttribute('aria-label', `Aumentar ${itemCode || 'item'}`);
+
+    const totalEl = document.createElement('strong');
+    totalEl.className = 'count-product-total';
+    totalEl.textContent = `${itemTotal}`;
+
+    const hasCode = Boolean(itemCode);
+    if (!hasCode) {
+      qtyInput.disabled = true;
+      minusBtn.disabled = true;
+      plusBtn.disabled = true;
+    }
+
+    const applyDelta = (deltaSign) => {
+      if (!hasCode) return;
+      const qtyBase = Number(qtyInput.value);
+      if (!Number.isInteger(qtyBase) || qtyBase <= 0) {
+        setFeedback('Informe uma quantidade inteira maior que zero.', true);
+        return;
+      }
+      const delta = deltaSign * qtyBase;
+      registerCountDelta(itemCode, delta);
+      const updatedTotals = new Map(computeTotals(loadCountEvents()).map((row) => [row.itemCode, row.qty]));
+      totalEl.textContent = `${updatedTotals.get(itemCode) || 0}`;
+    };
+
+    label.addEventListener('click', () => {
       const itemInput = document.getElementById('item-code');
       if (!itemInput) return;
-      itemInput.value = product.cod_grup_sku || product.cod_grup_descricao || '';
+      itemInput.value = itemCode;
       document.getElementById('item-qty')?.focus();
-      setFeedback(`Produto selecionado: ${product.cod_grup_sku || product.cod_grup_descricao}`);
+      setFeedback(`Produto selecionado: ${itemCode}`);
     });
+    plusBtn.addEventListener('click', () => applyDelta(1));
+    minusBtn.addEventListener('click', () => applyDelta(-1));
+
+    controls.appendChild(minusBtn);
+    controls.appendChild(qtyInput);
+    controls.appendChild(plusBtn);
+    controls.appendChild(totalEl);
+    li.appendChild(label);
+    li.appendChild(controls);
     countProductsList.appendChild(li);
   }
 }
@@ -591,16 +652,20 @@ async function syncPendingEvents() {
 }
 
 function registerCount(itemCodeInput, qtyInput) {
+  registerCountDelta(itemCodeInput, Number(qtyInput));
+}
+
+function registerCountDelta(itemCodeInput, qtyDeltaInput) {
   const itemCode = normalizeItemCode(itemCodeInput);
-  const quantity = Number(qtyInput);
+  const quantity = Number(qtyDeltaInput);
 
   if (!itemCode) {
     setFeedback('Informe o item para registrar.', true);
     return;
   }
 
-  if (!Number.isInteger(quantity) || quantity <= 0) {
-    setFeedback('Informe uma quantidade inteira maior que zero.', true);
+  if (!Number.isInteger(quantity) || quantity === 0) {
+    setFeedback('Informe uma quantidade inteira diferente de zero.', true);
     return;
   }
 
@@ -617,7 +682,8 @@ function registerCount(itemCodeInput, qtyInput) {
   events.push(event);
   saveCountEvents(events);
   renderCounts();
-  setFeedback(`Contagem salva no dispositivo: ${itemCode} (+${quantity}).`);
+  const signal = quantity > 0 ? '+' : '';
+  setFeedback(`Contagem salva no dispositivo: ${itemCode} (${signal}${quantity}).`);
 
   if (navigator.onLine) {
     syncPendingEvents();
@@ -652,7 +718,7 @@ async function importBackup(file) {
     for (const event of incoming) {
       if (!event || typeof event !== 'object') continue;
       if (!event.client_event_id || knownIds.has(event.client_event_id)) continue;
-      if (!event.item_code || !Number.isInteger(event.quantity) || event.quantity <= 0) continue;
+      if (!event.item_code || !Number.isInteger(event.quantity) || event.quantity === 0) continue;
       merged.push({
         client_event_id: String(event.client_event_id),
         item_code: normalizeItemCode(String(event.item_code)),
