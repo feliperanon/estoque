@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
@@ -50,33 +51,24 @@ def _ensure_default_admin_on_login(session: Session, username: str, password: st
     if normalized_username != DEFAULT_ADMIN_USERNAME or password != DEFAULT_ADMIN_PASSWORD:
         return None
 
-    existing = session.exec(select(User).where(User.username == DEFAULT_ADMIN_USERNAME)).first()
-    if existing:
-        existing.password_hash = get_password_hash(DEFAULT_ADMIN_PASSWORD)
-        existing.role = "admin"
-        existing.is_active = True
-        existing.allowed_pages = DEFAULT_ADMIN_ALLOWED_PAGES
-        if not existing.full_name:
-            existing.full_name = "Felipe Ranon"
-        session.add(existing)
-        session.commit()
-        session.refresh(existing)
-        return existing
-
-    user = User(
-        username=DEFAULT_ADMIN_USERNAME,
-        full_name="Felipe Ranon",
-        phone="",
-        password_hash=get_password_hash(DEFAULT_ADMIN_PASSWORD),
-        role="admin",
-        is_active=True,
-        allowed_pages=DEFAULT_ADMIN_ALLOWED_PAGES,
-        source_system="bootstrap",
+    password_hash = get_password_hash(DEFAULT_ADMIN_PASSWORD)
+    session.exec(
+        text(
+            """
+            INSERT INTO app_core.users (username, password_hash, role, is_active, source_system, updated_at)
+            VALUES (:username, :password_hash, 'admin', true, 'bootstrap', NOW())
+            ON CONFLICT (username)
+            DO UPDATE
+            SET password_hash = EXCLUDED.password_hash,
+                role = 'admin',
+                is_active = true,
+                updated_at = NOW()
+            """
+        ),
+        {"username": DEFAULT_ADMIN_USERNAME, "password_hash": password_hash},
     )
-    session.add(user)
     session.commit()
-    session.refresh(user)
-    return user
+    return session.exec(select(User).where(User.username == DEFAULT_ADMIN_USERNAME)).first()
 
 
 @router.post("/login", response_model=Token)
