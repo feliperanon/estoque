@@ -7,8 +7,8 @@
 
 const RENDER_API_ORIGIN = 'https://estoque-app-hrt2.onrender.com';
 const IS_LOCAL_WEB = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-const API_BASE_URL_PRIMARY = IS_LOCAL_WEB ? `${RENDER_API_ORIGIN}/api` : '/api';
-const API_BASE_URL_FALLBACK = IS_LOCAL_WEB ? '/api' : null;
+const API_BASE_URL_PRIMARY = IS_LOCAL_WEB ? `${window.location.origin}/api` : '/api';
+const API_BASE_URL_FALLBACK = IS_LOCAL_WEB ? `${RENDER_API_ORIGIN}/api` : null;
 const API_LOGIN  = '/auth/login-legacy';
 const API_LOGIN_LOCAL = '/auth/login';
 const API_SYNC_COUNTS = '/audit/count-events';
