@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
@@ -33,6 +35,8 @@ def _normalize_allowed_pages(raw_allowed_pages) -> list[str] | None:
 
 def _sanitize_user_for_response(user: User) -> User:
     user.allowed_pages = _normalize_allowed_pages(user.allowed_pages)
+    if getattr(user, "updated_at", None) is None:
+        user.updated_at = datetime.now(timezone.utc)
     return user
 
 
