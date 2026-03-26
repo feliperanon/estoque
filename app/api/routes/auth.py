@@ -122,11 +122,16 @@ def login_legacy(
                 session.refresh(user_model)
             except SQLAlchemyError:
                 session.rollback()
-                logger.exception("Falha ao criar usuario legado local")
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Falha temporaria ao criar usuario. Tente novamente.",
-                )
+                # Corrida de concorrencia: outro request pode ter criado o mesmo usuario.
+                fallback_user = session.exec(select(User).where(User.username == username)).first()
+                if fallback_user:
+                    user_model = fallback_user
+                else:
+                    logger.exception("Falha ao criar usuario legado local")
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail="Falha temporaria ao criar usuario. Tente novamente.",
+                    )
     except HTTPException:
         raise
     except SQLAlchemyError:

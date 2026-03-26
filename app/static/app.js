@@ -5,11 +5,15 @@
  * Inclui modo de contagem offline-first com sincronizacao posterior.
  */
 
-const API_LOGIN  = '/api/auth/login-legacy';
-const API_LOGIN_LOCAL = '/api/auth/login';
-const API_SYNC_COUNTS = '/api/audit/count-events';
-const API_PRODUCTS = '/api/products';
-const API_PRODUCTS_IMPORT_EXCEL = '/api/products/import-excel';
+const RENDER_API_ORIGIN = 'https://estoque-app-hrt2.onrender.com';
+const API_BASE_URL = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
+  ? `${RENDER_API_ORIGIN}/api`
+  : '/api';
+const API_LOGIN  = `${API_BASE_URL}/auth/login-legacy`;
+const API_LOGIN_LOCAL = `${API_BASE_URL}/auth/login`;
+const API_SYNC_COUNTS = `${API_BASE_URL}/audit/count-events`;
+const API_PRODUCTS = `${API_BASE_URL}/products`;
+const API_PRODUCTS_IMPORT_EXCEL = `${API_BASE_URL}/products/import-excel`;
 const APP_BASE_PATH = '/app';
 const TOKEN_KEY  = 'estoque_token';
 const USER_KEY   = 'estoque_user';
