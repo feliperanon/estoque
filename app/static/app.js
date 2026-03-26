@@ -497,6 +497,23 @@ function renderCountProducts(products) {
   }
 }
 
+function filterCountProductsByTerm(term) {
+  const normalized = (term || '').trim().toLowerCase();
+  if (!normalized) return countProductsCache;
+  return countProductsCache.filter((product) => {
+    const sku = (product.cod_grup_sku || '').toLowerCase();
+    const descricao = (product.cod_grup_descricao || '').toLowerCase();
+    const marca = (product.cod_grup_marca || '').toLowerCase();
+    const codigo = (product.cod_produto || '').toLowerCase();
+    return (
+      sku.includes(normalized)
+      || descricao.includes(normalized)
+      || marca.includes(normalized)
+      || codigo.includes(normalized)
+    );
+  });
+}
+
 async function loadCountProducts() {
   if (!countProductsList) return;
   const token = getToken();
@@ -776,6 +793,14 @@ function bindCountEvents() {
   if (btnCountProductsSearch) {
     btnCountProductsSearch.addEventListener('click', () => {
       loadCountProducts();
+    });
+  }
+
+  const itemCodeInput = document.getElementById('item-code');
+  if (itemCodeInput) {
+    itemCodeInput.addEventListener('input', () => {
+      const filtered = filterCountProductsByTerm(itemCodeInput.value);
+      renderCountProducts(filtered);
     });
   }
 
