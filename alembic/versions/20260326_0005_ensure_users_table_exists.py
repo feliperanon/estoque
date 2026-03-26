@@ -1,14 +1,14 @@
-"""repair users table
+"""ensure users table exists
 
-Revision ID: 20260326_0004
-Revises: 20260326_0003
-Create Date: 2026-03-26 15:00:00
+Revision ID: 20260326_0005
+Revises: 20260326_0004
+Create Date: 2026-03-26 22:30:00
 """
 
 from alembic import op
 
-revision = "20260326_0004"
-down_revision = "20260326_0003"
+revision = "20260326_0005"
+down_revision = "20260326_0004"
 branch_labels = None
 depends_on = None
 
@@ -75,6 +75,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP INDEX IF EXISTS app_core.ix_app_core_users_legacy_id")
-    op.execute("DROP INDEX IF EXISTS app_core.ix_app_core_users_username")
-    op.execute("DROP TABLE IF EXISTS app_core.users")
+    # Safe downgrade: keep users table to avoid data loss.
+    pass
