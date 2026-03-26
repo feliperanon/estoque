@@ -253,6 +253,16 @@ function clearSession() {
   localStorage.removeItem(USER_KEY);
 }
 
+function handleUnauthorizedResponse(response) {
+  if (response.status !== 401) return false;
+  clearSession();
+  loginForm.reset();
+  history.replaceState(null, '', APP_BASE_PATH);
+  loginError.textContent = 'Sessao expirada neste ambiente. Faca login novamente.';
+  showLogin();
+  return true;
+}
+
 function loadCountEvents() {
   try {
     const raw = localStorage.getItem(COUNT_EVENTS_KEY);
@@ -748,6 +758,9 @@ async function loadProducts() {
         Authorization: `Bearer ${token}`,
       },
     });
+    if (handleUnauthorizedResponse(response)) {
+      return;
+    }
     if (!response.ok) {
       setProductFeedback('Nao foi possivel carregar os produtos.', true);
       return;
@@ -786,6 +799,9 @@ async function saveProductManual() {
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
+    if (handleUnauthorizedResponse(response)) {
+      return;
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -970,6 +986,7 @@ async function searchProdutos() {
   try {
     const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=300` : `${API_PRODUCTS}?limit=300`;
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao buscar produtos.', true); return; }
     const data = await resp.json();
     renderProdutosTable(data);
@@ -1015,6 +1032,7 @@ async function openEditProduct(id) {
 
   try {
     const resp = await fetch(`${API_PRODUCTS}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Produto não encontrado.', true); return; }
     const p = await resp.json();
 
@@ -1070,6 +1088,9 @@ async function updateProduct() {
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
+    if (handleUnauthorizedResponse(resp)) {
+      return;
+    }
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       setEditFeedback(err.detail || 'Falha ao atualizar produto.', true);
@@ -1093,6 +1114,7 @@ async function toggleProductStatus(id) {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}` },
     });
+    if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao alternar status.', true); return; }
     const data = await resp.json();
     setProdutosFeedback(`Status alterado para: ${data.status}`);
@@ -1113,6 +1135,7 @@ async function deleteProduct(id) {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
+    if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao excluir.', true); return; }
     setProdutosFeedback('Produto excluído.');
     await searchProdutos();
@@ -1128,6 +1151,7 @@ async function showProductHistory(id, label) {
 
   try {
     const resp = await fetch(`${API_PRODUCTS}/${id}/history`, { headers: { Authorization: `Bearer ${token}` } });
+    if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao carregar histórico.', true); return; }
     const items = await resp.json();
 
@@ -1219,6 +1243,7 @@ async function searchPrecoProducts() {
   try {
     const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=300` : `${API_PRODUCTS}?limit=300`;
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setPrecoFeedback('Falha ao buscar.', true); return; }
     const data = await resp.json();
     renderPrecoTable(data);
@@ -1265,6 +1290,7 @@ async function saveInlinePrice(id, inputEl) {
       headers: getAuthHeaders(),
       body: JSON.stringify({ price: newPrice }),
     });
+    if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       setPrecoFeedback(err.detail || 'Falha ao salvar preço.', true);
@@ -1283,6 +1309,7 @@ async function showPriceHistory(id, label) {
 
   try {
     const resp = await fetch(`${API_PRODUCTS}/${id}/history`, { headers: { Authorization: `Bearer ${token}` } });
+    if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setPrecoFeedback('Falha ao carregar histórico.', true); return; }
     const items = await resp.json();
 
