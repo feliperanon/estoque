@@ -6,20 +6,36 @@
  */
 
 const RENDER_API_ORIGIN = 'https://estoque-app-hrt2.onrender.com';
-const API_BASE_URL = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
-  ? `${RENDER_API_ORIGIN}/api`
-  : '/api';
-const API_LOGIN  = `${API_BASE_URL}/auth/login-legacy`;
-const API_LOGIN_LOCAL = `${API_BASE_URL}/auth/login`;
-const API_SYNC_COUNTS = `${API_BASE_URL}/audit/count-events`;
-const API_PRODUCTS = `${API_BASE_URL}/products`;
-const API_PRODUCTS_CATALOG = `${API_BASE_URL}/products/catalog`;
-const API_PRODUCTS_IMPORT_EXCEL = `${API_BASE_URL}/products/import-excel`;
+const IS_LOCAL_WEB = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+const API_BASE_URL_PRIMARY = IS_LOCAL_WEB ? `${RENDER_API_ORIGIN}/api` : '/api';
+const API_BASE_URL_FALLBACK = IS_LOCAL_WEB ? '/api' : null;
+const API_LOGIN  = '/auth/login-legacy';
+const API_LOGIN_LOCAL = '/auth/login';
+const API_SYNC_COUNTS = '/audit/count-events';
+const API_PRODUCTS = '/products';
+const API_PRODUCTS_CATALOG = '/products/catalog';
+const API_PRODUCTS_IMPORT_EXCEL = '/products/import-excel';
 const APP_BASE_PATH = '/app';
 const TOKEN_KEY  = 'estoque_token';
 const USER_KEY   = 'estoque_user';
 const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
 const DEVICE_NAME_KEY = 'estoque_device_name_v1';
+
+async function apiFetch(path, options = {}) {
+  try {
+    const primaryResponse = await fetch(`${API_BASE_URL_PRIMARY}${path}`, options);
+    if (
+      API_BASE_URL_FALLBACK
+      && [502, 503, 504].includes(primaryResponse.status)
+    ) {
+      return fetch(`${API_BASE_URL_FALLBACK}${path}`, options);
+    }
+    return primaryResponse;
+  } catch (error) {
+    if (!API_BASE_URL_FALLBACK) throw error;
+    return fetch(`${API_BASE_URL_FALLBACK}${path}`, options);
+  }
+}
 
 // ── Elementos ──────────────────────────────────────────────────
 const viewLogin     = document.getElementById('view-login');
@@ -366,7 +382,7 @@ async function loadCountProducts() {
   if (q) params.set('q', q);
 
   try {
-    const resp = await fetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
+    const resp = await apiFetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!resp.ok) {
@@ -461,7 +477,7 @@ async function syncPendingEvents() {
   btnSync.disabled = true;
 
   try {
-    const response = await fetch(API_SYNC_COUNTS, {
+    const response = await apiFetch(API_SYNC_COUNTS, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -854,7 +870,7 @@ async function loadProducts() {
   if (!token) return;
 
   try {
-    const response = await fetch(`${API_PRODUCTS}?limit=300`, {
+    const response = await apiFetch(`${API_PRODUCTS}?limit=300`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -895,7 +911,7 @@ async function saveProductManual() {
   }
 
   try {
-    const response = await fetch(API_PRODUCTS, {
+    const response = await apiFetch(API_PRODUCTS, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -991,7 +1007,7 @@ async function uploadProductsExcel() {
   formData.append('file', selectedProductFile);
 
   try {
-    const response = await fetch(API_PRODUCTS_IMPORT_EXCEL, {
+    const response = await apiFetch(API_PRODUCTS_IMPORT_EXCEL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1100,7 +1116,7 @@ async function searchProdutos() {
 
   try {
     const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=300` : `${API_PRODUCTS}?limit=300`;
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const resp = await apiFetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao buscar produtos.', true); return; }
     const data = await resp.json();
@@ -1147,7 +1163,7 @@ async function openEditProduct(id) {
   if (!token) return;
 
   try {
-    const resp = await fetch(`${API_PRODUCTS}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    const resp = await apiFetch(`${API_PRODUCTS}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Produto não encontrado.', true); return; }
     const p = await resp.json();
@@ -1201,7 +1217,7 @@ async function updateProduct() {
   }
 
   try {
-    const resp = await fetch(`${API_PRODUCTS}/${id}`, {
+    const resp = await apiFetch(`${API_PRODUCTS}/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -1228,7 +1244,7 @@ async function toggleProductStatus(id) {
   if (!token) return;
 
   try {
-    const resp = await fetch(`${API_PRODUCTS}/${id}/toggle-status`, {
+    const resp = await apiFetch(`${API_PRODUCTS}/${id}/toggle-status`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -1249,7 +1265,7 @@ async function deleteProduct(id) {
   if (!token) return;
 
   try {
-    const resp = await fetch(`${API_PRODUCTS}/${id}`, {
+    const resp = await apiFetch(`${API_PRODUCTS}/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -1268,7 +1284,7 @@ async function showProductHistory(id, label) {
   if (!token) return;
 
   try {
-    const resp = await fetch(`${API_PRODUCTS}/${id}/history`, { headers: { Authorization: `Bearer ${token}` } });
+    const resp = await apiFetch(`${API_PRODUCTS}/${id}/history`, { headers: { Authorization: `Bearer ${token}` } });
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao carregar histórico.', true); return; }
     const items = await resp.json();
@@ -1360,7 +1376,7 @@ async function searchPrecoProducts() {
 
   try {
     const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=300` : `${API_PRODUCTS}?limit=300`;
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const resp = await apiFetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setPrecoFeedback('Falha ao buscar.', true); return; }
     const data = await resp.json();
@@ -1403,7 +1419,7 @@ async function saveInlinePrice(id, inputEl) {
   if (isNaN(newPrice) || newPrice < 0) { setPrecoFeedback('Preço inválido.', true); return; }
 
   try {
-    const resp = await fetch(`${API_PRODUCTS}/${id}`, {
+    const resp = await apiFetch(`${API_PRODUCTS}/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify({ price: newPrice }),
@@ -1426,7 +1442,7 @@ async function showPriceHistory(id, label) {
   if (!token) return;
 
   try {
-    const resp = await fetch(`${API_PRODUCTS}/${id}/history`, { headers: { Authorization: `Bearer ${token}` } });
+    const resp = await apiFetch(`${API_PRODUCTS}/${id}/history`, { headers: { Authorization: `Bearer ${token}` } });
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setPrecoFeedback('Falha ao carregar histórico.', true); return; }
     const items = await resp.json();
@@ -1629,7 +1645,7 @@ function setLoading(on) {
 
 async function resolveLocalUserInfo(token, username) {
   try {
-    const resp = await fetch('/api/users', {
+    const resp = await apiFetch('/users', {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!resp.ok) throw new Error('users lookup failed');
@@ -1678,12 +1694,12 @@ loginForm.addEventListener('submit', async (e) => {
   setLoading(true);
 
   try {
-    const doLegacyLoginRequest = () => fetch(API_LOGIN, {
+    const doLegacyLoginRequest = () => apiFetch(API_LOGIN, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ username, password }),
     });
-    const doLocalLoginRequest = () => fetch(API_LOGIN_LOCAL, {
+    const doLocalLoginRequest = () => apiFetch(API_LOGIN_LOCAL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
