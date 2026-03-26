@@ -5,7 +5,10 @@
  * Inclui modo de contagem offline-first com sincronizacao posterior.
  */
 
-const API_BASE_URL = '/api';
+const RENDER_API_ORIGIN = 'https://estoque-app-hrt2.onrender.com';
+const API_BASE_URL = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
+  ? `${RENDER_API_ORIGIN}/api`
+  : '/api';
 const API_LOGIN  = `${API_BASE_URL}/auth/login-legacy`;
 const API_LOGIN_LOCAL = `${API_BASE_URL}/auth/login`;
 const API_SYNC_COUNTS = `${API_BASE_URL}/audit/count-events`;
@@ -155,6 +158,8 @@ function setActiveSub(subKey) {
     searchProdutos();
   } else if (subKey === 'preco-produtos') {
     searchPrecoProducts();
+  } else if (subKey === 'count') {
+    loadCountProducts();
   }
 }
 
@@ -1063,6 +1068,20 @@ function setEditFeedback(msg, isError = false) {
   el.style.color = isError ? 'var(--error)' : 'var(--accent)';
 }
 
+function openProductEditPanel() {
+  const panel = document.getElementById('product-edit-panel');
+  if (!panel) return;
+  panel.style.display = 'block';
+  document.body.classList.add('modal-open');
+}
+
+function closeProductEditPanel() {
+  const panel = document.getElementById('product-edit-panel');
+  if (!panel) return;
+  panel.style.display = 'none';
+  document.body.classList.remove('modal-open');
+}
+
 function formatDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -1148,7 +1167,7 @@ async function openEditProduct(id) {
     fillSelect('edit-prioridade', defaults.grup_prioridade, p.grup_prioridade || '');
     document.getElementById('edit-price').value = p.price != null ? p.price : '';
 
-    document.getElementById('product-edit-panel').style.display = 'block';
+    openProductEditPanel();
     document.getElementById('product-history-inline').style.display = 'none';
     setEditFeedback('');
   } catch {
@@ -1196,7 +1215,7 @@ async function updateProduct() {
       return;
     }
     setEditFeedback('Produto atualizado com sucesso.');
-    document.getElementById('product-edit-panel').style.display = 'none';
+    closeProductEditPanel();
     await searchProdutos();
     await loadProducts();
   } catch {
@@ -1301,7 +1320,7 @@ function bindProdutosEvents() {
 
   if (btnCancelEdit) {
     btnCancelEdit.addEventListener('click', () => {
-      document.getElementById('product-edit-panel').style.display = 'none';
+      closeProductEditPanel();
     });
   }
 
