@@ -9,6 +9,7 @@ from app.core.security import create_access_token, get_password_hash, verify_pas
 from app.db.session import get_session
 from app.models import User
 from app.schemas.auth import LegacyLoginInput, LocalRegisterInput, Token, TokenWithUser, UserInfo
+from app.services.bootstrap import DEFAULT_ADMIN_ALLOWED_PAGES, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -42,6 +43,40 @@ def _to_user_info(user: User) -> UserInfo:
         role=user.role,
         allowed_pages=user.allowed_pages or [],
     )
+
+
+def _ensure_default_admin_on_login(session: Session, username: str, password: str) -> User | None:
+    normalized_username = (username or "").strip().lower()
+    if normalized_username != DEFAULT_ADMIN_USERNAME or password != DEFAULT_ADMIN_PASSWORD:
+        return None
+
+    existing = session.exec(select(User).where(User.username == DEFAULT_ADMIN_USERNAME)).first()
+    if existing:
+        existing.password_hash = get_password_hash(DEFAULT_ADMIN_PASSWORD)
+        existing.role = "admin"
+        existing.is_active = True
+        existing.allowed_pages = DEFAULT_ADMIN_ALLOWED_PAGES
+        if not existing.full_name:
+            existing.full_name = "Felipe Ranon"
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        return existing
+
+    user = User(
+        username=DEFAULT_ADMIN_USERNAME,
+        full_name="Felipe Ranon",
+        phone="",
+        password_hash=get_password_hash(DEFAULT_ADMIN_PASSWORD),
+        role="admin",
+        is_active=True,
+        allowed_pages=DEFAULT_ADMIN_ALLOWED_PAGES,
+        source_system="bootstrap",
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
 
 
 @router.post("/login", response_model=Token)
@@ -79,6 +114,13 @@ def login_legacy(
         session.rollback()
         logger.exception("Falha ao autenticar usuario local no login legado")
         local_user = None
+
+    if not local_user:
+        try:
+            local_user = _ensure_default_admin_on_login(session, normalized_username, body.password)
+        except SQLAlchemyError:
+            session.rollback()
+            local_user = None
 
     if not local_user:
         raise HTTPException(
