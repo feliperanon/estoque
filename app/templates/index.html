@@ -59,13 +59,57 @@
       <header class="topbar">
         <span class="topbar-title">{{ app_name }}</span>
         <div class="topbar-user">
+          <span id="net-status" class="net-status" aria-live="polite"></span>
           <span id="user-display" class="user-badge"></span>
           <button id="btn-logout" class="btn-secondary">Sair</button>
         </div>
       </header>
       <main class="dashboard-content">
-        <h2>Bem-vindo!</h2>
-        <p class="muted">O sistema está em construção. As funcionalidades serão adicionadas em breve.</p>
+        <section class="card">
+          <h2>Contagem de estoque offline</h2>
+          <p class="muted">
+            Esta tela salva cada contagem no dispositivo imediatamente. Se a internet cair,
+            os dados ficam locais e sao sincronizados quando a conexao voltar.
+          </p>
+
+          <form id="count-form" class="count-form" autocomplete="off">
+            <div class="field">
+              <label for="item-code">Item (codigo ou nome)</label>
+              <input id="item-code" name="item-code" type="text" placeholder="Ex.: CX-AGUA-510" required />
+            </div>
+            <div class="field">
+              <label for="item-qty">Quantidade contada</label>
+              <input id="item-qty" name="item-qty" type="number" min="1" step="1" value="1" required />
+            </div>
+            <button type="submit" id="btn-add-count">Registrar contagem</button>
+          </form>
+
+          <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
+        </section>
+
+        <section class="grid-two">
+          <article class="card">
+            <div class="card-head">
+              <h3>Totais por item</h3>
+              <span id="total-items" class="chip"></span>
+            </div>
+            <ul id="totals-list" class="list"></ul>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Eventos pendentes</h3>
+              <span id="pending-count" class="chip"></span>
+            </div>
+            <div class="actions-row">
+              <button id="btn-sync" class="btn-secondary btn-dark" type="button">Sincronizar agora</button>
+              <button id="btn-export" class="btn-secondary btn-dark" type="button">Exportar backup</button>
+              <label class="btn-secondary btn-dark file-btn" for="import-file">Importar backup</label>
+              <input id="import-file" type="file" accept="application/json" hidden />
+            </div>
+            <ul id="pending-list" class="list"></ul>
+          </article>
+        </section>
       </main>
     </div>
 
