@@ -151,17 +151,11 @@
 
           <!-- Sub: Contagem de Estoque -->
           <div id="sub-count" class="sub-section">
-            <button type="button" class="back-btn" data-back="contagem">← Voltar para central de operações</button>
             <section class="card">
               <div class="card-head">
                 <h2>Contagem de Estoque</h2>
-                <span class="chip">Modo rápido</span>
               </div>
-              <p class="muted">
-                Esta tela salva cada contagem no dispositivo imediatamente. Se a internet cair,
-                os dados ficam locais e sao sincronizados quando a conexao voltar.
-              </p>
-              <form id="count-form" class="count-form" autocomplete="off">
+              <form id="count-form" class="count-form count-form--inline" autocomplete="off">
                 <div class="field">
                   <label for="item-code">Item (codigo ou nome)</label>
                   <input id="item-code" name="item-code" type="text" placeholder="Ex.: CX-AGUA-510" required />
