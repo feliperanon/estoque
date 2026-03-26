@@ -8,6 +8,24 @@ from app.db.session import engine
 from app.models import *  # noqa: F401,F403
 from app.models import User
 
+DEFAULT_ADMIN_USERNAME = "feliperanon@live.com"
+DEFAULT_ADMIN_PASSWORD = "571232Ce!"
+DEFAULT_ADMIN_ALLOWED_PAGES = [
+    "contagem",
+    "count",
+    "recount",
+    "pull",
+    "return",
+    "break",
+    "direct-sale",
+    "cadastro",
+    "cadastro-produto",
+    "produtos",
+    "preco-produtos",
+    "parametros-produto",
+    "acesso",
+]
+
 
 def ensure_database_ready() -> None:
     settings = get_settings()
@@ -82,8 +100,8 @@ def _ensure_products_compat_columns(*, is_sqlite: bool) -> None:
 
 def ensure_admin_user(session: Session) -> bool:
     settings = get_settings()
-    if not settings.admin_username or not settings.admin_password:
-        return False
+    admin_username = settings.admin_username or DEFAULT_ADMIN_USERNAME
+    admin_password = settings.admin_password or DEFAULT_ADMIN_PASSWORD
 
     # Defensive guard for environments where migrations completed partially:
     # ensure the users table exists before querying it during startup.
@@ -98,15 +116,27 @@ def ensure_admin_user(session: Session) -> bool:
         if not inspector.has_table(User.__tablename__, schema="app_core"):
             return False
 
-    existing = session.exec(select(User).where(User.username == settings.admin_username)).first()
+    existing = session.exec(select(User).where(User.username == admin_username)).first()
     if existing:
+        if (existing.role or "").strip().lower() != "admin":
+            existing.role = "admin"
+        existing.allowed_pages = DEFAULT_ADMIN_ALLOWED_PAGES
+        if not existing.full_name:
+            existing.full_name = "Felipe Ranon"
+        if not existing.phone:
+            existing.phone = ""
+        session.add(existing)
+        session.commit()
         return False
 
     admin = User(
-        username=settings.admin_username,
-        password_hash=get_password_hash(settings.admin_password),
+        username=admin_username,
+        full_name="Felipe Ranon",
+        phone="",
+        password_hash=get_password_hash(admin_password),
         role="admin",
         is_active=True,
+        allowed_pages=DEFAULT_ADMIN_ALLOWED_PAGES,
         source_system="bootstrap",
     )
     session.add(admin)

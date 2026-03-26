@@ -15,7 +15,17 @@ class UserInfo(BaseModel):
     username: str
     name: str | None = None
     email: str | None = None
+    phone: str | None = None
     role: str | None = None
+    allowed_pages: list[str] | None = None
+
+
+class LocalRegisterInput(BaseModel):
+    name: str
+    email: str
+    phone: str | None = None
+    password: str
+    allowed_pages: list[str] | None = None
 
 
 class TokenWithUser(BaseModel):

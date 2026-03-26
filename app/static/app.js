@@ -11,6 +11,7 @@ const API_BASE_URL_PRIMARY = IS_LOCAL_WEB ? `${window.location.origin}/api` : '/
 const API_BASE_URL_FALLBACK = IS_LOCAL_WEB ? `${RENDER_API_ORIGIN}/api` : null;
 const API_LOGIN  = '/auth/login-legacy';
 const API_LOGIN_LOCAL = '/auth/login';
+const API_REGISTER = '/auth/register';
 const API_SYNC_COUNTS = '/audit/count-events';
 const API_PRODUCTS = '/products';
 const API_PRODUCTS_CATALOG = '/products/catalog';
@@ -44,6 +45,8 @@ const viewLogin     = document.getElementById('view-login');
 const viewDashboard = document.getElementById('view-dashboard');
 const loginForm     = document.getElementById('login-form');
 const loginError    = document.getElementById('login-error');
+const registerForm  = document.getElementById('register-form');
+const registerFeedback = document.getElementById('register-feedback');
 const btnLogin      = document.getElementById('btn-login');
 const btnSpinner    = document.getElementById('btn-spinner');
 const btnLogout     = document.getElementById('btn-logout');
@@ -78,6 +81,13 @@ let syncInProgress = false;
 let selectedProductFile = null;
 let currentRole = 'conferente';
 let countProductsCache = [];
+let currentAllowedPages = [];
+
+const PAGE_KEYS_BY_MODULE = {
+  contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale'],
+  cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'],
+  acesso: ['acesso'],
+};
 
 const MODULE_ACCESS = {
   contagem: ['conferente', 'administrativo', 'admin'],
@@ -159,6 +169,11 @@ function normalizeRole(role) {
 }
 
 function canAccessModule(moduleKey) {
+  if (currentRole === 'admin') return true;
+  if (currentAllowedPages.length) {
+    const allowedKeys = PAGE_KEYS_BY_MODULE[moduleKey] || [moduleKey];
+    return allowedKeys.some((key) => currentAllowedPages.includes(key));
+  }
   const allowed = MODULE_ACCESS[moduleKey] || [];
   return allowed.includes(currentRole);
 }
@@ -218,9 +233,22 @@ function setActiveModule(moduleKey, updateHistory = true) {
 }
 
 function canAccessHash(hashKey) {
+  if (currentRole === 'admin') return true;
+  if (currentAllowedPages.length) {
+    return currentAllowedPages.includes(hashKey);
+  }
   const parent = SUB_TO_PARENT[hashKey];
   if (parent) return canAccessModule(parent);
   return canAccessModule(hashKey);
+}
+
+function renderSubCardsAccess() {
+  document.querySelectorAll('.module-card').forEach((card) => {
+    const subKey = (card.dataset.sub || '').trim().toLowerCase();
+    if (!subKey) return;
+    const visible = canAccessHash(subKey);
+    card.style.display = visible ? 'flex' : 'none';
+  });
 }
 
 function getCurrentHashKey() {
@@ -343,6 +371,12 @@ function formatDateTime(isoValue) {
 function setFeedback(message, isError = false) {
   countFeedback.textContent = message;
   countFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+function setRegisterFeedback(message, isError = false) {
+  if (!registerFeedback) return;
+  registerFeedback.textContent = message;
+  registerFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
 }
 
 function renderCountProducts(products) {
@@ -1672,9 +1706,11 @@ async function resolveLocalUserInfo(token, username) {
     if (matched) {
       return {
         username: matched.username,
-        name: matched.username,
+        name: matched.full_name || matched.username,
         email: matched.username.includes('@') ? matched.username : null,
+        phone: matched.phone || null,
         role: matched.role || 'conferente',
+        allowed_pages: matched.allowed_pages || [],
       };
     }
   } catch {
@@ -1685,6 +1721,7 @@ async function resolveLocalUserInfo(token, username) {
     name: username,
     email: username.includes('@') ? username : null,
     role: 'conferente',
+    allowed_pages: ['contagem'],
   };
 }
 
@@ -1709,28 +1746,16 @@ loginForm.addEventListener('submit', async (e) => {
   setLoading(true);
 
   try {
-    const doLegacyLoginRequest = () => apiFetch(API_LOGIN, {
+    const doLoginRequest = () => apiFetch(API_LOGIN, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ username, password }),
     });
-    const doLocalLoginRequest = () => apiFetch(API_LOGIN_LOCAL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
-    });
-    const isLocalHost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-
-    let resp = isLocalHost ? await doLocalLoginRequest() : await doLegacyLoginRequest();
-    if (!resp.ok && isLocalHost) {
-      // Em ambiente local, tenta legado apenas se login local falhar.
-      resp = await doLegacyLoginRequest();
-    }
-    if (resp.status >= 500 && !isLocalHost) {
-      // Em producao, o acesso principal e sempre via legado.
+    let resp = await doLoginRequest();
+    if (resp.status >= 500) {
       loginError.textContent = 'Servidor de autenticacao temporariamente indisponivel. Tentando novamente...';
       await new Promise((resolve) => setTimeout(resolve, 2500));
-      resp = await doLegacyLoginRequest();
+      resp = await doLoginRequest();
     }
 
     if (!resp.ok) {
@@ -1756,11 +1781,58 @@ loginForm.addEventListener('submit', async (e) => {
   }
 });
 
+if (registerForm) {
+  registerForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    setRegisterFeedback('');
+    const name = document.getElementById('register-name')?.value.trim() || '';
+    const email = document.getElementById('register-email')?.value.trim() || '';
+    const phone = document.getElementById('register-phone')?.value.trim() || '';
+    const password = document.getElementById('register-password')?.value || '';
+    const pagesRaw = document.getElementById('register-pages')?.value || '';
+    const allowedPages = pagesRaw
+      .split(';')
+      .map((p) => p.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (!name || !email || !password) {
+      setRegisterFeedback('Preencha nome, e-mail e senha.', true);
+      return;
+    }
+
+    try {
+      const resp = await apiFetch(API_REGISTER, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          phone: phone || null,
+          password,
+          allowed_pages: allowedPages,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        setRegisterFeedback(err.detail || 'Falha ao cadastrar usuário.', true);
+        return;
+      }
+      setRegisterFeedback('Usuário cadastrado com sucesso. Faça login com o novo e-mail/senha.');
+      registerForm.reset();
+    } catch {
+      setRegisterFeedback('Erro de conexão ao cadastrar usuário.', true);
+    }
+  });
+}
+
 // ── Dashboard ───────────────────────────────────────────────────
 function initDashboard(user) {
   const label = user?.name || user?.email || user?.username || 'Usuário';
   userDisplay.textContent = label;
   currentRole = normalizeRole(user?.role || 'conferente') || 'conferente';
+  currentAllowedPages = Array.isArray(user?.allowed_pages)
+    ? user.allowed_pages.map((p) => String(p).trim().toLowerCase()).filter(Boolean)
+    : [];
   roleDisplay.textContent = `Perfil: ${currentRole}`;
 
   renderModuleNav();

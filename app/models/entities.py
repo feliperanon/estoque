@@ -47,6 +47,8 @@ class User(SourceTracked, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     username: str = Field(max_length=100, index=True, sa_type=String, unique=True)
+    full_name: str | None = Field(default=None, max_length=150)
+    phone: str | None = Field(default=None, max_length=30)
     password_hash: str = Field(max_length=255)
     role: str | None = Field(default=None, max_length=50)
     is_active: bool = Field(default=True)

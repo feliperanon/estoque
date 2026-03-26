@@ -28,6 +28,8 @@ def create_user(
 ) -> User:
     user = User(
         username=payload.username,
+        full_name=payload.full_name,
+        phone=payload.phone,
         password_hash=get_password_hash(payload.password),
         role=payload.role,
         is_active=payload.is_active,

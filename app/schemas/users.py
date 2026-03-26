@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 class UserBase(BaseModel):
     username: str
+    full_name: str | None = None
+    phone: str | None = None
     role: str | None = None
     is_active: bool = True
     employee_id: int | None = None
