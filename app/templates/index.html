@@ -163,18 +163,17 @@
                 <button type="submit" id="btn-add-count">Registrar contagem</button>
               </form>
               <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
-              <div class="card-head" style="margin-top:12px;">
+              <div class="card-head count-products-head">
                 <h3>Produtos para contagem</h3>
-                <span id="count-products-total" class="chip">0</span>
-              </div>
-              <div class="search-row">
-                <input id="count-products-search" type="text" placeholder="Buscar por descrição, marca ou SKU..." class="search-input" />
-                <select id="count-products-status" class="search-select">
-                  <option value="todos" selected>Todos</option>
-                  <option value="ativo">Ativo</option>
-                  <option value="inativo">Inativo</option>
-                </select>
-                <button id="btn-count-products-search" type="button" class="btn-secondary btn-dark">Buscar</button>
+                <div class="count-products-toolbar">
+                  <span id="count-products-total" class="chip">0</span>
+                  <label class="status-switch" for="count-products-status-toggle" title="Alternar entre ativos e inativos">
+                    <span class="status-switch-label">Ativo</span>
+                    <input id="count-products-status-toggle" type="checkbox" />
+                    <span class="status-switch-slider" aria-hidden="true"></span>
+                    <span class="status-switch-label">Inativo</span>
+                  </label>
+                </div>
               </div>
               <ul id="count-products-list" class="list"></ul>
             </section>

@@ -55,11 +55,9 @@ const userDisplay   = document.getElementById('user-display');
 const netStatus     = document.getElementById('net-status');
 const countForm     = document.getElementById('count-form');
 const countFeedback = document.getElementById('count-feedback');
-const countProductsSearch = document.getElementById('count-products-search');
-const countProductsStatus = document.getElementById('count-products-status');
+const countProductsStatusToggle = document.getElementById('count-products-status-toggle');
 const countProductsList = document.getElementById('count-products-list');
 const countProductsTotal = document.getElementById('count-products-total');
-const btnCountProductsSearch = document.getElementById('btn-count-products-search');
 const totalsList    = document.getElementById('totals-list');
 const totalItems    = document.getElementById('total-items');
 const pendingList   = document.getElementById('pending-list');
@@ -530,11 +528,11 @@ async function loadCountProducts() {
   const token = getToken();
   if (!token) return;
 
-  const q = (countProductsSearch?.value || '').trim();
-  const statusValue = (countProductsStatus?.value || 'todos').trim().toLowerCase();
+  const q = '';
+  const statusValue = countProductsStatusToggle?.checked ? 'inativo' : 'ativo';
   const params = new URLSearchParams();
   params.set('limit', '1000');
-  params.set('status', statusValue || 'todos');
+  params.set('status', statusValue);
   if (q) params.set('q', q);
 
   try {
@@ -799,12 +797,6 @@ function bindCountEvents() {
     });
   }
 
-  if (btnCountProductsSearch) {
-    btnCountProductsSearch.addEventListener('click', () => {
-      loadCountProducts();
-    });
-  }
-
   const itemCodeInput = document.getElementById('item-code');
   if (itemCodeInput) {
     itemCodeInput.addEventListener('input', () => {
@@ -813,16 +805,8 @@ function bindCountEvents() {
     });
   }
 
-  if (countProductsSearch) {
-    countProductsSearch.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      loadCountProducts();
-    });
-  }
-
-  if (countProductsStatus) {
-    countProductsStatus.addEventListener('change', () => {
+  if (countProductsStatusToggle) {
+    countProductsStatusToggle.addEventListener('change', () => {
       loadCountProducts();
     });
   }

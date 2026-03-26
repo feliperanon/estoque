@@ -698,6 +698,19 @@ body.modal-open::before {
   margin-bottom: 8px;
 }
 
+#sub-count .count-products-head {
+  margin-top: 10px;
+  margin-bottom: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+#sub-count .count-products-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 #sub-count #item-code {
   font-size: 1.05rem;
   font-weight: 600;
@@ -826,6 +839,58 @@ body.modal-open::before {
   border-radius: 10px;
   background: var(--white);
   color: var(--ink);
+}
+
+.status-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  user-select: none;
+}
+
+.status-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.status-switch-slider {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: #d8e4da;
+  border: 1px solid #bdd1c0;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.status-switch-slider::after {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #c8d8cb;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+}
+
+.status-switch input:checked + .status-switch-slider {
+  background: #fde2e2;
+  border-color: #f5b9b9;
+}
+
+.status-switch input:checked + .status-switch-slider::after {
+  transform: translateX(20px);
+}
+
+.status-switch input:focus-visible + .status-switch-slider {
+  outline: 2px solid rgba(47, 111, 69, 0.35);
+  outline-offset: 2px;
 }
 
 .count-product-item {
