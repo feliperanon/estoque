@@ -42,16 +42,17 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: Session = Depends(get_session),
 ) -> Token:
-    user = session.exec(select(User).where(User.username == form_data.username, User.is_active == True)).first()
-    is_valid_password = False
-    if user:
-        try:
-            is_valid_password = verify_password(form_data.password, user.password_hash)
-        except Exception:
-            logger.exception("Falha ao validar hash de senha no login local", extra={"username": form_data.username})
-            is_valid_password = False
+    try:
+        user = _authenticate_local_user(session, form_data.username, form_data.password)
+    except SQLAlchemyError:
+        session.rollback()
+        logger.exception("Falha de banco no login local", extra={"username": form_data.username})
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Falha temporaria no banco de usuarios. Tente novamente em instantes.",
+        )
 
-    if not user or not is_valid_password:
+    if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciais invalidas")
 
     token = create_access_token(str(user.id))

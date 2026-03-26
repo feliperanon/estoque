@@ -709,6 +709,22 @@ button[type="submit"]:disabled {
   font-size: 0.95rem;
 }
 
+.search-select {
+  min-width: 120px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--white);
+  color: var(--ink);
+}
+
+.count-product-item {
+  cursor: pointer;
+}
+
+.count-product-item:hover {
+  background: #eef5ef;
+}
 .search-input::placeholder {
   color: var(--muted);
 }

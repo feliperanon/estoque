@@ -45,6 +45,7 @@ HEADER_ALIASES = {
     "cod_marca": "cod_grup_marca",
     "cod_produto": "cod_produto",
     "codigo_produto": "cod_produto",
+    "codigo_do_produto": "cod_produto",
     "codigo": "cod_produto",
     "cod": "cod_produto",
     "cod_grup_descricao": "cod_grup_descricao",
@@ -98,6 +99,34 @@ def list_products(
         if not (product.cod_produto or "").strip():
             product.cod_produto = (product.cod_grup_sku or str(product.id or "")).strip()
 
+    return products
+
+
+@router.get("/catalog", response_model=list[ProductRead])
+def list_products_catalog(
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+    q: str | None = Query(default=None),
+    status_filter: str = Query(default="ativo", alias="status"),
+    limit: int = Query(default=500, ge=1, le=2000),
+) -> list[Product]:
+    statement = select(Product)
+    normalized_status = (status_filter or "todos").strip().lower()
+    if normalized_status != "todos":
+        statement = statement.where(Product.status == normalized_status)
+    if q:
+        statement = statement.where(
+            Product.cod_grup_descricao.contains(q)
+            | Product.cod_grup_marca.contains(q)
+            | Product.cod_grup_sku.contains(q),
+        )
+
+    products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+    for product in products:
+        for field_name in ("updated_at", "created_at", "imported_at"):
+            value = getattr(product, field_name, None)
+            if value is not None and getattr(value, "tzinfo", None) is None:
+                setattr(product, field_name, value.replace(tzinfo=timezone.utc))
     return products
 
 

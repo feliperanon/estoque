@@ -135,6 +135,20 @@
                 <button type="submit" id="btn-add-count">Registrar contagem</button>
               </form>
               <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
+              <div class="card-head" style="margin-top:12px;">
+                <h3>Produtos para contagem</h3>
+                <span id="count-products-total" class="chip">0</span>
+              </div>
+              <div class="search-row">
+                <input id="count-products-search" type="text" placeholder="Buscar por descrição, marca ou SKU..." class="search-input" />
+                <select id="count-products-status" class="search-select">
+                  <option value="ativo">Ativo</option>
+                  <option value="inativo">Inativo</option>
+                  <option value="todos">Todos</option>
+                </select>
+                <button id="btn-count-products-search" type="button" class="btn-secondary btn-dark">Buscar</button>
+              </div>
+              <ul id="count-products-list" class="list"></ul>
             </section>
           </div>
 

@@ -10,6 +10,7 @@ const API_LOGIN  = `${API_BASE_URL}/auth/login-legacy`;
 const API_LOGIN_LOCAL = `${API_BASE_URL}/auth/login`;
 const API_SYNC_COUNTS = `${API_BASE_URL}/audit/count-events`;
 const API_PRODUCTS = `${API_BASE_URL}/products`;
+const API_PRODUCTS_CATALOG = `${API_BASE_URL}/products/catalog`;
 const API_PRODUCTS_IMPORT_EXCEL = `${API_BASE_URL}/products/import-excel`;
 const APP_BASE_PATH = '/app';
 const TOKEN_KEY  = 'estoque_token';
@@ -29,6 +30,11 @@ const userDisplay   = document.getElementById('user-display');
 const netStatus     = document.getElementById('net-status');
 const countForm     = document.getElementById('count-form');
 const countFeedback = document.getElementById('count-feedback');
+const countProductsSearch = document.getElementById('count-products-search');
+const countProductsStatus = document.getElementById('count-products-status');
+const countProductsList = document.getElementById('count-products-list');
+const countProductsTotal = document.getElementById('count-products-total');
+const btnCountProductsSearch = document.getElementById('btn-count-products-search');
 const totalsList    = document.getElementById('totals-list');
 const totalItems    = document.getElementById('total-items');
 const pendingList   = document.getElementById('pending-list');
@@ -50,6 +56,7 @@ const accessMatrixList = document.getElementById('access-matrix-list');
 let syncInProgress = false;
 let selectedProductFile = null;
 let currentRole = 'conferente';
+let countProductsCache = [];
 
 const MODULE_ACCESS = {
   contagem: ['conferente', 'administrativo', 'admin'],
@@ -315,6 +322,61 @@ function setFeedback(message, isError = false) {
   countFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
 }
 
+function renderCountProducts(products) {
+  if (!countProductsList || !countProductsTotal) return;
+  countProductsList.innerHTML = '';
+  countProductsTotal.textContent = `${products.length}`;
+
+  if (!products.length) {
+    countProductsList.innerHTML = '<li><span>Nenhum produto encontrado para o filtro atual.</span><strong>0</strong></li>';
+    return;
+  }
+
+  for (const product of products) {
+    const li = document.createElement('li');
+    li.className = 'count-product-item';
+    const statusLabel = (product.status || 'ativo').toLowerCase() === 'inativo' ? 'Inativo' : 'Ativo';
+    li.innerHTML = `<span>${product.cod_grup_sku || '—'} - ${product.cod_grup_descricao || 'Sem descrição'} (${product.cod_grup_marca || 'Sem marca'})</span><strong>${statusLabel}</strong>`;
+    li.addEventListener('click', () => {
+      const itemInput = document.getElementById('item-code');
+      if (!itemInput) return;
+      itemInput.value = product.cod_grup_sku || product.cod_grup_descricao || '';
+      document.getElementById('item-qty')?.focus();
+      setFeedback(`Produto selecionado: ${product.cod_grup_sku || product.cod_grup_descricao}`);
+    });
+    countProductsList.appendChild(li);
+  }
+}
+
+async function loadCountProducts() {
+  if (!countProductsList) return;
+  const token = getToken();
+  if (!token) return;
+
+  const q = (countProductsSearch?.value || '').trim();
+  const statusValue = (countProductsStatus?.value || 'ativo').trim().toLowerCase();
+  const params = new URLSearchParams();
+  params.set('limit', '1000');
+  params.set('status', statusValue || 'ativo');
+  if (q) params.set('q', q);
+
+  try {
+    const resp = await fetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) {
+      renderCountProducts([]);
+      setFeedback('Nao foi possivel carregar a lista de produtos para contagem.', true);
+      return;
+    }
+    countProductsCache = await resp.json();
+    renderCountProducts(countProductsCache);
+  } catch {
+    renderCountProducts([]);
+    setFeedback('Sem conexao para carregar produtos.', true);
+  }
+}
+
 function setProductFeedback(message, isError = false) {
   productFeedback.textContent = message;
   productFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
@@ -554,6 +616,26 @@ function bindCountEvents() {
       if (!file) return;
       await importBackup(file);
       event.target.value = '';
+    });
+  }
+
+  if (btnCountProductsSearch) {
+    btnCountProductsSearch.addEventListener('click', () => {
+      loadCountProducts();
+    });
+  }
+
+  if (countProductsSearch) {
+    countProductsSearch.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      loadCountProducts();
+    });
+  }
+
+  if (countProductsStatus) {
+    countProductsStatus.addEventListener('change', () => {
+      loadCountProducts();
     });
   }
 
@@ -1595,16 +1677,10 @@ loginForm.addEventListener('submit', async (e) => {
       resp = await doLegacyLoginRequest();
     }
     if (resp.status >= 500 && !isLocalHost) {
-      loginError.textContent = 'Legado indisponível. Tentando autenticação local...';
-      resp = await doLocalLoginRequest();
-    }
-    if (resp.status >= 500 && !isLocalHost) {
-      loginError.textContent = 'Servidor iniciando. Tentando novamente...';
+      // Em producao, o acesso principal e sempre via legado.
+      loginError.textContent = 'Servidor de autenticacao temporariamente indisponivel. Tentando novamente...';
       await new Promise((resolve) => setTimeout(resolve, 2500));
       resp = await doLegacyLoginRequest();
-      if (resp.status >= 500) {
-        resp = await doLocalLoginRequest();
-      }
     }
 
     if (!resp.ok) {
@@ -1646,6 +1722,7 @@ function initDashboard(user) {
   renderAccessMatrix();
   updateNetworkStatus();
   renderCounts();
+  loadCountProducts();
   syncPendingEvents();
   loadProducts();
   showDashboard();
