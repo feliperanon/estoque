@@ -57,6 +57,17 @@ HEADER_ALIASES = {
 REQUIRED_FIELDS = {"cod_grup_descricao", "cod_grup_sku"}
 
 
+def _map_headers(raw_headers: tuple) -> tuple[list[str | None], int]:
+    mapped: list[str | None] = []
+    for header in raw_headers:
+        normalized = _norm_header(str(header or ""))
+        mapped.append(HEADER_ALIASES.get(normalized))
+
+    # score por quantidade de campos reconhecidos (sem duplicidade)
+    recognized = {item for item in mapped if item}
+    return mapped, len(recognized)
+
+
 @router.get("", response_model=list[ProductRead])
 def list_products(
     session: Session = Depends(get_session),
@@ -149,28 +160,37 @@ async def import_products_excel(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Falha ao ler planilha: {exc}")
 
     ws = wb.active
-    rows_iter = ws.iter_rows(values_only=True)
-    try:
-        raw_headers = next(rows_iter)
-    except StopIteration:
+    all_rows = list(ws.iter_rows(values_only=True))
+    if not all_rows:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Planilha sem cabecalho")
 
+    header_row_index = -1
     mapped_headers: list[str | None] = []
-    for header in raw_headers:
-        normalized = _norm_header(str(header or ""))
-        mapped_headers.append(HEADER_ALIASES.get(normalized))
+    best_score = 0
 
-    if not any(mapped_headers):
+    # Algumas planilhas trazem titulo/descricao antes do cabecalho.
+    for idx, row in enumerate(all_rows[:15]):
+        current_mapped, score = _map_headers(row)
+        if score > best_score:
+            best_score = score
+            mapped_headers = current_mapped
+            header_row_index = idx
+
+    if best_score < 2 or header_row_index < 0:
+        first_line_preview = [str(v or "").strip() for v in all_rows[0][:12]]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nao foi possivel reconhecer colunas de produto no cabecalho",
+            detail=(
+                "Nao foi possivel reconhecer colunas de produto no cabecalho. "
+                f"Cabecalho lido: {first_line_preview}"
+            ),
         )
 
     created = 0
     updated = 0
     ignored = 0
 
-    for row in rows_iter:
+    for row in all_rows[header_row_index + 1 :]:
         row_data: dict[str, str | None] = {}
         for idx, value in enumerate(row):
             mapped = mapped_headers[idx] if idx < len(mapped_headers) else None
