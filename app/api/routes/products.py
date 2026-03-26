@@ -1,7 +1,7 @@
 from io import BytesIO
 import re
 import unicodedata
-from datetime import timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from openpyxl import load_workbook
@@ -32,6 +32,9 @@ def _sanitize_product_for_response(product: Product) -> Product:
         product.cod_produto = sku or str(product.id or "")
     if not descricao:
         product.cod_grup_descricao = sku or product.cod_produto or f"Produto {product.id or ''}".strip()
+
+    if getattr(product, "updated_at", None) is None:
+        product.updated_at = datetime.now(timezone.utc)
 
     for field_name in ("updated_at", "created_at", "imported_at"):
         value = getattr(product, field_name, None)
