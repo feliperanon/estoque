@@ -33,6 +33,8 @@ def _safe_log_change(
         # Isola falhas de auditoria sem contaminar a transacao principal.
         with session.begin_nested():
             log_change(session, entity_name, entity_id, action, actor, payload)
+            # Forca o INSERT dentro do savepoint para capturar UndefinedTable aqui.
+            session.flush()
     except Exception:
         # Auditoria nao pode derrubar operacao principal.
         logger.exception("Falha ao registrar auditoria", extra={"entity": entity_name, "action": action})
@@ -290,126 +292,139 @@ async def import_products_excel(
 
     try:
         wb = load_workbook(filename=BytesIO(content), data_only=True, read_only=True)
-    except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Falha ao ler planilha: {exc}")
+        ws = wb.active
+        all_rows = list(ws.iter_rows(values_only=True))
+        if not all_rows:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Planilha sem cabecalho")
 
-    ws = wb.active
-    all_rows = list(ws.iter_rows(values_only=True))
-    if not all_rows:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Planilha sem cabecalho")
+        header_row_index = -1
+        mapped_headers: list[str | None] = []
+        best_score = 0
 
-    header_row_index = -1
-    mapped_headers: list[str | None] = []
-    best_score = 0
+        # Algumas planilhas trazem titulo/descricao antes do cabecalho.
+        for idx, row in enumerate(all_rows[:15]):
+            current_mapped, score = _map_headers(row)
+            if score > best_score:
+                best_score = score
+                mapped_headers = current_mapped
+                header_row_index = idx
 
-    # Algumas planilhas trazem titulo/descricao antes do cabecalho.
-    for idx, row in enumerate(all_rows[:15]):
-        current_mapped, score = _map_headers(row)
-        if score > best_score:
-            best_score = score
-            mapped_headers = current_mapped
-            header_row_index = idx
+        if best_score < 2 or header_row_index < 0:
+            first_line_preview = [str(v or "").strip() for v in all_rows[0][:12]]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Nao foi possivel reconhecer colunas de produto no cabecalho. "
+                    f"Cabecalho lido: {first_line_preview}"
+                ),
+            )
 
-    if best_score < 2 or header_row_index < 0:
-        first_line_preview = [str(v or "").strip() for v in all_rows[0][:12]]
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Nao foi possivel reconhecer colunas de produto no cabecalho. "
-                f"Cabecalho lido: {first_line_preview}"
-            ),
-        )
+        created = 0
+        updated = 0
+        ignored = 0
+        failed = 0
+        created_in_batch: dict[str, Product] = {}
 
-    created = 0
-    updated = 0
-    ignored = 0
-    failed = 0
-    created_in_batch: dict[str, Product] = {}
+        for row in all_rows[header_row_index + 1 :]:
+            row_data: dict[str, str | None] = {}
+            for idx, value in enumerate(row):
+                mapped = mapped_headers[idx] if idx < len(mapped_headers) else None
+                if not mapped:
+                    continue
+                if value is None:
+                    row_data[mapped] = None
+                else:
+                    row_data[mapped] = str(value).strip()
 
-    for row in all_rows[header_row_index + 1 :]:
-        row_data: dict[str, str | None] = {}
-        for idx, value in enumerate(row):
-            mapped = mapped_headers[idx] if idx < len(mapped_headers) else None
-            if not mapped:
+            if not any(row_data.values()):
                 continue
-            if value is None:
-                row_data[mapped] = None
-            else:
-                row_data[mapped] = str(value).strip()
 
-        if not any(row_data.values()):
-            continue
+            if any(not row_data.get(field) for field in REQUIRED_FIELDS):
+                ignored += 1
+                continue
 
-        if any(not row_data.get(field) for field in REQUIRED_FIELDS):
-            ignored += 1
-            continue
+            sku = (row_data.get("cod_grup_sku") or "").strip()
+            cod_produto = (row_data.get("cod_produto") or "").strip()
+            if not sku:
+                ignored += 1
+                continue
+            if not cod_produto:
+                ignored += 1
+                continue
 
-        sku = (row_data.get("cod_grup_sku") or "").strip()
-        cod_produto = (row_data.get("cod_produto") or "").strip()
-        if not sku:
-            ignored += 1
-            continue
-        if not cod_produto:
-            ignored += 1
-            continue
+            row_data["cod_grup_sku"] = sku
+            row_data["cod_produto"] = cod_produto
 
-        row_data["cod_grup_sku"] = sku
-        row_data["cod_produto"] = cod_produto
+            try:
+                # Evita erro de unicidade quando o mesmo SKU aparece mais de uma vez no mesmo arquivo.
+                if sku in created_in_batch:
+                    staged = created_in_batch[sku]
+                    for key, value in row_data.items():
+                        setattr(staged, key, value)
+                    apply_common_source_fields(staged, None, "excel")
+                    updated += 1
+                    continue
+
+                existing = session.exec(select(Product).where(Product.cod_grup_sku == sku)).first()
+
+                if existing:
+                    for key, value in row_data.items():
+                        setattr(existing, key, value)
+                    apply_common_source_fields(existing, None, "excel")
+                    updated += 1
+                else:
+                    product = Product(**row_data)
+                    apply_common_source_fields(product, None, "excel")
+                    session.add(product)
+                    created_in_batch[sku] = product
+                    created += 1
+            except Exception:
+                failed += 1
+                continue
 
         try:
-            # Evita erro de unicidade quando o mesmo SKU aparece mais de uma vez no mesmo arquivo.
-            if sku in created_in_batch:
-                staged = created_in_batch[sku]
-                for key, value in row_data.items():
-                    setattr(staged, key, value)
-                apply_common_source_fields(staged, None, "excel")
-                updated += 1
-                continue
+            session.flush()
+        except Exception as exc:
+            session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Falha ao salvar importacao. Verifique duplicidades/formatos. Erro: {exc}",
+            )
 
-            existing = session.exec(select(Product).where(Product.cod_grup_sku == sku)).first()
-
-            if existing:
-                for key, value in row_data.items():
-                    setattr(existing, key, value)
-                apply_common_source_fields(existing, None, "excel")
-                updated += 1
-            else:
-                product = Product(**row_data)
-                apply_common_source_fields(product, None, "excel")
-                session.add(product)
-                created_in_batch[sku] = product
-                created += 1
-        except Exception:
-            failed += 1
-            continue
-
-    try:
-        session.flush()
-    except Exception as exc:
+        _safe_log_change(
+            session,
+            "products",
+            0,
+            "import_excel",
+            user.username,
+            {"created": created, "updated": updated, "ignored": ignored, "failed": failed},
+        )
+        try:
+            session.commit()
+        except Exception as exc:
+            session.rollback()
+            logger.exception("Falha ao concluir importacao de planilha")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Falha ao concluir importacao. Erro: {exc}",
+            )
+        return {"created": created, "updated": updated, "ignored": ignored, "failed": failed}
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
         session.rollback()
+        logger.exception("Erro SQL na importacao de planilha")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Falha ao salvar importacao. Verifique duplicidades/formatos. Erro: {exc}",
+            detail=f"Falha de banco durante importacao. Erro: {exc}",
         )
-
-    _safe_log_change(
-        session,
-        "products",
-        0,
-        "import_excel",
-        user.username,
-        {"created": created, "updated": updated, "ignored": ignored, "failed": failed},
-    )
-    try:
-        session.commit()
     except Exception as exc:
         session.rollback()
-        logger.exception("Falha ao concluir importacao de planilha")
+        logger.exception("Falha inesperada na importacao de planilha")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Falha ao concluir importacao. Erro: {exc}",
+            detail=f"Falha inesperada ao importar planilha. Erro: {exc}",
         )
-    return {"created": created, "updated": updated, "ignored": ignored, "failed": failed}
 
 
 def _record_history(session: Session, product_id: int, field: str, old_val, new_val, actor: str) -> None:

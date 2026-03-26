@@ -6,7 +6,7 @@ from app.core.config import get_settings
 from app.core.security import get_password_hash
 from app.db.session import engine
 from app.models import *  # noqa: F401,F403
-from app.models import User
+from app.models import ChangeLog, User
 
 DEFAULT_ADMIN_USERNAME = "feliperanon@live.com"
 DEFAULT_ADMIN_PASSWORD = "571232Ce!"
@@ -42,6 +42,8 @@ def ensure_database_ready() -> None:
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS legacy_snapshot"))
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS app_core"))
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
+    # Garantia defensiva: alguns ambientes sobem sem tabela de auditoria.
+    SQLModel.metadata.create_all(engine, tables=[ChangeLog.__table__], checkfirst=True)
     _ensure_users_compat_columns(is_sqlite=False)
     _ensure_products_compat_columns(is_sqlite=False)
 
