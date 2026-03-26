@@ -77,6 +77,24 @@ Endpoints:
 - `POST /api/products/import`
 - `POST /api/products/import-excel`
 
+## Modulos e perfis de acesso
+
+O dashboard foi separado em modulos com regra de acesso por perfil.
+
+- Contagem: `conferente`, `administrativo`, `admin`
+- Cadastro de produtos: `administrativo`, `admin`
+- Matriz de acesso: `administrativo`, `admin`
+
+Comportamento do login legado:
+
+- Ao primeiro login, o usuario e sincronizado localmente com perfil padrao `conferente`.
+- O token JWT passa a usar o ID local do usuario para aplicar RBAC nas rotas protegidas.
+
+Navegacao hibrida web/mobile:
+
+- Web: barra de modulos no topo.
+- Mobile: barra de modulos fixa na parte inferior.
+
 ## Observacoes de operacao
 
 - O primeiro carregamento da aplicacao ainda requer internet para login.

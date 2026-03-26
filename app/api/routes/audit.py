@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_roles
 from app.db.session import get_session
 from app.models import ChangeLog, User
 
@@ -27,7 +27,7 @@ class CountEventsPayload(BaseModel):
 @router.get("/changes")
 def list_changes(
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles("administrativo", "admin")),
     limit: int = Query(default=100, ge=1, le=500),
 ) -> list[ChangeLog]:
     statement = select(ChangeLog).order_by(ChangeLog.changed_at.desc()).limit(limit)
@@ -38,7 +38,7 @@ def list_changes(
 def ingest_count_events(
     payload: CountEventsPayload,
     session: Session = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> dict:
     synced_ids: list[str] = []
 

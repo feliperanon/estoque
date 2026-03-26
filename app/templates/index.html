@@ -60,102 +60,122 @@
         <span class="topbar-title">{{ app_name }}</span>
         <div class="topbar-user">
           <span id="net-status" class="net-status" aria-live="polite"></span>
+          <span id="role-display" class="user-badge"></span>
           <span id="user-display" class="user-badge"></span>
           <button id="btn-logout" class="btn-secondary">Sair</button>
         </div>
       </header>
+
+      <nav id="module-nav" class="module-nav" aria-label="Modulos do sistema">
+        <button type="button" class="module-btn" data-module="count">Contagem</button>
+        <button type="button" class="module-btn" data-module="cadastro">Cadastro</button>
+        <button type="button" class="module-btn" data-module="acesso">Acesso</button>
+      </nav>
+
       <main class="dashboard-content">
-        <section class="card">
-          <h2>Contagem de estoque offline</h2>
-          <p class="muted">
-            Esta tela salva cada contagem no dispositivo imediatamente. Se a internet cair,
-            os dados ficam locais e sao sincronizados quando a conexao voltar.
-          </p>
-
-          <form id="count-form" class="count-form" autocomplete="off">
-            <div class="field">
-              <label for="item-code">Item (codigo ou nome)</label>
-              <input id="item-code" name="item-code" type="text" placeholder="Ex.: CX-AGUA-510" required />
-            </div>
-            <div class="field">
-              <label for="item-qty">Quantidade contada</label>
-              <input id="item-qty" name="item-qty" type="number" min="1" step="1" value="1" required />
-            </div>
-            <button type="submit" id="btn-add-count">Registrar contagem</button>
-          </form>
-
-          <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
-        </section>
-
-        <section class="grid-two">
-          <article class="card">
-            <div class="card-head">
-              <h3>Totais por item</h3>
-              <span id="total-items" class="chip"></span>
-            </div>
-            <ul id="totals-list" class="list"></ul>
-          </article>
-
-          <article class="card">
-            <div class="card-head">
-              <h3>Eventos pendentes</h3>
-              <span id="pending-count" class="chip"></span>
-            </div>
-            <div class="actions-row">
-              <button id="btn-sync" class="btn-secondary btn-dark" type="button">Sincronizar agora</button>
-              <button id="btn-export" class="btn-secondary btn-dark" type="button">Exportar backup</button>
-              <label class="btn-secondary btn-dark file-btn" for="import-file">Importar backup</label>
-              <input id="import-file" type="file" accept="application/json" hidden />
-            </div>
-            <ul id="pending-list" class="list"></ul>
-          </article>
-        </section>
-
-        <section class="grid-two" style="margin-top: 16px;">
-          <article class="card">
-            <div class="card-head">
-              <h3>Cadastro de Produto</h3>
-              <span class="chip">Manual</span>
-            </div>
-            <form id="product-form" class="product-form" autocomplete="off">
-              <div class="field"><label for="prod-cod-sp">Cod Grup SP</label><input id="prod-cod-sp" type="text" /></div>
-              <div class="field"><label for="prod-cod-cia">Cod Grup Cia</label><input id="prod-cod-cia" type="text" /></div>
-              <div class="field"><label for="prod-cod-tipo">Cod Grup Tipo</label><input id="prod-cod-tipo" type="text" /></div>
-              <div class="field"><label for="prod-cod-familia">Cod Grup Familia</label><input id="prod-cod-familia" type="text" /></div>
-              <div class="field"><label for="prod-cod-segmento">Cod Grup Segmento</label><input id="prod-cod-segmento" type="text" /></div>
-              <div class="field"><label for="prod-cod-marca">Cod Grup Marca</label><input id="prod-cod-marca" type="text" /></div>
-              <div class="field"><label for="prod-descricao">Cod Grup Descricao</label><input id="prod-descricao" type="text" required /></div>
-              <div class="field"><label for="prod-sku">Cod Grup SKU</label><input id="prod-sku" type="text" required /></div>
-              <div class="field"><label for="prod-status">Status</label><input id="prod-status" type="text" /></div>
-              <div class="field"><label for="prod-prioridade">Grup Prioridade</label><input id="prod-prioridade" type="text" /></div>
-              <button type="submit" id="btn-product-save">Salvar produto</button>
-            </form>
-            <div id="product-feedback" class="field-feedback" aria-live="polite"></div>
-          </article>
-
-          <article class="card">
-            <div class="card-head">
-              <h3>Importar Planilha</h3>
-              <span class="chip">Excel</span>
-            </div>
+        <section id="module-count" class="module-section">
+          <section class="card">
+            <h2>Contagem de estoque offline</h2>
             <p class="muted">
-              Envie sempre seu arquivo Excel para cadastrar/atualizar em lote.
-              Campos esperados: Cod Grup SP, Cod Grup Cia, Cod Grup Tipo, Cod Grup Familia,
-              Cod Grup Segmento, Cod Grup Marca, Cod Grup Descricao, Cod Grup SKU, Status e Grup Prioridade.
+              Esta tela salva cada contagem no dispositivo imediatamente. Se a internet cair,
+              os dados ficam locais e sao sincronizados quando a conexao voltar.
             </p>
-            <div class="actions-row">
-              <label class="btn-secondary btn-dark file-btn" for="product-excel-file">Selecionar Excel</label>
-              <input id="product-excel-file" type="file" accept=".xlsx,.xlsm" hidden />
-              <button id="btn-product-upload" class="btn-secondary btn-dark" type="button">Importar arquivo</button>
-            </div>
-            <div id="product-import-feedback" class="field-feedback" aria-live="polite"></div>
 
-            <div class="card-head" style="margin-top: 16px;">
-              <h3>Produtos cadastrados</h3>
-              <span id="products-total" class="chip"></span>
-            </div>
-            <ul id="products-list" class="list"></ul>
-          </article>
+            <form id="count-form" class="count-form" autocomplete="off">
+              <div class="field">
+                <label for="item-code">Item (codigo ou nome)</label>
+                <input id="item-code" name="item-code" type="text" placeholder="Ex.: CX-AGUA-510" required />
+              </div>
+              <div class="field">
+                <label for="item-qty">Quantidade contada</label>
+                <input id="item-qty" name="item-qty" type="number" min="1" step="1" value="1" required />
+              </div>
+              <button type="submit" id="btn-add-count">Registrar contagem</button>
+            </form>
+
+            <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
+          </section>
+
+          <section class="grid-two">
+            <article class="card">
+              <div class="card-head">
+                <h3>Totais por item</h3>
+                <span id="total-items" class="chip"></span>
+              </div>
+              <ul id="totals-list" class="list"></ul>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <h3>Eventos pendentes</h3>
+                <span id="pending-count" class="chip"></span>
+              </div>
+              <div class="actions-row">
+                <button id="btn-sync" class="btn-secondary btn-dark" type="button">Sincronizar agora</button>
+                <button id="btn-export" class="btn-secondary btn-dark" type="button">Exportar backup</button>
+                <label class="btn-secondary btn-dark file-btn" for="import-file">Importar backup</label>
+                <input id="import-file" type="file" accept="application/json" hidden />
+              </div>
+              <ul id="pending-list" class="list"></ul>
+            </article>
+          </section>
+        </section>
+
+        <section id="module-cadastro" class="module-section">
+          <section class="grid-two" style="margin-top: 16px;">
+            <article class="card">
+              <div class="card-head">
+                <h3>Cadastro de Produto</h3>
+                <span class="chip">Manual</span>
+              </div>
+              <form id="product-form" class="product-form" autocomplete="off">
+                <div class="field"><label for="prod-cod-sp">Cod Grup SP</label><input id="prod-cod-sp" type="text" /></div>
+                <div class="field"><label for="prod-cod-cia">Cod Grup Cia</label><input id="prod-cod-cia" type="text" /></div>
+                <div class="field"><label for="prod-cod-tipo">Cod Grup Tipo</label><input id="prod-cod-tipo" type="text" /></div>
+                <div class="field"><label for="prod-cod-familia">Cod Grup Familia</label><input id="prod-cod-familia" type="text" /></div>
+                <div class="field"><label for="prod-cod-segmento">Cod Grup Segmento</label><input id="prod-cod-segmento" type="text" /></div>
+                <div class="field"><label for="prod-cod-marca">Cod Grup Marca</label><input id="prod-cod-marca" type="text" /></div>
+                <div class="field"><label for="prod-descricao">Cod Grup Descricao</label><input id="prod-descricao" type="text" required /></div>
+                <div class="field"><label for="prod-sku">Cod Grup SKU</label><input id="prod-sku" type="text" required /></div>
+                <div class="field"><label for="prod-status">Status</label><input id="prod-status" type="text" /></div>
+                <div class="field"><label for="prod-prioridade">Grup Prioridade</label><input id="prod-prioridade" type="text" /></div>
+                <button type="submit" id="btn-product-save">Salvar produto</button>
+              </form>
+              <div id="product-feedback" class="field-feedback" aria-live="polite"></div>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <h3>Importar Planilha</h3>
+                <span class="chip">Excel</span>
+              </div>
+              <p class="muted">
+                Envie sempre seu arquivo Excel para cadastrar/atualizar em lote.
+                Campos esperados: Cod Grup SP, Cod Grup Cia, Cod Grup Tipo, Cod Grup Familia,
+                Cod Grup Segmento, Cod Grup Marca, Cod Grup Descricao, Cod Grup SKU, Status e Grup Prioridade.
+              </p>
+              <div class="actions-row">
+                <label class="btn-secondary btn-dark file-btn" for="product-excel-file">Selecionar Excel</label>
+                <input id="product-excel-file" type="file" accept=".xlsx,.xlsm" hidden />
+                <button id="btn-product-upload" class="btn-secondary btn-dark" type="button">Importar arquivo</button>
+              </div>
+              <div id="product-import-feedback" class="field-feedback" aria-live="polite"></div>
+
+              <div class="card-head" style="margin-top: 16px;">
+                <h3>Produtos cadastrados</h3>
+                <span id="products-total" class="chip"></span>
+              </div>
+              <ul id="products-list" class="list"></ul>
+            </article>
+          </section>
+        </section>
+
+        <section id="module-acesso" class="module-section">
+          <section class="card">
+            <h2>Categorias e subcategorias de acesso</h2>
+            <p class="muted">Controle por perfil: cada modulo e submodulo tem papeis permitidos.</p>
+            <ul id="access-matrix-list" class="list"></ul>
+          </section>
         </section>
       </main>
     </div>

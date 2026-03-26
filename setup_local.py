@@ -7,7 +7,7 @@ Uso:
 """
 
 import os
-os.environ.setdefault("DATABASE_URL", "sqlite:///./estoque_local.db")
+os.environ["DATABASE_URL"] = "sqlite:///./estoque_local.db"
 
 from sqlmodel import SQLModel, create_engine, Session
 from app.core.config import get_settings

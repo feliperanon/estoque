@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from openpyxl import load_workbook
 from sqlmodel import Session, select
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_roles
 from app.db.session import get_session
 from app.models import Product, User
 from app.schemas.products import ProductCreate, ProductImportPayload, ProductRead
@@ -60,7 +60,7 @@ REQUIRED_FIELDS = {"cod_grup_descricao", "cod_grup_sku"}
 @router.get("", response_model=list[ProductRead])
 def list_products(
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles("administrativo", "admin")),
     q: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
 ) -> list[Product]:
@@ -76,7 +76,7 @@ def list_products(
 def create_product(
     payload: ProductCreate,
     session: Session = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles("administrativo", "admin")),
 ) -> Product:
     existing = session.exec(select(Product).where(Product.cod_grup_sku == payload.cod_grup_sku)).first()
     if existing:
@@ -96,7 +96,7 @@ def create_product(
 def import_products_payload(
     payload: ProductImportPayload,
     session: Session = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles("administrativo", "admin")),
 ) -> dict:
     created = 0
     updated = 0
@@ -133,7 +133,7 @@ def import_products_payload(
 async def import_products_excel(
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles("administrativo", "admin")),
 ) -> dict:
     filename = (file.filename or "").lower()
     if not (filename.endswith(".xlsx") or filename.endswith(".xlsm")):

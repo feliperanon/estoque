@@ -25,7 +25,10 @@ def login(
 
 
 @router.post("/login-legacy", response_model=TokenWithUser)
-def login_legacy(body: LegacyLoginInput) -> TokenWithUser:
+def login_legacy(
+    body: LegacyLoginInput,
+    session: Session = Depends(get_session),
+) -> TokenWithUser:
     """
     Autentica contra o sistema legado (analise-operacional) e retorna
     um token JWT local junto com os dados do usuário.
@@ -37,11 +40,31 @@ def login_legacy(body: LegacyLoginInput) -> TokenWithUser:
             detail="E-mail ou senha inválidos no portal legado",
         )
 
-    token = create_access_token(user_data.get("username") or body.username)
+    username = (user_data.get("username") or body.username).strip().lower()
+    existing = session.exec(select(User).where(User.username == username)).first()
+
+    if existing:
+        if not existing.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inativo")
+        user_model = existing
+    else:
+        # Usuário legado novo entra com perfil conferente por padrão.
+        user_model = User(
+            username=username,
+            password_hash="legacy-auth",
+            role="conferente",
+            is_active=True,
+            source_system="legacy",
+        )
+        session.add(user_model)
+        session.commit()
+        session.refresh(user_model)
+
+    token = create_access_token(str(user_model.id))
     user = UserInfo(
-        username=user_data.get("username", body.username),
+        username=user_model.username,
         name=user_data.get("name") or user_data.get("full_name"),
         email=user_data.get("email"),
-        role=user_data.get("role"),
+        role=user_model.role,
     )
     return TokenWithUser(access_token=token, user=user)

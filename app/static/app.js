@@ -40,9 +40,41 @@ const btnProductUpload = document.getElementById('btn-product-upload');
 const productImportFeedback = document.getElementById('product-import-feedback');
 const productsList = document.getElementById('products-list');
 const productsTotal = document.getElementById('products-total');
+const roleDisplay = document.getElementById('role-display');
+const moduleNav = document.getElementById('module-nav');
+const accessMatrixList = document.getElementById('access-matrix-list');
 
 let syncInProgress = false;
 let selectedProductFile = null;
+let currentRole = 'conferente';
+
+const MODULE_ACCESS = {
+  count: ['conferente', 'administrativo', 'admin'],
+  cadastro: ['administrativo', 'admin'],
+  acesso: ['administrativo', 'admin'],
+};
+
+const ACCESS_CATEGORIES = [
+  {
+    category: 'Operacao',
+    subcategories: [
+      { module: 'Contagem', roles: ['conferente', 'administrativo', 'admin'] },
+    ],
+  },
+  {
+    category: 'Cadastro',
+    subcategories: [
+      { module: 'Cadastro de produtos', roles: ['administrativo', 'admin'] },
+      { module: 'Importacao de produtos', roles: ['administrativo', 'admin'] },
+    ],
+  },
+  {
+    category: 'Governanca',
+    subcategories: [
+      { module: 'Matriz de acessos', roles: ['administrativo', 'admin'] },
+    ],
+  },
+];
 
 // ── Troca de views ─────────────────────────────────────────────
 function showLogin() {
@@ -54,6 +86,64 @@ function showLogin() {
 function showDashboard() {
   viewLogin.style.display     = 'none';
   viewDashboard.style.display = 'block';
+}
+
+function normalizeRole(role) {
+  return (role || '').trim().toLowerCase();
+}
+
+function canAccessModule(moduleKey) {
+  const allowed = MODULE_ACCESS[moduleKey] || [];
+  return allowed.includes(currentRole);
+}
+
+function setActiveModule(moduleKey) {
+  document.querySelectorAll('.module-section').forEach((section) => {
+    section.classList.remove('active');
+  });
+
+  const target = document.getElementById(`module-${moduleKey}`);
+  if (target) {
+    target.classList.add('active');
+  }
+
+  document.querySelectorAll('.module-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.module === moduleKey);
+  });
+}
+
+function renderModuleNav() {
+  const buttons = moduleNav.querySelectorAll('.module-btn');
+  let firstVisible = null;
+
+  buttons.forEach((btn) => {
+    const moduleKey = btn.dataset.module;
+    const visible = canAccessModule(moduleKey);
+    btn.style.display = visible ? 'inline-flex' : 'none';
+    if (visible && !firstVisible) {
+      firstVisible = moduleKey;
+    }
+  });
+
+  if (firstVisible) {
+    setActiveModule(firstVisible);
+  }
+}
+
+function renderAccessMatrix() {
+  accessMatrixList.innerHTML = '';
+
+  ACCESS_CATEGORIES.forEach((item) => {
+    const categoryLi = document.createElement('li');
+    categoryLi.innerHTML = `<span><strong>${item.category}</strong></span><strong>Categoria</strong>`;
+    accessMatrixList.appendChild(categoryLi);
+
+    item.subcategories.forEach((sub) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${sub.module}</span><strong>${sub.roles.join(', ')}</strong>`;
+      accessMatrixList.appendChild(li);
+    });
+  });
 }
 
 // ── Sessão ─────────────────────────────────────────────────────
@@ -411,6 +501,10 @@ function renderProducts(products) {
 }
 
 async function loadProducts() {
+  if (!canAccessModule('cadastro')) {
+    return;
+  }
+
   const token = getToken();
   if (!token) return;
 
@@ -514,6 +608,19 @@ function bindProductEvents() {
   });
 }
 
+function bindModuleEvents() {
+  moduleNav.addEventListener('click', (event) => {
+    const btn = event.target.closest('.module-btn');
+    if (!btn) return;
+
+    const moduleKey = btn.dataset.module;
+    if (!canAccessModule(moduleKey)) {
+      return;
+    }
+    setActiveModule(moduleKey);
+  });
+}
+
 // ── Login ───────────────────────────────────────────────────────
 function setLoading(on) {
   btnLogin.disabled        = on;
@@ -569,6 +676,11 @@ loginForm.addEventListener('submit', async (e) => {
 function initDashboard(user) {
   const label = user?.name || user?.email || user?.username || 'Usuário';
   userDisplay.textContent = label;
+  currentRole = normalizeRole(user?.role || 'conferente') || 'conferente';
+  roleDisplay.textContent = `Perfil: ${currentRole}`;
+
+  renderModuleNav();
+  renderAccessMatrix();
   updateNetworkStatus();
   renderCounts();
   syncPendingEvents();
@@ -587,6 +699,7 @@ btnLogout.addEventListener('click', () => {
 (function init() {
   bindCountEvents();
   bindProductEvents();
+  bindModuleEvents();
   const token = getToken();
   const user  = getUser();
 
