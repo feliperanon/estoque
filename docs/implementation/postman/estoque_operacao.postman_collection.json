@@ -1,0 +1,128 @@
+{
+  "info": {
+    "name": "Estoque Operacao API",
+    "_postman_id": "7f0a70fa-a500-4ddf-a8fd-3527665ad5f2",
+    "description": "Colecao base para fluxos operacionais de estoque (offline-first).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth - Login legado",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"senha\": \"{{senha}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/auth/login-legacy"
+      }
+    },
+    {
+      "name": "Sync - Batch de eventos",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "X-Device-Id", "value": "{{deviceId}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"events\": [\n    {\n      \"event_id\": \"evt-001\",\n      \"idempotency_key\": \"idem-001\",\n      \"module\": \"CONTAGEM\",\n      \"action\": \"CREATE\",\n      \"product_id\": \"{{produtoId}}\",\n      \"qty_delta\": 10,\n      \"user_id\": \"{{usuarioId}}\",\n      \"occurred_at_device\": \"2026-03-26T10:00:00-03:00\"\n    }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/sync/events/batch"
+      }
+    },
+    {
+      "name": "Contagem - Criar",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "X-Idempotency-Key", "value": "idem-contagem-001" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"local_id\": \"{{localId}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/contagens"
+      }
+    },
+    {
+      "name": "Contagem - Lancar item",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "X-Idempotency-Key", "value": "idem-contagem-item-001" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"produto_id\": \"{{produtoId}}\",\n  \"lote_validade_id\": \"{{loteValidadeId}}\",\n  \"qtd_contada\": 8\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/contagens/{{contagemId}}/itens"
+      }
+    },
+    {
+      "name": "Puxada - Criar",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "X-Idempotency-Key", "value": "idem-puxada-001" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"local_origem_id\": \"{{origemId}}\",\n  \"local_destino_id\": \"{{destinoId}}\",\n  \"itens\": [\n    { \"produto_id\": \"{{produtoId}}\", \"quantidade\": 3 }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/puxadas"
+      }
+    },
+    {
+      "name": "Quebra - Registrar",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "X-Idempotency-Key", "value": "idem-quebra-001" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"motivo_codigo\": \"AVARIA\",\n  \"justificativa\": \"Produto danificado no recebimento\",\n  \"itens\": [\n    { \"produto_id\": \"{{produtoId}}\", \"quantidade\": 1 }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/quebras"
+      }
+    },
+    {
+      "name": "Vencimento - Risco",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{baseUrl}}/api/v1/lotes/risco-vencimento?dias=30"
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "token", "value": "" },
+    { "key": "email", "value": "admin@empresa.com" },
+    { "key": "senha", "value": "123456" },
+    { "key": "deviceId", "value": "android-001" },
+    { "key": "usuarioId", "value": "00000000-0000-0000-0000-000000000001" },
+    { "key": "produtoId", "value": "00000000-0000-0000-0000-000000000101" },
+    { "key": "localId", "value": "00000000-0000-0000-0000-000000000201" },
+    { "key": "origemId", "value": "00000000-0000-0000-0000-000000000202" },
+    { "key": "destinoId", "value": "00000000-0000-0000-0000-000000000203" },
+    { "key": "contagemId", "value": "00000000-0000-0000-0000-000000000301" },
+    { "key": "loteValidadeId", "value": "00000000-0000-0000-0000-000000000401" }
+  ]
+}
