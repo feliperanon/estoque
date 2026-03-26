@@ -1,4 +1,5 @@
 from io import BytesIO
+import logging
 import re
 import unicodedata
 from datetime import datetime, timezone
@@ -17,6 +18,7 @@ from app.services.bootstrap import ensure_database_ready
 from app.services.imports import apply_common_source_fields
 
 router = APIRouter(prefix="/products", tags=["products"])
+logger = logging.getLogger(__name__)
 
 
 def _sanitize_product_for_response(product: Product) -> Product:
@@ -119,6 +121,10 @@ def list_products(
         session.rollback()
         ensure_database_ready()
         products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+    except Exception:
+        session.rollback()
+        logger.exception("Falha inesperada ao listar produtos")
+        return []
 
     return [_sanitize_product_for_response(product) for product in products]
 
@@ -153,6 +159,10 @@ def list_products_catalog(
         session.rollback()
         ensure_database_ready()
         products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+    except Exception:
+        session.rollback()
+        logger.exception("Falha inesperada ao listar catalogo de produtos")
+        return []
     return [_sanitize_product_for_response(product) for product in products]
 
 

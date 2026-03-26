@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,6 +15,7 @@ from app.services.bootstrap import ensure_database_ready
 from app.services.imports import apply_common_source_fields
 
 router = APIRouter(prefix="/users", tags=["users"])
+logger = logging.getLogger(__name__)
 
 
 def _normalize_allowed_pages(raw_allowed_pages) -> list[str] | None:
@@ -51,6 +53,10 @@ def list_users(
         session.rollback()
         ensure_database_ready()
         users = list(session.exec(select(User).order_by(User.username)).all())
+    except Exception:
+        session.rollback()
+        logger.exception("Falha inesperada ao listar usuarios")
+        return []
     return [_sanitize_user_for_response(user) for user in users]
 
 
