@@ -110,6 +110,53 @@
             <ul id="pending-list" class="list"></ul>
           </article>
         </section>
+
+        <section class="grid-two" style="margin-top: 16px;">
+          <article class="card">
+            <div class="card-head">
+              <h3>Cadastro de Produto</h3>
+              <span class="chip">Manual</span>
+            </div>
+            <form id="product-form" class="product-form" autocomplete="off">
+              <div class="field"><label for="prod-cod-sp">Cod Grup SP</label><input id="prod-cod-sp" type="text" /></div>
+              <div class="field"><label for="prod-cod-cia">Cod Grup Cia</label><input id="prod-cod-cia" type="text" /></div>
+              <div class="field"><label for="prod-cod-tipo">Cod Grup Tipo</label><input id="prod-cod-tipo" type="text" /></div>
+              <div class="field"><label for="prod-cod-familia">Cod Grup Familia</label><input id="prod-cod-familia" type="text" /></div>
+              <div class="field"><label for="prod-cod-segmento">Cod Grup Segmento</label><input id="prod-cod-segmento" type="text" /></div>
+              <div class="field"><label for="prod-cod-marca">Cod Grup Marca</label><input id="prod-cod-marca" type="text" /></div>
+              <div class="field"><label for="prod-descricao">Cod Grup Descricao</label><input id="prod-descricao" type="text" required /></div>
+              <div class="field"><label for="prod-sku">Cod Grup SKU</label><input id="prod-sku" type="text" required /></div>
+              <div class="field"><label for="prod-status">Status</label><input id="prod-status" type="text" /></div>
+              <div class="field"><label for="prod-prioridade">Grup Prioridade</label><input id="prod-prioridade" type="text" /></div>
+              <button type="submit" id="btn-product-save">Salvar produto</button>
+            </form>
+            <div id="product-feedback" class="field-feedback" aria-live="polite"></div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Importar Planilha</h3>
+              <span class="chip">Excel</span>
+            </div>
+            <p class="muted">
+              Envie sempre seu arquivo Excel para cadastrar/atualizar em lote.
+              Campos esperados: Cod Grup SP, Cod Grup Cia, Cod Grup Tipo, Cod Grup Familia,
+              Cod Grup Segmento, Cod Grup Marca, Cod Grup Descricao, Cod Grup SKU, Status e Grup Prioridade.
+            </p>
+            <div class="actions-row">
+              <label class="btn-secondary btn-dark file-btn" for="product-excel-file">Selecionar Excel</label>
+              <input id="product-excel-file" type="file" accept=".xlsx,.xlsm" hidden />
+              <button id="btn-product-upload" class="btn-secondary btn-dark" type="button">Importar arquivo</button>
+            </div>
+            <div id="product-import-feedback" class="field-feedback" aria-live="polite"></div>
+
+            <div class="card-head" style="margin-top: 16px;">
+              <h3>Produtos cadastrados</h3>
+              <span id="products-total" class="chip"></span>
+            </div>
+            <ul id="products-list" class="list"></ul>
+          </article>
+        </section>
       </main>
     </div>
 

@@ -53,6 +53,30 @@ http://localhost:8000
 - `POST /api/audit/count-events`
 - `GET /api/audit/changes`
 
+## Modulo de cadastro de produtos
+
+Cadastro manual e importacao por planilha disponiveis no painel principal.
+
+Campos de produto:
+
+- Cod Grup SP
+- Cod Grup Cia
+- Cod Grup Tipo
+- Cod Grup Familia
+- Cod Grup Segmento
+- Cod Grup Marca
+- Cod Grup Descricao
+- Cod Grup SKU
+- Status
+- Grup Prioridade
+
+Endpoints:
+
+- `GET /api/products`
+- `POST /api/products`
+- `POST /api/products/import`
+- `POST /api/products/import-excel`
+
 ## Observacoes de operacao
 
 - O primeiro carregamento da aplicacao ainda requer internet para login.

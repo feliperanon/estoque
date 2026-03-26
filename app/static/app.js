@@ -7,6 +7,8 @@
 
 const API_LOGIN  = '/api/auth/login-legacy';
 const API_SYNC_COUNTS = '/api/audit/count-events';
+const API_PRODUCTS = '/api/products';
+const API_PRODUCTS_IMPORT_EXCEL = '/api/products/import-excel';
 const TOKEN_KEY  = 'estoque_token';
 const USER_KEY   = 'estoque_user';
 const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
@@ -31,8 +33,16 @@ const pendingCount  = document.getElementById('pending-count');
 const btnSync       = document.getElementById('btn-sync');
 const btnExport     = document.getElementById('btn-export');
 const importFile    = document.getElementById('import-file');
+const productForm = document.getElementById('product-form');
+const productFeedback = document.getElementById('product-feedback');
+const productExcelFile = document.getElementById('product-excel-file');
+const btnProductUpload = document.getElementById('btn-product-upload');
+const productImportFeedback = document.getElementById('product-import-feedback');
+const productsList = document.getElementById('products-list');
+const productsTotal = document.getElementById('products-total');
 
 let syncInProgress = false;
+let selectedProductFile = null;
 
 // ── Troca de views ─────────────────────────────────────────────
 function showLogin() {
@@ -113,6 +123,16 @@ function formatDateTime(isoValue) {
 function setFeedback(message, isError = false) {
   countFeedback.textContent = message;
   countFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+function setProductFeedback(message, isError = false) {
+  productFeedback.textContent = message;
+  productFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+function setProductImportFeedback(message, isError = false) {
+  productImportFeedback.textContent = message;
+  productImportFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
 }
 
 function updateNetworkStatus() {
@@ -350,6 +370,150 @@ function bindCountEvents() {
   });
 }
 
+function getAuthHeaders() {
+  const token = getToken();
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+function readProductPayloadFromForm() {
+  return {
+    cod_grup_sp: document.getElementById('prod-cod-sp').value.trim() || null,
+    cod_grup_cia: document.getElementById('prod-cod-cia').value.trim() || null,
+    cod_grup_tipo: document.getElementById('prod-cod-tipo').value.trim() || null,
+    cod_grup_familia: document.getElementById('prod-cod-familia').value.trim() || null,
+    cod_grup_segmento: document.getElementById('prod-cod-segmento').value.trim() || null,
+    cod_grup_marca: document.getElementById('prod-cod-marca').value.trim() || null,
+    cod_grup_descricao: document.getElementById('prod-descricao').value.trim(),
+    cod_grup_sku: document.getElementById('prod-sku').value.trim(),
+    status: document.getElementById('prod-status').value.trim() || null,
+    grup_prioridade: document.getElementById('prod-prioridade').value.trim() || null,
+    source_system: 'manual',
+  };
+}
+
+function renderProducts(products) {
+  productsList.innerHTML = '';
+  if (!products.length) {
+    productsList.innerHTML = '<li><span>Nenhum produto cadastrado ainda.</span><strong>0</strong></li>';
+    productsTotal.textContent = '0 produtos';
+    return;
+  }
+
+  for (const product of products) {
+    const li = document.createElement('li');
+    li.innerHTML = `<span>${product.cod_grup_sku} - ${product.cod_grup_descricao}</span><strong>${product.status || 'ativo'}</strong>`;
+    productsList.appendChild(li);
+  }
+  productsTotal.textContent = `${products.length} produtos`;
+}
+
+async function loadProducts() {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const response = await fetch(`${API_PRODUCTS}?limit=300`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      setProductFeedback('Nao foi possivel carregar os produtos.', true);
+      return;
+    }
+    const products = await response.json();
+    renderProducts(products);
+  } catch {
+    setProductFeedback('Falha de conexao ao carregar produtos.', true);
+  }
+}
+
+async function saveProductManual() {
+  const payload = readProductPayloadFromForm();
+  if (!payload.cod_grup_descricao || !payload.cod_grup_sku) {
+    setProductFeedback('Descricao e SKU sao obrigatorios.', true);
+    return;
+  }
+
+  try {
+    const response = await fetch(API_PRODUCTS, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      setProductFeedback(err.detail || 'Falha ao salvar produto.', true);
+      return;
+    }
+
+    productForm.reset();
+    setProductFeedback('Produto salvo com sucesso.');
+    await loadProducts();
+  } catch {
+    setProductFeedback('Sem conexao para salvar agora. Tente novamente.', true);
+  }
+}
+
+async function uploadProductsExcel() {
+  if (!selectedProductFile) {
+    setProductImportFeedback('Selecione um arquivo Excel primeiro.', true);
+    return;
+  }
+
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('file', selectedProductFile);
+
+  try {
+    const response = await fetch(API_PRODUCTS_IMPORT_EXCEL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      setProductImportFeedback(err.detail || 'Falha ao importar arquivo.', true);
+      return;
+    }
+
+    const data = await response.json();
+    setProductImportFeedback(`Importacao concluida: ${data.created} novos, ${data.updated} atualizados, ${data.ignored} ignorados.`);
+    selectedProductFile = null;
+    productExcelFile.value = '';
+    await loadProducts();
+  } catch {
+    setProductImportFeedback('Falha de conexao durante importacao.', true);
+  }
+}
+
+function bindProductEvents() {
+  if (!productForm) return;
+
+  productForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await saveProductManual();
+  });
+
+  productExcelFile.addEventListener('change', (event) => {
+    selectedProductFile = event.target.files?.[0] || null;
+    if (selectedProductFile) {
+      setProductImportFeedback(`Arquivo selecionado: ${selectedProductFile.name}`);
+    }
+  });
+
+  btnProductUpload.addEventListener('click', async () => {
+    await uploadProductsExcel();
+  });
+}
+
 // ── Login ───────────────────────────────────────────────────────
 function setLoading(on) {
   btnLogin.disabled        = on;
@@ -408,6 +572,7 @@ function initDashboard(user) {
   updateNetworkStatus();
   renderCounts();
   syncPendingEvents();
+  loadProducts();
   showDashboard();
 }
 
@@ -421,6 +586,7 @@ btnLogout.addEventListener('click', () => {
 // ── Inicialização ───────────────────────────────────────────────
 (function init() {
   bindCountEvents();
+  bindProductEvents();
   const token = getToken();
   const user  = getUser();
 

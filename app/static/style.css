@@ -237,6 +237,16 @@ button[type="submit"]:disabled {
   align-items: end;
 }
 
+.product-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+}
+
+.product-form button {
+  grid-column: 1 / -1;
+}
+
 .field-feedback {
   min-height: 20px;
   margin-top: 8px;
@@ -335,6 +345,10 @@ button[type="submit"]:disabled {
   }
 
   .count-form {
+    grid-template-columns: 1fr;
+  }
+
+  .product-form {
     grid-template-columns: 1fr;
   }
 }

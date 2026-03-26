@@ -121,6 +121,23 @@ class Vehicle(SourceTracked, table=True):
     odometer_km: int | None = Field(default=None)
 
 
+class Product(SourceTracked, table=True):
+    __tablename__ = "products"
+    __table_args__ = (UniqueConstraint("cod_grup_sku", name="uq_product_sku"), {"schema": "app_core"})
+
+    id: int | None = Field(default=None, primary_key=True)
+    cod_grup_sp: str | None = Field(default=None, max_length=60, index=True)
+    cod_grup_cia: str | None = Field(default=None, max_length=60, index=True)
+    cod_grup_tipo: str | None = Field(default=None, max_length=60)
+    cod_grup_familia: str | None = Field(default=None, max_length=60)
+    cod_grup_segmento: str | None = Field(default=None, max_length=60)
+    cod_grup_marca: str | None = Field(default=None, max_length=80)
+    cod_grup_descricao: str = Field(max_length=255)
+    cod_grup_sku: str = Field(max_length=120, index=True)
+    status: str | None = Field(default=None, max_length=40)
+    grup_prioridade: str | None = Field(default=None, max_length=80)
+
+
 class DriverVehicleAssignment(SQLModel, table=True):
     __tablename__ = "driver_vehicle_assignments"
     __table_args__ = ({"schema": "app_core"},)
