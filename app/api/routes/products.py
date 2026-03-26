@@ -5,7 +5,7 @@ from datetime import timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from openpyxl import load_workbook
-from sqlmodel import Session, select
+from sqlmodel import Session, or_, select
 
 from app.api.deps import get_current_user, require_roles
 from app.db.session import get_session
@@ -107,12 +107,17 @@ def list_products_catalog(
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
     q: str | None = Query(default=None),
-    status_filter: str = Query(default="ativo", alias="status"),
+    status_filter: str = Query(default="todos", alias="status"),
     limit: int = Query(default=500, ge=1, le=2000),
 ) -> list[Product]:
     statement = select(Product)
     normalized_status = (status_filter or "todos").strip().lower()
-    if normalized_status != "todos":
+    if normalized_status == "ativo":
+        # Compatibilidade: registros legados sem status continuam visiveis como "ativos".
+        statement = statement.where(
+            or_(Product.status == "ativo", Product.status.is_(None), Product.status == ""),
+        )
+    elif normalized_status != "todos":
         statement = statement.where(Product.status == normalized_status)
     if q:
         statement = statement.where(

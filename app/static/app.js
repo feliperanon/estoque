@@ -442,10 +442,10 @@ async function loadCountProducts() {
   if (!token) return;
 
   const q = (countProductsSearch?.value || '').trim();
-  const statusValue = (countProductsStatus?.value || 'ativo').trim().toLowerCase();
+  const statusValue = (countProductsStatus?.value || 'todos').trim().toLowerCase();
   const params = new URLSearchParams();
   params.set('limit', '1000');
-  params.set('status', statusValue || 'ativo');
+  params.set('status', statusValue || 'todos');
   if (q) params.set('q', q);
 
   try {

@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
+from app.core.config import get_settings
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.api.deps import EMERGENCY_ADMIN_SUBJECT
 from app.db.session import get_session
@@ -15,6 +16,27 @@ from app.services.bootstrap import DEFAULT_ADMIN_ALLOWED_PAGES, DEFAULT_ADMIN_PA
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
+settings = get_settings()
+
+
+def _normalize_allowed_pages(raw_allowed_pages) -> list[str]:
+    if isinstance(raw_allowed_pages, list):
+        return [str(page).strip().lower() for page in raw_allowed_pages if str(page).strip()]
+    if isinstance(raw_allowed_pages, str):
+        candidate = raw_allowed_pages.strip()
+        if not candidate:
+            return []
+        # Compatibilidade com bases legadas que persistiram texto em vez de JSON.
+        if "," in candidate:
+            return [part.strip().lower() for part in candidate.split(",") if part.strip()]
+        return [candidate.lower()]
+    return []
+
+
+def _admin_credentials() -> tuple[str, str]:
+    admin_username = (settings.admin_username or DEFAULT_ADMIN_USERNAME).strip().lower()
+    admin_password = settings.admin_password or DEFAULT_ADMIN_PASSWORD
+    return admin_username, admin_password
 
 
 def _authenticate_local_user(session: Session, username: str, password: str) -> User | None:
@@ -43,16 +65,17 @@ def _to_user_info(user: User) -> UserInfo:
         email=username if "@" in username else None,
         phone=user.phone,
         role=user.role,
-        allowed_pages=user.allowed_pages or [],
+        allowed_pages=_normalize_allowed_pages(user.allowed_pages),
     )
 
 
 def _ensure_default_admin_on_login(session: Session, username: str, password: str) -> User | None:
     normalized_username = (username or "").strip().lower()
-    if normalized_username != DEFAULT_ADMIN_USERNAME or password != DEFAULT_ADMIN_PASSWORD:
+    admin_username, admin_password = _admin_credentials()
+    if normalized_username != admin_username or password != admin_password:
         return None
 
-    password_hash = get_password_hash(DEFAULT_ADMIN_PASSWORD)
+    password_hash = get_password_hash(admin_password)
     session.exec(
         text(
             """
@@ -66,10 +89,10 @@ def _ensure_default_admin_on_login(session: Session, username: str, password: st
                 updated_at = NOW()
             """
         ),
-        {"username": DEFAULT_ADMIN_USERNAME, "password_hash": password_hash},
+        {"username": admin_username, "password_hash": password_hash},
     )
     session.commit()
-    return session.exec(select(User).where(User.username == DEFAULT_ADMIN_USERNAME)).first()
+    return session.exec(select(User).where(User.username == admin_username)).first()
 
 
 @router.post("/login", response_model=Token)
@@ -101,40 +124,62 @@ def login_legacy(
 ) -> TokenWithUser:
     # Fluxo legado desativado: agora o login e 100% local.
     normalized_username = (body.username or "").strip().lower()
+    admin_username, admin_password = _admin_credentials()
     try:
-        local_user = _authenticate_local_user(session, normalized_username, body.password)
-    except SQLAlchemyError:
-        session.rollback()
-        logger.exception("Falha ao autenticar usuario local no login legado")
-        local_user = None
-
-    if not local_user:
         try:
-            local_user = _ensure_default_admin_on_login(session, normalized_username, body.password)
+            local_user = _authenticate_local_user(session, normalized_username, body.password)
         except SQLAlchemyError:
             session.rollback()
+            logger.exception("Falha ao autenticar usuario local no login legado")
             local_user = None
 
-    if not local_user:
-        if normalized_username == DEFAULT_ADMIN_USERNAME and body.password == DEFAULT_ADMIN_PASSWORD:
+        if not local_user:
+            try:
+                local_user = _ensure_default_admin_on_login(session, normalized_username, body.password)
+            except SQLAlchemyError:
+                session.rollback()
+                local_user = None
+
+        if not local_user:
+            if normalized_username == admin_username and body.password == admin_password:
+                token = create_access_token(EMERGENCY_ADMIN_SUBJECT)
+                user = UserInfo(
+                    username=admin_username,
+                    name="Felipe Ranon",
+                    email=admin_username,
+                    phone="",
+                    role="admin",
+                    allowed_pages=DEFAULT_ADMIN_ALLOWED_PAGES,
+                )
+                return TokenWithUser(access_token=token, user=user)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="E-mail ou senha invalidos.",
+            )
+
+        token = create_access_token(str(local_user.id))
+        user = _to_user_info(local_user)
+        return TokenWithUser(access_token=token, user=user)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Falha inesperada no login legado")
+        # Fallback operacional para nao travar acesso admin em incidente de banco.
+        if normalized_username == admin_username and body.password == admin_password:
             token = create_access_token(EMERGENCY_ADMIN_SUBJECT)
             user = UserInfo(
-                username=DEFAULT_ADMIN_USERNAME,
+                username=admin_username,
                 name="Felipe Ranon",
-                email=DEFAULT_ADMIN_USERNAME,
+                email=admin_username,
                 phone="",
                 role="admin",
                 allowed_pages=DEFAULT_ADMIN_ALLOWED_PAGES,
             )
             return TokenWithUser(access_token=token, user=user)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="E-mail ou senha invalidos.",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Falha temporaria de autenticacao. Tente novamente em instantes.",
         )
-
-    token = create_access_token(str(local_user.id))
-    user = _to_user_info(local_user)
-    return TokenWithUser(access_token=token, user=user)
 
 
 @router.post("/register", response_model=TokenWithUser)
