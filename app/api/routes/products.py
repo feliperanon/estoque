@@ -19,6 +19,27 @@ from app.services.imports import apply_common_source_fields
 router = APIRouter(prefix="/products", tags=["products"])
 
 
+def _sanitize_product_for_response(product: Product) -> Product:
+    # Compatibilidade com dados legados incompletos para evitar erro 500 de serializacao.
+    sku = (product.cod_grup_sku or "").strip()
+    cod_produto = (product.cod_produto or "").strip()
+    descricao = (product.cod_grup_descricao or "").strip()
+
+    if not sku:
+        sku = cod_produto or str(product.id or "")
+        product.cod_grup_sku = sku
+    if not cod_produto:
+        product.cod_produto = sku or str(product.id or "")
+    if not descricao:
+        product.cod_grup_descricao = sku or product.cod_produto or f"Produto {product.id or ''}".strip()
+
+    for field_name in ("updated_at", "created_at", "imported_at"):
+        value = getattr(product, field_name, None)
+        if value is not None and getattr(value, "tzinfo", None) is None:
+            setattr(product, field_name, value.replace(tzinfo=timezone.utc))
+    return product
+
+
 def _norm_header(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", (value or "").strip().lower())
     normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
@@ -96,17 +117,7 @@ def list_products(
         ensure_database_ready()
         products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
 
-    # Alguns registros legados podem ter datetime sem timezone;
-    # padroniza para UTC para evitar erro de serializacao em resposta.
-    for product in products:
-        for field_name in ("updated_at", "created_at", "imported_at"):
-            value = getattr(product, field_name, None)
-            if value is not None and getattr(value, "tzinfo", None) is None:
-                setattr(product, field_name, value.replace(tzinfo=timezone.utc))
-        if not (product.cod_produto or "").strip():
-            product.cod_produto = (product.cod_grup_sku or str(product.id or "")).strip()
-
-    return products
+    return [_sanitize_product_for_response(product) for product in products]
 
 
 @router.get("/catalog", response_model=list[ProductRead])
@@ -139,12 +150,7 @@ def list_products_catalog(
         session.rollback()
         ensure_database_ready()
         products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
-    for product in products:
-        for field_name in ("updated_at", "created_at", "imported_at"):
-            value = getattr(product, field_name, None)
-            if value is not None and getattr(value, "tzinfo", None) is None:
-                setattr(product, field_name, value.replace(tzinfo=timezone.utc))
-    return products
+    return [_sanitize_product_for_response(product) for product in products]
 
 
 @router.post("", response_model=ProductRead)

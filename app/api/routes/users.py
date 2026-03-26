@@ -14,17 +14,40 @@ from app.services.imports import apply_common_source_fields
 router = APIRouter(prefix="/users", tags=["users"])
 
 
+def _normalize_allowed_pages(raw_allowed_pages) -> list[str] | None:
+    if raw_allowed_pages is None:
+        return None
+    if isinstance(raw_allowed_pages, list):
+        values = [str(page).strip().lower() for page in raw_allowed_pages if str(page).strip()]
+        return values or None
+    if isinstance(raw_allowed_pages, str):
+        text = raw_allowed_pages.strip()
+        if not text:
+            return None
+        if "," in text:
+            values = [part.strip().lower() for part in text.split(",") if part.strip()]
+            return values or None
+        return [text.lower()]
+    return None
+
+
+def _sanitize_user_for_response(user: User) -> User:
+    user.allowed_pages = _normalize_allowed_pages(user.allowed_pages)
+    return user
+
+
 @router.get("", response_model=list[UserRead])
 def list_users(
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("admin")),
 ) -> list[User]:
     try:
-        return list(session.exec(select(User).order_by(User.username)).all())
+        users = list(session.exec(select(User).order_by(User.username)).all())
     except SQLAlchemyError:
         session.rollback()
         ensure_database_ready()
-        return list(session.exec(select(User).order_by(User.username)).all())
+        users = list(session.exec(select(User).order_by(User.username)).all())
+    return [_sanitize_user_for_response(user) for user in users]
 
 
 @router.post("", response_model=UserRead)
