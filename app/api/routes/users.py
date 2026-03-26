@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from app.api.deps import get_current_user, require_roles
@@ -7,6 +8,7 @@ from app.db.session import get_session
 from app.models import User
 from app.schemas.users import UserCreate, UserRead
 from app.services.audit import log_change
+from app.services.bootstrap import ensure_database_ready
 from app.services.imports import apply_common_source_fields
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -17,7 +19,12 @@ def list_users(
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("admin")),
 ) -> list[User]:
-    return list(session.exec(select(User).order_by(User.username)).all())
+    try:
+        return list(session.exec(select(User).order_by(User.username)).all())
+    except SQLAlchemyError:
+        session.rollback()
+        ensure_database_ready()
+        return list(session.exec(select(User).order_by(User.username)).all())
 
 
 @router.post("", response_model=UserRead)

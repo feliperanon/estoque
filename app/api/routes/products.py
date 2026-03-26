@@ -5,6 +5,7 @@ from datetime import timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from openpyxl import load_workbook
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, or_, select
 
 from app.api.deps import get_current_user, require_roles
@@ -12,6 +13,7 @@ from app.db.session import get_session
 from app.models import Product, ProductHistory, User
 from app.schemas.products import ProductCreate, ProductHistoryRead, ProductImportPayload, ProductRead, ProductUpdate
 from app.services.audit import log_change
+from app.services.bootstrap import ensure_database_ready
 from app.services.imports import apply_common_source_fields
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -87,7 +89,12 @@ def list_products(
             Product.cod_produto.contains(q) | Product.cod_grup_descricao.contains(q) | Product.cod_grup_sku.contains(q),
         )
 
-    products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+    try:
+        products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+    except SQLAlchemyError:
+        session.rollback()
+        ensure_database_ready()
+        products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
 
     # Alguns registros legados podem ter datetime sem timezone;
     # padroniza para UTC para evitar erro de serializacao em resposta.
@@ -126,7 +133,12 @@ def list_products_catalog(
             | Product.cod_grup_sku.contains(q),
         )
 
-    products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+    try:
+        products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+    except SQLAlchemyError:
+        session.rollback()
+        ensure_database_ready()
+        products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
     for product in products:
         for field_name in ("updated_at", "created_at", "imported_at"):
             value = getattr(product, field_name, None)
