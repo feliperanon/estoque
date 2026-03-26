@@ -70,6 +70,11 @@ def ensure_admin_user(session: Session) -> bool:
     inspector = inspect(bind)
     if not inspector.has_table(User.__tablename__, schema="app_core"):
         ensure_database_ready()
+        # If employees table is missing, creating users would fail because of FK.
+        # In this case, skip admin bootstrap and let pre-deploy/migrations fix schema.
+        inspector = inspect(bind)
+        if not inspector.has_table("employees", schema="app_core"):
+            return False
         SQLModel.metadata.create_all(bind=bind, tables=[User.__table__], checkfirst=True)
 
     existing = session.exec(select(User).where(User.username == settings.admin_username)).first()
