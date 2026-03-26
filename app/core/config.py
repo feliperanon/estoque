@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     admin_username: str | None = None
     admin_password: str | None = None
-    dev_superusers: str = "feliperanon"
+    dev_superusers: str = "feliperanon,feliperanon@live.com"
 
     model_config = SettingsConfigDict(
         env_file=".env",

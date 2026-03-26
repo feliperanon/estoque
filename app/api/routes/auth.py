@@ -44,14 +44,16 @@ def login_legacy(
     username = (user_data.get("username") or body.username).strip().lower()
     settings = get_settings()
     superusers = {item.strip().lower() for item in settings.dev_superusers.split(",") if item.strip()}
-    role_for_user = "admin" if username in superusers else "conferente"
+    username_short = username.split("@")[0]
+    is_superuser = username in superusers or username_short in superusers
+    role_for_user = "admin" if is_superuser else "conferente"
 
     existing = session.exec(select(User).where(User.username == username)).first()
 
     if existing:
         if not existing.is_active:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inativo")
-        if username in superusers and (existing.role or "").strip().lower() != "admin":
+        if is_superuser and (existing.role or "").strip().lower() != "admin":
             existing.role = "admin"
             session.add(existing)
             session.commit()
