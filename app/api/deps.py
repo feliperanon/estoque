@@ -15,7 +15,13 @@ def get_current_user(
     session: Session = Depends(get_session),
 ) -> User:
     payload = decode_access_token(token)
-    if not payload or "sub" not in payload:
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalido")
+
+    if payload.get("token_error") == "expired":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado")
+
+    if "sub" not in payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalido")
 
     user_id = int(payload["sub"])
