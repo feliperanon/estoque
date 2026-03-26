@@ -189,6 +189,8 @@ async def import_products_excel(
     created = 0
     updated = 0
     ignored = 0
+    failed = 0
+    created_in_batch: dict[str, Product] = {}
 
     for row in all_rows[header_row_index + 1 :]:
         row_data: dict[str, str | None] = {}
@@ -208,28 +210,56 @@ async def import_products_excel(
             ignored += 1
             continue
 
-        sku = row_data["cod_grup_sku"]
-        existing = session.exec(select(Product).where(Product.cod_grup_sku == sku)).first()
+        sku = (row_data.get("cod_grup_sku") or "").strip()
+        if not sku:
+            ignored += 1
+            continue
 
-        if existing:
-            for key, value in row_data.items():
-                setattr(existing, key, value)
-            apply_common_source_fields(existing, None, "excel")
-            updated += 1
-        else:
-            product = Product(**row_data)
-            apply_common_source_fields(product, None, "excel")
-            session.add(product)
-            created += 1
+        row_data["cod_grup_sku"] = sku
 
-    session.flush()
+        try:
+            # Evita erro de unicidade quando o mesmo SKU aparece mais de uma vez no mesmo arquivo.
+            if sku in created_in_batch:
+                staged = created_in_batch[sku]
+                for key, value in row_data.items():
+                    setattr(staged, key, value)
+                apply_common_source_fields(staged, None, "excel")
+                updated += 1
+                continue
+
+            existing = session.exec(select(Product).where(Product.cod_grup_sku == sku)).first()
+
+            if existing:
+                for key, value in row_data.items():
+                    setattr(existing, key, value)
+                apply_common_source_fields(existing, None, "excel")
+                updated += 1
+            else:
+                product = Product(**row_data)
+                apply_common_source_fields(product, None, "excel")
+                session.add(product)
+                created_in_batch[sku] = product
+                created += 1
+        except Exception:
+            failed += 1
+            continue
+
+    try:
+        session.flush()
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Falha ao salvar importacao. Verifique duplicidades/formatos. Erro: {exc}",
+        )
+
     log_change(
         session,
         "products",
         0,
         "import_excel",
         user.username,
-        {"created": created, "updated": updated, "ignored": ignored},
+        {"created": created, "updated": updated, "ignored": ignored, "failed": failed},
     )
     session.commit()
-    return {"created": created, "updated": updated, "ignored": ignored}
+    return {"created": created, "updated": updated, "ignored": ignored, "failed": failed}
