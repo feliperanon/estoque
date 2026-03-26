@@ -56,7 +56,13 @@ def login_legacy(
     um token JWT local junto com os dados do usuário.
     """
     normalized_username = (body.username or "").strip().lower()
-    local_user = _authenticate_local_user(session, normalized_username, body.password)
+    try:
+        local_user = _authenticate_local_user(session, normalized_username, body.password)
+    except SQLAlchemyError:
+        session.rollback()
+        logger.exception("Falha ao autenticar usuario local no login legado")
+        local_user = None
+
     if local_user:
         token = create_access_token(str(local_user.id))
         user = UserInfo(

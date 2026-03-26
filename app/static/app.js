@@ -5,10 +5,7 @@
  * Inclui modo de contagem offline-first com sincronizacao posterior.
  */
 
-const RENDER_API_ORIGIN = 'https://estoque-app-hrt2.onrender.com';
-const API_BASE_URL = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
-  ? `${RENDER_API_ORIGIN}/api`
-  : '/api';
+const API_BASE_URL = '/api';
 const API_LOGIN  = `${API_BASE_URL}/auth/login-legacy`;
 const API_LOGIN_LOCAL = `${API_BASE_URL}/auth/login`;
 const API_SYNC_COUNTS = `${API_BASE_URL}/audit/count-events`;
