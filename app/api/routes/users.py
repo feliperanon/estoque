@@ -42,11 +42,41 @@ def _sanitize_user_for_response(user: User) -> User:
     return user
 
 
+def _to_user_read(user: User) -> UserRead:
+    safe = _sanitize_user_for_response(user)
+    username = (safe.username or "").strip().lower()
+    return UserRead(
+        id=safe.id or 0,
+        username=username,
+        full_name=safe.full_name,
+        phone=safe.phone,
+        role=safe.role,
+        is_active=bool(safe.is_active),
+        employee_id=safe.employee_id,
+        allowed_pages=safe.allowed_pages,
+        google_sub=safe.google_sub,
+        legacy_id=safe.legacy_id,
+        source_system=safe.source_system,
+        imported_at=safe.imported_at,
+        updated_at=safe.updated_at,
+    )
+
+
+def _serialize_users(users: list[User]) -> list[UserRead]:
+    result: list[UserRead] = []
+    for user in users:
+        try:
+            result.append(_to_user_read(user))
+        except Exception:
+            logger.exception("Registro de usuario invalido ignorado", extra={"user_id": getattr(user, "id", None)})
+    return result
+
+
 @router.get("", response_model=list[UserRead])
 def list_users(
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("admin")),
-) -> list[User]:
+) -> list[UserRead]:
     try:
         users = list(session.exec(select(User).order_by(User.username)).all())
     except SQLAlchemyError:
@@ -57,7 +87,7 @@ def list_users(
         session.rollback()
         logger.exception("Falha inesperada ao listar usuarios")
         return []
-    return [_sanitize_user_for_response(user) for user in users]
+    return _serialize_users(users)
 
 
 @router.post("", response_model=UserRead)

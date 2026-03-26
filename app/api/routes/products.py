@@ -45,6 +45,40 @@ def _sanitize_product_for_response(product: Product) -> Product:
     return product
 
 
+def _to_product_read(product: Product) -> ProductRead:
+    safe = _sanitize_product_for_response(product)
+    return ProductRead(
+        id=safe.id or 0,
+        cod_grup_sp=safe.cod_grup_sp,
+        cod_grup_cia=safe.cod_grup_cia,
+        cod_grup_tipo=safe.cod_grup_tipo,
+        cod_grup_familia=safe.cod_grup_familia,
+        cod_grup_segmento=safe.cod_grup_segmento,
+        cod_grup_marca=safe.cod_grup_marca,
+        cod_produto=(safe.cod_produto or "").strip() or (safe.cod_grup_sku or str(safe.id or "")),
+        cod_grup_descricao=(safe.cod_grup_descricao or "").strip() or (safe.cod_grup_sku or "Sem descricao"),
+        cod_grup_sku=(safe.cod_grup_sku or "").strip() or (safe.cod_produto or str(safe.id or "")),
+        status=safe.status,
+        grup_prioridade=safe.grup_prioridade,
+        price=safe.price,
+        legacy_id=safe.legacy_id,
+        source_system=safe.source_system,
+        imported_at=safe.imported_at,
+        updated_at=safe.updated_at,
+        created_at=safe.created_at,
+    )
+
+
+def _serialize_products(products: list[Product]) -> list[ProductRead]:
+    result: list[ProductRead] = []
+    for product in products:
+        try:
+            result.append(_to_product_read(product))
+        except Exception:
+            logger.exception("Registro de produto invalido ignorado", extra={"product_id": getattr(product, "id", None)})
+    return result
+
+
 def _norm_header(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", (value or "").strip().lower())
     normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
@@ -108,7 +142,7 @@ def list_products(
     _: User = Depends(require_roles("administrativo", "admin")),
     q: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
-) -> list[Product]:
+) -> list[ProductRead]:
     statement = select(Product)
     if q:
         statement = statement.where(
@@ -126,7 +160,7 @@ def list_products(
         logger.exception("Falha inesperada ao listar produtos")
         return []
 
-    return [_sanitize_product_for_response(product) for product in products]
+    return _serialize_products(products)
 
 
 @router.get("/catalog", response_model=list[ProductRead])
@@ -136,7 +170,7 @@ def list_products_catalog(
     q: str | None = Query(default=None),
     status_filter: str = Query(default="todos", alias="status"),
     limit: int = Query(default=500, ge=1, le=2000),
-) -> list[Product]:
+) -> list[ProductRead]:
     statement = select(Product)
     normalized_status = (status_filter or "todos").strip().lower()
     if normalized_status == "ativo":
@@ -163,7 +197,7 @@ def list_products_catalog(
         session.rollback()
         logger.exception("Falha inesperada ao listar catalogo de produtos")
         return []
-    return [_sanitize_product_for_response(product) for product in products]
+    return _serialize_products(products)
 
 
 @router.post("", response_model=ProductRead)
