@@ -427,9 +427,19 @@ function renderCountProducts(products) {
     li.className = 'count-product-item';
     const itemCode = normalizeItemCode(product.cod_produto || product.cod_grup_sku || product.cod_grup_descricao || '');
     const itemTotal = itemCode ? (totalsByItem.get(itemCode) || 0) : 0;
+    const codeText = (product.cod_produto || product.cod_grup_sku || '—').trim() || '—';
+    const descText = (product.cod_grup_descricao || 'Sem descricao').trim() || 'Sem descricao';
+    const brandText = (product.cod_grup_marca || '').trim();
     const label = document.createElement('span');
     label.className = 'count-product-label';
-    label.textContent = `${product.cod_produto || '—'} - ${product.cod_grup_descricao || 'Sem descricao'} (${product.cod_grup_marca || 'Sem marca'})`;
+    const codeEl = document.createElement('strong');
+    codeEl.className = 'count-product-code';
+    codeEl.textContent = codeText;
+    const descEl = document.createElement('span');
+    descEl.className = 'count-product-desc';
+    descEl.textContent = brandText ? `${descText} - ${brandText}` : descText;
+    label.appendChild(codeEl);
+    label.appendChild(descEl);
 
     const controls = document.createElement('div');
     controls.className = 'count-product-controls';
