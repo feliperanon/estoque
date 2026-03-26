@@ -530,21 +530,35 @@ async function loadCountProducts() {
 
   const q = '';
   const statusValue = countProductsStatusToggle?.checked ? 'inativo' : 'ativo';
-  const params = new URLSearchParams();
-  params.set('limit', '1000');
-  params.set('status', statusValue);
-  if (q) params.set('q', q);
-
-  try {
+  const fetchCatalog = async (statusParam) => {
+    const params = new URLSearchParams();
+    params.set('limit', '1000');
+    params.set('status', statusParam);
+    if (q) params.set('q', q);
     const resp = await apiFetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!resp.ok) {
+    if (!resp.ok) return null;
+    return resp.json();
+  };
+
+  try {
+    let products = await fetchCatalog(statusValue);
+    if (products === null) {
       renderCountProducts([]);
       setFeedback('Nao foi possivel carregar a lista de produtos para contagem.', true);
       return;
     }
-    countProductsCache = await resp.json();
+
+    // Evita tela vazia quando base legada nao possui status consistente.
+    if (!products.length && statusValue === 'ativo') {
+      const fallbackProducts = await fetchCatalog('todos');
+      if (Array.isArray(fallbackProducts) && fallbackProducts.length) {
+        products = fallbackProducts;
+      }
+    }
+
+    countProductsCache = products;
     renderCountProducts(countProductsCache);
   } catch {
     renderCountProducts([]);
