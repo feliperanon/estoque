@@ -21,6 +21,21 @@ router = APIRouter(prefix="/products", tags=["products"])
 logger = logging.getLogger(__name__)
 
 
+def _safe_log_change(
+    session: Session,
+    entity_name: str,
+    entity_id: int,
+    action: str,
+    actor: str | None,
+    payload: dict | None = None,
+) -> None:
+    try:
+        log_change(session, entity_name, entity_id, action, actor, payload)
+    except Exception:
+        # Auditoria nao pode derrubar operacao principal.
+        logger.exception("Falha ao registrar auditoria", extra={"entity": entity_name, "action": action})
+
+
 def _sanitize_product_for_response(product: Product) -> Product:
     # Compatibilidade com dados legados incompletos para evitar erro 500 de serializacao.
     sku = (product.cod_grup_sku or "").strip()
@@ -214,7 +229,7 @@ def create_product(
     apply_common_source_fields(product, payload.legacy_id, payload.source_system or "manual")
     session.add(product)
     session.flush()
-    log_change(session, "products", product.id or 0, "create", user.username, payload.model_dump())
+    _safe_log_change(session, "products", product.id or 0, "create", user.username, payload.model_dump())
     session.commit()
     session.refresh(product)
     return product
@@ -245,7 +260,7 @@ def import_products_payload(
         created += 1
 
     session.flush()
-    log_change(
+    _safe_log_change(
         session,
         "products",
         0,
@@ -375,7 +390,7 @@ async def import_products_excel(
             detail=f"Falha ao salvar importacao. Verifique duplicidades/formatos. Erro: {exc}",
         )
 
-    log_change(
+    _safe_log_change(
         session,
         "products",
         0,
@@ -433,7 +448,7 @@ def update_product(
     product.updated_at = utcnow()
     session.add(product)
     session.flush()
-    log_change(session, "products", product.id, "update", user.username, update_data)
+    _safe_log_change(session, "products", product.id, "update", user.username, update_data)
     session.commit()
     session.refresh(product)
     return product
@@ -458,7 +473,7 @@ def toggle_product_status(
     product.updated_at = utcnow()
     session.add(product)
     session.flush()
-    log_change(session, "products", product.id, "toggle_status", user.username, {"old": old_status, "new": new_status})
+    _safe_log_change(session, "products", product.id, "toggle_status", user.username, {"old": old_status, "new": new_status})
     session.commit()
     session.refresh(product)
     return product
@@ -474,7 +489,7 @@ def delete_product(
     if not product:
         raise HTTPException(status_code=404, detail="Produto nao encontrado")
 
-    log_change(session, "products", product.id, "delete", user.username, {"sku": product.cod_grup_sku})
+    _safe_log_change(session, "products", product.id, "delete", user.username, {"sku": product.cod_grup_sku})
     session.delete(product)
     session.commit()
     return {"ok": True}
