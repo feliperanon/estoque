@@ -16,6 +16,23 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 
 
+def _authenticate_local_user(session: Session, username: str, password: str) -> User | None:
+    normalized_username = (username or "").strip().lower()
+    if not normalized_username:
+        return None
+    user = session.exec(
+        select(User).where(User.username == normalized_username, User.is_active == True),
+    ).first()
+    if not user:
+        return None
+    # Usuarios criados via legado nao possuem hash local valido.
+    if user.password_hash == "legacy-auth":
+        return None
+    if not verify_password(password, user.password_hash):
+        return None
+    return user
+
+
 @router.post("/login", response_model=Token)
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -38,22 +55,32 @@ def login_legacy(
     Autentica contra o sistema legado (analise-operacional) e retorna
     um token JWT local junto com os dados do usuário.
     """
+    normalized_username = (body.username or "").strip().lower()
+    local_user = _authenticate_local_user(session, normalized_username, body.password)
+    if local_user:
+        token = create_access_token(str(local_user.id))
+        user = UserInfo(
+            username=local_user.username,
+            name=local_user.username.split("@")[0] if "@" in local_user.username else local_user.username,
+            email=local_user.username if "@" in local_user.username else None,
+            role=local_user.role,
+        )
+        return TokenWithUser(access_token=token, user=user)
+
+    user_data: dict | None = None
     try:
         user_data = authenticate_with_legacy(body.username, body.password)
     except Exception:
         logger.exception("Falha inesperada ao autenticar no legado")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Falha temporaria no servico de autenticacao. Tente novamente em instantes.",
-        )
+        user_data = None
 
     if user_data is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="E-mail ou senha inválidos no portal legado",
+            detail="Nao foi possivel autenticar no legado e nao ha credencial local valida para este usuario.",
         )
 
-    username = (user_data.get("username") or body.username).strip().lower()
+    username = (user_data.get("username") or normalized_username).strip().lower()
     settings = get_settings()
     superusers = {item.strip().lower() for item in settings.dev_superusers.split(",") if item.strip()}
     username_short = username.split("@")[0]

@@ -6,6 +6,7 @@
  */
 
 const API_LOGIN  = '/api/auth/login-legacy';
+const API_LOGIN_LOCAL = '/api/auth/login';
 const API_SYNC_COUNTS = '/api/audit/count-events';
 const API_PRODUCTS = '/api/products';
 const API_PRODUCTS_IMPORT_EXCEL = '/api/products/import-excel';
@@ -191,6 +192,10 @@ function canAccessHash(hashKey) {
   return canAccessModule(hashKey);
 }
 
+function getCurrentHashKey() {
+  return decodeURIComponent((window.location.hash || '').replace('#', '')).trim().toLowerCase();
+}
+
 function renderModuleNav() {
   const buttons = moduleNav.querySelectorAll('.module-btn');
   let firstVisible = null;
@@ -205,7 +210,7 @@ function renderModuleNav() {
   });
 
   if (firstVisible) {
-    const hashModule = window.location.hash.slice(1);
+    const hashModule = getCurrentHashKey();
     if (hashModule && canAccessHash(hashModule)) {
       setActiveModule(hashModule, false);
     } else {
@@ -622,14 +627,12 @@ function fillSelect(selectId, options, selected = null) {
   const el = document.getElementById(selectId);
   if (!el) return;
   el.innerHTML = '';
-  if (!Array.isArray(options) || options.length === 0) {
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Selecione...';
-    placeholder.selected = true;
-    el.appendChild(placeholder);
-    return;
-  }
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Selecione...';
+  placeholder.selected = selected == null || selected === '';
+  el.appendChild(placeholder);
+  if (!Array.isArray(options) || options.length === 0) return;
   for (const opt of options) {
     const option = document.createElement('option');
     option.value = opt;
@@ -729,6 +732,7 @@ function readProductPayloadFromForm() {
 }
 
 function renderProducts(products) {
+  if (!productsList || !productsTotal) return;
   productsList.innerHTML = '';
   if (!products.length) {
     productsList.innerHTML = '<li><span>Nenhum produto cadastrado ainda.</span><strong>0</strong></li>';
@@ -1495,7 +1499,7 @@ function bindModuleEvents() {
   });
 
   window.addEventListener('hashchange', () => {
-    const hashKey = window.location.hash.slice(1);
+    const hashKey = getCurrentHashKey();
     if (hashKey && canAccessHash(hashKey)) {
       setActiveModule(hashKey, false);
     }
@@ -1507,6 +1511,36 @@ function setLoading(on) {
   btnLogin.disabled        = on;
   btnLogin.querySelector('.btn-label').style.display  = on ? 'none' : 'inline';
   btnSpinner.style.display = on ? 'inline-block' : 'none';
+}
+
+async function resolveLocalUserInfo(token, username) {
+  try {
+    const resp = await fetch('/api/users', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error('users lookup failed');
+    const users = await resp.json();
+    const normalized = (username || '').trim().toLowerCase();
+    const matched = Array.isArray(users)
+      ? users.find((u) => (u.username || '').trim().toLowerCase() === normalized)
+      : null;
+    if (matched) {
+      return {
+        username: matched.username,
+        name: matched.username,
+        email: matched.username.includes('@') ? matched.username : null,
+        role: matched.role || 'conferente',
+      };
+    }
+  } catch {
+    // fallback para manter fluxo de login quando /api/users falhar
+  }
+  return {
+    username,
+    name: username,
+    email: username.includes('@') ? username : null,
+    role: 'conferente',
+  };
 }
 
 loginForm.addEventListener('submit', async (e) => {
@@ -1530,17 +1564,29 @@ loginForm.addEventListener('submit', async (e) => {
   setLoading(true);
 
   try {
-    const doLoginRequest = () => fetch(API_LOGIN, {
+    const doLegacyLoginRequest = () => fetch(API_LOGIN, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ username, password }),
     });
+    const doLocalLoginRequest = () => fetch(API_LOGIN_LOCAL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
+    });
 
-    let resp = await doLoginRequest();
+    let resp = await doLegacyLoginRequest();
+    if (resp.status === 503) {
+      loginError.textContent = 'Legado indisponível. Tentando autenticação local...';
+      resp = await doLocalLoginRequest();
+    }
     if (resp.status === 503) {
       loginError.textContent = 'Servidor iniciando. Tentando novamente...';
       await new Promise((resolve) => setTimeout(resolve, 2500));
-      resp = await doLoginRequest();
+      resp = await doLegacyLoginRequest();
+      if (resp.status === 503) {
+        resp = await doLocalLoginRequest();
+      }
     }
 
     if (!resp.ok) {
@@ -1554,8 +1600,10 @@ loginForm.addEventListener('submit', async (e) => {
     }
 
     const data = await resp.json();
-    saveSession(data.access_token, data.user);
-    initDashboard(data.user);
+    const token = data.access_token;
+    const user = data.user || await resolveLocalUserInfo(token, username);
+    saveSession(token, user);
+    initDashboard(user);
 
   } catch {
     loginError.textContent = 'Erro de conexão. Verifique sua internet e tente novamente.';
@@ -1572,6 +1620,11 @@ function initDashboard(user) {
   roleDisplay.textContent = `Perfil: ${currentRole}`;
 
   renderModuleNav();
+  const hashKey = getCurrentHashKey();
+  // Quando a URL e /app#contagem, deve abrir a home informativa do modulo.
+  if (hashKey === 'contagem') {
+    setActiveModule('contagem', false);
+  }
   renderAccessMatrix();
   updateNetworkStatus();
   renderCounts();
