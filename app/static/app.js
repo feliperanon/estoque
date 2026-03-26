@@ -1836,6 +1836,7 @@ function initDashboard(user) {
   roleDisplay.textContent = `Perfil: ${currentRole}`;
 
   renderModuleNav();
+  renderSubCardsAccess();
   const hashKey = getCurrentHashKey();
   // Quando a URL e /app#contagem, deve abrir a home informativa do modulo.
   if (hashKey === 'contagem') {
