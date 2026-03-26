@@ -30,7 +30,9 @@ def _safe_log_change(
     payload: dict | None = None,
 ) -> None:
     try:
-        log_change(session, entity_name, entity_id, action, actor, payload)
+        # Isola falhas de auditoria sem contaminar a transacao principal.
+        with session.begin_nested():
+            log_change(session, entity_name, entity_id, action, actor, payload)
     except Exception:
         # Auditoria nao pode derrubar operacao principal.
         logger.exception("Falha ao registrar auditoria", extra={"entity": entity_name, "action": action})
@@ -398,7 +400,15 @@ async def import_products_excel(
         user.username,
         {"created": created, "updated": updated, "ignored": ignored, "failed": failed},
     )
-    session.commit()
+    try:
+        session.commit()
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Falha ao concluir importacao de planilha")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Falha ao concluir importacao. Erro: {exc}",
+        )
     return {"created": created, "updated": updated, "ignored": ignored, "failed": failed}
 
 
