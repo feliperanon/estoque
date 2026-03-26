@@ -1,4 +1,4 @@
-const CACHE_NAME = "estoque-v3";
+const CACHE_NAME = "estoque-v4";
 const URLS = [
   "/",
   "/app",
