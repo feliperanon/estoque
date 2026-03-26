@@ -482,7 +482,7 @@ function renderCountProducts(products) {
       const itemInput = document.getElementById('item-code');
       if (!itemInput) return;
       itemInput.value = itemCode;
-      document.getElementById('item-qty')?.focus();
+      itemInput.focus();
       setFeedback(`Produto selecionado: ${itemCode}`);
     });
     plusBtn.addEventListener('click', () => applyDelta(1));
@@ -669,8 +669,8 @@ async function syncPendingEvents() {
   }
 }
 
-function registerCount(itemCodeInput, qtyInput) {
-  registerCountDelta(itemCodeInput, Number(qtyInput));
+function registerCount(itemCodeInput) {
+  registerCountDelta(itemCodeInput, 1);
 }
 
 function registerCountDelta(itemCodeInput, qtyDeltaInput) {
@@ -763,10 +763,8 @@ function bindCountEvents() {
   countForm.addEventListener('submit', (event) => {
     event.preventDefault();
     const itemCode = document.getElementById('item-code').value;
-    const qty = document.getElementById('item-qty').value;
-    registerCount(itemCode, qty);
+    registerCount(itemCode);
     document.getElementById('item-code').value = '';
-    document.getElementById('item-qty').value = '1';
     document.getElementById('item-code').focus();
   });
 

@@ -166,10 +166,6 @@
                   <label for="item-code">Item (codigo ou nome)</label>
                   <input id="item-code" name="item-code" type="text" placeholder="Ex.: CX-AGUA-510" required />
                 </div>
-                <div class="field">
-                  <label for="item-qty">Quantidade contada</label>
-                  <input id="item-qty" name="item-qty" type="number" min="1" step="1" value="1" required />
-                </div>
                 <button type="submit" id="btn-add-count">Registrar contagem</button>
               </form>
               <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
@@ -667,7 +663,7 @@
             <h2>Cadastro de usuários (admin)</h2>
             <form id="register-form" class="product-form" autocomplete="off" novalidate>
               <div class="field"><label for="register-name">Nome</label><input id="register-name" type="text" required /></div>
-              <div class="field"><label for="register-email">E-mail</label><input id="register-email" type="email" required /></div>
+              <div class="field"><label for="register-email">E-mail</label><input id="register-email" type="email" autocomplete="username" required /></div>
               <div class="field"><label for="register-phone">Telefone</label><input id="register-phone" type="text" /></div>
               <div class="field"><label for="register-password">Senha</label><input id="register-password" type="password" autocomplete="new-password" required /></div>
               <div class="field"><label for="register-pages">Páginas liberadas (separar por ;)</label><input id="register-pages" type="text" placeholder="contagem;cadastro;acesso" /></div>
