@@ -21,7 +21,11 @@
           <div class="hero-actions">
             <a class="hero-button" href="/app">Entrar no sistema</a>
             <a class="hero-link" href="/app#count">Ir direto para contagem</a>
+            <button id="btn-install-app" class="hero-link install-app-btn" type="button" hidden>
+              Baixar aplicativo
+            </button>
           </div>
+          <p id="install-feedback" class="install-feedback" aria-live="polite"></p>
         </div>
 
         <aside class="hero-panel">
@@ -59,5 +63,6 @@
         </article>
       </section>
     </main>
+    <script src="/static/pwa-install.js"></script>
   </body>
 </html>
