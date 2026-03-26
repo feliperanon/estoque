@@ -28,7 +28,11 @@ def _authenticate_local_user(session: Session, username: str, password: str) -> 
     # Usuarios criados via legado nao possuem hash local valido.
     if user.password_hash == "legacy-auth":
         return None
-    if not verify_password(password, user.password_hash):
+    try:
+        if not verify_password(password, user.password_hash):
+            return None
+    except Exception:
+        logger.exception("Hash de senha invalido para usuario local", extra={"username": normalized_username})
         return None
     return user
 
@@ -39,7 +43,15 @@ def login(
     session: Session = Depends(get_session),
 ) -> Token:
     user = session.exec(select(User).where(User.username == form_data.username, User.is_active == True)).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
+    is_valid_password = False
+    if user:
+        try:
+            is_valid_password = verify_password(form_data.password, user.password_hash)
+        except Exception:
+            logger.exception("Falha ao validar hash de senha no login local", extra={"username": form_data.username})
+            is_valid_password = False
+
+    if not user or not is_valid_password:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciais invalidas")
 
     token = create_access_token(str(user.id))
