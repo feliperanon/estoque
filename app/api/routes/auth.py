@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
 
+from app.core.config import get_settings
 from app.core.security import create_access_token, verify_password
 from app.db.session import get_session
 from app.models import User
@@ -41,18 +42,27 @@ def login_legacy(
         )
 
     username = (user_data.get("username") or body.username).strip().lower()
+    settings = get_settings()
+    superusers = {item.strip().lower() for item in settings.dev_superusers.split(",") if item.strip()}
+    role_for_user = "admin" if username in superusers else "conferente"
+
     existing = session.exec(select(User).where(User.username == username)).first()
 
     if existing:
         if not existing.is_active:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inativo")
+        if username in superusers and (existing.role or "").strip().lower() != "admin":
+            existing.role = "admin"
+            session.add(existing)
+            session.commit()
+            session.refresh(existing)
         user_model = existing
     else:
-        # Usuário legado novo entra com perfil conferente por padrão.
+        # Usuário legado novo entra como conferente, exceto superusuários definidos.
         user_model = User(
             username=username,
             password_hash="legacy-auth",
-            role="conferente",
+            role=role_for_user,
             is_active=True,
             source_system="legacy",
         )
