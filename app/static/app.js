@@ -1577,21 +1577,21 @@ loginForm.addEventListener('submit', async (e) => {
     });
 
     let resp = await doLegacyLoginRequest();
-    if (resp.status === 503) {
+    if (resp.status >= 500) {
       loginError.textContent = 'Legado indisponível. Tentando autenticação local...';
       resp = await doLocalLoginRequest();
     }
-    if (resp.status === 503) {
+    if (resp.status >= 500) {
       loginError.textContent = 'Servidor iniciando. Tentando novamente...';
       await new Promise((resolve) => setTimeout(resolve, 2500));
       resp = await doLegacyLoginRequest();
-      if (resp.status === 503) {
+      if (resp.status >= 500) {
         resp = await doLocalLoginRequest();
       }
     }
 
     if (!resp.ok) {
-      if (resp.status === 503) {
+      if (resp.status >= 500) {
         loginError.textContent = 'Servidor temporariamente indisponível. Tente novamente em alguns segundos.';
         return;
       }
