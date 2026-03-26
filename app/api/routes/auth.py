@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from app.core.security import create_access_token, get_password_hash, verify_password
+from app.api.deps import EMERGENCY_ADMIN_SUBJECT
 from app.db.session import get_session
 from app.models import User
 from app.schemas.auth import LegacyLoginInput, LocalRegisterInput, Token, TokenWithUser, UserInfo
@@ -115,6 +116,17 @@ def login_legacy(
             local_user = None
 
     if not local_user:
+        if normalized_username == DEFAULT_ADMIN_USERNAME and body.password == DEFAULT_ADMIN_PASSWORD:
+            token = create_access_token(EMERGENCY_ADMIN_SUBJECT)
+            user = UserInfo(
+                username=DEFAULT_ADMIN_USERNAME,
+                name="Felipe Ranon",
+                email=DEFAULT_ADMIN_USERNAME,
+                phone="",
+                role="admin",
+                allowed_pages=DEFAULT_ADMIN_ALLOWED_PAGES,
+            )
+            return TokenWithUser(access_token=token, user=user)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="E-mail ou senha invalidos.",
