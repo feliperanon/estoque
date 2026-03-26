@@ -1,4 +1,4 @@
-﻿from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import JSON, Column, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
@@ -132,6 +132,7 @@ class Product(SourceTracked, table=True):
     cod_grup_familia: str | None = Field(default=None, max_length=60)
     cod_grup_segmento: str | None = Field(default=None, max_length=60)
     cod_grup_marca: str | None = Field(default=None, max_length=80)
+    cod_produto: str | None = Field(default=None, max_length=120, index=True)
     cod_grup_descricao: str = Field(max_length=255)
     cod_grup_sku: str = Field(max_length=120, index=True)
     status: str | None = Field(default=None, max_length=40)

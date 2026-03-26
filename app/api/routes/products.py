@@ -43,6 +43,10 @@ HEADER_ALIASES = {
     "cod_grup_marca": "cod_grup_marca",
     "grup_marca": "cod_grup_marca",
     "cod_marca": "cod_grup_marca",
+    "cod_produto": "cod_produto",
+    "codigo_produto": "cod_produto",
+    "codigo": "cod_produto",
+    "cod": "cod_produto",
     "cod_grup_descricao": "cod_grup_descricao",
     "grup_descricao": "cod_grup_descricao",
     "descricao": "cod_grup_descricao",
@@ -55,7 +59,7 @@ HEADER_ALIASES = {
     "prioridade": "grup_prioridade",
 }
 
-REQUIRED_FIELDS = {"cod_grup_descricao", "cod_grup_sku"}
+REQUIRED_FIELDS = {"cod_produto", "cod_grup_descricao", "cod_grup_sku"}
 
 
 def _map_headers(raw_headers: tuple) -> tuple[list[str | None], int]:
@@ -79,7 +83,7 @@ def list_products(
     statement = select(Product)
     if q:
         statement = statement.where(
-            Product.cod_grup_descricao.contains(q) | Product.cod_grup_sku.contains(q),
+            Product.cod_produto.contains(q) | Product.cod_grup_descricao.contains(q) | Product.cod_grup_sku.contains(q),
         )
 
     products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
@@ -91,6 +95,8 @@ def list_products(
             value = getattr(product, field_name, None)
             if value is not None and getattr(value, "tzinfo", None) is None:
                 setattr(product, field_name, value.replace(tzinfo=timezone.utc))
+        if not (product.cod_produto or "").strip():
+            product.cod_produto = (product.cod_grup_sku or str(product.id or "")).strip()
 
     return products
 
@@ -223,11 +229,16 @@ async def import_products_excel(
             continue
 
         sku = (row_data.get("cod_grup_sku") or "").strip()
+        cod_produto = (row_data.get("cod_produto") or "").strip()
         if not sku:
+            ignored += 1
+            continue
+        if not cod_produto:
             ignored += 1
             continue
 
         row_data["cod_grup_sku"] = sku
+        row_data["cod_produto"] = cod_produto
 
         try:
             # Evita erro de unicidade quando o mesmo SKU aparece mais de uma vez no mesmo arquivo.
@@ -296,6 +307,8 @@ def get_product(
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Produto nao encontrado")
+    if not (product.cod_produto or "").strip():
+        product.cod_produto = (product.cod_grup_sku or str(product.id or "")).strip()
     return product
 
 

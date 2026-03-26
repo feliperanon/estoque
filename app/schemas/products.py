@@ -10,6 +10,7 @@ class ProductBase(BaseModel):
     cod_grup_familia: str | None = Field(default=None, max_length=60)
     cod_grup_segmento: str | None = Field(default=None, max_length=60)
     cod_grup_marca: str | None = Field(default=None, max_length=80)
+    cod_produto: str = Field(min_length=1, max_length=120)
     cod_grup_descricao: str = Field(min_length=1, max_length=255)
     cod_grup_sku: str = Field(min_length=1, max_length=120)
     status: str | None = Field(default=None, max_length=40)
@@ -29,6 +30,7 @@ class ProductUpdate(BaseModel):
     cod_grup_familia: str | None = None
     cod_grup_segmento: str | None = None
     cod_grup_marca: str | None = None
+    cod_produto: str | None = None
     cod_grup_descricao: str | None = None
     cod_grup_sku: str | None = None
     status: str | None = None

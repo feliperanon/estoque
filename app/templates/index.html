@@ -136,28 +136,6 @@
               </form>
               <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
             </section>
-            <section class="grid-two">
-              <article class="card">
-                <div class="card-head">
-                  <h3>Totais por item</h3>
-                  <span id="total-items" class="chip"></span>
-                </div>
-                <ul id="totals-list" class="list"></ul>
-              </article>
-              <article class="card">
-                <div class="card-head">
-                  <h3>Eventos pendentes</h3>
-                  <span id="pending-count" class="chip"></span>
-                </div>
-                <div class="actions-row">
-                  <button id="btn-sync" class="btn-secondary btn-dark" type="button">Sincronizar agora</button>
-                  <button id="btn-export" class="btn-secondary btn-dark" type="button">Exportar backup</button>
-                  <label class="btn-secondary btn-dark file-btn" for="import-file">Importar backup</label>
-                  <input id="import-file" type="file" accept="application/json" hidden />
-                </div>
-                <ul id="pending-list" class="list"></ul>
-              </article>
-            </section>
           </div>
 
           <!-- Sub: Recontagem -->
@@ -351,6 +329,7 @@
                   <div class="field"><div class="field-label-row"><label for="prod-cod-familia">Cod Grup Familia</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-familia">+ Novo</button></div><select id="prod-cod-familia"></select></div>
                   <div class="field"><div class="field-label-row"><label for="prod-cod-segmento">Cod Grup Segmento</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-segmento">+ Novo</button></div><select id="prod-cod-segmento"></select></div>
                   <div class="field"><div class="field-label-row"><label for="prod-cod-marca">Cod Grup Marca</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-marca">+ Novo</button></div><select id="prod-cod-marca"></select></div>
+                  <div class="field"><label for="prod-codigo">Codigo do Produto</label><input id="prod-codigo" type="text" required /></div>
                   <div class="field"><label for="prod-descricao">Descrição</label><input id="prod-descricao" type="text" required /></div>
                   <div class="field"><div class="field-label-row"><label for="prod-sku">Cod Grup SKU</label><button type="button" class="btn-link-mini" data-new-option-target="prod-sku">+ Novo</button></div><select id="prod-sku"></select></div>
                   <div class="field"><div class="field-label-row"><label for="prod-status">Status</label><button type="button" class="btn-link-mini" data-new-option-target="prod-status">+ Novo</button></div><select id="prod-status"></select></div>
@@ -367,8 +346,9 @@
                 </div>
                 <p class="muted">
                   Envie sempre seu arquivo Excel para cadastrar/atualizar em lote.
-                  Campos esperados: Cod Grup SP, Cod Grup Cia, Cod Grup Tipo, Cod Grup Familia,
-                  Cod Grup Segmento, Cod Grup Marca, Cod Grup Descricao, Cod Grup SKU, Status e Grup Prioridade.
+                  Campos esperados: Codigo do Produto, Cod Grup SP, Cod Grup Cia, Cod Grup Tipo,
+                  Cod Grup Familia, Cod Grup Segmento, Cod Grup Marca, Cod Grup Descricao,
+                  Cod Grup SKU, Status e Grup Prioridade.
                 </p>
                 <div class="actions-row">
                   <label class="btn-secondary btn-dark file-btn" for="product-excel-file">Selecionar Excel</label>
@@ -386,7 +366,7 @@
               <h2>Produtos Cadastrados</h2>
               <p class="muted">Pesquise, edite, ative/inative ou exclua produtos. Clique em um produto para ver o histórico.</p>
               <div class="search-row">
-                <input id="produtos-search" type="text" placeholder="Buscar por SKU ou descrição..." class="search-input" />
+                <input id="produtos-search" type="text" placeholder="Buscar por codigo, SKU ou descrição..." class="search-input" />
                 <button id="btn-produtos-search" type="button" class="btn-secondary btn-dark">Buscar</button>
               </div>
               <div id="produtos-feedback" class="field-feedback" aria-live="polite"></div>
@@ -398,6 +378,7 @@
                 <table class="data-table">
                   <thead>
                     <tr>
+                      <th>Código</th>
                       <th>SKU</th>
                       <th>Descrição</th>
                       <th>Preço</th>
@@ -428,6 +409,7 @@
                 <div class="field"><div class="field-label-row"><label for="edit-cod-familia">Cod Grup Familia</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-familia">+ Novo</button></div><select id="edit-cod-familia"></select></div>
                 <div class="field"><div class="field-label-row"><label for="edit-cod-segmento">Cod Grup Segmento</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-segmento">+ Novo</button></div><select id="edit-cod-segmento"></select></div>
                 <div class="field"><div class="field-label-row"><label for="edit-cod-marca">Cod Grup Marca</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-marca">+ Novo</button></div><select id="edit-cod-marca"></select></div>
+                <div class="field"><label for="edit-codigo">Codigo do Produto</label><input id="edit-codigo" type="text" required /></div>
                 <div class="field"><label for="edit-descricao">Descrição</label><input id="edit-descricao" type="text" required /></div>
                 <div class="field"><div class="field-label-row"><label for="edit-sku">SKU</label><button type="button" class="btn-link-mini" data-new-option-target="edit-sku">+ Novo</button></div><select id="edit-sku"></select></div>
                 <div class="field"><div class="field-label-row"><label for="edit-status">Status</label><button type="button" class="btn-link-mini" data-new-option-target="edit-status">+ Novo</button></div><select id="edit-status"></select></div>

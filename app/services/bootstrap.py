@@ -57,6 +57,27 @@ def _ensure_products_compat_columns(*, is_sqlite: bool) -> None:
                 connection.execute(
                     text("UPDATE app_core.products SET created_at = NOW() WHERE created_at IS NULL"),
                 )
+        if "cod_produto" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE products ADD COLUMN cod_produto VARCHAR(120)"))
+                connection.execute(
+                    text(
+                        "UPDATE products "
+                        "SET cod_produto = COALESCE(NULLIF(TRIM(cod_grup_sku), ''), CAST(id AS TEXT)) "
+                        "WHERE cod_produto IS NULL OR TRIM(cod_produto) = ''",
+                    ),
+                )
+            else:
+                connection.execute(
+                    text("ALTER TABLE app_core.products ADD COLUMN IF NOT EXISTS cod_produto VARCHAR(120)"),
+                )
+                connection.execute(
+                    text(
+                        "UPDATE app_core.products "
+                        "SET cod_produto = COALESCE(NULLIF(TRIM(cod_grup_sku), ''), id::text) "
+                        "WHERE cod_produto IS NULL OR TRIM(cod_produto) = ''",
+                    ),
+                )
 
 
 def ensure_admin_user(session: Session) -> bool:

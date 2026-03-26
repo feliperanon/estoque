@@ -345,6 +345,7 @@ function computeTotals(events) {
 }
 
 function renderCounts() {
+  if (!totalsList || !pendingList || !totalItems || !pendingCount) return;
   const events = loadCountEvents();
   const totals = computeTotals(events);
   const pending = events.filter((event) => !event.synced);
@@ -378,6 +379,7 @@ function renderCounts() {
 }
 
 async function syncPendingEvents() {
+  if (!btnSync) return;
   if (syncInProgress) return;
 
   const token = getToken();
@@ -534,20 +536,26 @@ function bindCountEvents() {
     document.getElementById('item-code').focus();
   });
 
-  btnSync.addEventListener('click', () => {
-    syncPendingEvents();
-  });
+  if (btnSync) {
+    btnSync.addEventListener('click', () => {
+      syncPendingEvents();
+    });
+  }
 
-  btnExport.addEventListener('click', () => {
-    exportBackup();
-  });
+  if (btnExport) {
+    btnExport.addEventListener('click', () => {
+      exportBackup();
+    });
+  }
 
-  importFile.addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    await importBackup(file);
-    event.target.value = '';
-  });
+  if (importFile) {
+    importFile.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      await importBackup(file);
+      event.target.value = '';
+    });
+  }
 
   window.addEventListener('online', () => {
     updateNetworkStatus();
@@ -723,6 +731,7 @@ function readProductPayloadFromForm() {
     cod_grup_familia: document.getElementById('prod-cod-familia').value.trim() || null,
     cod_grup_segmento: document.getElementById('prod-cod-segmento').value.trim() || null,
     cod_grup_marca: document.getElementById('prod-cod-marca').value.trim() || null,
+    cod_produto: document.getElementById('prod-codigo').value.trim(),
     cod_grup_descricao: document.getElementById('prod-descricao').value.trim(),
     cod_grup_sku: document.getElementById('prod-sku').value.trim(),
     status: document.getElementById('prod-status').value.trim() || null,
@@ -793,8 +802,8 @@ async function loadProducts() {
 
 async function saveProductManual() {
   const payload = readProductPayloadFromForm();
-  if (!payload.cod_grup_descricao || !payload.cod_grup_sku) {
-    setProductFeedback('Descricao e SKU sao obrigatorios.', true);
+  if (!payload.cod_produto || !payload.cod_grup_descricao || !payload.cod_grup_sku) {
+    setProductFeedback('Codigo, descricao e SKU sao obrigatorios.', true);
     return;
   }
 
@@ -1007,7 +1016,7 @@ function renderProdutosTable(products) {
   total.textContent = products.length;
 
   if (!products.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Nenhum produto encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Nenhum produto encontrado.</td></tr>';
     return;
   }
 
@@ -1015,6 +1024,7 @@ function renderProdutosTable(products) {
     const tr = document.createElement('tr');
     const statusClass = (p.status || 'ativo').toLowerCase() === 'ativo' ? 'badge-active' : 'badge-inactive';
     tr.innerHTML = `
+      <td>${p.cod_produto || '—'}</td>
       <td>${p.cod_grup_sku || '—'}</td>
       <td>${p.cod_grup_descricao || '—'}</td>
       <td>${formatPrice(p.price)}</td>
@@ -1049,6 +1059,7 @@ async function openEditProduct(id) {
     fillSelect('edit-cod-familia', defaults.cod_grup_familia, p.cod_grup_familia || '');
     fillSelect('edit-cod-segmento', defaults.cod_grup_segmento, p.cod_grup_segmento || '');
     fillSelect('edit-cod-marca', defaults.cod_grup_marca, p.cod_grup_marca || '');
+    document.getElementById('edit-codigo').value = p.cod_produto || '';
     document.getElementById('edit-descricao').value = p.cod_grup_descricao || '';
     fillSelect('edit-sku', defaults.cod_grup_sku, p.cod_grup_sku || '');
     fillSelect('edit-status', defaults.status, (p.status || 'ativo').toLowerCase());
@@ -1075,6 +1086,7 @@ async function updateProduct() {
     cod_grup_familia: document.getElementById('edit-cod-familia').value.trim() || null,
     cod_grup_segmento: document.getElementById('edit-cod-segmento').value.trim() || null,
     cod_grup_marca: document.getElementById('edit-cod-marca').value.trim() || null,
+    cod_produto: document.getElementById('edit-codigo').value.trim(),
     cod_grup_descricao: document.getElementById('edit-descricao').value.trim(),
     cod_grup_sku: document.getElementById('edit-sku').value.trim(),
     status: document.getElementById('edit-status').value.trim() || null,
@@ -1082,8 +1094,8 @@ async function updateProduct() {
     price: parseFloat(document.getElementById('edit-price').value) || null,
   };
 
-  if (!payload.cod_grup_descricao || !payload.cod_grup_sku) {
-    setEditFeedback('Descrição e SKU são obrigatórios.', true);
+  if (!payload.cod_produto || !payload.cod_grup_descricao || !payload.cod_grup_sku) {
+    setEditFeedback('Codigo, descrição e SKU são obrigatórios.', true);
     return;
   }
 
@@ -1575,13 +1587,18 @@ loginForm.addEventListener('submit', async (e) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
     });
+    const isLocalHost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
 
-    let resp = await doLegacyLoginRequest();
-    if (resp.status >= 500) {
+    let resp = isLocalHost ? await doLocalLoginRequest() : await doLegacyLoginRequest();
+    if (!resp.ok && isLocalHost) {
+      // Em ambiente local, tenta legado apenas se login local falhar.
+      resp = await doLegacyLoginRequest();
+    }
+    if (resp.status >= 500 && !isLocalHost) {
       loginError.textContent = 'Legado indisponível. Tentando autenticação local...';
       resp = await doLocalLoginRequest();
     }
-    if (resp.status >= 500) {
+    if (resp.status >= 500 && !isLocalHost) {
       loginError.textContent = 'Servidor iniciando. Tentando novamente...';
       await new Promise((resolve) => setTimeout(resolve, 2500));
       resp = await doLegacyLoginRequest();
