@@ -20,20 +20,22 @@ const TOKEN_KEY  = 'estoque_token';
 const USER_KEY   = 'estoque_user';
 const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
 const DEVICE_NAME_KEY = 'estoque_device_name_v1';
+let activeApiBasePrimary = API_BASE_URL_PRIMARY;
+let activeApiBaseFallback = API_BASE_URL_FALLBACK;
 
 async function apiFetch(path, options = {}) {
   try {
-    const primaryResponse = await fetch(`${API_BASE_URL_PRIMARY}${path}`, options);
+    const primaryResponse = await fetch(`${activeApiBasePrimary}${path}`, options);
     if (
-      API_BASE_URL_FALLBACK
+      activeApiBaseFallback
       && [502, 503, 504].includes(primaryResponse.status)
     ) {
-      return fetch(`${API_BASE_URL_FALLBACK}${path}`, options);
+      return fetch(`${activeApiBaseFallback}${path}`, options);
     }
     return primaryResponse;
   } catch (error) {
-    if (!API_BASE_URL_FALLBACK) throw error;
-    return fetch(`${API_BASE_URL_FALLBACK}${path}`, options);
+    if (!activeApiBaseFallback) throw error;
+    return fetch(`${activeApiBaseFallback}${path}`, options);
   }
 }
 
@@ -1119,6 +1121,19 @@ async function searchProdutos() {
     const resp = await apiFetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao buscar produtos.', true); return; }
+    if (IS_LOCAL_WEB) {
+      const usedOrigin = new URL(resp.url).origin;
+      if (usedOrigin === window.location.origin) {
+        // Login autenticou no backend local: usa local como primario.
+        activeApiBasePrimary = `${window.location.origin}/api`;
+        activeApiBaseFallback = `${RENDER_API_ORIGIN}/api`;
+      } else {
+        // Login autenticou no Render: usa Render como primario.
+        activeApiBasePrimary = `${RENDER_API_ORIGIN}/api`;
+        activeApiBaseFallback = `${window.location.origin}/api`;
+      }
+    }
+
     const data = await resp.json();
     renderProdutosTable(data);
   } catch {
