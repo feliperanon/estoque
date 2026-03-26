@@ -25,7 +25,7 @@ def startup_tasks() -> None:
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "app_name": settings.app_name})
+    return RedirectResponse(url="/app", status_code=307)
 
 
 @app.get("/app", response_class=HTMLResponse)
