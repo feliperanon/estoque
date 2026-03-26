@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0B3D2E" />
+    <link rel="manifest" href="/static/manifest.json" />
+    <link rel="stylesheet" href="/static/style.css" />
+    <title>{{ app_name }}</title>
+  </head>
+  <body class="landing-body">
+    <main class="landing-page">
+      <section class="hero-card">
+        <div class="hero-copy">
+          <span class="hero-kicker">Operacao e controle</span>
+          <h1>{{ app_name }}</h1>
+          <p class="hero-text">
+            Plataforma interna para contagem, cadastro e governanca de acessos.
+            Use esta pagina como ponto de entrada e direcionamento dos usuarios.
+          </p>
+          <div class="hero-actions">
+            <a class="hero-button" href="/app">Entrar no sistema</a>
+            <a class="hero-link" href="/app#count">Ir direto para contagem</a>
+          </div>
+        </div>
+
+        <aside class="hero-panel">
+          <h2>Modulos disponiveis</h2>
+          <ul class="landing-modules">
+            <li>
+              <strong>Contagem</strong>
+              <span>Registro offline-first de inventario com sincronizacao posterior.</span>
+            </li>
+            <li>
+              <strong>Cadastro</strong>
+              <span>Inclusao manual e importacao em lote de produtos por planilha.</span>
+            </li>
+            <li>
+              <strong>Acesso</strong>
+              <span>Visualizacao dos perfis liberados por categoria operacional.</span>
+            </li>
+          </ul>
+        </aside>
+      </section>
+
+      <section class="company-strip">
+        <article class="info-card">
+          <h2>Informativo rapido</h2>
+          <p>
+            Centralize aqui comunicados curtos da empresa, orientacoes de uso e o caminho
+            correto para cada perfil acessar seu modulo.
+          </p>
+        </article>
+        <article class="info-card">
+          <h2>Perfis</h2>
+          <p>
+            Conferentes operam contagem. Perfis administrativos acessam cadastro e matriz de acessos.
+          </p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

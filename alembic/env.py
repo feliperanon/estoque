@@ -18,6 +18,15 @@ config.set_main_option("sqlalchemy.url", settings.sqlalchemy_database_url)
 target_metadata = SQLModel.metadata
 
 
+def ensure_database_schemas(connection) -> None:
+    if settings.sqlalchemy_database_url.startswith("sqlite"):
+        return
+
+    connection.exec_driver_sql("CREATE SCHEMA IF NOT EXISTS legacy_snapshot")
+    connection.exec_driver_sql("CREATE SCHEMA IF NOT EXISTS app_core")
+    connection.exec_driver_sql("CREATE SCHEMA IF NOT EXISTS audit")
+
+
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
@@ -41,6 +50,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        ensure_database_schemas(connection)
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

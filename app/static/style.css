@@ -25,6 +25,148 @@ body {
   background: radial-gradient(circle at 20% 20%, #ffffff 0%, var(--bg) 45%, #d8ddd5 100%);
 }
 
+.landing-body {
+  background:
+    radial-gradient(circle at top left, rgba(244, 163, 0, 0.18), transparent 28%),
+    linear-gradient(135deg, #f7f1de 0%, #edf3ea 52%, #d9e4da 100%);
+}
+
+.landing-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 40px 24px 56px;
+}
+
+.hero-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.hero-copy,
+.hero-panel,
+.info-card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(11, 61, 46, 0.12);
+  box-shadow: 0 14px 40px rgba(11, 61, 46, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.hero-copy {
+  border-radius: 28px;
+  padding: 40px;
+}
+
+.hero-kicker {
+  display: inline-flex;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(11, 61, 46, 0.08);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-copy h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 5vw, 4.4rem);
+  line-height: 0.98;
+  color: #173328;
+}
+
+.hero-text {
+  max-width: 54ch;
+  margin: 18px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #355347;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.hero-button,
+.hero-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.hero-button {
+  background: linear-gradient(120deg, var(--accent), #146b51);
+  color: var(--white);
+}
+
+.hero-link {
+  border: 1px solid rgba(11, 61, 46, 0.18);
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.hero-panel {
+  border-radius: 24px;
+  padding: 28px;
+}
+
+.hero-panel h2,
+.info-card h2 {
+  margin-top: 0;
+  color: var(--accent);
+}
+
+.landing-modules {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.landing-modules li {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #f8fbf7;
+  border: 1px solid rgba(11, 61, 46, 0.08);
+}
+
+.landing-modules span {
+  color: #51685d;
+  line-height: 1.55;
+}
+
+.company-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.info-card {
+  border-radius: 22px;
+  padding: 24px;
+}
+
+.info-card p {
+  margin: 0;
+  color: #4e6459;
+  line-height: 1.65;
+}
+
 /* ── Views ─────────────────────────────────────────── */
 #view-login {
   display: none;            /* controlado pelo app.js */
@@ -238,6 +380,12 @@ button[type="submit"]:disabled {
   background: rgba(255, 255, 255, 0.12);
 }
 
+.topbar-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 /* ── Dashboard ─────────────────────────────────────── */
 .dashboard-content {
   max-width: 1100px;
@@ -368,6 +516,21 @@ button[type="submit"]:disabled {
 
 /* ── Responsivo ────────────────────────────────────── */
 @media (max-width: 480px) {
+  .landing-page {
+    padding: 20px 14px 32px;
+  }
+
+  .hero-card,
+  .company-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-copy,
+  .hero-panel,
+  .info-card {
+    padding: 22px;
+  }
+
   .login-card {
     padding: 32px 20px;
   }

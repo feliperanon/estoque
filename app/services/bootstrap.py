@@ -22,8 +22,6 @@ def ensure_database_ready() -> None:
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS app_core"))
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
 
-    SQLModel.metadata.create_all(engine)
-
 
 def ensure_admin_user(session: Session) -> bool:
     settings = get_settings()

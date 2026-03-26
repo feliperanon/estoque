@@ -9,6 +9,7 @@ const API_LOGIN  = '/api/auth/login-legacy';
 const API_SYNC_COUNTS = '/api/audit/count-events';
 const API_PRODUCTS = '/api/products';
 const API_PRODUCTS_IMPORT_EXCEL = '/api/products/import-excel';
+const APP_BASE_PATH = '/app';
 const TOKEN_KEY  = 'estoque_token';
 const USER_KEY   = 'estoque_user';
 const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
@@ -97,7 +98,7 @@ function canAccessModule(moduleKey) {
   return allowed.includes(currentRole);
 }
 
-function setActiveModule(moduleKey) {
+function setActiveModule(moduleKey, updateHistory = true) {
   document.querySelectorAll('.module-section').forEach((section) => {
     section.classList.remove('active');
   });
@@ -110,6 +111,10 @@ function setActiveModule(moduleKey) {
   document.querySelectorAll('.module-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.module === moduleKey);
   });
+
+  if (updateHistory && window.location.hash.slice(1) !== moduleKey) {
+    history.pushState(null, '', `${APP_BASE_PATH}#${moduleKey}`);
+  }
 }
 
 function renderModuleNav() {
@@ -126,7 +131,12 @@ function renderModuleNav() {
   });
 
   if (firstVisible) {
-    setActiveModule(firstVisible);
+    const hashModule = window.location.hash.slice(1);
+    if (hashModule && canAccessModule(hashModule)) {
+      setActiveModule(hashModule, false);
+    } else {
+      setActiveModule(firstVisible);
+    }
   }
 }
 
@@ -619,6 +629,13 @@ function bindModuleEvents() {
     }
     setActiveModule(moduleKey);
   });
+
+  window.addEventListener('hashchange', () => {
+    const moduleKey = window.location.hash.slice(1);
+    if (moduleKey && canAccessModule(moduleKey)) {
+      setActiveModule(moduleKey, false);
+    }
+  });
 }
 
 // ── Login ───────────────────────────────────────────────────────
@@ -692,6 +709,7 @@ function initDashboard(user) {
 btnLogout.addEventListener('click', () => {
   clearSession();
   loginForm.reset();
+  history.replaceState(null, '', APP_BASE_PATH);
   showLogin();
 });
 

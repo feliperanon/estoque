@@ -1,6 +1,6 @@
 """
 Script de setup para ambiente local de desenvolvimento com SQLite.
-Cria todas as tabelas e garante que o usuário admin existe.
+Cria todas as tabelas e garante que o usuario admin existe.
 
 Uso:
     .venv\\Scripts\\python setup_local.py
@@ -22,12 +22,12 @@ for table in SQLModel.metadata.tables.values():
     table.schema = None
 
 SQLModel.metadata.create_all(engine)
-print("✅ Tabelas criadas com sucesso.")
+print("Tabelas criadas com sucesso.")
 
 with Session(engine) as session:
     ensure_admin_user(session)
-    print("✅ Usuário admin garantido.")
+    print("Usuario admin garantido.")
 
-print("\n🚀 Pronto! Rode agora:")
+print("\nPronto! Rode agora:")
 print("   .venv\\Scripts\\uvicorn app.main:app --reload")
 print("   Acesse: http://localhost:8000")

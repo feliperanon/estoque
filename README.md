@@ -26,17 +26,37 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-3. Rode a aplicacao:
+3. Inicialize o banco local:
+
+```bash
+python setup_local.py
+```
+
+4. Rode a aplicacao:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-4. Acesse:
+5. Acesse:
 
 ```text
 http://localhost:8000
 ```
+
+Atalho no Windows:
+
+```powershell
+./run.ps1
+```
+
+## Deploy no Render
+
+- Build Command: `pip install -r requirements.txt`
+- Pre-Deploy Command: `alembic upgrade head && python -m app.jobs.predeploy`
+- Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+
+O pre-deploy aplica as migracoes e depois garante schemas auxiliares e usuario admin sem depender do startup da aplicacao.
 
 ## Fluxo offline de contagem
 
