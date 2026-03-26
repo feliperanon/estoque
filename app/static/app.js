@@ -85,7 +85,7 @@ let countProductsCache = [];
 let currentAllowedPages = [];
 
 const PAGE_KEYS_BY_MODULE = {
-  contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale'],
+  contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity'],
   cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'],
   acesso: ['acesso'],
 };
@@ -96,7 +96,7 @@ const MODULE_ACCESS = {
   acesso: ['administrativo', 'admin'],
 };
 
-const SUB_MODULES = ['count', 'recount', 'pull', 'return', 'break', 'direct-sale'];
+const SUB_MODULES = ['count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity'];
 const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'];
 const SUB_TO_PARENT = {};
 SUB_MODULES.forEach(s => { SUB_TO_PARENT[s] = 'contagem'; });
@@ -136,6 +136,7 @@ const ACCESS_CATEGORIES = [
       { module: 'Devolucao', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Quebra', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Venda Direta', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Data de Vencimento', roles: ['conferente', 'administrativo', 'admin'] },
     ],
   },
   {
@@ -1679,6 +1680,7 @@ const EXTRA_MODULES = [
   { key: 'return',       storageKey: 'estoque_return_v1',       label: 'Devolucao' },
   { key: 'break',        storageKey: 'estoque_break_v1',        label: 'Quebra' },
   { key: 'direct-sale',  storageKey: 'estoque_directsale_v1',   label: 'Venda Direta' },
+  { key: 'validity',     storageKey: 'estoque_validity_v1',     label: 'Validade' },
 ];
 
 function loadModuleEvents(storageKey) {

@@ -78,48 +78,85 @@
       <main class="dashboard-content">
         <!-- ── MÓDULO MÃE: CONTAGEM ── -->
         <section id="module-contagem" class="module-section">
-          <!-- Grid de cards - página principal do módulo Contagem -->
           <div id="contagem-home" class="sub-section active">
-            <h2>Módulos de Contagem</h2>
-            <p class="muted">Selecione o módulo desejado. Todos funcionam offline.</p>
-            <div class="module-grid">
+            <section class="card contagem-home-head">
+              <div>
+                <h2>Central de Operações de Estoque</h2>
+                <p class="muted">
+                  Fluxo rápido para rotina de inventário, validação, movimentação e prevenção de perdas.
+                </p>
+              </div>
+              <div class="contagem-status-row">
+                <span class="chip">Offline-first ativo</span>
+                <span class="chip">Sincronização automática</span>
+                <span class="chip">Rastreabilidade por usuário</span>
+              </div>
+            </section>
+            <section class="contagem-kpi-grid">
+              <article class="card mini-kpi-card">
+                <h3>Contagens do turno</h3>
+                <strong>0</strong>
+                <small>Registros locais + sincronizados</small>
+              </article>
+              <article class="card mini-kpi-card">
+                <h3>Recontagens pendentes</h3>
+                <strong>0</strong>
+                <small>Itens com divergência</small>
+              </article>
+              <article class="card mini-kpi-card">
+                <h3>Alertas de perda</h3>
+                <strong>0</strong>
+                <small>Quebra e devolução crítica</small>
+              </article>
+            </section>
+            <h3 class="contagem-grid-title">Escolha o módulo operacional</h3>
+            <div class="module-grid module-grid-contagem">
               <button type="button" class="module-card" data-sub="count">
                 <span class="module-card-icon">📋</span>
                 <span class="module-card-title">Contagem de Estoque</span>
-                <span class="module-card-desc">Contagem padrão de inventário</span>
+                <span class="module-card-desc">Registro físico com foco em velocidade e baixa digitação</span>
               </button>
               <button type="button" class="module-card" data-sub="recount">
                 <span class="module-card-icon">🔄</span>
                 <span class="module-card-title">Recontagem</span>
-                <span class="module-card-desc">Recontagem de itens divergentes</span>
+                <span class="module-card-desc">Validação de divergências para auditoria</span>
               </button>
               <button type="button" class="module-card" data-sub="pull">
                 <span class="module-card-icon">📦</span>
                 <span class="module-card-title">Puxada</span>
-                <span class="module-card-desc">Transferência depósito → área de venda</span>
+                <span class="module-card-desc">Transferência entre depósito e área de venda</span>
               </button>
               <button type="button" class="module-card" data-sub="return">
                 <span class="module-card-icon">↩️</span>
                 <span class="module-card-title">Devolução</span>
-                <span class="module-card-desc">Devolução de cliente ou fornecedor</span>
+                <span class="module-card-desc">Retorno de cliente/fornecedor com classificação</span>
               </button>
               <button type="button" class="module-card" data-sub="break">
                 <span class="module-card-icon">💔</span>
                 <span class="module-card-title">Quebra</span>
-                <span class="module-card-desc">Produtos danificados ou com avaria</span>
+                <span class="module-card-desc">Baixa por dano, avaria ou impropriedade</span>
               </button>
               <button type="button" class="module-card" data-sub="direct-sale">
                 <span class="module-card-icon">💰</span>
                 <span class="module-card-title">Venda Direta</span>
-                <span class="module-card-desc">Baixa imediata por venda no ponto</span>
+                <span class="module-card-desc">Baixa imediata com segurança operacional</span>
+              </button>
+              <button type="button" class="module-card" data-sub="validity">
+                <span class="module-card-icon">📅</span>
+                <span class="module-card-title">Data de Vencimento</span>
+                <span class="module-card-desc">Controle por lote, validade e risco de perda</span>
               </button>
             </div>
           </div>
 
           <!-- Sub: Contagem de Estoque -->
           <div id="sub-count" class="sub-section">
+            <button type="button" class="back-btn" data-back="contagem">← Voltar para central de operações</button>
             <section class="card">
-              <h2>Contagem de estoque offline</h2>
+              <div class="card-head">
+                <h2>Contagem de Estoque</h2>
+                <span class="chip">Modo rápido</span>
+              </div>
               <p class="muted">
                 Esta tela salva cada contagem no dispositivo imediatamente. Se a internet cair,
                 os dados ficam locais e sao sincronizados quando a conexao voltar.
@@ -155,9 +192,13 @@
 
           <!-- Sub: Recontagem -->
           <div id="sub-recount" class="sub-section">
+            <button type="button" class="back-btn" data-back="contagem">← Voltar para central de operações</button>
             <section class="card">
-              <h2>Recontagem</h2>
-              <p class="muted">Realize a recontagem de itens divergentes para garantir a acuracidade do inventario.</p>
+              <div class="card-head">
+                <h2>Recontagem</h2>
+                <span class="chip">Auditoria</span>
+              </div>
+              <p class="muted">Reconte itens divergentes para validar acuracidade antes de fechamento.</p>
               <form id="recount-form" class="count-form" autocomplete="off">
                 <div class="field">
                   <label for="recount-item">Item (codigo ou nome)</label>
@@ -166,6 +207,15 @@
                 <div class="field">
                   <label for="recount-qty">Quantidade recontada</label>
                   <input id="recount-qty" name="recount-qty" type="number" min="1" step="1" value="1" required />
+                </div>
+                <div class="field">
+                  <label for="recount-reason">Motivo da divergência</label>
+                  <select id="recount-reason" name="recount-reason">
+                    <option>Contagem inicial divergente</option>
+                    <option>Item em local incorreto</option>
+                    <option>Fracionamento não registrado</option>
+                    <option>Outro</option>
+                  </select>
                 </div>
                 <button type="submit" id="btn-recount">Registrar recontagem</button>
               </form>
@@ -184,9 +234,13 @@
 
           <!-- Sub: Puxada -->
           <div id="sub-pull" class="sub-section">
+            <button type="button" class="back-btn" data-back="contagem">← Voltar para central de operações</button>
             <section class="card">
-              <h2>Puxada</h2>
-              <p class="muted">Registre a transferencia de produtos entre deposito e area de venda (puxada de estoque).</p>
+              <div class="card-head">
+                <h2>Puxada</h2>
+                <span class="chip">Transferência interna</span>
+              </div>
+              <p class="muted">Registre origem, destino e quantidade para manter rastreabilidade operacional.</p>
               <form id="pull-form" class="count-form" autocomplete="off">
                 <div class="field">
                   <label for="pull-item">Item</label>
@@ -195,6 +249,14 @@
                 <div class="field">
                   <label for="pull-qty">Quantidade</label>
                   <input id="pull-qty" name="pull-qty" type="number" min="1" step="1" value="1" required />
+                </div>
+                <div class="field">
+                  <label for="pull-route">Origem → Destino</label>
+                  <select id="pull-route" name="pull-route">
+                    <option>Depósito A → Área de Venda</option>
+                    <option>Depósito B → Área de Venda</option>
+                    <option>Depósito A → Picking</option>
+                  </select>
                 </div>
                 <button type="submit" id="btn-pull">Registrar puxada</button>
               </form>
@@ -213,9 +275,13 @@
 
           <!-- Sub: Devolução -->
           <div id="sub-return" class="sub-section">
+            <button type="button" class="back-btn" data-back="contagem">← Voltar para central de operações</button>
             <section class="card">
-              <h2>Devolução</h2>
-              <p class="muted">Registre a devolucao de produtos (cliente devolveu ou retorno ao fornecedor).</p>
+              <div class="card-head">
+                <h2>Devolução</h2>
+                <span class="chip">Classificação obrigatória</span>
+              </div>
+              <p class="muted">Registre devolução com origem e motivo para definir destino no estoque.</p>
               <form id="return-form" class="count-form" autocomplete="off">
                 <div class="field">
                   <label for="return-item">Item</label>
@@ -224,6 +290,15 @@
                 <div class="field">
                   <label for="return-qty">Quantidade</label>
                   <input id="return-qty" name="return-qty" type="number" min="1" step="1" value="1" required />
+                </div>
+                <div class="field">
+                  <label for="return-type">Origem / Motivo</label>
+                  <select id="return-type" name="return-type">
+                    <option>Cliente - arrependimento</option>
+                    <option>Cliente - avaria</option>
+                    <option>Fornecedor - troca</option>
+                    <option>Fornecedor - recolhimento</option>
+                  </select>
                 </div>
                 <button type="submit" id="btn-return">Registrar devolução</button>
               </form>
@@ -242,9 +317,13 @@
 
           <!-- Sub: Quebra -->
           <div id="sub-break" class="sub-section">
+            <button type="button" class="back-btn" data-back="contagem">← Voltar para central de operações</button>
             <section class="card">
-              <h2>Quebra</h2>
-              <p class="muted">Registre produtos quebrados, danificados ou com avaria para baixa no estoque.</p>
+              <div class="card-head">
+                <h2>Quebra</h2>
+                <span class="chip">Prevenção de perdas</span>
+              </div>
+              <p class="muted">Registre perda com motivo obrigatório para rastreabilidade e auditoria.</p>
               <form id="break-form" class="count-form" autocomplete="off">
                 <div class="field">
                   <label for="break-item">Item</label>
@@ -253,6 +332,15 @@
                 <div class="field">
                   <label for="break-qty">Quantidade</label>
                   <input id="break-qty" name="break-qty" type="number" min="1" step="1" value="1" required />
+                </div>
+                <div class="field">
+                  <label for="break-reason">Motivo</label>
+                  <select id="break-reason" name="break-reason">
+                    <option>Avaria</option>
+                    <option>Vencimento</option>
+                    <option>Impróprio para consumo</option>
+                    <option>Perda operacional</option>
+                  </select>
                 </div>
                 <button type="submit" id="btn-break">Registrar quebra</button>
               </form>
@@ -271,9 +359,13 @@
 
           <!-- Sub: Venda Direta -->
           <div id="sub-direct-sale" class="sub-section">
+            <button type="button" class="back-btn" data-back="contagem">← Voltar para central de operações</button>
             <section class="card">
-              <h2>Venda Direta</h2>
-              <p class="muted">Registre vendas realizadas diretamente no ponto, para baixa imediata no estoque.</p>
+              <div class="card-head">
+                <h2>Venda Direta</h2>
+                <span class="chip">Baixa imediata</span>
+              </div>
+              <p class="muted">Registre venda no ponto de forma rápida, com controle de quantidade e segurança.</p>
               <form id="direct-sale-form" class="count-form" autocomplete="off">
                 <div class="field">
                   <label for="sale-item">Item</label>
@@ -282,6 +374,14 @@
                 <div class="field">
                   <label for="sale-qty">Quantidade</label>
                   <input id="sale-qty" name="sale-qty" type="number" min="1" step="1" value="1" required />
+                </div>
+                <div class="field">
+                  <label for="sale-channel">Canal</label>
+                  <select id="sale-channel" name="sale-channel">
+                    <option>Balcão</option>
+                    <option>Retirada rápida</option>
+                    <option>Venda interna</option>
+                  </select>
                 </div>
                 <button type="submit" id="btn-direct-sale">Registrar venda</button>
               </form>
@@ -294,6 +394,45 @@
               </div>
               <ul id="direct-sale-list" class="list">
                 <li><span>Nenhuma venda direta registrada ainda.</span><strong>0</strong></li>
+              </ul>
+            </section>
+          </div>
+
+          <!-- Sub: Data de Vencimento -->
+          <div id="sub-validity" class="sub-section">
+            <button type="button" class="back-btn" data-back="contagem">← Voltar para central de operações</button>
+            <section class="card">
+              <div class="card-head">
+                <h2>Data de Vencimento</h2>
+                <span class="chip">Gestão de validade</span>
+              </div>
+              <p class="muted">
+                Registre validade por produto para priorizar giro, bloquear vencidos e reduzir perdas.
+              </p>
+              <form id="validity-form" class="count-form" autocomplete="off">
+                <div class="field">
+                  <label for="validity-item">Item</label>
+                  <input id="validity-item" name="validity-item" type="text" placeholder="Codigo do produto" required />
+                </div>
+                <div class="field">
+                  <label for="validity-qty">Quantidade</label>
+                  <input id="validity-qty" name="validity-qty" type="number" min="1" step="1" value="1" required />
+                </div>
+                <div class="field">
+                  <label for="validity-expiration">Data de vencimento</label>
+                  <input id="validity-expiration" name="validity-expiration" type="date" />
+                </div>
+                <button type="submit" id="btn-validity">Registrar validade</button>
+              </form>
+              <div id="validity-feedback" class="field-feedback" aria-live="polite"></div>
+            </section>
+            <section class="card" style="margin-top:16px">
+              <div class="card-head">
+                <h3>Itens com validade registrados</h3>
+                <span id="validity-total" class="chip">0 itens</span>
+              </div>
+              <ul id="validity-list" class="list">
+                <li><span>Nenhum registro de validade ainda.</span><strong>0</strong></li>
               </ul>
             </section>
           </div>

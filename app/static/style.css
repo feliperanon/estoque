@@ -468,6 +468,59 @@ button[type="submit"]:disabled {
   line-height: 1.4;
 }
 
+.contagem-home-head {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.contagem-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contagem-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.mini-kpi-card {
+  padding: 14px 16px;
+}
+
+.mini-kpi-card h3 {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--accent);
+}
+
+.mini-kpi-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.5rem;
+  color: #163a2c;
+}
+
+.mini-kpi-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.contagem-grid-title {
+  margin: 18px 0 10px;
+  color: #173328;
+}
+
+.module-grid-contagem .module-card {
+  min-height: 180px;
+  align-items: flex-start;
+  text-align: left;
+}
+
 /* Botão Voltar */
 .back-btn {
   display: inline-flex;
@@ -608,9 +661,13 @@ body.modal-open::before {
 
 .count-form {
   display: grid;
-  grid-template-columns: 1fr 180px auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   align-items: end;
+}
+
+.count-form button[type="submit"] {
+  grid-column: 1 / -1;
 }
 
 .product-form {
@@ -717,10 +774,10 @@ body.modal-open::before {
 .search-input {
   flex: 1;
   padding: 10px 14px;
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border: 1.5px solid var(--border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #fff;
+  background: var(--white);
+  color: var(--ink);
   font-size: 0.95rem;
 }
 
@@ -921,6 +978,10 @@ body.modal-open::before {
 
   .dashboard-content {
     padding: 20px 14px 88px;
+  }
+
+  .contagem-kpi-grid {
+    grid-template-columns: 1fr;
   }
 
   .grid-two {
