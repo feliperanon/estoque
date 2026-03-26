@@ -734,11 +734,56 @@ body.modal-open::before {
 }
 
 .count-product-item {
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .count-product-item:hover {
   background: #eef5ef;
+}
+
+.count-product-label {
+  flex: 1;
+  cursor: pointer;
+}
+
+.count-product-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.count-product-qty {
+  width: 74px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.btn-count-adjust {
+  min-width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.btn-count-adjust:disabled,
+.count-product-qty:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.count-product-total {
+  min-width: 42px;
+  text-align: right;
 }
 .search-input::placeholder {
   color: var(--muted);

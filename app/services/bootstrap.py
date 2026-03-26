@@ -53,6 +53,28 @@ def _ensure_users_compat_columns(*, is_sqlite: bool) -> None:
         return
     columns = {col["name"] for col in inspector.get_columns("users", schema=table_schema)}
     with engine.begin() as connection:
+        if "legacy_id" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN legacy_id INTEGER"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS legacy_id INTEGER"))
+        if "source_system" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN source_system VARCHAR(100)"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS source_system VARCHAR(100)"))
+        if "imported_at" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN imported_at DATETIME"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS imported_at TIMESTAMPTZ"))
+        if "updated_at" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN updated_at DATETIME"))
+            else:
+                connection.execute(
+                    text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()"),
+                )
         if "full_name" not in columns:
             if is_sqlite:
                 connection.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR(150)"))
@@ -63,6 +85,37 @@ def _ensure_users_compat_columns(*, is_sqlite: bool) -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN phone VARCHAR(30)"))
             else:
                 connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)"))
+        if "role" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(50)"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS role VARCHAR(50)"))
+        if "is_active" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
+        if "employee_id" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN employee_id INTEGER"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS employee_id INTEGER"))
+        if "allowed_pages" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN allowed_pages TEXT"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS allowed_pages JSONB"))
+        if "google_sub" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE users ADD COLUMN google_sub VARCHAR(255)"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.users ADD COLUMN IF NOT EXISTS google_sub VARCHAR(255)"))
+        if is_sqlite:
+            connection.execute(text("UPDATE users SET is_active = 1 WHERE is_active IS NULL"))
+            connection.execute(text("UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
+        else:
+            connection.execute(text("UPDATE app_core.users SET is_active = TRUE WHERE is_active IS NULL"))
+            connection.execute(text("UPDATE app_core.users SET updated_at = NOW() WHERE updated_at IS NULL"))
 
 
 def _ensure_products_compat_columns(*, is_sqlite: bool) -> None:
@@ -77,6 +130,28 @@ def _ensure_products_compat_columns(*, is_sqlite: bool) -> None:
 
     columns = {col["name"] for col in inspector.get_columns("products", schema=table_schema)}
     with engine.begin() as connection:
+        if "legacy_id" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE products ADD COLUMN legacy_id INTEGER"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.products ADD COLUMN IF NOT EXISTS legacy_id INTEGER"))
+        if "source_system" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE products ADD COLUMN source_system VARCHAR(100)"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.products ADD COLUMN IF NOT EXISTS source_system VARCHAR(100)"))
+        if "imported_at" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE products ADD COLUMN imported_at DATETIME"))
+            else:
+                connection.execute(text("ALTER TABLE app_core.products ADD COLUMN IF NOT EXISTS imported_at TIMESTAMPTZ"))
+        if "updated_at" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE products ADD COLUMN updated_at DATETIME"))
+            else:
+                connection.execute(
+                    text("ALTER TABLE app_core.products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()"),
+                )
         if "price" not in columns:
             if is_sqlite:
                 connection.execute(text("ALTER TABLE products ADD COLUMN price FLOAT"))
@@ -117,6 +192,10 @@ def _ensure_products_compat_columns(*, is_sqlite: bool) -> None:
                         "WHERE cod_produto IS NULL OR TRIM(cod_produto) = ''",
                     ),
                 )
+        if is_sqlite:
+            connection.execute(text("UPDATE products SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
+        else:
+            connection.execute(text("UPDATE app_core.products SET updated_at = NOW() WHERE updated_at IS NULL"))
 
 
 def ensure_admin_user(session: Session) -> bool:
