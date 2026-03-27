@@ -33,9 +33,15 @@ def _has_critical_tables() -> bool:
     with engine.connect() as conn:
         insp = inspect(conn)
         if is_sqlite:
-            return insp.has_table("users") and insp.has_table("products")
-        return insp.has_table("users", schema="app_core") and insp.has_table(
-            "products", schema="app_core"
+            return (
+                insp.has_table("users")
+                and insp.has_table("products")
+                and insp.has_table("change_log")
+            )
+        return (
+            insp.has_table("users", schema="app_core")
+            and insp.has_table("products", schema="app_core")
+            and insp.has_table("change_log", schema="audit")
         )
 
 
