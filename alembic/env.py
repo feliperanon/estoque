@@ -49,13 +49,15 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
+    is_sqlite = settings.sqlalchemy_database_url.startswith("sqlite")
+
     with connectable.connect() as connection:
         ensure_database_schemas(connection)
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             include_schemas=True,
-            version_table_schema="app_core",
+            version_table_schema=None if is_sqlite else "app_core",
         )
 
         with context.begin_transaction():
