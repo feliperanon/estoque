@@ -1820,8 +1820,11 @@ async function uploadProductsExcel() {
     const updated = Number(data.updated) || 0;
     const ignored = Number(data.ignored) || 0;
     const failed = data.failed != null ? Number(data.failed) || 0 : 0;
-    const distinctSkus =
-      data.distinct_skus_touched != null ? Number(data.distinct_skus_touched) : null;
+    const rawDistinct =
+      data.distinct_product_codes_touched != null
+        ? data.distinct_product_codes_touched
+        : data.distinct_skus_touched;
+    const distinctCodes = rawDistinct != null ? Number(rawDistinct) : null;
     const totalInDb =
       data.total_products_in_db != null ? Number(data.total_products_in_db) : null;
     const rowOps = created + updated;
@@ -1829,17 +1832,17 @@ async function uploadProductsExcel() {
     let msg = `Importacao: ${created} novos, ${updated} linhas atualizadas na planilha, ${ignored} ignorados`;
     if (failed > 0) msg += `, ${failed} falhas`;
     msg +=
-      '. No cadastro, cada SKU = um unico produto (varias linhas com o mesmo SKU atualizam o mesmo item).';
+      '. No cadastro, cada codigo de produto = um registro (varias linhas com o mesmo codigo atualizam o mesmo item).';
 
-    if (distinctSkus != null && Number.isFinite(distinctSkus)) {
-      msg += ` SKUs distintos neste arquivo: ${distinctSkus}.`;
+    if (distinctCodes != null && Number.isFinite(distinctCodes)) {
+      msg += ` Codigos de produto distintos neste arquivo: ${distinctCodes}.`;
     }
     if (totalInDb != null && Number.isFinite(totalInDb)) {
       msg += ` Total de produtos no sistema agora: ${totalInDb} (e o que a lista deve mostrar ao buscar vazio).`;
     }
-    if (distinctSkus != null && rowOps > distinctSkus) {
+    if (distinctCodes != null && rowOps > distinctCodes) {
       const tot = totalInDb != null && Number.isFinite(totalInDb) ? String(totalInDb) : '?';
-      msg += ` A planilha tinha ${rowOps} linhas com dados, mas so ${distinctSkus} SKUs diferentes: o cadastro guarda um produto por SKU (total no banco agora: ${tot}), nao uma linha por linha da planilha.`;
+      msg += ` A planilha tinha ${rowOps} linhas com dados, mas so ${distinctCodes} codigos diferentes: o cadastro guarda um produto por codigo (total no banco agora: ${tot}), nao uma linha por linha da planilha.`;
     }
 
     if (ignored > 0) {

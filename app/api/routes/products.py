@@ -475,31 +475,31 @@ async def import_products_excel(
             row_data["cod_produto"] = cod_produto
 
             try:
-                # Evita erro de unicidade quando o mesmo SKU aparece mais de uma vez no mesmo arquivo.
-                if sku in created_in_batch:
-                    staged = created_in_batch[sku]
+                # Mesmo codigo de produto no arquivo: uma unica linha de cadastro (atualiza a staged).
+                if cod_produto in created_in_batch:
+                    staged = created_in_batch[cod_produto]
                     for key, value in row_data.items():
                         setattr(staged, key, value)
                     apply_common_source_fields(staged, None, "excel")
                     updated += 1
-                    skus_touched.add(sku)
+                    product_codes_touched.add(cod_produto)
                     continue
 
-                existing = session.exec(select(Product).where(Product.cod_grup_sku == sku)).first()
+                existing = session.exec(select(Product).where(Product.cod_produto == cod_produto)).first()
 
                 if existing:
                     for key, value in row_data.items():
                         setattr(existing, key, value)
                     apply_common_source_fields(existing, None, "excel")
                     updated += 1
-                    skus_touched.add(sku)
+                    product_codes_touched.add(cod_produto)
                 else:
                     product = Product(**row_data)
                     apply_common_source_fields(product, None, "excel")
                     session.add(product)
-                    created_in_batch[sku] = product
+                    created_in_batch[cod_produto] = product
                     created += 1
-                    skus_touched.add(sku)
+                    product_codes_touched.add(cod_produto)
             except Exception:
                 failed += 1
                 continue
@@ -524,7 +524,7 @@ async def import_products_excel(
                 "updated": updated,
                 "ignored": ignored,
                 "failed": failed,
-                "distinct_skus_touched": len(skus_touched),
+                "distinct_product_codes_touched": len(product_codes_touched),
             },
         )
         try:
@@ -546,7 +546,7 @@ async def import_products_excel(
             "updated": updated,
             "ignored": ignored,
             "failed": failed,
-            "distinct_skus_touched": len(skus_touched),
+            "distinct_product_codes_touched": len(product_codes_touched),
             "rows_applied": row_ops,
             "total_products_in_db": total_in_db,
         }
@@ -604,6 +604,18 @@ def update_product(
         raise HTTPException(status_code=404, detail="Produto nao encontrado")
 
     update_data = payload.model_dump(exclude_unset=True)
+    if "cod_produto" in update_data and update_data["cod_produto"] is not None:
+        new_cod = str(update_data["cod_produto"]).strip()
+        if new_cod and new_cod != (product.cod_produto or "").strip():
+            taken = session.exec(
+                select(Product).where(Product.cod_produto == new_cod, Product.id != product.id),
+            ).first()
+            if taken:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Codigo do produto ja cadastrado",
+                )
+
     for field, new_value in update_data.items():
         old_value = getattr(product, field, None)
         if str(old_value) != str(new_value):
@@ -655,7 +667,14 @@ def delete_product(
     if not product:
         raise HTTPException(status_code=404, detail="Produto nao encontrado")
 
-    _safe_log_change(session, "products", product.id, "delete", user.username, {"sku": product.cod_grup_sku})
+    _safe_log_change(
+        session,
+        "products",
+        product.id,
+        "delete",
+        user.username,
+        {"cod_produto": product.cod_produto, "cod_grup_sku": product.cod_grup_sku},
+    )
     session.delete(product)
     session.commit()
     return {"ok": True}
