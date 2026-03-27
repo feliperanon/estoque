@@ -9,12 +9,10 @@
     <title>{{ app_name }}</title>
   </head>
   <body class="landing-body">
-    <!-- Hamburger Menu (Landing Page Version) -->
-    <div class="topbar-left" style="position: absolute; top: 16px; left: 16px; z-index: 50;">
-      <button id="btn-menu-toggle" class="btn-menu-toggle" aria-label="Abrir menu" type="button">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-      </button>
-    </div>
+    <!-- Mesmo padrao do app (index.html): botao flutuante + sidebar unificada -->
+    <button id="btn-menu-toggle" class="btn-menu-toggle menu-fab" aria-label="Abrir menu" type="button">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
 
     <!-- Sidebar Menu Overlay -->
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
@@ -23,12 +21,24 @@
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
 
-      <nav class="sidebar-nav" aria-label="Modulos do sistema">
-        <a href="/app" class="sidebar-module-btn module-btn" style="text-decoration:none; display:flex;">Entrar no sistema</a>
-        <a href="/app#contagem" class="sidebar-module-btn module-btn" style="text-decoration:none; display:flex;">Contagem</a>
-        <a href="/app#cadastro" class="sidebar-module-btn module-btn" style="text-decoration:none; display:flex;">Cadastro</a>
-        <a href="/app#acesso" class="sidebar-module-btn module-btn" style="text-decoration:none; display:flex;">Acesso</a>
+      <div class="sidebar-user-info">
+        <span id="user-display" class="user-badge">Visitante</span>
+      </div>
+
+      <nav id="module-nav" class="sidebar-nav" aria-label="Modulos do sistema">
+        <a href="/" class="sidebar-module-btn module-btn" style="text-decoration: none; display: flex;">Pagina inicial</a>
+        <a href="/app#contagem" class="sidebar-module-btn module-btn" style="text-decoration: none; display: flex;">Contagem</a>
+        <a href="/app#cadastro" class="sidebar-module-btn module-btn" style="text-decoration: none; display: flex;">Cadastro</a>
+        <a href="/app#acesso" class="sidebar-module-btn module-btn" style="text-decoration: none; display: flex;">Acesso</a>
       </nav>
+
+      <div class="sidebar-actions">
+        <img src="/static/logo-souza-pinto.png" alt="Souza Pinto Distribuidora" class="sidebar-brand-logo" />
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; padding: 0 4px;">
+          <span class="net-status net-status-sidebar">ONLINE</span>
+        </div>
+        <button type="button" id="btn-logout" class="btn-secondary">Entrar no sistema</button>
+      </div>
     </aside>
 
     <main class="landing-page">
@@ -101,6 +111,13 @@
       });
       btnMenuClose.addEventListener('click', closeSidebar);
       sidebarOverlay.addEventListener('click', closeSidebar);
+
+      const btnLogout = document.getElementById('btn-logout');
+      if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+          window.location.href = '/app';
+        });
+      }
     </script>
   </body>
 </html>
