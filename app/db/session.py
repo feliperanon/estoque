@@ -1,5 +1,5 @@
 from sqlalchemy.orm import sessionmaker
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, create_engine
 
 from app.core.config import get_settings
 
@@ -36,6 +36,22 @@ def get_session_factory():
     return _SessionLocal
 
 
+class _EngineProxy:
+    """Delega ao Engine real só no primeiro uso (lazy), compatível com import direto de `engine`."""
+
+    def __getattr__(self, name: str):
+        return getattr(get_engine(), name)
+
+    def __enter__(self):
+        return get_engine().__enter__()
+
+    def __exit__(self, *args):
+        return get_engine().__exit__(*args)
+
+
+engine = _EngineProxy()
+
+
 def SessionLocal():
     """Factory function to create sessions"""
     factory = get_session_factory()
@@ -48,10 +64,3 @@ def get_session():
         yield session
     finally:
         session.close()
-
-
-def __getattr__(name: str):
-    """Compat: `from app.db.session import engine` continua funcionando com engine lazy."""
-    if name == "engine":
-        return get_engine()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
