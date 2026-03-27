@@ -43,6 +43,49 @@ async function apiFetch(path, options = {}) {
   }
 }
 
+/** Limite efetivo na query (API antiga rejeita limit>1000 com 422). */
+let productsQueryLimitEffective = PRODUCTS_LIST_LIMIT;
+
+async function apiFetchProductsList(searchQuery) {
+  const token = getToken();
+  if (!token) return null;
+
+  const buildUrl = (limit) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    const qt = (searchQuery || '').trim();
+    if (qt) params.set('q', qt);
+    return `${API_PRODUCTS}?${params.toString()}`;
+  };
+
+  let limit = productsQueryLimitEffective;
+  let response = await apiFetch(buildUrl(limit), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (response.status === 422 && limit > 1000) {
+    productsQueryLimitEffective = 1000;
+    response = await apiFetch(buildUrl(1000), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
+  return response;
+}
+
+function patchAccessFormAutofillHints() {
+  const phone = document.getElementById('edit-user-phone');
+  if (phone) {
+    phone.setAttribute('autocomplete', 'tel');
+    if ((phone.getAttribute('type') || '') === 'text') phone.setAttribute('type', 'tel');
+  }
+  const regPhone = document.getElementById('register-phone');
+  if (regPhone) {
+    regPhone.setAttribute('autocomplete', 'tel');
+    if ((regPhone.getAttribute('type') || '') === 'text') regPhone.setAttribute('type', 'tel');
+  }
+}
+
 // ── Elementos ──────────────────────────────────────────────────
 const viewLogin     = document.getElementById('view-login');
 const viewDashboard = document.getElementById('view-dashboard');
@@ -1596,11 +1639,8 @@ async function loadProducts() {
   if (!token) return;
 
   try {
-    const response = await apiFetch(`${API_PRODUCTS}?limit=${PRODUCTS_LIST_LIMIT}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await apiFetchProductsList(null);
+    if (!response) return;
     if (handleUnauthorizedResponse(response)) {
       return;
     }
@@ -1846,8 +1886,8 @@ async function searchProdutos() {
   if (!token) return;
 
   try {
-    const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=${PRODUCTS_LIST_LIMIT}` : `${API_PRODUCTS}?limit=${PRODUCTS_LIST_LIMIT}`;
-    const resp = await apiFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const resp = await apiFetchProductsList(q);
+    if (!resp) return;
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao buscar produtos.', true); return; }
     if (IS_LOCAL_WEB) {
@@ -2119,8 +2159,8 @@ async function searchPrecoProducts() {
   if (!token) return;
 
   try {
-    const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=${PRODUCTS_LIST_LIMIT}` : `${API_PRODUCTS}?limit=${PRODUCTS_LIST_LIMIT}`;
-    const resp = await apiFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const resp = await apiFetchProductsList(q);
+    if (!resp) return;
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setPrecoFeedback('Falha ao buscar.', true); return; }
     const data = await resp.json();
@@ -2694,6 +2734,7 @@ function initDashboard(user) {
     setActiveModule('contagem', false);
   }
   renderAccessMatrix();
+  patchAccessFormAutofillHints();
   updateNetworkStatus();
   renderCounts();
   loadCountProducts();

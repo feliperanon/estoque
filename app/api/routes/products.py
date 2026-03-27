@@ -197,7 +197,7 @@ def list_products(
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("administrativo", "admin")),
     q: str | None = Query(default=None),
-    limit: int = Query(default=200, ge=1, le=1000),
+    limit: int = Query(default=500, ge=1, le=5000),
 ) -> list[ProductRead]:
     statement = select(Product)
     if q:
