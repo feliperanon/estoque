@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from openpyxl import load_workbook
+from sqlalchemy import String, cast, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, or_, select
 
@@ -165,6 +166,72 @@ HEADER_ALIASES = {
 
 REQUIRED_FIELDS = {"cod_produto", "cod_grup_descricao", "cod_grup_sku"}
 
+_ATIVO_STATUS_SYNONYMS = frozenset(
+    {
+        "ativo",
+        "ativado",
+        "active",
+        "s",
+        "sim",
+        "si",
+        "yes",
+        "y",
+        "1",
+        "true",
+        "verdadeiro",
+        "ok",
+        "x",
+    }
+)
+_INATIVO_STATUS_SYNONYMS = frozenset(
+    {
+        "inativo",
+        "inactive",
+        "n",
+        "nao",
+        "no",
+        "0",
+        "false",
+        "falso",
+    }
+)
+
+
+def _strip_accents_lower(s: str) -> str:
+    n = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in n if not unicodedata.combining(c)).lower().strip()
+
+
+def _normalize_import_status(raw: str | bool | None) -> str | None:
+    """Alinha status de planilhas BI (S/N, 1/0, boolean) ao modelo ativo/inativo."""
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return "ativo" if raw else "inativo"
+    s = str(raw).strip()
+    if not s:
+        return None
+    key = _strip_accents_lower(s)
+    if key in _ATIVO_STATUS_SYNONYMS:
+        return "ativo"
+    if key in _INATIVO_STATUS_SYNONYMS:
+        return "inativo"
+    return s
+
+
+def _catalog_status_is_ativo_clause():
+    """Filtro SQL: considera ativo os mesmos sinonimos aceitos na importacao."""
+    col = cast(Product.status, String)
+    sl = func.lower(func.trim(col))
+    return or_(
+        Product.status.is_(None),
+        func.trim(col) == "",
+        sl == "ativo",
+        sl.in_(_ATIVO_STATUS_SYNONYMS),
+        Product.status == "Ativo",
+        Product.status == "ATIVO",
+    )
+
 
 def _fill_import_row_defaults(row_data: dict[str, str | None]) -> None:
     """Preenche codigo/SKU/descricao quando a planilha BI usa menos colunas."""
@@ -230,16 +297,8 @@ def list_products_catalog(
     statement = select(Product)
     normalized_status = (status_filter or "todos").strip().lower()
     if normalized_status == "ativo":
-        # Compatibilidade: registros legados sem status continuam visiveis como "ativos".
-        statement = statement.where(
-            or_(
-                Product.status == "ativo", 
-                Product.status == "Ativo",
-                Product.status == "ATIVO",
-                Product.status.is_(None), 
-                Product.status == ""
-            )
-        )
+        # Legado + planilhas BI (S, 1, SIM, boolean como texto).
+        statement = statement.where(_catalog_status_is_ativo_clause())
     elif normalized_status != "todos":
         statement = statement.where(
             or_(
@@ -389,6 +448,8 @@ async def import_products_excel(
                 continue
 
             _fill_import_row_defaults(row_data)
+            if "status" in row_data and row_data.get("status") is not None:
+                row_data["status"] = _normalize_import_status(row_data["status"])
 
             if any(not row_data.get(field) for field in REQUIRED_FIELDS):
                 ignored += 1

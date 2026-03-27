@@ -1108,7 +1108,7 @@ async function loadCountProducts() {
   const statusValue = countProductsStatusToggle?.checked ? 'todos' : 'ativo';
   const fetchCatalog = async (statusParam) => {
     const params = new URLSearchParams();
-    params.set('limit', '1000');
+    params.set('limit', '2000');
     params.set('status', statusParam);
     if (q) params.set('q', q);
     const resp = await apiFetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
