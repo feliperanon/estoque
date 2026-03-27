@@ -235,17 +235,20 @@ def upgrade() -> None:
         schema="legacy_snapshot",
     )
 
-    op.create_table(
-        "change_log",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("entity_name", sa.String(length=100), nullable=False),
-        sa.Column("entity_id", sa.Integer(), nullable=False),
-        sa.Column("action", sa.String(length=30), nullable=False),
-        sa.Column("actor", sa.String(length=120), nullable=True),
-        sa.Column("changed_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        schema="audit",
-    )
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if not inspector.has_table("change_log", schema="audit"):
+        op.create_table(
+            "change_log",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("entity_name", sa.String(length=100), nullable=False),
+            sa.Column("entity_id", sa.Integer(), nullable=False),
+            sa.Column("action", sa.String(length=30), nullable=False),
+            sa.Column("actor", sa.String(length=120), nullable=True),
+            sa.Column("changed_at", sa.DateTime(timezone=True), nullable=False),
+            sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+            schema="audit",
+        )
 
     op.create_table(
         "sync_runs",
