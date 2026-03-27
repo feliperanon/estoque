@@ -129,19 +129,56 @@ HEADER_ALIASES = {
     "codigo_do_produto": "cod_produto",
     "codigo": "cod_produto",
     "cod": "cod_produto",
+    "cod_item": "cod_produto",
+    "codigo_item": "cod_produto",
+    "cod_interno": "cod_produto",
+    "codigo_interno": "cod_produto",
+    "id_produto": "cod_produto",
     "cod_grup_descricao": "cod_grup_descricao",
     "grup_descricao": "cod_grup_descricao",
     "descricao": "cod_grup_descricao",
-    "descricao": "cod_grup_descricao",
+    "descricao_do_produto": "cod_grup_descricao",
+    "descricao_produto": "cod_grup_descricao",
+    "nome_produto": "cod_grup_descricao",
+    "nome_do_produto": "cod_grup_descricao",
+    "produto": "cod_grup_descricao",
+    "nome": "cod_grup_descricao",
+    "item": "cod_grup_descricao",
+    "denominacao": "cod_grup_descricao",
+    "mercadoria": "cod_grup_descricao",
+    "produto_descricao": "cod_grup_descricao",
     "cod_grup_sku": "cod_grup_sku",
     "grup_sku": "cod_grup_sku",
     "sku": "cod_grup_sku",
+    "cod_sku": "cod_grup_sku",
+    "codigo_sku": "cod_grup_sku",
+    "referencia": "cod_grup_sku",
+    "ref": "cod_grup_sku",
+    "codigo_referencia": "cod_grup_sku",
+    "codigo_barras": "cod_grup_sku",
+    "ean": "cod_grup_sku",
+    "gtin": "cod_grup_sku",
     "status": "status",
     "grup_prioridade": "grup_prioridade",
     "prioridade": "grup_prioridade",
 }
 
 REQUIRED_FIELDS = {"cod_produto", "cod_grup_descricao", "cod_grup_sku"}
+
+
+def _fill_import_row_defaults(row_data: dict[str, str | None]) -> None:
+    """Preenche codigo/SKU/descricao quando a planilha BI usa menos colunas."""
+    cod = (row_data.get("cod_produto") or "").strip()
+    sku = (row_data.get("cod_grup_sku") or "").strip()
+    desc = (row_data.get("cod_grup_descricao") or "").strip()
+    if not sku and cod:
+        row_data["cod_grup_sku"] = cod
+        sku = cod
+    if not cod and sku:
+        row_data["cod_produto"] = sku
+        cod = sku
+    if not desc:
+        row_data["cod_grup_descricao"] = cod or sku or None
 
 
 def _map_headers(raw_headers: tuple) -> tuple[list[str | None], int]:
@@ -350,6 +387,8 @@ async def import_products_excel(
 
             if not any(row_data.values()):
                 continue
+
+            _fill_import_row_defaults(row_data)
 
             if any(not row_data.get(field) for field in REQUIRED_FIELDS):
                 ignored += 1

@@ -14,6 +14,8 @@ const API_LOGIN_LOCAL = '/auth/login';
 const API_REGISTER = '/auth/register';
 const API_SYNC_COUNTS = '/audit/count-events';
 const API_PRODUCTS = '/products';
+/** Limite alinhado ao backend (le=5000); listas grandes de cadastro/BI. */
+const PRODUCTS_LIST_LIMIT = 2000;
 const API_PRODUCTS_CATALOG = '/products/catalog';
 const API_PRODUCTS_IMPORT_EXCEL = '/products/import-excel';
 const APP_BASE_PATH = '/app';
@@ -1594,7 +1596,7 @@ async function loadProducts() {
   if (!token) return;
 
   try {
-    const response = await apiFetch(`${API_PRODUCTS}?limit=300`, {
+    const response = await apiFetch(`${API_PRODUCTS}?limit=${PRODUCTS_LIST_LIMIT}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -1746,7 +1748,12 @@ async function uploadProductsExcel() {
     }
 
     const data = await response.json();
-    setProductImportFeedback(`Importacao concluida: ${data.created} novos, ${data.updated} atualizados, ${data.ignored} ignorados.`);
+    const failed = data.failed != null ? data.failed : 0;
+    setProductImportFeedback(
+      `Importacao: ${data.created} novos, ${data.updated} atualizados, ${data.ignored} ignorados` +
+        (failed ? `, ${failed} falhas` : '') +
+        '. Mesmo SKU = um cadastro. Muitos ignorados: revise colunas (codigo, descricao, SKU/EAN).',
+    );
     selectedProductFile = null;
     productExcelFile.value = '';
     await loadProducts();
@@ -1839,7 +1846,7 @@ async function searchProdutos() {
   if (!token) return;
 
   try {
-    const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=300` : `${API_PRODUCTS}?limit=300`;
+    const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=${PRODUCTS_LIST_LIMIT}` : `${API_PRODUCTS}?limit=${PRODUCTS_LIST_LIMIT}`;
     const resp = await apiFetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao buscar produtos.', true); return; }
@@ -2112,7 +2119,7 @@ async function searchPrecoProducts() {
   if (!token) return;
 
   try {
-    const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=300` : `${API_PRODUCTS}?limit=300`;
+    const url = q ? `${API_PRODUCTS}?q=${encodeURIComponent(q)}&limit=${PRODUCTS_LIST_LIMIT}` : `${API_PRODUCTS}?limit=${PRODUCTS_LIST_LIMIT}`;
     const resp = await apiFetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setPrecoFeedback('Falha ao buscar.', true); return; }
