@@ -94,6 +94,18 @@ const registerProfilePreset = document.getElementById('register-profile-preset')
 const registerAccessMain = document.getElementById('register-access-main');
 const registerAccessCount = document.getElementById('register-access-count');
 const registerAccessCadastro = document.getElementById('register-access-cadastro');
+const editAccessMain = document.getElementById('edit-access-main');
+const editAccessCount = document.getElementById('edit-access-count');
+const editAccessCadastro = document.getElementById('edit-access-cadastro');
+const editAccessAll = document.getElementById('edit-access-all');
+const editProfilePreset = document.getElementById('edit-profile-preset');
+const userEditPanel = document.getElementById('user-edit-panel');
+const userEditForm = document.getElementById('user-edit-form');
+const userEditFeedback = document.getElementById('user-edit-feedback');
+const btnUserEditClose = document.getElementById('btn-user-edit-close');
+
+let userEditOriginalUsername = '';
+let usersAdminCache = [];
 
 let syncInProgress = false;
 let selectedProductFile = null;
@@ -498,6 +510,111 @@ function applyRegisterProfilePreset(preset) {
   syncRegisterAllToggle();
 }
 
+function renderEditAccessOptions() {
+  if (!editAccessMain || !editAccessCount || !editAccessCadastro) return;
+  const groups = [
+    { el: editAccessMain, items: REGISTER_ACCESS_GROUPS[0].items },
+    { el: editAccessCount, items: REGISTER_ACCESS_GROUPS[1].items },
+    { el: editAccessCadastro, items: REGISTER_ACCESS_GROUPS[2].items },
+  ];
+  groups.forEach(({ el, items }) => {
+    el.innerHTML = '';
+    items.forEach((item) => {
+      const label = document.createElement('label');
+      label.className = 'access-option';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.className = 'edit-access-item';
+      input.value = item.key;
+      const text = document.createElement('span');
+      text.textContent = item.label;
+      label.appendChild(input);
+      label.appendChild(text);
+      el.appendChild(label);
+    });
+  });
+}
+
+function getSelectedEditAccessPages() {
+  const selected = Array.from(document.querySelectorAll('.edit-access-item:checked'))
+    .map((node) => (node.value || '').trim().toLowerCase())
+    .filter(Boolean);
+  return Array.from(new Set(selected));
+}
+
+function syncEditAllToggle() {
+  if (!editAccessAll) return;
+  const items = Array.from(document.querySelectorAll('.edit-access-item'));
+  editAccessAll.checked = items.length > 0 && items.every((node) => node.checked);
+}
+
+function setAllEditAccess(checked) {
+  document.querySelectorAll('.edit-access-item').forEach((node) => {
+    node.checked = checked;
+  });
+}
+
+function applyEditProfilePreset(preset) {
+  const normalized = (preset || '').trim().toLowerCase();
+  const allowed = REGISTER_PROFILE_PRESETS[normalized];
+  const allKeys = new Set(getAllRegisterAccessKeys());
+  const allowedSet = allowed ? new Set(allowed) : allKeys;
+  document.querySelectorAll('.edit-access-item').forEach((node) => {
+    const key = (node.value || '').trim().toLowerCase();
+    node.checked = allowedSet.has(key);
+  });
+  syncEditAllToggle();
+}
+
+function setUserEditFeedback(message, isError = false) {
+  if (!userEditFeedback) return;
+  userEditFeedback.textContent = message || '';
+  userEditFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+function openUserEditPanel(user) {
+  if (!userEditPanel || currentRole !== 'admin' || !user || user.id == null) return;
+  userEditOriginalUsername = (user.username || '').trim().toLowerCase();
+  const idEl = document.getElementById('edit-user-id');
+  const nameEl = document.getElementById('edit-user-name');
+  const emailEl = document.getElementById('edit-user-email');
+  const phoneEl = document.getElementById('edit-user-phone');
+  const passEl = document.getElementById('edit-user-password');
+  const roleEl = document.getElementById('edit-user-role');
+  const activeEl = document.getElementById('edit-user-active');
+  if (!idEl || !nameEl || !emailEl || !roleEl || !activeEl) return;
+
+  idEl.value = String(user.id);
+  nameEl.value = user.full_name || '';
+  emailEl.value = user.username || '';
+  if (phoneEl) phoneEl.value = user.phone || '';
+  if (passEl) passEl.value = '';
+  roleEl.value = normalizeRole(user.role) || 'conferente';
+  if (!['admin', 'administrativo', 'conferente'].includes(roleEl.value)) {
+    roleEl.value = 'conferente';
+  }
+  activeEl.checked = user.is_active !== false;
+
+  const pages = Array.isArray(user.allowed_pages)
+    ? user.allowed_pages.map((p) => String(p).trim().toLowerCase()).filter(Boolean)
+    : [];
+  document.querySelectorAll('.edit-access-item').forEach((node) => {
+    const key = (node.value || '').trim().toLowerCase();
+    node.checked = pages.includes(key);
+  });
+  syncEditAllToggle();
+  if (editProfilePreset) editProfilePreset.value = 'custom';
+  setUserEditFeedback('');
+  userEditPanel.style.display = 'block';
+  document.body.classList.add('modal-open');
+}
+
+function closeUserEditPanel() {
+  if (userEditPanel) userEditPanel.style.display = 'none';
+  document.body.classList.remove('modal-open');
+  userEditOriginalUsername = '';
+}
+
 // ── Sessão ─────────────────────────────────────────────────────
 function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -747,7 +864,29 @@ function renderUsersList(users) {
   }
   for (const user of users) {
     const li = document.createElement('li');
-    li.innerHTML = `<span>${user.full_name || user.name || user.username}</span>`;
+    li.className = 'users-list-item';
+    li.setAttribute('role', 'button');
+    li.tabIndex = 0;
+    li.dataset.userId = String(user.id);
+    const title = user.full_name || user.name || user.username || 'Usuário';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'users-list-name';
+    nameSpan.textContent = title;
+    const meta = document.createElement('small');
+    meta.className = 'users-list-meta';
+    meta.textContent = user.username || '';
+    li.appendChild(nameSpan);
+    li.appendChild(meta);
+    const open = () => {
+      if (currentRole === 'admin') openUserEditPanel(user);
+    };
+    li.addEventListener('click', open);
+    li.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        open();
+      }
+    });
     usersList.appendChild(li);
   }
 }
@@ -762,7 +901,8 @@ async function loadUsersAdminList() {
     });
     if (!resp.ok) return;
     const users = await resp.json();
-    renderUsersList(Array.isArray(users) ? users : []);
+    usersAdminCache = Array.isArray(users) ? users : [];
+    renderUsersList(usersAdminCache);
   } catch {
     // silencia para nao quebrar UX
   }
@@ -2353,10 +2493,15 @@ if (registerForm) {
   document.addEventListener('change', (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
-    if (!target.classList.contains('register-access-item')) return;
-    syncRegisterAllToggle();
-    if (registerProfilePreset) {
-      registerProfilePreset.value = 'custom';
+    if (target.classList.contains('register-access-item')) {
+      syncRegisterAllToggle();
+      if (registerProfilePreset) {
+        registerProfilePreset.value = 'custom';
+      }
+    }
+    if (target.classList.contains('edit-access-item')) {
+      syncEditAllToggle();
+      if (editProfilePreset) editProfilePreset.value = 'custom';
     }
   });
 
@@ -2404,6 +2549,117 @@ if (registerForm) {
       await loadUsersAdminList();
     } catch {
       setRegisterFeedback('Erro de conexão ao cadastrar usuário.', true);
+    }
+  });
+}
+
+if (editAccessMain) {
+  renderEditAccessOptions();
+}
+if (editAccessAll) {
+  editAccessAll.addEventListener('change', () => {
+    setAllEditAccess(editAccessAll.checked);
+    if (editProfilePreset) editProfilePreset.value = editAccessAll.checked ? 'admin' : 'custom';
+  });
+}
+if (editProfilePreset && userEditForm) {
+  editProfilePreset.addEventListener('change', () => {
+    if (editProfilePreset.value === 'custom') return;
+    applyEditProfilePreset(editProfilePreset.value);
+  });
+}
+if (btnUserEditClose) {
+  btnUserEditClose.addEventListener('click', closeUserEditPanel);
+}
+if (userEditForm) {
+  userEditForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (currentRole !== 'admin') {
+      setUserEditFeedback('Apenas admin pode editar usuários.', true);
+      return;
+    }
+    const token = getToken();
+    if (!token) return;
+
+    const idRaw = document.getElementById('edit-user-id')?.value;
+    const id = parseInt(idRaw, 10);
+    if (!id || Number.isNaN(id)) {
+      setUserEditFeedback('Usuário inválido.', true);
+      return;
+    }
+
+    const name = document.getElementById('edit-user-name')?.value.trim() || '';
+    const email = document.getElementById('edit-user-email')?.value.trim() || '';
+    const phone = document.getElementById('edit-user-phone')?.value.trim() || '';
+    const password = document.getElementById('edit-user-password')?.value || '';
+    const role = document.getElementById('edit-user-role')?.value || 'conferente';
+    const isActive = Boolean(document.getElementById('edit-user-active')?.checked);
+    const allowedPages = getSelectedEditAccessPages();
+
+    if (!name || !email) {
+      setUserEditFeedback('Preencha nome e e-mail.', true);
+      return;
+    }
+    if (!allowedPages.length) {
+      setUserEditFeedback('Selecione ao menos um módulo de acesso.', true);
+      return;
+    }
+    if (password && password.length < 6) {
+      setUserEditFeedback('A nova senha deve ter ao menos 6 caracteres.', true);
+      return;
+    }
+
+    const body = {
+      full_name: name,
+      username: email.toLowerCase(),
+      phone: phone || null,
+      role,
+      is_active: isActive,
+      allowed_pages: allowedPages,
+    };
+    if (password.length >= 6) {
+      body.password = password;
+    }
+
+    setUserEditFeedback('Salvando...');
+    try {
+      const resp = await apiFetch(`/users/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (handleUnauthorizedResponse(resp)) return;
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        setUserEditFeedback(err.detail || 'Falha ao salvar usuário.', true);
+        return;
+      }
+      const data = await resp.json();
+      const editedWasMe = userEditOriginalUsername;
+      setUserEditFeedback('Alterações salvas.');
+      closeUserEditPanel();
+      await loadUsersAdminList();
+
+      const me = getUser();
+      const meUser = (me?.username || '').trim().toLowerCase();
+      if (me && editedWasMe && meUser === editedWasMe) {
+        saveSession(token, {
+          ...me,
+          username: data.username,
+          full_name: data.full_name,
+          name: data.full_name || data.username,
+          email: data.username,
+          phone: data.phone,
+          role: data.role,
+          allowed_pages: Array.isArray(data.allowed_pages) ? data.allowed_pages : [],
+        });
+        initDashboard(getUser());
+      }
+    } catch {
+      setUserEditFeedback('Erro de conexão ao salvar.', true);
     }
   });
 }

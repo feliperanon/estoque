@@ -914,6 +914,32 @@ button[type="submit"]:disabled {
   box-shadow: 0 22px 54px rgba(12, 37, 28, 0.35);
 }
 
+.users-admin-list .users-list-item {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+
+.users-admin-list .users-list-item:hover,
+.users-admin-list .users-list-item:focus-visible {
+  background: var(--bg);
+  outline: none;
+}
+
+.users-admin-list .users-list-name {
+  font-weight: 600;
+}
+
+.users-admin-list .users-list-meta {
+  font-size: 0.85rem;
+  color: var(--muted, #5c6f66);
+}
+
 body.modal-open {
   overflow: hidden;
 }

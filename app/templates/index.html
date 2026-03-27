@@ -674,7 +674,71 @@
               <div class="card-head" style="margin-top:12px;">
                 <h3>Usuários cadastrados</h3>
               </div>
-              <ul id="users-list" class="list"></ul>
+              <p class="muted" style="margin: 0 0 8px;">Toque em um usuário para editar nome, e-mail, senha, perfil e módulos.</p>
+              <ul id="users-list" class="list users-admin-list"></ul>
+
+              <section id="user-edit-panel" class="card card-modal" style="display: none;">
+                <div class="card-head">
+                  <h3>Editar usuário</h3>
+                  <button type="button" id="btn-user-edit-close" class="btn-secondary btn-dark">Fechar</button>
+                </div>
+                <form id="user-edit-form" class="product-form" autocomplete="off" novalidate>
+                  <input type="hidden" id="edit-user-id" />
+                  <div class="field"><label for="edit-user-name">Nome</label><input id="edit-user-name" type="text" required /></div>
+                  <div class="field"><label for="edit-user-email">E-mail (login)</label><input id="edit-user-email" type="email" autocomplete="username" required /></div>
+                  <div class="field"><label for="edit-user-phone">Telefone</label><input id="edit-user-phone" type="text" /></div>
+                  <div class="field"><label for="edit-user-password">Nova senha</label><input id="edit-user-password" type="password" autocomplete="new-password" placeholder="Deixe em branco para manter" /></div>
+                  <div class="field">
+                    <label for="edit-user-role">Perfil</label>
+                    <select id="edit-user-role">
+                      <option value="admin">Admin</option>
+                      <option value="administrativo">Administrativo</option>
+                      <option value="conferente">Conferente</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="switch-inline" for="edit-user-active">
+                      <input id="edit-user-active" type="checkbox" checked />
+                      <span>Usuário ativo</span>
+                    </label>
+                  </div>
+
+                  <div class="field field-full access-permissions">
+                    <div class="access-permissions-head">
+                      <div class="access-permissions-head-top">
+                        <div class="field compact">
+                          <label for="edit-profile-preset">Perfil pronto</label>
+                          <select id="edit-profile-preset">
+                            <option value="admin">Admin (todos os módulos)</option>
+                            <option value="administrativo">Administrativo</option>
+                            <option value="conferente">Conferente</option>
+                            <option value="custom">Personalizado</option>
+                          </select>
+                        </div>
+                        <label class="switch-inline" for="edit-access-all">
+                          <input id="edit-access-all" type="checkbox" />
+                          <span>Liberar todos os módulos</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div class="access-group">
+                      <h4>Módulos principais</h4>
+                      <div id="edit-access-main" class="access-options"></div>
+                    </div>
+                    <div class="access-group">
+                      <h4>Submódulos de Contagem</h4>
+                      <div id="edit-access-count" class="access-options"></div>
+                    </div>
+                    <div class="access-group">
+                      <h4>Submódulos de Cadastro</h4>
+                      <div id="edit-access-cadastro" class="access-options"></div>
+                    </div>
+                  </div>
+
+                  <button type="submit">Salvar alterações</button>
+                </form>
+                <div id="user-edit-feedback" class="field-feedback" aria-live="polite"></div>
+              </section>
           </section>
         </section>
       </main>

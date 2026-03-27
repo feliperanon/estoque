@@ -26,3 +26,15 @@ class UserRead(UserBase):
     source_system: str | None = None
     imported_at: datetime | None = None
     updated_at: datetime
+
+
+class UserUpdate(BaseModel):
+    """Atualização parcial; omita campos que não devem mudar."""
+
+    full_name: str | None = None
+    username: str | None = None
+    phone: str | None = None
+    password: str | None = None
+    role: str | None = None
+    is_active: bool | None = None
+    allowed_pages: list[str] | None = None

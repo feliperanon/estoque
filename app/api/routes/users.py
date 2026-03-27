@@ -1,15 +1,15 @@
 from datetime import datetime, timezone
 import logging
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.exc import SQLAlchemyError
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import Session, select
 
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import require_roles
 from app.core.security import get_password_hash
 from app.db.session import get_session
 from app.models import User
-from app.schemas.users import UserCreate, UserRead
+from app.schemas.users import UserCreate, UserRead, UserUpdate
 from app.services.audit import log_change
 from app.services.bootstrap import ensure_database_ready
 from app.services.imports import apply_common_source_fields
@@ -114,3 +114,91 @@ def create_user(
     session.commit()
     session.refresh(user)
     return user
+
+
+@router.patch("/{user_id}", response_model=UserRead)
+def update_user(
+    user_id: int,
+    payload: UserUpdate,
+    session: Session = Depends(get_session),
+    actor: User = Depends(require_roles("admin")),
+) -> UserRead:
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado.")
+
+    data = payload.model_dump(exclude_unset=True)
+
+    if "password" in data:
+        pwd = (data.pop("password") or "").strip()
+        if pwd:
+            if len(pwd) < 6:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A senha deve ter ao menos 6 caracteres.",
+                )
+            user.password_hash = get_password_hash(pwd)
+
+    if "username" in data:
+        new_username = (data.pop("username") or "").strip().lower()
+        if not new_username or "@" not in new_username:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Informe um e-mail valido como login.",
+            )
+        if new_username != (user.username or "").strip().lower():
+            other = session.exec(select(User).where(User.username == new_username)).first()
+            if other:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Este e-mail ja esta em uso por outro usuario.",
+                )
+            user.username = new_username
+
+    if "full_name" in data:
+        user.full_name = (data.pop("full_name") or "").strip() or None
+
+    if "phone" in data:
+        user.phone = (data.pop("phone") or "").strip() or None
+
+    if "role" in data:
+        role = (data.pop("role") or "").strip().lower() or None
+        if role not in (None, "admin", "administrativo", "conferente"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Perfil invalido. Use admin, administrativo ou conferente.",
+            )
+        user.role = role
+
+    if "is_active" in data:
+        user.is_active = bool(data.pop("is_active"))
+
+    if "allowed_pages" in data:
+        raw = data.pop("allowed_pages")
+        user.allowed_pages = _normalize_allowed_pages(raw)
+
+    if data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Campos nao reconhecidos na atualizacao.")
+
+    try:
+        apply_common_source_fields(user, None, user.source_system or "manual")
+        session.add(user)
+        session.flush()
+        log_change(session, "users", user.id or 0, "update", actor.username, {"user_id": user_id})
+        session.commit()
+        session.refresh(user)
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Nao foi possivel salvar (dados duplicados ou conflito).",
+        )
+    except SQLAlchemyError:
+        session.rollback()
+        logger.exception("Falha ao atualizar usuario", extra={"user_id": user_id})
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Falha temporaria ao salvar usuario.",
+        )
+
+    return _to_user_read(user)
