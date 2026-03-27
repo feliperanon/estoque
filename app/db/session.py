@@ -42,12 +42,6 @@ class _EngineProxy:
     def __getattr__(self, name: str):
         return getattr(get_engine(), name)
 
-    def __enter__(self):
-        return get_engine().__enter__()
-
-    def __exit__(self, *args):
-        return get_engine().__exit__(*args)
-
 
 engine = _EngineProxy()
 
