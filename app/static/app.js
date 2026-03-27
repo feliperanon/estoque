@@ -74,7 +74,7 @@ const productsList = document.getElementById('products-list');
 const productsTotal = document.getElementById('products-total');
 const roleDisplay = document.getElementById('role-display');
 const moduleNav = document.getElementById('module-nav');
-const accessMatrixList = document.getElementById('access-matrix-list');
+const accessMatrixContainer = document.getElementById('access-matrix');
 const registerAccessAll = document.getElementById('register-access-all');
 const registerProfilePreset = document.getElementById('register-profile-preset');
 const registerAccessMain = document.getElementById('register-access-main');
@@ -193,12 +193,12 @@ const PRODUCT_PARAM_LABELS = {
 
 const ACCESS_CATEGORIES = [
   {
-    category: 'Operacao',
+    category: 'Operação',
     subcategories: [
       { module: 'Contagem de Estoque', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Recontagem', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Puxada', roles: ['conferente', 'administrativo', 'admin'] },
-      { module: 'Devolucao', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Devolução', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Quebra', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Venda Direta', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Data de Vencimento', roles: ['conferente', 'administrativo', 'admin'] },
@@ -208,11 +208,11 @@ const ACCESS_CATEGORIES = [
     category: 'Cadastro',
     subcategories: [
       { module: 'Cadastro de produtos', roles: ['administrativo', 'admin'] },
-      { module: 'Importacao de produtos', roles: ['administrativo', 'admin'] },
+      { module: 'Importação de produtos', roles: ['administrativo', 'admin'] },
     ],
   },
   {
-    category: 'Governanca',
+    category: 'Governança',
     subcategories: [
       { module: 'Matriz de acessos', roles: ['administrativo', 'admin'] },
     ],
@@ -346,18 +346,35 @@ function renderModuleNav() {
 }
 
 function renderAccessMatrix() {
-  accessMatrixList.innerHTML = '';
+  if (!accessMatrixContainer) return;
+  accessMatrixContainer.innerHTML = '';
 
   ACCESS_CATEGORIES.forEach((item) => {
-    const categoryLi = document.createElement('li');
-    categoryLi.innerHTML = `<span><strong>${item.category}</strong></span><strong>Categoria</strong>`;
-    accessMatrixList.appendChild(categoryLi);
+    const categoryCard = document.createElement('section');
+    categoryCard.className = 'access-category';
 
+    const header = document.createElement('div');
+    header.className = 'access-category-head';
+    header.innerHTML = `<h3>${item.category}</h3><span class="access-count">${item.subcategories.length} modulo(s)</span>`;
+
+    const table = document.createElement('table');
+    table.className = 'access-table';
+    table.innerHTML = '<thead><tr><th>Operacao</th><th>Perfis permitidos</th></tr></thead>';
+
+    const tbody = document.createElement('tbody');
     item.subcategories.forEach((sub) => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span>${sub.module}</span><strong>${sub.roles.join(', ')}</strong>`;
-      accessMatrixList.appendChild(li);
+      const tr = document.createElement('tr');
+      const roleTags = sub.roles
+        .map((role) => `<span class="access-role-tag ${role}">${role}</span>`)
+        .join('');
+      tr.innerHTML = `<td class="access-op-name">${sub.module}</td><td><div class="access-role-tags">${roleTags}</div></td>`;
+      tbody.appendChild(tr);
     });
+
+    table.appendChild(tbody);
+    categoryCard.appendChild(header);
+    categoryCard.appendChild(table);
+    accessMatrixContainer.appendChild(categoryCard);
   });
 }
 
@@ -565,7 +582,7 @@ function renderCountProducts(products) {
     codeEl.textContent = codeText;
     const descEl = document.createElement('span');
     descEl.className = 'count-product-desc';
-    descEl.textContent = brandText ? `${descText} - ${brandText}` : descText;
+    descEl.textContent = descText;
     label.appendChild(codeEl);
     label.appendChild(descEl);
 
@@ -574,11 +591,13 @@ function renderCountProducts(products) {
 
     const qtyInput = document.createElement('input');
     qtyInput.type = 'number';
-    qtyInput.min = '1';
+    qtyInput.inputMode = 'numeric';
+    qtyInput.min = '0';
     qtyInput.step = '1';
-    qtyInput.value = '1';
+    qtyInput.value = '0';
     qtyInput.className = 'count-product-qty';
     qtyInput.setAttribute('aria-label', `Quantidade para ${itemCode || 'item sem codigo'}`);
+    qtyInput.setAttribute('pattern', '[0-9]*');
 
     const minusBtn = document.createElement('button');
     minusBtn.type = 'button';
@@ -605,23 +624,25 @@ function renderCountProducts(products) {
 
     const applyDelta = (deltaSign) => {
       if (!hasCode) return;
-      const qtyBase = Number(qtyInput.value);
-      if (!Number.isInteger(qtyBase) || qtyBase <= 0) {
-        setFeedback('Informe uma quantidade inteira maior que zero.', true);
-        return;
-      }
+      const rawVal = Number(qtyInput.value);
+      const qtyBase = Number.isInteger(rawVal) && rawVal > 0 ? rawVal : 1;
       const delta = deltaSign * qtyBase;
       registerCountDelta(itemCode, delta);
       const updatedTotals = new Map(computeTotals(loadCountEvents()).map((row) => [row.itemCode, row.qty]));
       totalEl.textContent = `${updatedTotals.get(itemCode) || 0}`;
+      qtyInput.value = '0';
     };
 
-    label.addEventListener('click', () => {
-      const itemInput = document.getElementById('item-code');
-      if (!itemInput) return;
-      itemInput.value = itemCode;
-      itemInput.focus();
-      setFeedback(`Produto selecionado: ${itemCode}`);
+    // Clicar em qualquer parte do card foca o input numérico
+    const focusQty = () => {
+      if (!hasCode) return;
+      qtyInput.focus();
+      qtyInput.select();
+    };
+    li.addEventListener('click', (e) => {
+      // Não interceptar cliques nos próprios botões e input
+      if (e.target === minusBtn || e.target === plusBtn || e.target === qtyInput) return;
+      focusQty();
     });
     plusBtn.addEventListener('click', () => applyDelta(1));
     minusBtn.addEventListener('click', () => applyDelta(-1));

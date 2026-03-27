@@ -847,12 +847,164 @@ body.modal-open::before {
 
 .acesso-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: 16px;
 }
 
 .acesso-card {
   height: fit-content;
+}
+
+.acesso-card-matrix {
+  padding: 16px;
+}
+
+.access-matrix-head {
+  margin-bottom: 10px;
+}
+
+.access-matrix-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.access-matrix-head .muted {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}
+
+.access-role-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  letter-spacing: 0.02em;
+}
+
+.role-pill-conferente {
+  background: #eef7ff;
+  color: #175a94;
+  border-color: #c8e1f9;
+}
+
+.role-pill-administrativo {
+  background: #f2fbf2;
+  color: #1f6b2f;
+  border-color: #cde9d2;
+}
+
+.role-pill-admin {
+  background: #fff6e8;
+  color: #8a4d00;
+  border-color: #f5ddb8;
+}
+
+.access-matrix {
+  display: grid;
+  gap: 10px;
+}
+
+.access-category {
+  border: 1px solid #dbe4dc;
+  border-radius: 12px;
+  background: #fbfdfb;
+  overflow: hidden;
+}
+
+.access-category-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f1f6f1;
+  border-bottom: 1px solid #dbe4dc;
+}
+
+.access-category-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #173328;
+}
+
+.access-count {
+  font-size: 0.75rem;
+  color: #466053;
+  background: #e7efe7;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-weight: 700;
+}
+
+.access-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.access-table th,
+.access-table td {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 0.86rem;
+  border-bottom: 1px solid #edf2ed;
+  vertical-align: top;
+}
+
+.access-table th {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #567064;
+}
+
+.access-table tr:last-child td {
+  border-bottom: none;
+}
+
+.access-op-name {
+  color: #203c30;
+  font-weight: 600;
+}
+
+.access-role-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.access-role-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.access-role-tag.conferente {
+  background: #eef7ff;
+  color: #175a94;
+}
+
+.access-role-tag.administrativo {
+  background: #f2fbf2;
+  color: #1f6b2f;
+}
+
+.access-role-tag.admin {
+  background: #fff6e8;
+  color: #8a4d00;
 }
 
 .access-permissions {
@@ -1301,6 +1453,16 @@ body.modal-open::before {
   /* Modulo Acesso */
   .acesso-grid {
     grid-template-columns: 1fr;
+  }
+
+  .acesso-card-matrix {
+    padding: 14px;
+  }
+
+  .access-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Formulários */
