@@ -1820,15 +1820,26 @@ async function uploadProductsExcel() {
     const updated = Number(data.updated) || 0;
     const ignored = Number(data.ignored) || 0;
     const failed = data.failed != null ? Number(data.failed) || 0 : 0;
+    const distinctSkus =
+      data.distinct_skus_touched != null ? Number(data.distinct_skus_touched) : null;
+    const totalInDb =
+      data.total_products_in_db != null ? Number(data.total_products_in_db) : null;
+    const rowOps = created + updated;
 
-    let msg = `Importacao: ${created} novos, ${updated} atualizados, ${ignored} ignorados`;
+    let msg = `Importacao: ${created} novos, ${updated} linhas atualizadas na planilha, ${ignored} ignorados`;
     if (failed > 0) msg += `, ${failed} falhas`;
     msg +=
-      '. Regra: um SKU no sistema = um cadastro (linhas com o mesmo SKU atualizam o mesmo produto).';
+      '. No cadastro, cada SKU = um unico produto (varias linhas com o mesmo SKU atualizam o mesmo item).';
 
-    if (created === 0 && updated > 0 && ignored === 0 && failed === 0) {
-      msg +=
-        ' Apenas atualizacao: todos os SKUs da planilha ja existiam; nenhuma linha foi ignorada.';
+    if (distinctSkus != null && Number.isFinite(distinctSkus)) {
+      msg += ` SKUs distintos neste arquivo: ${distinctSkus}.`;
+    }
+    if (totalInDb != null && Number.isFinite(totalInDb)) {
+      msg += ` Total de produtos no sistema agora: ${totalInDb} (e o que a lista deve mostrar ao buscar vazio).`;
+    }
+    if (distinctSkus != null && rowOps > distinctSkus) {
+      const tot = totalInDb != null && Number.isFinite(totalInDb) ? String(totalInDb) : '?';
+      msg += ` A planilha tinha ${rowOps} linhas com dados, mas so ${distinctSkus} SKUs diferentes: o cadastro guarda um produto por SKU (total no banco agora: ${tot}), nao uma linha por linha da planilha.`;
     }
 
     if (ignored > 0) {

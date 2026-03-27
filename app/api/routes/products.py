@@ -432,6 +432,7 @@ async def import_products_excel(
         ignored = 0
         failed = 0
         created_in_batch: dict[str, Product] = {}
+        skus_touched: set[str] = set()
 
         for row in all_rows[header_row_index + 1 :]:
             row_data: dict[str, str | None] = {}
@@ -475,6 +476,7 @@ async def import_products_excel(
                         setattr(staged, key, value)
                     apply_common_source_fields(staged, None, "excel")
                     updated += 1
+                    skus_touched.add(sku)
                     continue
 
                 existing = session.exec(select(Product).where(Product.cod_grup_sku == sku)).first()
@@ -484,12 +486,14 @@ async def import_products_excel(
                         setattr(existing, key, value)
                     apply_common_source_fields(existing, None, "excel")
                     updated += 1
+                    skus_touched.add(sku)
                 else:
                     product = Product(**row_data)
                     apply_common_source_fields(product, None, "excel")
                     session.add(product)
                     created_in_batch[sku] = product
                     created += 1
+                    skus_touched.add(sku)
             except Exception:
                 failed += 1
                 continue
@@ -509,7 +513,13 @@ async def import_products_excel(
             0,
             "import_excel",
             user.username,
-            {"created": created, "updated": updated, "ignored": ignored, "failed": failed},
+            {
+                "created": created,
+                "updated": updated,
+                "ignored": ignored,
+                "failed": failed,
+                "distinct_skus_touched": len(skus_touched),
+            },
         )
         try:
             session.commit()
@@ -520,7 +530,20 @@ async def import_products_excel(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Falha ao concluir importacao. Erro: {exc}",
             )
-        return {"created": created, "updated": updated, "ignored": ignored, "failed": failed}
+
+        row_ops = created + updated
+        total_row = session.exec(select(func.count()).select_from(Product)).first()
+        total_in_db = int(total_row[0]) if total_row is not None else 0
+
+        return {
+            "created": created,
+            "updated": updated,
+            "ignored": ignored,
+            "failed": failed,
+            "distinct_skus_touched": len(skus_touched),
+            "rows_applied": row_ops,
+            "total_products_in_db": total_in_db,
+        }
     except HTTPException:
         raise
     except SQLAlchemyError as exc:
