@@ -125,7 +125,7 @@ class Vehicle(SourceTracked, table=True):
 
 class Product(SourceTracked, table=True):
     __tablename__ = "products"
-    __table_args__ = (UniqueConstraint("cod_grup_sku", name="uq_product_sku"), {"schema": "app_core"})
+    __table_args__ = (UniqueConstraint("cod_produto", name="uq_product_cod"), {"schema": "app_core"})
 
     id: int | None = Field(default=None, primary_key=True)
     cod_grup_sp: str | None = Field(default=None, max_length=60, index=True)

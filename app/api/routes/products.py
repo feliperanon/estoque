@@ -333,9 +333,12 @@ def create_product(
     session: Session = Depends(get_session),
     user: User = Depends(require_roles("administrativo", "admin")),
 ) -> Product:
-    existing = session.exec(select(Product).where(Product.cod_grup_sku == payload.cod_grup_sku)).first()
+    cod = (payload.cod_produto or "").strip()
+    if not cod:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Codigo do produto obrigatorio")
+    existing = session.exec(select(Product).where(Product.cod_produto == cod)).first()
     if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="SKU ja cadastrado")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Codigo do produto ja cadastrado")
 
     product = Product.model_validate(payload)
     apply_common_source_fields(product, payload.legacy_id, payload.source_system or "manual")
@@ -357,7 +360,10 @@ def import_products_payload(
     updated = 0
 
     for row in payload.rows:
-        existing = session.exec(select(Product).where(Product.cod_grup_sku == row.cod_grup_sku)).first()
+        cod = (row.cod_produto or "").strip()
+        if not cod:
+            continue
+        existing = session.exec(select(Product).where(Product.cod_produto == cod)).first()
         if existing:
             data = row.model_dump(exclude={"legacy_id", "source_system"})
             for key, value in data.items():
@@ -432,7 +438,7 @@ async def import_products_excel(
         ignored = 0
         failed = 0
         created_in_batch: dict[str, Product] = {}
-        skus_touched: set[str] = set()
+        product_codes_touched: set[str] = set()
 
         for row in all_rows[header_row_index + 1 :]:
             row_data: dict[str, str | None] = {}
