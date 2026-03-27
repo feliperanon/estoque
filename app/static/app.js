@@ -20,6 +20,7 @@ const APP_BASE_PATH = '/app';
 const TOKEN_KEY  = 'estoque_token';
 const USER_KEY   = 'estoque_user';
 const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
+const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
 const DEVICE_NAME_KEY = 'estoque_device_name_v1';
 let activeApiBasePrimary = API_BASE_URL_PRIMARY;
 let activeApiBaseFallback = API_BASE_URL_FALLBACK;
@@ -58,6 +59,13 @@ const countFeedback = document.getElementById('count-feedback');
 const countProductsStatusToggle = document.getElementById('count-products-status-toggle');
 const countProductsList = document.getElementById('count-products-list');
 const countProductsTotal = document.getElementById('count-products-total');
+const countProgressFill = document.getElementById('count-progress-fill');
+const countProgressText = document.getElementById('count-progress-text');
+const kpiCountPercent = document.getElementById('kpi-count-percent');
+const kpiCountUser = document.getElementById('kpi-count-user');
+const kpiCountWindow = document.getElementById('kpi-count-window');
+const kpiCountElapsed = document.getElementById('kpi-count-elapsed');
+const kpiCountEta = document.getElementById('kpi-count-eta');
 const totalsList    = document.getElementById('totals-list');
 const totalItems    = document.getElementById('total-items');
 const pendingList   = document.getElementById('pending-list');
@@ -74,6 +82,12 @@ const productsList = document.getElementById('products-list');
 const productsTotal = document.getElementById('products-total');
 const roleDisplay = document.getElementById('role-display');
 const moduleNav = document.getElementById('module-nav');
+const topbarPageTitle = document.querySelector('.topbar .topbar-title');
+const sidebarPageTitle = document.getElementById('sidebar-page-title');
+const sidebarMenu = document.getElementById('sidebar-menu');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
+const btnMenuToggle = document.getElementById('btn-menu-toggle');
+const btnMenuClose = document.getElementById('btn-menu-close');
 const accessMatrixContainer = document.getElementById('access-matrix');
 const registerAccessAll = document.getElementById('register-access-all');
 const registerProfilePreset = document.getElementById('register-profile-preset');
@@ -86,6 +100,7 @@ let selectedProductFile = null;
 let currentRole = 'conferente';
 let countProductsCache = [];
 let currentAllowedPages = [];
+let countKpiTicker = null;
 
 const PAGE_KEYS_BY_MODULE = {
   contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity'],
@@ -166,6 +181,23 @@ const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'preco-produtos', 'parame
 const SUB_TO_PARENT = {};
 SUB_MODULES.forEach(s => { SUB_TO_PARENT[s] = 'contagem'; });
 CADASTRO_SUBS.forEach(s => { SUB_TO_PARENT[s] = 'cadastro'; });
+
+const PAGE_TITLES = {
+  contagem: 'Contagem',
+  cadastro: 'Cadastro',
+  acesso: 'Acesso',
+  count: 'Contagem',
+  recount: 'Recontagem',
+  pull: 'Puxada',
+  return: 'Devolução',
+  break: 'Quebra',
+  'direct-sale': 'Venda Direta',
+  validity: 'Data de Vencimento',
+  'cadastro-produto': 'Cadastro de Produto',
+  produtos: 'Produtos',
+  'preco-produtos': 'Preço de Produtos',
+  'parametros-produto': 'Parâmetros',
+};
 
 const PRODUCT_DEFAULTS_KEY = 'estoque_product_defaults_v1';
 const DEFAULT_PRODUCT_PARAMS = {
@@ -286,6 +318,14 @@ function setActiveModule(moduleKey, updateHistory = true) {
   document.querySelectorAll('.module-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.module === actualModule);
   });
+
+  const pageTitle = PAGE_TITLES[moduleKey] || PAGE_TITLES[actualModule] || 'Estoque';
+  if (topbarPageTitle) {
+    topbarPageTitle.textContent = pageTitle;
+  }
+  if (sidebarPageTitle) {
+    sidebarPageTitle.textContent = pageTitle;
+  }
 
   if (subKey) {
     setActiveSub(subKey);
@@ -423,6 +463,23 @@ function setAllRegisterAccess(checked) {
   });
 }
 
+function getLocalDateKey() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function ensureDailyCountReset() {
+  const today = getLocalDateKey();
+  const lastReset = localStorage.getItem(COUNT_EVENTS_DAY_KEY);
+  if (lastReset === today) return false;
+  localStorage.removeItem(COUNT_EVENTS_KEY);
+  localStorage.setItem(COUNT_EVENTS_DAY_KEY, today);
+  return true;
+}
+
 function syncRegisterAllToggle() {
   if (!registerAccessAll) return;
   const allItems = Array.from(document.querySelectorAll('.register-access-item'));
@@ -475,6 +532,7 @@ function handleUnauthorizedResponse(response) {
 }
 
 function loadCountEvents() {
+  ensureDailyCountReset();
   try {
     const raw = localStorage.getItem(COUNT_EVENTS_KEY);
     if (!raw) return [];
@@ -486,7 +544,146 @@ function loadCountEvents() {
 }
 
 function saveCountEvents(events) {
+  localStorage.setItem(COUNT_EVENTS_DAY_KEY, getLocalDateKey());
   localStorage.setItem(COUNT_EVENTS_KEY, JSON.stringify(events));
+}
+
+function computeItemNetTotals(events) {
+  const totals = new Map();
+  for (const event of events) {
+    const code = normalizeItemCode(event.item_code || '');
+    if (!code) continue;
+    const current = totals.get(code) || 0;
+    totals.set(code, current + Number(event.quantity || 0));
+  }
+  return totals;
+}
+
+function computeCountProgressStats(products = countProductsCache, events = loadCountEvents()) {
+  const validProducts = (Array.isArray(products) ? products : [])
+    .map((p) => normalizeItemCode(p.cod_produto || p.cod_grup_sku || p.cod_grup_descricao || ''))
+    .filter(Boolean);
+  const uniqueProducts = Array.from(new Set(validProducts));
+  const total = uniqueProducts.length;
+  const netByItem = computeItemNetTotals(events);
+  const counted = uniqueProducts.filter((code) => (netByItem.get(code) || 0) > 0).length;
+  const percent = total > 0 ? Math.min(100, Math.round((counted / total) * 100)) : 0;
+  return { total, counted, percent };
+}
+
+function formatClock(dateValue) {
+  if (!dateValue) return '--:--';
+  const d = new Date(dateValue);
+  if (Number.isNaN(d.getTime())) return '--:--';
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDurationFromMs(msValue) {
+  const totalSeconds = Math.max(0, Math.floor(msValue / 1000));
+  const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+  const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+  const s = String(totalSeconds % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+function estimateCountFinish(events, totalProducts) {
+  const byItem = new Map();
+  for (const event of events) {
+    const code = normalizeItemCode(event.item_code || '');
+    if (!code) continue;
+    const ts = new Date(event.observed_at || '').getTime();
+    if (!Number.isFinite(ts)) continue;
+    const current = byItem.get(code);
+    if (!current || ts < current) {
+      byItem.set(code, ts);
+    }
+  }
+  const firstTimes = [...byItem.values()].sort((a, b) => a - b);
+  if (firstTimes.length < 2 || totalProducts <= firstTimes.length) return null;
+
+  // "Aprendizado" online: média móvel exponencial do tempo por produto.
+  let emaSecondsPerProduct = 0;
+  let seen = 0;
+  for (let i = 1; i < firstTimes.length; i += 1) {
+    const deltaSec = Math.max(1, Math.round((firstTimes[i] - firstTimes[i - 1]) / 1000));
+    if (seen === 0) {
+      emaSecondsPerProduct = deltaSec;
+    } else {
+      const alpha = 0.35;
+      emaSecondsPerProduct = (alpha * deltaSec) + ((1 - alpha) * emaSecondsPerProduct);
+    }
+    seen += 1;
+  }
+
+  const remainingProducts = totalProducts - firstTimes.length;
+  if (remainingProducts <= 0) return null;
+  const etaMs = firstTimes[firstTimes.length - 1] + (remainingProducts * emaSecondsPerProduct * 1000);
+  return new Date(etaMs);
+}
+
+function updateCountKpi(products = countProductsCache) {
+  if (!kpiCountPercent || !kpiCountWindow || !kpiCountElapsed || !kpiCountEta) return;
+  const events = loadCountEvents();
+  const { total, counted, percent } = computeCountProgressStats(products, events);
+  kpiCountPercent.textContent = `${percent}%`;
+
+  if (!events.length) {
+    kpiCountWindow.textContent = 'Início: --:-- | Fim: --:--';
+    kpiCountElapsed.textContent = 'Tempo em andamento: 00:00:00';
+    kpiCountEta.textContent = 'Previsão de término: --:--';
+    return;
+  }
+
+  const timestamps = events
+    .map((e) => new Date(e.observed_at || '').getTime())
+    .filter((ts) => Number.isFinite(ts))
+    .sort((a, b) => a - b);
+  const startMs = timestamps[0] || Date.now();
+  const lastMs = timestamps[timestamps.length - 1] || startMs;
+  const finished = total > 0 && counted >= total;
+  const endMs = finished ? lastMs : null;
+  const elapsedMs = (finished ? endMs : Date.now()) - startMs;
+
+  kpiCountWindow.textContent = `Início: ${formatClock(startMs)} | Fim: ${finished ? formatClock(endMs) : '--:--'}`;
+  kpiCountElapsed.textContent = `Tempo em andamento: ${formatDurationFromMs(elapsedMs)}`;
+
+  if (finished) {
+    kpiCountEta.textContent = `Previsão de término: concluído às ${formatClock(endMs)}`;
+    return;
+  }
+
+  const etaDate = estimateCountFinish(events, total);
+  kpiCountEta.textContent = etaDate
+    ? `Previsão de término: ${formatClock(etaDate)}`
+    : 'Previsão de término: coletando dados...';
+}
+
+function startCountKpiTicker() {
+  if (countKpiTicker) return;
+  countKpiTicker = window.setInterval(() => {
+    updateCountKpi(countProductsCache);
+  }, 1000);
+}
+
+function updateCountProgress(products = countProductsCache) {
+  if (!countProgressFill || !countProgressText) return;
+  const { total, counted, percent } = computeCountProgressStats(products, loadCountEvents());
+  if (!total) {
+    countProgressFill.style.width = '0%';
+    countProgressText.textContent = '0% dos produtos contados (0/0)';
+    return;
+  }
+
+  countProgressFill.style.width = `${percent}%`;
+  countProgressFill.classList.remove('is-low', 'is-mid', 'is-high');
+  if (percent >= 80) {
+    countProgressFill.classList.add('is-high');
+  } else if (percent >= 40) {
+    countProgressFill.classList.add('is-mid');
+  } else {
+    countProgressFill.classList.add('is-low');
+  }
+  countProgressText.textContent = `${percent}% dos produtos contados (${counted}/${total})`;
 }
 
 function getDeviceName() {
@@ -506,7 +703,15 @@ function makeEventId() {
 }
 
 function normalizeItemCode(value) {
-  return value.trim().replace(/\s+/g, ' ').toUpperCase();
+  return String(value || '').trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
+function normalizeCountType(value) {
+  return (value || '').trim().toLowerCase() === 'unidade' ? 'unidade' : 'caixa';
+}
+
+function makeCountTotalKey(itemCode, countType) {
+  return `${normalizeItemCode(itemCode)}::${normalizeCountType(countType)}`;
 }
 
 function formatDateTime(isoValue) {
@@ -515,9 +720,16 @@ function formatDateTime(isoValue) {
   return date.toLocaleString('pt-BR');
 }
 
-function setFeedback(message, isError = false) {
+function setFeedback(message, isError = false, isSuccess = false) {
+  if (!countFeedback) return;
   countFeedback.textContent = message;
-  countFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
+  if (isError) {
+    countFeedback.style.color = 'var(--error)';
+  } else if (isSuccess) {
+    countFeedback.style.color = 'var(--success, #1b8744)';
+  } else {
+    countFeedback.style.color = 'var(--accent)';
+  }
 }
 
 function setRegisterFeedback(message, isError = false) {
@@ -535,7 +747,7 @@ function renderUsersList(users) {
   }
   for (const user of users) {
     const li = document.createElement('li');
-    li.innerHTML = `<span>${user.full_name || user.username} (${user.username})</span><strong>${user.role || 'conferente'}</strong>`;
+    li.innerHTML = `<span>${user.full_name || user.name || user.username}</span>`;
     usersList.appendChild(li);
   }
 }
@@ -560,7 +772,11 @@ function renderCountProducts(products) {
   if (!countProductsList || !countProductsTotal) return;
   countProductsList.innerHTML = '';
   countProductsTotal.textContent = `${products.length}`;
-  const totalsByItem = new Map(computeTotals(loadCountEvents()).map((row) => [row.itemCode, row.qty]));
+  updateCountProgress(products);
+  updateCountKpi(products);
+  const totalsByItemAndType = new Map(
+    computeTotals(loadCountEvents()).map((row) => [makeCountTotalKey(row.itemCode, row.countType), row.qty]),
+  );
 
   if (!products.length) {
     countProductsList.innerHTML = '<li><span>Nenhum produto encontrado para o filtro atual.</span><strong>0</strong></li>';
@@ -570,87 +786,111 @@ function renderCountProducts(products) {
   for (const product of products) {
     const li = document.createElement('li');
     li.className = 'count-product-item';
+    
+    const isInactive = (product.status || '').toLowerCase() === 'inativo';
+    if (isInactive) {
+      li.classList.add('is-inactive');
+    }
+
     const itemCode = normalizeItemCode(product.cod_produto || product.cod_grup_sku || product.cod_grup_descricao || '');
-    const itemTotal = itemCode ? (totalsByItem.get(itemCode) || 0) : 0;
     const codeText = (product.cod_produto || product.cod_grup_sku || '—').trim() || '—';
     const descText = (product.cod_grup_descricao || 'Sem descricao').trim() || 'Sem descricao';
     const brandText = (product.cod_grup_marca || '').trim();
     const label = document.createElement('span');
     label.className = 'count-product-label';
-    const codeEl = document.createElement('strong');
-    codeEl.className = 'count-product-code';
-    codeEl.textContent = codeText;
     const descEl = document.createElement('span');
     descEl.className = 'count-product-desc';
-    descEl.textContent = descText;
-    label.appendChild(codeEl);
+    descEl.textContent = isInactive ? `${descText} (INATIVO)` : descText;
     label.appendChild(descEl);
 
     const controls = document.createElement('div');
     controls.className = 'count-product-controls';
 
-    const qtyInput = document.createElement('input');
-    qtyInput.type = 'number';
-    qtyInput.inputMode = 'numeric';
-    qtyInput.min = '0';
-    qtyInput.step = '1';
-    qtyInput.value = '0';
-    qtyInput.className = 'count-product-qty';
-    qtyInput.setAttribute('aria-label', `Quantidade para ${itemCode || 'item sem codigo'}`);
-    qtyInput.setAttribute('pattern', '[0-9]*');
-
-    const minusBtn = document.createElement('button');
-    minusBtn.type = 'button';
-    minusBtn.className = 'btn-count-adjust btn-minus';
-    minusBtn.textContent = '-';
-    minusBtn.setAttribute('aria-label', `Diminuir ${itemCode || 'item'}`);
-
-    const plusBtn = document.createElement('button');
-    plusBtn.type = 'button';
-    plusBtn.className = 'btn-count-adjust btn-plus';
-    plusBtn.textContent = '+';
-    plusBtn.setAttribute('aria-label', `Aumentar ${itemCode || 'item'}`);
-
-    const totalEl = document.createElement('strong');
-    totalEl.className = 'count-product-total';
-    totalEl.textContent = `${itemTotal}`;
-
     const hasCode = Boolean(itemCode);
-    if (!hasCode) {
-      qtyInput.disabled = true;
-      minusBtn.disabled = true;
-      plusBtn.disabled = true;
-    }
 
-    const applyDelta = (deltaSign) => {
-      if (!hasCode) return;
-      const rawVal = Number(qtyInput.value);
-      const qtyBase = Number.isInteger(rawVal) && rawVal > 0 ? rawVal : 1;
-      const delta = deltaSign * qtyBase;
-      registerCountDelta(itemCode, delta);
-      const updatedTotals = new Map(computeTotals(loadCountEvents()).map((row) => [row.itemCode, row.qty]));
-      totalEl.textContent = `${updatedTotals.get(itemCode) || 0}`;
+    const buildControlRow = (countType, focusByDefault = false) => {
+      const row = document.createElement('div');
+      row.className = 'count-control-row';
+
+      const typeLabel = document.createElement('span');
+      typeLabel.className = 'count-control-type';
+      typeLabel.textContent = countType === 'caixa' ? 'Caixa' : 'Unidade';
+
+      const minusBtn = document.createElement('button');
+      minusBtn.type = 'button';
+      minusBtn.className = 'btn-count-adjust btn-minus';
+      minusBtn.textContent = '-';
+      minusBtn.setAttribute('aria-label', `Diminuir ${countType} de ${itemCode || 'item'}`);
+
+      const qtyInput = document.createElement('input');
+      qtyInput.type = 'number';
+      qtyInput.inputMode = 'numeric';
+      qtyInput.min = '0';
+      qtyInput.step = '1';
       qtyInput.value = '0';
+      qtyInput.className = 'count-product-qty';
+      qtyInput.setAttribute('aria-label', `Quantidade de ${countType} para ${itemCode || 'item sem codigo'}`);
+      qtyInput.setAttribute('pattern', '[0-9]*');
+
+      const plusBtn = document.createElement('button');
+      plusBtn.type = 'button';
+      plusBtn.className = 'btn-count-adjust btn-plus';
+      plusBtn.textContent = '+';
+      plusBtn.setAttribute('aria-label', `Aumentar ${countType} de ${itemCode || 'item'}`);
+
+      const totalEl = document.createElement('strong');
+      totalEl.className = 'count-product-total';
+      totalEl.textContent = `${totalsByItemAndType.get(makeCountTotalKey(itemCode, countType)) || 0}`;
+
+      if (!hasCode) {
+        qtyInput.disabled = true;
+        minusBtn.disabled = true;
+        plusBtn.disabled = true;
+      }
+
+      const applyDelta = (deltaSign) => {
+        if (!hasCode) return;
+        const rawVal = Number(qtyInput.value);
+        const qtyBase = Number.isInteger(rawVal) && rawVal > 0 ? rawVal : 1;
+        const delta = deltaSign * qtyBase;
+        registerCountDelta(itemCode, delta, countType);
+        const updatedTotals = new Map(
+          computeTotals(loadCountEvents()).map((entry) => [makeCountTotalKey(entry.itemCode, entry.countType), entry.qty]),
+        );
+        totalEl.textContent = `${updatedTotals.get(makeCountTotalKey(itemCode, countType)) || 0}`;
+        qtyInput.value = '0';
+      };
+
+      plusBtn.addEventListener('click', () => applyDelta(1));
+      minusBtn.addEventListener('click', () => applyDelta(-1));
+
+      row.appendChild(typeLabel);
+      row.appendChild(minusBtn);
+      row.appendChild(qtyInput);
+      row.appendChild(plusBtn);
+      row.appendChild(totalEl);
+
+      return { row, qtyInput, focusByDefault };
     };
 
-    // Clicar em qualquer parte do card foca o input numérico
+    const caixaControl = buildControlRow('caixa', true);
+    const unidadeControl = buildControlRow('unidade');
+    controls.appendChild(caixaControl.row);
+    controls.appendChild(unidadeControl.row);
+
+    // Clicar no card sempre prioriza o campo de caixa.
     const focusQty = () => {
       if (!hasCode) return;
-      qtyInput.focus();
-      qtyInput.select();
+      caixaControl.qtyInput.focus();
+      caixaControl.qtyInput.select();
     };
     li.addEventListener('click', (e) => {
-      // Não interceptar cliques nos próprios botões e input
-      if (e.target === minusBtn || e.target === plusBtn || e.target === qtyInput) return;
+      const interactive = e.target instanceof HTMLElement && (
+        e.target.closest('.btn-count-adjust') || e.target.closest('.count-product-qty')
+      );
+      if (interactive) return;
       focusQty();
     });
-    plusBtn.addEventListener('click', () => applyDelta(1));
-    minusBtn.addEventListener('click', () => applyDelta(-1));
-
-    controls.appendChild(minusBtn);
-    controls.appendChild(qtyInput);
-    controls.appendChild(plusBtn);
-    controls.appendChild(totalEl);
     li.appendChild(label);
     li.appendChild(controls);
     countProductsList.appendChild(li);
@@ -680,7 +920,7 @@ async function loadCountProducts() {
   if (!token) return;
 
   const q = '';
-  const statusValue = countProductsStatusToggle?.checked ? 'inativo' : 'ativo';
+  const statusValue = countProductsStatusToggle?.checked ? 'todos' : 'ativo';
   const fetchCatalog = async (statusParam) => {
     const params = new URLSearchParams();
     params.set('limit', '1000');
@@ -699,14 +939,6 @@ async function loadCountProducts() {
       renderCountProducts([]);
       setFeedback('Nao foi possivel carregar a lista de produtos para contagem.', true);
       return;
-    }
-
-    // Evita tela vazia quando base legada nao possui status consistente.
-    if (!products.length && statusValue === 'ativo') {
-      const fallbackProducts = await fetchCatalog('todos');
-      if (Array.isArray(fallbackProducts) && fallbackProducts.length) {
-        products = fallbackProducts;
-      }
     }
 
     countProductsCache = products;
@@ -729,21 +961,36 @@ function setProductImportFeedback(message, isError = false) {
 
 function updateNetworkStatus() {
   const online = navigator.onLine;
-  netStatus.textContent = online ? 'ONLINE' : 'OFFLINE';
-  netStatus.style.background = online ? 'rgba(64, 179, 120, 0.28)' : 'rgba(217, 76, 76, 0.28)';
+  const label = online ? 'ONLINE' : 'OFFLINE';
+  const background = online ? 'rgba(64, 179, 120, 0.28)' : 'rgba(217, 76, 76, 0.28)';
+
+  if (netStatus) {
+    netStatus.textContent = label;
+    netStatus.style.background = background;
+  }
+
+  document.querySelectorAll('.net-status-sidebar').forEach((el) => {
+    el.textContent = label;
+    el.style.background = background;
+  });
 }
 
 function computeTotals(events) {
   const totals = new Map();
 
   for (const event of events) {
-    const current = totals.get(event.item_code) || 0;
-    totals.set(event.item_code, current + event.quantity);
+    const countType = normalizeCountType(event.count_type);
+    const key = makeCountTotalKey(event.item_code, countType);
+    const current = totals.get(key) || 0;
+    totals.set(key, current + event.quantity);
   }
 
   return [...totals.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([itemCode, qty]) => ({ itemCode, qty }));
+    .map(([fullKey, qty]) => {
+      const [itemCode, countType = 'caixa'] = fullKey.split('::');
+      return { itemCode, countType, qty };
+    });
 }
 
 function renderCounts() {
@@ -760,7 +1007,8 @@ function renderCounts() {
   } else {
     for (const row of totals) {
       const li = document.createElement('li');
-      li.innerHTML = `<span>${row.itemCode}</span><strong>${row.qty}</strong>`;
+      const countTypeLabel = row.countType === 'unidade' ? 'Unidade' : 'Caixa';
+      li.innerHTML = `<span>${row.itemCode} (${countTypeLabel})</span><strong>${row.qty}</strong>`;
       totalsList.appendChild(li);
     }
   }
@@ -771,13 +1019,16 @@ function renderCounts() {
     const toRender = [...pending].sort((a, b) => b.observed_at.localeCompare(a.observed_at)).slice(0, 100);
     for (const event of toRender) {
       const li = document.createElement('li');
-      li.innerHTML = `<span>${event.item_code} x ${event.quantity}</span><strong>${formatDateTime(event.observed_at)}</strong>`;
+      const countTypeLabel = normalizeCountType(event.count_type) === 'unidade' ? 'Unidade' : 'Caixa';
+      li.innerHTML = `<span>${event.item_code} (${countTypeLabel}) x ${event.quantity}</span><strong>${formatDateTime(event.observed_at)}</strong>`;
       pendingList.appendChild(li);
     }
   }
 
   totalItems.textContent = `${totals.length} itens`;
   pendingCount.textContent = `${pending.length} pendentes`;
+  updateCountProgress(countProductsCache);
+  updateCountKpi(countProductsCache);
 }
 
 async function syncPendingEvents() {
@@ -805,7 +1056,9 @@ async function syncPendingEvents() {
       body: JSON.stringify({
         events: pending.map((event) => ({
           client_event_id: event.client_event_id,
-          item_code: event.item_code,
+          item_code: normalizeCountType(event.count_type) === 'unidade'
+            ? `${event.item_code} [UN]`
+            : `${event.item_code} [CX]`,
           quantity: event.quantity,
           observed_at: event.observed_at,
           device_name: event.device_name,
@@ -843,12 +1096,13 @@ async function syncPendingEvents() {
 }
 
 function registerCount(itemCodeInput) {
-  registerCountDelta(itemCodeInput, 1);
+  registerCountDelta(itemCodeInput, 1, 'caixa');
 }
 
-function registerCountDelta(itemCodeInput, qtyDeltaInput) {
+function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa') {
   const itemCode = normalizeItemCode(itemCodeInput);
   const quantity = Number(qtyDeltaInput);
+  const countType = normalizeCountType(countTypeInput);
 
   if (!itemCode) {
     setFeedback('Informe o item para registrar.', true);
@@ -864,6 +1118,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput) {
   const event = {
     client_event_id: makeEventId(),
     item_code: itemCode,
+    count_type: countType,
     quantity,
     observed_at: new Date().toISOString(),
     synced: false,
@@ -873,8 +1128,20 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput) {
   events.push(event);
   saveCountEvents(events);
   renderCounts();
-  const signal = quantity > 0 ? '+' : '';
-  setFeedback(`Contagem salva no dispositivo: ${itemCode} (${signal}${quantity}).`);
+  let productName = itemCode;
+  if (typeof countProductsCache !== 'undefined' && Array.isArray(countProductsCache)) {
+    const found = countProductsCache.find(
+      p => normalizeItemCode(p.cod_produto || '') === itemCode || 
+           normalizeItemCode(p.cod_grup_sku || '') === itemCode ||
+           normalizeItemCode(p.cod_grup_descricao || '') === itemCode
+    );
+    if (found && found.cod_grup_descricao) {
+      productName = found.cod_grup_descricao.trim();
+    }
+  }
+
+  const countTypeLabel = countType === 'unidade' ? 'Unidade' : 'Caixa';
+  setFeedback(`${productName} (${countTypeLabel}) salvo`, false, true);
 
   if (navigator.onLine) {
     syncPendingEvents();
@@ -913,6 +1180,7 @@ async function importBackup(file) {
       merged.push({
         client_event_id: String(event.client_event_id),
         item_code: normalizeItemCode(String(event.item_code)),
+        count_type: normalizeCountType(event.count_type),
         quantity: Number(event.quantity),
         observed_at: event.observed_at || new Date().toISOString(),
         synced: Boolean(event.synced),
@@ -2142,13 +2410,18 @@ if (registerForm) {
 
 // ── Dashboard ───────────────────────────────────────────────────
 function initDashboard(user) {
-  const label = user?.name || user?.email || user?.username || 'Usuário';
+  const label = user?.full_name || user?.name || user?.username || 'Usuário';
   userDisplay.textContent = label;
+  if (kpiCountUser) {
+    kpiCountUser.textContent = `Contador: ${label}`;
+  }
   currentRole = normalizeRole(user?.role || 'conferente') || 'conferente';
   currentAllowedPages = Array.isArray(user?.allowed_pages)
     ? user.allowed_pages.map((p) => String(p).trim().toLowerCase()).filter(Boolean)
     : [];
-  roleDisplay.textContent = `Perfil: ${currentRole}`;
+  if (roleDisplay) {
+    roleDisplay.textContent = `Perfil: ${currentRole}`;
+  }
 
   renderModuleNav();
   renderSubCardsAccess();
@@ -2164,16 +2437,50 @@ function initDashboard(user) {
   syncPendingEvents();
   loadProducts();
   loadUsersAdminList();
+  startCountKpiTicker();
   showDashboard();
 }
 
 // ── Logout ──────────────────────────────────────────────────────
 btnLogout.addEventListener('click', () => {
+  if (countKpiTicker) {
+    window.clearInterval(countKpiTicker);
+    countKpiTicker = null;
+  }
   clearSession();
+  if (kpiCountUser) {
+    kpiCountUser.textContent = 'Contador: --';
+  }
   loginForm.reset();
   history.replaceState(null, '', APP_BASE_PATH);
   showLogin();
+  closeSidebar();
 });
+
+// ── Sidebar Menu ────────────────────────────────────────────────
+function openSidebar() {
+  if (!sidebarMenu || !sidebarOverlay) return;
+  sidebarMenu.classList.add('open');
+  sidebarOverlay.classList.add('open');
+}
+
+function closeSidebar() {
+  if (!sidebarMenu || !sidebarOverlay) return;
+  sidebarMenu.classList.remove('open');
+  sidebarOverlay.classList.remove('open');
+}
+
+if (btnMenuToggle) btnMenuToggle.addEventListener('click', openSidebar);
+if (btnMenuClose) btnMenuClose.addEventListener('click', closeSidebar);
+if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+if (moduleNav) {
+  moduleNav.addEventListener('click', (e) => {
+    if (e.target.classList.contains('module-btn')) {
+      closeSidebar();
+    }
+  });
+}
 
 // ── Inicialização ───────────────────────────────────────────────
 (function init() {

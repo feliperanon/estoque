@@ -57,23 +57,36 @@
 
     <!-- ── TELA PRINCIPAL ── -->
     <div id="view-dashboard">
-      <header class="topbar">
-        <span class="topbar-title">{{ app_name }}</span>
-        <div class="topbar-user" style="flex-wrap: wrap; row-gap: 4px;">
-          <a href="/" class="btn-secondary topbar-link">Pagina inicial</a>
-          <button id="btn-install-app" class="btn-secondary" type="button" hidden>Baixar app</button>
-          <span id="net-status" class="net-status" aria-live="polite"></span>
-          <span id="role-display" class="user-badge"></span>
+      <button id="btn-menu-toggle" class="btn-menu-toggle menu-fab" aria-label="Abrir menu" type="button">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+
+      <!-- Sidebar Menu Overlay -->
+      <div id="sidebar-overlay" class="sidebar-overlay"></div>
+      <aside id="sidebar-menu" class="sidebar-menu">
+        <button id="btn-menu-close" class="btn-menu-close sidebar-close-btn" aria-label="Fechar menu" type="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+        
+        <div class="sidebar-user-info">
           <span id="user-display" class="user-badge"></span>
+        </div>
+
+        <nav id="module-nav" class="sidebar-nav" aria-label="Modulos do sistema">
+          <a href="/" class="sidebar-module-btn module-btn" style="text-decoration:none; display:flex;">Pagina inicial</a>
+          <button type="button" class="sidebar-module-btn module-btn" data-module="contagem">Contagem</button>
+          <button type="button" class="sidebar-module-btn module-btn" data-module="cadastro">Cadastro</button>
+          <button type="button" class="sidebar-module-btn module-btn" data-module="acesso">Acesso</button>
+        </nav>
+
+        <div class="sidebar-actions">
+          <img src="/static/logo-souza-pinto.png" alt="Souza Pinto Distribuidora" class="sidebar-brand-logo" />
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; padding: 0 4px;">
+            <span class="net-status net-status-sidebar">ONLINE</span>
+          </div>
           <button id="btn-logout" class="btn-secondary">Sair</button>
         </div>
-      </header>
-
-      <nav id="module-nav" class="module-nav" aria-label="Modulos do sistema">
-        <button type="button" class="module-btn" data-module="contagem">Contagem</button>
-        <button type="button" class="module-btn" data-module="cadastro">Cadastro</button>
-        <button type="button" class="module-btn" data-module="acesso">Acesso</button>
-      </nav>
+      </aside>
 
       <main class="dashboard-content">
         <!-- ── MÓDULO MÃE: CONTAGEM ── -->
@@ -94,9 +107,12 @@
             </section>
             <section class="contagem-kpi-grid">
               <article class="card mini-kpi-card">
-                <h3>Contagens do turno</h3>
-                <strong>0</strong>
-                <small>Registros locais + sincronizados</small>
+                <h3>Contagem do estoque</h3>
+                <strong id="kpi-count-percent">0%</strong>
+                <small id="kpi-count-user">Contador: --</small>
+                <small id="kpi-count-window">Início: --:-- | Fim: --:--</small>
+                <small id="kpi-count-elapsed">Tempo em andamento: 00:00:00</small>
+                <small id="kpi-count-eta">Previsão de término: --:--</small>
               </article>
               <article class="card mini-kpi-card">
                 <h3>Recontagens pendentes</h3>
@@ -151,32 +167,34 @@
 
           <!-- Sub: Contagem de Estoque -->
           <div id="sub-count" class="sub-section">
-            <section class="card">
-              <div class="card-head">
-                <h2>Contagem de Estoque</h2>
-              </div>
+            <div class="count-search-bar">
               <form id="count-form" class="count-form count-form--inline" autocomplete="off">
                 <div class="field">
-                  <label for="item-code">Item (codigo ou nome)</label>
-                  <input id="item-code" name="item-code" type="text" placeholder="Ex.: CX-AGUA-510" required />
+                  <label for="item-code">Produto</label>
+                  <input id="item-code" name="item-code" type="text" required />
                 </div>
-                <button type="submit" id="btn-add-count">Registrar contagem</button>
               </form>
               <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
-              <div class="card-head count-products-head">
-                <h3>Produtos para contagem</h3>
-                <div class="count-products-toolbar">
-                  <span id="count-products-total" class="chip">0</span>
-                  <label class="status-switch" for="count-products-status-toggle" title="Alternar entre ativos e inativos">
-                    <span class="status-switch-label">Ativo</span>
-                    <input id="count-products-status-toggle" type="checkbox" />
-                    <span class="status-switch-slider" aria-hidden="true"></span>
-                    <span class="status-switch-label">Inativo</span>
-                  </label>
+              <div class="count-progress" aria-live="polite">
+                <div class="count-progress-track">
+                  <div id="count-progress-fill" class="count-progress-fill"></div>
                 </div>
+                <small id="count-progress-text">0% dos produtos contados (0/0)</small>
               </div>
-              <ul id="count-products-list" class="list"></ul>
-            </section>
+            </div>
+            <div class="count-list-meta">
+              <h3>Produtos para contagem</h3>
+              <div class="count-products-toolbar">
+                <span id="count-products-total" class="chip">0</span>
+                <label class="status-switch" for="count-products-status-toggle" title="Alternar entre ativo e todos">
+                  <span class="status-switch-label">Ativo</span>
+                  <input id="count-products-status-toggle" type="checkbox" />
+                  <span class="status-switch-slider" aria-hidden="true"></span>
+                  <span class="status-switch-label">Todos</span>
+                </label>
+              </div>
+            </div>
+            <ul id="count-products-list" class="list count-list-flat"></ul>
           </div>
 
           <!-- Sub: Recontagem -->
@@ -453,13 +471,16 @@
 
           <!-- Sub: Cadastro de Produto (manual + excel) -->
           <div id="sub-cadastro-produto" class="sub-section">
-            <section class="grid-two">
-              <article class="card">
-                <div class="card-head">
-                  <h3>Cadastro de Produto</h3>
-                  <span class="chip">Manual</span>
-                </div>
-                <form id="product-form" class="product-form" autocomplete="off">
+            <section class="card">
+              <div class="card-head">
+                <h3>Cadastro de Produto</h3>
+              </div>
+              <div class="actions-row">
+                <label class="btn-secondary btn-dark file-btn" for="product-excel-file">Selecionar Excel</label>
+                <input id="product-excel-file" type="file" accept=".xlsx,.xlsm" hidden />
+                <button id="btn-product-upload" class="btn-secondary btn-dark" type="button">Importar arquivo</button>
+              </div>
+              <form id="product-form" class="product-form" autocomplete="off">
                   <div class="field"><div class="field-label-row"><label for="prod-cod-sp">Cod Grup SP</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-sp">+ Novo</button></div><select id="prod-cod-sp"></select></div>
                   <div class="field"><div class="field-label-row"><label for="prod-cod-cia">Cod Grup Cia</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-cia">+ Novo</button></div><select id="prod-cod-cia"></select></div>
                   <div class="field"><div class="field-label-row"><label for="prod-cod-tipo">Cod Grup Tipo</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-tipo">+ Novo</button></div><select id="prod-cod-tipo"></select></div>
@@ -473,27 +494,9 @@
                   <div class="field"><div class="field-label-row"><label for="prod-prioridade">Grup Prioridade</label><button type="button" class="btn-link-mini" data-new-option-target="prod-prioridade">+ Novo</button></div><select id="prod-prioridade"></select></div>
                   <div class="field"><label for="prod-price">Preço (R$)</label><input id="prod-price" type="number" step="0.01" min="0" /></div>
                   <button type="submit" id="btn-product-save">Salvar produto</button>
-                </form>
-                <div id="product-feedback" class="field-feedback" aria-live="polite"></div>
-              </article>
-              <article class="card">
-                <div class="card-head">
-                  <h3>Importar Planilha</h3>
-                  <span class="chip">Excel</span>
-                </div>
-                <p class="muted">
-                  Envie sempre seu arquivo Excel para cadastrar/atualizar em lote.
-                  Campos esperados: Codigo do Produto, Cod Grup SP, Cod Grup Cia, Cod Grup Tipo,
-                  Cod Grup Familia, Cod Grup Segmento, Cod Grup Marca, Cod Grup Descricao,
-                  Cod Grup SKU, Status e Grup Prioridade.
-                </p>
-                <div class="actions-row">
-                  <label class="btn-secondary btn-dark file-btn" for="product-excel-file">Selecionar Excel</label>
-                  <input id="product-excel-file" type="file" accept=".xlsx,.xlsm" hidden />
-                  <button id="btn-product-upload" class="btn-secondary btn-dark" type="button">Importar arquivo</button>
-                </div>
-                <div id="product-import-feedback" class="field-feedback" aria-live="polite"></div>
-              </article>
+              </form>
+              <div id="product-import-feedback" class="field-feedback" aria-live="polite"></div>
+              <div id="product-feedback" class="field-feedback" aria-live="polite"></div>
             </section>
           </div>
 
@@ -641,20 +644,7 @@
 
         <!-- ── MÓDULO: ACESSO ── -->
         <section id="module-acesso" class="module-section">
-          <div class="acesso-grid">
-            <section class="card acesso-card acesso-card-matrix">
-              <div class="access-matrix-head">
-                <h2>Matriz de acessos</h2>
-                <p class="muted">Referência oficial de perfis por categoria e operação.</p>
-              </div>
-              <div class="access-role-legend" aria-label="Perfis de acesso">
-                <span class="role-pill role-pill-conferente">conferente</span>
-                <span class="role-pill role-pill-administrativo">administrativo</span>
-                <span class="role-pill role-pill-admin">admin</span>
-              </div>
-              <div id="access-matrix" class="access-matrix"></div>
-            </section>
-            <section class="card acesso-card">
+          <section class="card acesso-card">
               <h2>Cadastro de usuários (admin)</h2>
               <form id="register-form" class="product-form" autocomplete="off" novalidate>
                 <div class="field"><label for="register-name">Nome</label><input id="register-name" type="text" required /></div>
@@ -663,24 +653,7 @@
                 <div class="field"><label for="register-password">Senha</label><input id="register-password" type="password" autocomplete="new-password" required /></div>
 
                 <div class="field field-full access-permissions">
-                  <div class="access-permissions-head">
-                    <div class="access-permissions-head-top">
-                      <div class="field compact">
-                        <label for="register-profile-preset">Perfil pronto</label>
-                        <select id="register-profile-preset">
-                          <option value="admin">Admin (todos os módulos)</option>
-                          <option value="administrativo">Administrativo</option>
-                          <option value="conferente">Conferente</option>
-                          <option value="custom">Personalizado</option>
-                        </select>
-                      </div>
-                      <label class="switch-inline" for="register-access-all">
-                        <input id="register-access-all" type="checkbox" />
-                        <span>Liberar todos os módulos</span>
-                      </label>
-                    </div>
-                    <small class="muted">Escolha um perfil e ajuste módulo por módulo quando precisar.</small>
-                  </div>
+
                   <div class="access-group">
                     <h4>Módulos principais</h4>
                     <div id="register-access-main" class="access-options"></div>
@@ -702,8 +675,7 @@
                 <h3>Usuários cadastrados</h3>
               </div>
               <ul id="users-list" class="list"></ul>
-            </section>
-          </div>
+          </section>
         </section>
       </main>
     </div>

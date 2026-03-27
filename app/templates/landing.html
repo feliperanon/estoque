@@ -9,6 +9,28 @@
     <title>{{ app_name }}</title>
   </head>
   <body class="landing-body">
+    <!-- Hamburger Menu (Landing Page Version) -->
+    <div class="topbar-left" style="position: absolute; top: 16px; left: 16px; z-index: 50;">
+      <button id="btn-menu-toggle" class="btn-menu-toggle" aria-label="Abrir menu" type="button">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+    </div>
+
+    <!-- Sidebar Menu Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    <aside id="sidebar-menu" class="sidebar-menu">
+      <button id="btn-menu-close" class="btn-menu-close sidebar-close-btn" aria-label="Fechar menu" type="button">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+
+      <nav class="sidebar-nav" aria-label="Modulos do sistema">
+        <a href="/app" class="sidebar-module-btn module-btn" style="text-decoration:none; display:flex;">Entrar no sistema</a>
+        <a href="/app#contagem" class="sidebar-module-btn module-btn" style="text-decoration:none; display:flex;">Contagem</a>
+        <a href="/app#cadastro" class="sidebar-module-btn module-btn" style="text-decoration:none; display:flex;">Cadastro</a>
+        <a href="/app#acesso" class="sidebar-module-btn module-btn" style="text-decoration:none; display:flex;">Acesso</a>
+      </nav>
+    </aside>
+
     <main class="landing-page">
       <section class="hero-card">
         <div class="hero-copy">
@@ -21,7 +43,7 @@
           <div class="hero-actions">
             <a class="hero-button" href="/app">Entrar no sistema</a>
             <a class="hero-link" href="/app#count">Ir direto para contagem</a>
-            <button id="btn-install-app" class="hero-link install-app-btn" type="button" hidden>
+            <button class="hero-link install-app-btn" type="button">
               Baixar aplicativo
             </button>
           </div>
@@ -64,5 +86,21 @@
       </section>
     </main>
     <script src="/static/pwa-install.js"></script>
+    <script>
+      const btnMenuToggle = document.getElementById('btn-menu-toggle');
+      const btnMenuClose = document.getElementById('btn-menu-close');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+      const sidebarMenu = document.getElementById('sidebar-menu');
+      function closeSidebar() {
+        sidebarMenu.classList.remove('open');
+        sidebarOverlay.classList.remove('open');
+      }
+      btnMenuToggle.addEventListener('click', () => {
+        sidebarMenu.classList.add('open');
+        sidebarOverlay.classList.add('open');
+      });
+      btnMenuClose.addEventListener('click', closeSidebar);
+      sidebarOverlay.addEventListener('click', closeSidebar);
+    </script>
   </body>
 </html>

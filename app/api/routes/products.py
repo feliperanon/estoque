@@ -195,10 +195,22 @@ def list_products_catalog(
     if normalized_status == "ativo":
         # Compatibilidade: registros legados sem status continuam visiveis como "ativos".
         statement = statement.where(
-            or_(Product.status == "ativo", Product.status.is_(None), Product.status == ""),
+            or_(
+                Product.status == "ativo", 
+                Product.status == "Ativo",
+                Product.status == "ATIVO",
+                Product.status.is_(None), 
+                Product.status == ""
+            )
         )
     elif normalized_status != "todos":
-        statement = statement.where(Product.status == normalized_status)
+        statement = statement.where(
+            or_(
+                Product.status == normalized_status,
+                Product.status == normalized_status.capitalize(),
+                Product.status == normalized_status.upper()
+            )
+        )
     if q:
         statement = statement.where(
             Product.cod_grup_descricao.contains(q)

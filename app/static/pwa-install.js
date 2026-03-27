@@ -1,5 +1,5 @@
 (function setupPwaInstall() {
-  const installBtn = document.getElementById('btn-install-app');
+  const installBtns = document.querySelectorAll('.install-app-btn, #btn-install-app');
   const feedbackEl = document.getElementById('install-feedback');
   let deferredPrompt = null;
 
@@ -9,9 +9,11 @@
   }
 
   function showInstallButton(show) {
-    if (!installBtn) return;
-    installBtn.hidden = !show;
-    installBtn.disabled = !show;
+    installBtns.forEach(btn => {
+      btn.hidden = !show;
+      btn.disabled = !show;
+      btn.style.display = show ? 'flex' : 'none';
+    });
   }
 
   async function registerServiceWorker() {
@@ -40,8 +42,8 @@
     setFeedback('Aplicativo instalado com sucesso.');
   });
 
-  if (installBtn) {
-    installBtn.addEventListener('click', async () => {
+  installBtns.forEach(btn => {
+    btn.addEventListener('click', async () => {
       if (!deferredPrompt) {
         setFeedback('Use o menu do navegador e escolha "Instalar aplicativo".');
         return;
@@ -56,12 +58,12 @@
         setFeedback('Instalacao cancelada. Voce pode tentar novamente depois.');
       }
     });
-  }
+  });
 
   if (isStandaloneMode()) {
     showInstallButton(false);
     setFeedback('Aplicativo instalado e pronto para uso offline.');
-  } else if (installBtn) {
+  } else if (installBtns.length > 0) {
     // Mostra botao com fallback para navegadores que nao disparam beforeinstallprompt.
     showInstallButton(true);
   }
