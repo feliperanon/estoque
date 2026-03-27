@@ -4,7 +4,7 @@ from sqlmodel import SQLModel, Session, select
 
 from app.core.config import get_settings
 from app.core.security import get_password_hash
-from app.db.session import engine
+from app.db.session import engine, get_engine
 from app.models import *  # noqa: F401,F403
 from app.models import ChangeLog, Employee, Product, ProductHistory, User
 
@@ -59,7 +59,7 @@ def ensure_database_ready() -> None:
 
 
 def _ensure_users_compat_columns(*, is_sqlite: bool) -> None:
-    inspector = inspect(engine)
+    inspector = inspect(get_engine())
     table_schema = None if is_sqlite else "app_core"
     if not inspector.has_table("users", schema=table_schema):
         return
@@ -135,7 +135,7 @@ def _ensure_products_compat_columns(*, is_sqlite: bool) -> None:
     Ajusta bancos SQLite legados que foram criados antes de novas colunas.
     Evita erro 500 em queries quando o modelo ja possui campos adicionais.
     """
-    inspector = inspect(engine)
+    inspector = inspect(get_engine())
     table_schema = None if is_sqlite else "app_core"
     if not inspector.has_table("products", schema=table_schema):
         return
