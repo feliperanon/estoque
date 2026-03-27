@@ -1816,12 +1816,31 @@ async function uploadProductsExcel() {
     }
 
     const data = await response.json();
-    const failed = data.failed != null ? data.failed : 0;
-    setProductImportFeedback(
-      `Importacao: ${data.created} novos, ${data.updated} atualizados, ${data.ignored} ignorados` +
-        (failed ? `, ${failed} falhas` : '') +
-        '. Mesmo SKU = um cadastro. Muitos ignorados: revise colunas (codigo, descricao, SKU/EAN).',
-    );
+    const created = Number(data.created) || 0;
+    const updated = Number(data.updated) || 0;
+    const ignored = Number(data.ignored) || 0;
+    const failed = data.failed != null ? Number(data.failed) || 0 : 0;
+
+    let msg = `Importacao: ${created} novos, ${updated} atualizados, ${ignored} ignorados`;
+    if (failed > 0) msg += `, ${failed} falhas`;
+    msg +=
+      '. Regra: um SKU no sistema = um cadastro (linhas com o mesmo SKU atualizam o mesmo produto).';
+
+    if (created === 0 && updated > 0 && ignored === 0 && failed === 0) {
+      msg +=
+        ' Apenas atualizacao: todos os SKUs da planilha ja existiam; nenhuma linha foi ignorada.';
+    }
+
+    if (ignored > 0) {
+      msg +=
+        ' Linhas ignoradas: confira codigo, descricao e SKU/EAN (cabecalhos e celulas vazias).';
+    }
+
+    if (failed > 0) {
+      msg += ' Revise linhas com falha (formato ou erro no servidor).';
+    }
+
+    setProductImportFeedback(msg);
     selectedProductFile = null;
     productExcelFile.value = '';
     await loadProducts();
