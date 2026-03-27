@@ -264,7 +264,7 @@ def list_products(
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("administrativo", "admin")),
     q: str | None = Query(default=None),
-    limit: int = Query(default=500, ge=1, le=5000),
+    limit: int = Query(default=500, ge=1, le=20000),
 ) -> list[ProductRead]:
     statement = select(Product)
     if q:
@@ -292,7 +292,7 @@ def list_products_catalog(
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
     q: str | None = Query(default=None),
     status_filter: str = Query(default="todos", alias="status"),
-    limit: int = Query(default=500, ge=1, le=2000),
+    limit: int = Query(default=500, ge=1, le=20000),
 ) -> list[ProductRead]:
     statement = select(Product)
     normalized_status = (status_filter or "todos").strip().lower()

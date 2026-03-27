@@ -14,8 +14,8 @@ const API_LOGIN_LOCAL = '/auth/login';
 const API_REGISTER = '/auth/register';
 const API_SYNC_COUNTS = '/audit/count-events';
 const API_PRODUCTS = '/products';
-/** Limite alinhado ao backend (le=5000); listas grandes de cadastro/BI. */
-const PRODUCTS_LIST_LIMIT = 2000;
+/** Alinhado ao `le` em GET /products e /products/catalog (products.py). */
+const PRODUCTS_LIST_LIMIT = 20000;
 const API_PRODUCTS_CATALOG = '/products/catalog';
 const API_PRODUCTS_IMPORT_EXCEL = '/products/import-excel';
 const APP_BASE_PATH = '/app';
@@ -43,8 +43,19 @@ async function apiFetch(path, options = {}) {
   }
 }
 
-/** Limite efetivo na query (API antiga rejeita limit>1000 com 422). */
+/** Limite efetivo; se o deploy for antigo (422), desce via downgradeLimitAfter422. */
 let productsQueryLimitEffective = PRODUCTS_LIST_LIMIT;
+
+const CATALOG_LIST_LIMIT = 20000;
+let catalogQueryLimitEffective = CATALOG_LIST_LIMIT;
+
+function downgradeLimitAfter422(current) {
+  if (current > 10000) return 10000;
+  if (current > 5000) return 5000;
+  if (current > 2000) return 2000;
+  if (current > 1000) return 1000;
+  return current;
+}
 
 async function apiFetchProductsList(searchQuery) {
   const token = getToken();
@@ -63,9 +74,12 @@ async function apiFetchProductsList(searchQuery) {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (response.status === 422 && limit > 1000) {
-    productsQueryLimitEffective = 1000;
-    response = await apiFetch(buildUrl(1000), {
+  while (response.status === 422 && limit > 1000) {
+    const next = downgradeLimitAfter422(limit);
+    if (next >= limit) break;
+    productsQueryLimitEffective = next;
+    limit = next;
+    response = await apiFetch(buildUrl(limit), {
       headers: { Authorization: `Bearer ${token}` },
     });
   }
@@ -1105,15 +1119,29 @@ async function loadCountProducts() {
   if (!token) return;
 
   const q = '';
-  const statusValue = countProductsStatusToggle?.checked ? 'todos' : 'ativo';
+  const statusValue =
+    countProductsStatusToggle && !countProductsStatusToggle.checked ? 'ativo' : 'todos';
   const fetchCatalog = async (statusParam) => {
-    const params = new URLSearchParams();
-    params.set('limit', '2000');
-    params.set('status', statusParam);
-    if (q) params.set('q', q);
-    const resp = await apiFetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
+    const buildUrl = (lim) => {
+      const params = new URLSearchParams();
+      params.set('limit', String(lim));
+      params.set('status', statusParam);
+      if (q) params.set('q', q);
+      return `${API_PRODUCTS_CATALOG}?${params.toString()}`;
+    };
+    let lim = catalogQueryLimitEffective;
+    let resp = await apiFetch(buildUrl(lim), {
       headers: { Authorization: `Bearer ${token}` },
     });
+    while (resp.status === 422 && lim > 1000) {
+      const next = downgradeLimitAfter422(lim);
+      if (next >= lim) break;
+      catalogQueryLimitEffective = next;
+      lim = next;
+      resp = await apiFetch(buildUrl(lim), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    }
     if (!resp.ok) return null;
     return resp.json();
   };
