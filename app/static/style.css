@@ -543,17 +543,44 @@ button[type="submit"]:disabled {
   background: #e8f0eb;
 }
 
-/* Mobile: 2 cols at 600px, 1 col at 400px */
-@media (max-width: 600px) {
+/* ── Tablet (≤ 768px) ──────────────────────────────── */
+@media (max-width: 768px) {
   .module-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
+
+  .contagem-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid-two {
+    grid-template-columns: 1fr;
+  }
+
+  .acesso-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .count-form {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-content {
+    padding: 24px 16px 80px;
+  }
 }
 
-@media (max-width: 400px) {
+/* ── Mobile médio (≤ 600px) ─────────────────────────── */
+@media (max-width: 600px) {
   .module-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .topbar-user .user-badge,
+  .topbar-user .net-status {
+    display: none;
   }
 }
 
@@ -731,6 +758,10 @@ body.modal-open::before {
   grid-column: 1 / -1;
 }
 
+.product-form .field-full {
+  grid-column: 1 / -1;
+}
+
 .field-feedback {
   min-height: 20px;
   margin-top: 8px;
@@ -812,6 +843,94 @@ body.modal-open::before {
 .muted {
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+.acesso-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.acesso-card {
+  height: fit-content;
+}
+
+.access-permissions {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  background: #f9fcfa;
+}
+
+.access-permissions-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.access-permissions-head-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.field.compact label {
+  margin-bottom: 4px;
+}
+
+.field.compact select {
+  min-width: 230px;
+}
+
+.switch-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #244437;
+}
+
+.switch-inline input {
+  width: 16px;
+  height: 16px;
+}
+
+.access-group {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.access-group h4 {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.access-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.access-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+  font-size: 0.88rem;
+}
+
+.access-option input {
+  width: 14px;
+  height: 14px;
 }
 
 /* ── Search Row ─────────────────────────────────────── */
@@ -1068,8 +1187,9 @@ body.modal-open::before {
   font-size: 0.9rem;
 }
 
-/* ── Responsivo ────────────────────────────────────── */
+/* ── Mobile (≤ 480px) ──────────────────────────────── */
 @media (max-width: 480px) {
+  /* Landing page */
   .landing-page {
     padding: 20px 14px 32px;
   }
@@ -1085,48 +1205,211 @@ body.modal-open::before {
     padding: 22px;
   }
 
+  /* Login */
   .login-card {
-    padding: 32px 20px;
+    padding: 28px 16px;
   }
 
+  /* Topbar: esconder itens secundários, compactar */
   .topbar {
-    padding: 12px 16px;
+    padding: 10px 12px;
+    gap: 8px;
   }
 
+  .topbar-title {
+    font-size: 1rem;
+  }
+
+  .topbar-user {
+    gap: 6px;
+  }
+
+  .topbar-user .user-badge,
+  .topbar-user .net-status {
+    display: none;
+  }
+
+  .topbar-user .topbar-link {
+    display: none;
+  }
+
+  .btn-secondary {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
+
+  /* Nav inferior fixo */
   .module-nav {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     top: auto;
-    padding: 10px;
+    padding: 8px 6px;
     justify-content: space-around;
-    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.14);
+    border-top: 1px solid #c7d1c8;
+    border-radius: 0;
+    gap: 4px;
   }
 
   .module-btn {
     flex: 1;
     text-align: center;
-    padding: 10px 6px;
+    padding: 8px 4px;
+    font-size: 0.78rem;
+    border-radius: 10px;
   }
 
+  /* Conteúdo principal */
   .dashboard-content {
-    padding: 20px 14px 88px;
+    padding: 16px 12px 88px;
   }
 
+  /* KPI grid */
   .contagem-kpi-grid {
     grid-template-columns: 1fr;
   }
 
+  /* Module cards: 2 colunas no mobile */
+  .module-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .module-card {
+    padding: 18px 10px;
+  }
+
+  .module-card-icon {
+    font-size: 1.8rem;
+  }
+
+  .module-card-title {
+    font-size: 0.88rem;
+  }
+
+  .module-card-desc {
+    font-size: 0.72rem;
+  }
+
+  /* Grid 2 colunas → 1 coluna */
   .grid-two {
     grid-template-columns: 1fr;
   }
 
+  /* Modulo Acesso */
+  .acesso-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Formulários */
   .count-form {
     grid-template-columns: 1fr;
   }
 
   .product-form {
     grid-template-columns: 1fr;
+  }
+
+  /* Formulário inline: quebrar em coluna */
+  .count-form--inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .count-form--inline button[type="submit"] {
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  /* Search row: quebrar em coluna */
+  .search-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-row .btn-secondary,
+  .search-row button {
+    width: 100%;
+  }
+
+  .search-select {
+    min-width: 100%;
+  }
+
+  /* Permissões de acesso */
+  .access-options {
+    grid-template-columns: 1fr;
+  }
+
+  .access-permissions-head-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .field.compact select {
+    min-width: 100%;
+  }
+
+  /* Controles de contagem: compactar */
+  .count-product-controls {
+    gap: 4px;
+  }
+
+  .count-product-qty {
+    width: 58px;
+  }
+
+  /* Modal: tela quase cheia */
+  .card-modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 32px);
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  /* Card padrão */
+  .card {
+    padding: 14px 12px;
+  }
+
+  /* Actions row: wrapping */
+  .actions-row {
+    flex-wrap: wrap;
+  }
+
+  .actions-row .btn-secondary {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Parâmetros: search row empilhado */
+  #sub-parametros-produto .search-row {
+    flex-direction: column;
+  }
+
+  #sub-parametros-produto .search-row select,
+  #sub-parametros-produto .search-row button {
+    width: 100%;
+  }
+}
+
+/* ── Celulares muito pequenos (≤ 360px) ─────────────── */
+@media (max-width: 360px) {
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .module-btn {
+    font-size: 0.72rem;
+    padding: 8px 2px;
+  }
+
+  .topbar-title {
+    font-size: 0.9rem;
   }
 }

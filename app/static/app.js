@@ -75,6 +75,11 @@ const productsTotal = document.getElementById('products-total');
 const roleDisplay = document.getElementById('role-display');
 const moduleNav = document.getElementById('module-nav');
 const accessMatrixList = document.getElementById('access-matrix-list');
+const registerAccessAll = document.getElementById('register-access-all');
+const registerProfilePreset = document.getElementById('register-profile-preset');
+const registerAccessMain = document.getElementById('register-access-main');
+const registerAccessCount = document.getElementById('register-access-count');
+const registerAccessCadastro = document.getElementById('register-access-cadastro');
 
 let syncInProgress = false;
 let selectedProductFile = null;
@@ -86,6 +91,68 @@ const PAGE_KEYS_BY_MODULE = {
   contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity'],
   cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'],
   acesso: ['acesso'],
+};
+
+const REGISTER_ACCESS_GROUPS = [
+  {
+    container: () => registerAccessMain,
+    items: [
+      { key: 'contagem', label: 'Contagem' },
+      { key: 'cadastro', label: 'Cadastro' },
+      { key: 'acesso', label: 'Acesso' },
+    ],
+  },
+  {
+    container: () => registerAccessCount,
+    items: [
+      { key: 'count', label: 'Contagem de Estoque' },
+      { key: 'recount', label: 'Recontagem' },
+      { key: 'pull', label: 'Puxada' },
+      { key: 'return', label: 'Devolução' },
+      { key: 'break', label: 'Quebra' },
+      { key: 'direct-sale', label: 'Venda Direta' },
+      { key: 'validity', label: 'Data de Vencimento' },
+    ],
+  },
+  {
+    container: () => registerAccessCadastro,
+    items: [
+      { key: 'cadastro-produto', label: 'Cadastro de Produto' },
+      { key: 'produtos', label: 'Produtos' },
+      { key: 'preco-produtos', label: 'Preço de Produtos' },
+      { key: 'parametros-produto', label: 'Parâmetros de Produto' },
+    ],
+  },
+];
+
+const REGISTER_PROFILE_PRESETS = {
+  admin: null, // null = todos
+  administrativo: [
+    'contagem',
+    'cadastro',
+    'acesso',
+    'count',
+    'recount',
+    'pull',
+    'return',
+    'break',
+    'direct-sale',
+    'validity',
+    'cadastro-produto',
+    'produtos',
+    'preco-produtos',
+    'parametros-produto',
+  ],
+  conferente: [
+    'contagem',
+    'count',
+    'recount',
+    'pull',
+    'return',
+    'break',
+    'direct-sale',
+    'validity',
+  ],
 };
 
 const MODULE_ACCESS = {
@@ -292,6 +359,69 @@ function renderAccessMatrix() {
       accessMatrixList.appendChild(li);
     });
   });
+}
+
+function renderRegisterAccessOptions() {
+  REGISTER_ACCESS_GROUPS.forEach((group) => {
+    const container = group.container();
+    if (!container) return;
+    container.innerHTML = '';
+    group.items.forEach((item) => {
+      const label = document.createElement('label');
+      label.className = 'access-option';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.className = 'register-access-item';
+      input.value = item.key;
+      input.checked = true;
+      const text = document.createElement('span');
+      text.textContent = item.label;
+      label.appendChild(input);
+      label.appendChild(text);
+      container.appendChild(label);
+    });
+  });
+
+  if (registerAccessAll) {
+    registerAccessAll.checked = true;
+  }
+}
+
+function getSelectedRegisterPages() {
+  const selected = Array.from(document.querySelectorAll('.register-access-item:checked'))
+    .map((node) => (node.value || '').trim().toLowerCase())
+    .filter(Boolean);
+  return Array.from(new Set(selected));
+}
+
+function getAllRegisterAccessKeys() {
+  return REGISTER_ACCESS_GROUPS
+    .flatMap((group) => group.items.map((item) => item.key))
+    .map((key) => key.trim().toLowerCase());
+}
+
+function setAllRegisterAccess(checked) {
+  document.querySelectorAll('.register-access-item').forEach((node) => {
+    node.checked = checked;
+  });
+}
+
+function syncRegisterAllToggle() {
+  if (!registerAccessAll) return;
+  const allItems = Array.from(document.querySelectorAll('.register-access-item'));
+  registerAccessAll.checked = allItems.length > 0 && allItems.every((node) => node.checked);
+}
+
+function applyRegisterProfilePreset(preset) {
+  const normalized = (preset || '').trim().toLowerCase();
+  const allowed = REGISTER_PROFILE_PRESETS[normalized];
+  const allKeys = new Set(getAllRegisterAccessKeys());
+  const allowedSet = allowed ? new Set(allowed) : allKeys;
+  document.querySelectorAll('.register-access-item').forEach((node) => {
+    const key = (node.value || '').trim().toLowerCase();
+    node.checked = allowedSet.has(key);
+  });
+  syncRegisterAllToggle();
 }
 
 // ── Sessão ─────────────────────────────────────────────────────
@@ -1912,6 +2042,35 @@ loginForm.addEventListener('submit', async (e) => {
 });
 
 if (registerForm) {
+  renderRegisterAccessOptions();
+  applyRegisterProfilePreset('admin');
+
+  if (registerAccessAll) {
+    registerAccessAll.addEventListener('change', () => {
+      setAllRegisterAccess(registerAccessAll.checked);
+      if (registerProfilePreset) {
+        registerProfilePreset.value = registerAccessAll.checked ? 'admin' : 'custom';
+      }
+    });
+  }
+
+  if (registerProfilePreset) {
+    registerProfilePreset.addEventListener('change', () => {
+      if (registerProfilePreset.value === 'custom') return;
+      applyRegisterProfilePreset(registerProfilePreset.value);
+    });
+  }
+
+  document.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (!target.classList.contains('register-access-item')) return;
+    syncRegisterAllToggle();
+    if (registerProfilePreset) {
+      registerProfilePreset.value = 'custom';
+    }
+  });
+
   registerForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (currentRole !== 'admin') {
@@ -1923,11 +2082,7 @@ if (registerForm) {
     const email = document.getElementById('register-email')?.value.trim() || '';
     const phone = document.getElementById('register-phone')?.value.trim() || '';
     const password = document.getElementById('register-password')?.value || '';
-    const pagesRaw = document.getElementById('register-pages')?.value || '';
-    const allowedPages = pagesRaw
-      .split(';')
-      .map((p) => p.trim().toLowerCase())
-      .filter(Boolean);
+    const allowedPages = getSelectedRegisterPages();
 
     if (!name || !email || !password) {
       setRegisterFeedback('Preencha nome, e-mail e senha.', true);
@@ -1953,6 +2108,10 @@ if (registerForm) {
       }
       setRegisterFeedback('Usuário cadastrado com sucesso. Faça login com o novo e-mail/senha.');
       registerForm.reset();
+      if (registerProfilePreset) {
+        registerProfilePreset.value = 'admin';
+      }
+      applyRegisterProfilePreset('admin');
       await loadUsersAdminList();
     } catch {
       setRegisterFeedback('Erro de conexão ao cadastrar usuário.', true);

@@ -59,7 +59,7 @@
     <div id="view-dashboard">
       <header class="topbar">
         <span class="topbar-title">{{ app_name }}</span>
-        <div class="topbar-user">
+        <div class="topbar-user" style="flex-wrap: wrap; row-gap: 4px;">
           <a href="/" class="btn-secondary topbar-link">Pagina inicial</a>
           <button id="btn-install-app" class="btn-secondary" type="button" hidden>Baixar app</button>
           <span id="net-status" class="net-status" aria-live="polite"></span>
@@ -641,27 +641,69 @@
 
         <!-- ── MÓDULO: ACESSO ── -->
         <section id="module-acesso" class="module-section">
-          <section class="card">
-            <h2>Categorias e subcategorias de acesso</h2>
-            <p class="muted">Controle por perfil: cada modulo e submodulo tem papeis permitidos.</p>
-            <ul id="access-matrix-list" class="list"></ul>
-          </section>
-          <section class="card" style="margin-top:16px;">
-            <h2>Cadastro de usuários (admin)</h2>
-            <form id="register-form" class="product-form" autocomplete="off" novalidate>
-              <div class="field"><label for="register-name">Nome</label><input id="register-name" type="text" required /></div>
-              <div class="field"><label for="register-email">E-mail</label><input id="register-email" type="email" autocomplete="username" required /></div>
-              <div class="field"><label for="register-phone">Telefone</label><input id="register-phone" type="text" /></div>
-              <div class="field"><label for="register-password">Senha</label><input id="register-password" type="password" autocomplete="new-password" required /></div>
-              <div class="field"><label for="register-pages">Páginas liberadas (separar por ;)</label><input id="register-pages" type="text" placeholder="contagem;cadastro;acesso" /></div>
-              <button type="submit">Cadastrar usuário</button>
-            </form>
-            <div class="field-feedback" id="register-feedback" aria-live="polite"></div>
-            <div class="card-head" style="margin-top:12px;">
-              <h3>Usuários cadastrados</h3>
-            </div>
-            <ul id="users-list" class="list"></ul>
-          </section>
+          <div class="acesso-grid">
+            <section class="card acesso-card acesso-card-matrix">
+              <div class="access-matrix-head">
+                <h2>Matriz de acessos</h2>
+                <p class="muted">Referência oficial de perfis por categoria e operação.</p>
+              </div>
+              <div class="access-role-legend" aria-label="Perfis de acesso">
+                <span class="role-pill role-pill-conferente">conferente</span>
+                <span class="role-pill role-pill-administrativo">administrativo</span>
+                <span class="role-pill role-pill-admin">admin</span>
+              </div>
+              <div id="access-matrix" class="access-matrix"></div>
+            </section>
+            <section class="card acesso-card">
+              <h2>Cadastro de usuários (admin)</h2>
+              <form id="register-form" class="product-form" autocomplete="off" novalidate>
+                <div class="field"><label for="register-name">Nome</label><input id="register-name" type="text" required /></div>
+                <div class="field"><label for="register-email">E-mail</label><input id="register-email" type="email" autocomplete="username" required /></div>
+                <div class="field"><label for="register-phone">Telefone</label><input id="register-phone" type="text" /></div>
+                <div class="field"><label for="register-password">Senha</label><input id="register-password" type="password" autocomplete="new-password" required /></div>
+
+                <div class="field field-full access-permissions">
+                  <div class="access-permissions-head">
+                    <div class="access-permissions-head-top">
+                      <div class="field compact">
+                        <label for="register-profile-preset">Perfil pronto</label>
+                        <select id="register-profile-preset">
+                          <option value="admin">Admin (todos os módulos)</option>
+                          <option value="administrativo">Administrativo</option>
+                          <option value="conferente">Conferente</option>
+                          <option value="custom">Personalizado</option>
+                        </select>
+                      </div>
+                      <label class="switch-inline" for="register-access-all">
+                        <input id="register-access-all" type="checkbox" />
+                        <span>Liberar todos os módulos</span>
+                      </label>
+                    </div>
+                    <small class="muted">Escolha um perfil e ajuste módulo por módulo quando precisar.</small>
+                  </div>
+                  <div class="access-group">
+                    <h4>Módulos principais</h4>
+                    <div id="register-access-main" class="access-options"></div>
+                  </div>
+                  <div class="access-group">
+                    <h4>Submódulos de Contagem</h4>
+                    <div id="register-access-count" class="access-options"></div>
+                  </div>
+                  <div class="access-group">
+                    <h4>Submódulos de Cadastro</h4>
+                    <div id="register-access-cadastro" class="access-options"></div>
+                  </div>
+                </div>
+
+                <button type="submit">Cadastrar usuário</button>
+              </form>
+              <div class="field-feedback" id="register-feedback" aria-live="polite"></div>
+              <div class="card-head" style="margin-top:12px;">
+                <h3>Usuários cadastrados</h3>
+              </div>
+              <ul id="users-list" class="list"></ul>
+            </section>
+          </div>
         </section>
       </main>
     </div>
