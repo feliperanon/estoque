@@ -1,3 +1,97 @@
+// === Grupos disponíveis para filtro (pode ser movido para API futuramente)
+const GROUPS = [
+  "Socorro Beb", "Dikoko", "Britvic", "Inga", "Santissima", "Mate couro", "Wow", "Grafrutalle", "Piraque", "Kydoidera", "Cory", "Selmi", "Brothers Paiol", "Salinas", "Arbor", "Heineken", "Cepal", "Arcor", "Nestle", "Tres Lobos", "Don Rigollo", "Jack Power", "Blue Bev", "Vanfall", "Itts", "Xeque Mate", "Perfetti", "Tampico", "Tapioca", "Tial", "Pergola", "Xa de Cana", "Açai Futuro", "Mais Coco", "Baly", "Ferreira", "Knofler", "Sunhot", "Seleta", "SP TT"
+];
+
+// Estado dos grupos selecionados
+let selectedGroups = [];
+
+function renderGroupChips() {
+  const chipsContainer = document.getElementById('count-group-chips');
+  if (!chipsContainer) return;
+  chipsContainer.innerHTML = '';
+  if (selectedGroups.length === 0) {
+    // Mostra todos para seleção
+    GROUPS.forEach(group => {
+      const chip = document.createElement('button');
+      chip.className = 'count-group-chip';
+      chip.textContent = group;
+      chip.onclick = () => {
+        selectedGroups.push(group);
+        renderGroupChips();
+        // TODO: disparar filtro
+      };
+      chipsContainer.appendChild(chip);
+    });
+  } else {
+    // Mostra chips selecionados com botão de remover
+    selectedGroups.forEach(group => {
+      const chip = document.createElement('span');
+      chip.className = 'count-group-chip';
+      chip.textContent = group;
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'count-group-chip-remove';
+      removeBtn.innerHTML = '×';
+      removeBtn.onclick = () => {
+        selectedGroups = selectedGroups.filter(g => g !== group);
+        renderGroupChips();
+        // TODO: disparar filtro
+      };
+      chip.appendChild(removeBtn);
+      chipsContainer.appendChild(chip);
+    });
+    // Adicionar botão para adicionar mais
+    if (selectedGroups.length < GROUPS.length) {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'count-group-chip';
+      addBtn.textContent = '+ Adicionar';
+      addBtn.onclick = () => {
+        // Mostra lista de grupos não selecionados
+        const menu = document.createElement('div');
+        menu.style.position = 'absolute';
+        menu.style.background = '#fff';
+        menu.style.border = '1px solid #ccc';
+        menu.style.zIndex = 1000;
+        menu.style.padding = '6px 0';
+        menu.style.borderRadius = '8px';
+        GROUPS.filter(g => !selectedGroups.includes(g)).forEach(g => {
+          const opt = document.createElement('div');
+          opt.textContent = g;
+          opt.style.padding = '6px 18px';
+          opt.style.cursor = 'pointer';
+          opt.onmouseover = () => opt.style.background = '#f4f4f4';
+          opt.onmouseout = () => opt.style.background = '';
+          opt.onclick = () => {
+            selectedGroups.push(g);
+            document.body.removeChild(menu);
+            renderGroupChips();
+            // TODO: disparar filtro
+          };
+          menu.appendChild(opt);
+        });
+        // Fecha menu ao clicar fora
+        function closeMenu(e) {
+          if (!menu.contains(e.target)) {
+            document.body.removeChild(menu);
+            document.removeEventListener('mousedown', closeMenu);
+          }
+        }
+        document.addEventListener('mousedown', closeMenu);
+        // Posiciona menu
+        const rect = addBtn.getBoundingClientRect();
+        menu.style.left = rect.left + 'px';
+        menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+        document.body.appendChild(menu);
+      };
+      chipsContainer.appendChild(addBtn);
+    }
+  }
+}
+
+// Inicializar chips ao carregar tela de contagem
+document.addEventListener('DOMContentLoaded', () => {
+  renderGroupChips();
+});
 /**
  * app.js — Controle de SPA do sistema Estoque.
  * Gerencia alternância entre tela de login e dashboard,
