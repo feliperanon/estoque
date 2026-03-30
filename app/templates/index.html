@@ -167,6 +167,11 @@
                 <span class="module-card-title">Importar Estoque</span>
                 <span class="module-card-desc">Importar histórico diário de saldo físico via arquivo TXT</span>
               </button>
+              <button type="button" class="module-card" data-sub="count-audit">
+                <span class="module-card-icon">🧭</span>
+                <span class="module-card-title">Análise de Contagem</span>
+                <span class="module-card-desc">Compara contagem em tempo real com a última importação TXT</span>
+              </button>
             </div>
           </div>
 
@@ -480,6 +485,52 @@
                 <div id="import-txt-details-meta" class="muted" style="margin-bottom:8px;"></div>
                 <ul id="import-txt-details-items" class="list"></ul>
               </div>
+            </section>
+          </div>
+
+          <!-- Sub: Análise de Contagem -->
+          <div id="sub-count-audit" class="sub-section">
+            <section class="card">
+              <div class="card-head">
+                <h2>Análise de Contagem de Estoque</h2>
+                <span class="chip">Auditoria</span>
+              </div>
+              <p class="muted">
+                Comparação entre o estoque importado por TXT e a contagem sincronizada em tempo real.
+              </p>
+              <div class="search-row" style="margin-bottom: 12px;">
+                <select id="count-audit-import" class="search-input" style="max-width: 420px;"></select>
+                <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark">Atualizar análise</button>
+              </div>
+              <label class="status-switch" for="count-audit-only-diff" title="Quando marcado, mostra apenas itens com diferença.">
+                <span class="status-switch-label">Todos</span>
+                <input id="count-audit-only-diff" type="checkbox" checked />
+                <span class="status-switch-slider" aria-hidden="true"></span>
+                <span class="status-switch-label">Só divergências</span>
+              </label>
+              <div id="count-audit-feedback" class="field-feedback" aria-live="polite"></div>
+            </section>
+            <section class="card" style="margin-top:16px">
+              <div class="card-head">
+                <h3>Resumo da Análise</h3>
+              </div>
+              <ul id="count-audit-summary" class="list">
+                <li><span>Total importado</span><strong>0</strong></li>
+                <li><span>Total contado</span><strong>0</strong></li>
+                <li><span>Sem diferença</span><strong>0</strong></li>
+                <li><span>Divergentes</span><strong>0</strong></li>
+                <li><span>Sem contagem</span><strong>0</strong></li>
+                <li><span>Só na contagem</span><strong>0</strong></li>
+              </ul>
+            </section>
+            <section class="card" style="margin-top:16px">
+              <div class="card-head">
+                <h3>Diferenças por Produto</h3>
+                <span id="count-audit-total" class="chip">0</span>
+              </div>
+              <ul id="count-audit-list" class="list">
+                <li><span>Nenhuma divergência encontrada.</span><strong>OK</strong></li>
+              </ul>
             </section>
           </div>
         </section>

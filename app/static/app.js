@@ -13,6 +13,7 @@ const API_LOGIN  = '/auth/login-legacy';
 const API_LOGIN_LOCAL = '/auth/login';
 const API_REGISTER = '/auth/register';
 const API_SYNC_COUNTS = '/audit/count-events';
+const API_STOCK_ANALYSIS = '/audit/stock-analysis';
 const API_PRODUCTS = '/products';
 /** Alinhado ao `le` em GET /products e /products/catalog (products.py). */
 const PRODUCTS_LIST_LIMIT = 20000;
@@ -139,6 +140,13 @@ const btnProductUpload = document.getElementById('btn-product-upload');
 const productImportFeedback = document.getElementById('product-import-feedback');
 const productsList = document.getElementById('products-list');
 const productsTotal = document.getElementById('products-total');
+const countAuditImport = document.getElementById('count-audit-import');
+const btnCountAuditRefresh = document.getElementById('btn-count-audit-refresh');
+const countAuditOnlyDiff = document.getElementById('count-audit-only-diff');
+const countAuditFeedback = document.getElementById('count-audit-feedback');
+const countAuditSummary = document.getElementById('count-audit-summary');
+const countAuditList = document.getElementById('count-audit-list');
+const countAuditTotal = document.getElementById('count-audit-total');
 const roleDisplay = document.getElementById('role-display');
 const moduleNav = document.getElementById('module-nav');
 const topbarPageTitle = document.querySelector('.topbar .topbar-title');
@@ -174,7 +182,7 @@ let currentAllowedPages = [];
 let countKpiTicker = null;
 
 const PAGE_KEYS_BY_MODULE = {
-  contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt'],
+  contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'],
   cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'],
   acesso: ['acesso'],
 };
@@ -198,6 +206,7 @@ const REGISTER_ACCESS_GROUPS = [
       { key: 'break', label: 'Quebra' },
       { key: 'direct-sale', label: 'Venda Direta' },
       { key: 'validity', label: 'Data de Vencimento' },
+      { key: 'count-audit', label: 'Análise de Contagem' },
     ],
   },
   {
@@ -224,6 +233,7 @@ const REGISTER_PROFILE_PRESETS = {
     'break',
     'direct-sale',
     'validity',
+    'count-audit',
     'cadastro-produto',
     'produtos',
     'preco-produtos',
@@ -238,6 +248,7 @@ const REGISTER_PROFILE_PRESETS = {
     'break',
     'direct-sale',
     'validity',
+    'count-audit',
   ],
 };
 
@@ -247,7 +258,7 @@ const MODULE_ACCESS = {
   acesso: ['administrativo', 'admin'],
 };
 
-const SUB_MODULES = ['count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt'];
+const SUB_MODULES = ['count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'];
 const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'];
 const SUB_TO_PARENT = {};
 SUB_MODULES.forEach(s => { SUB_TO_PARENT[s] = 'contagem'; });
@@ -265,6 +276,7 @@ const PAGE_TITLES = {
   'direct-sale': 'Venda Direta',
   validity: 'Data de Vencimento',
   'import-txt': 'Importar Estoque',
+  'count-audit': 'Análise de Contagem',
   'cadastro-produto': 'Cadastro de Produto',
   produtos: 'Produtos',
   'preco-produtos': 'Preço de Produtos',
@@ -364,6 +376,8 @@ function setActiveSub(subKey) {
     searchPrecoProducts();
   } else if (subKey === 'count') {
     loadCountProducts();
+  } else if (subKey === 'count-audit') {
+    loadCountAuditAnalysis();
   }
 }
 
@@ -1646,6 +1660,156 @@ function bindImportTxtEvents() {
   const subSection = document.getElementById('sub-import-txt');
   if (subSection) {
     observer.observe(subSection, { attributes: true, attributeFilter: ['class'] });
+  }
+}
+
+function setCountAuditFeedback(message, isError = false) {
+  if (!countAuditFeedback) return;
+  countAuditFeedback.textContent = message || '';
+  countAuditFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+async function loadCountAuditImports() {
+  if (!countAuditImport) return [];
+  const response = await apiFetch('/inventory/imports', {
+    headers: getAuthHeaders(),
+  });
+  if (handleUnauthorizedResponse(response)) return [];
+  if (!response.ok) {
+    throw new Error('Falha ao carregar importações de estoque');
+  }
+  const data = await response.json();
+  const imports = Array.isArray(data) ? data : [];
+
+  countAuditImport.innerHTML = '';
+  if (!imports.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Nenhuma importação disponível';
+    countAuditImport.appendChild(opt);
+    return [];
+  }
+
+  for (const row of imports) {
+    const opt = document.createElement('option');
+    opt.value = String(row.id || '');
+    opt.textContent = `${row.reference_date || '-'} - ${row.file_name || 'arquivo'}`;
+    countAuditImport.appendChild(opt);
+  }
+
+  return imports;
+}
+
+function renderCountAuditSummary(summary) {
+  if (!countAuditSummary) return;
+  const s = summary || {};
+  countAuditSummary.innerHTML = '';
+  const rows = [
+    ['Total importado', Number(s.total_import_items) || 0],
+    ['Total contado', Number(s.counted_items) || 0],
+    ['Sem diferença', Number(s.equal_items) || 0],
+    ['Divergentes', Number(s.divergent_items) || 0],
+    ['Sem contagem', Number(s.missing_in_count) || 0],
+    ['Só na contagem', Number(s.extra_in_count) || 0],
+  ];
+  for (const [label, value] of rows) {
+    const li = document.createElement('li');
+    li.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+    countAuditSummary.appendChild(li);
+  }
+}
+
+function renderCountAuditRows(rows) {
+  if (!countAuditList || !countAuditTotal) return;
+  const list = Array.isArray(rows) ? rows : [];
+  countAuditList.innerHTML = '';
+  countAuditTotal.textContent = String(list.length);
+  if (!list.length) {
+    countAuditList.innerHTML = '<li><span>Nenhuma divergência encontrada para os filtros atuais.</span><strong>OK</strong></li>';
+    return;
+  }
+
+  for (const row of list) {
+    const li = document.createElement('li');
+    let statusLabel = 'OK';
+    if (row.status === 'missing_in_count') statusLabel = 'SEM CONTAGEM';
+    else if (row.status === 'extra_in_count') statusLabel = 'SO CONTAGEM';
+    else if (row.status === 'divergent') statusLabel = 'DIVERGENTE';
+
+    const diff = Number(row.difference) || 0;
+    const diffText = diff > 0 ? `+${diff}` : `${diff}`;
+    li.innerHTML =
+      `<span><strong>${row.cod_produto || '-'}</strong> - ${(row.descricao || 'Sem descrição')}</span>` +
+      `<span class="muted">TXT: ${Number(row.import_qty) || 0} | Contado: ${Number(row.counted_qty) || 0} | Dif: ${diffText}</span>` +
+      `<strong>${statusLabel}</strong>`;
+    countAuditList.appendChild(li);
+  }
+}
+
+async function loadCountAuditAnalysis() {
+  if (!countAuditImport || !countAuditList) return;
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    if (!countAuditImport.options.length) {
+      await loadCountAuditImports();
+    }
+
+    const importId = (countAuditImport.value || '').trim();
+    const onlyDiff = countAuditOnlyDiff ? countAuditOnlyDiff.checked : true;
+    const params = new URLSearchParams();
+    if (importId) params.set('import_id', importId);
+    params.set('only_diff', onlyDiff ? 'true' : 'false');
+    params.set('limit', '1000');
+
+    const response = await apiFetch(`${API_STOCK_ANALYSIS}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
+      return;
+    }
+
+    const payload = await response.json();
+    const info = payload.import;
+    if (info) {
+      setCountAuditFeedback(`Base TXT: ${info.reference_date || '-'} (${info.file_name || 'arquivo'})`);
+      if (countAuditImport && info.id && !countAuditImport.value) {
+        countAuditImport.value = String(info.id);
+      }
+    } else {
+      setCountAuditFeedback('Nenhuma importação TXT encontrada para comparar.', true);
+    }
+
+    renderCountAuditSummary(payload.summary || {});
+    renderCountAuditRows(payload.rows || []);
+  } catch {
+    setCountAuditFeedback('Erro de conexão ao carregar análise de contagem.', true);
+  }
+}
+
+function bindCountAuditEvents() {
+  if (!btnCountAuditRefresh && !countAuditImport && !countAuditOnlyDiff) return;
+
+  if (btnCountAuditRefresh) {
+    btnCountAuditRefresh.addEventListener('click', () => {
+      loadCountAuditAnalysis();
+    });
+  }
+
+  if (countAuditImport) {
+    countAuditImport.addEventListener('change', () => {
+      loadCountAuditAnalysis();
+    });
+  }
+
+  if (countAuditOnlyDiff) {
+    countAuditOnlyDiff.addEventListener('change', () => {
+      loadCountAuditAnalysis();
+    });
   }
 }
 
@@ -3041,6 +3205,7 @@ if (moduleNav) {
 (function init() {
   applyProductDefaultsToForms();
   bindCountEvents();
+  bindCountAuditEvents();
   bindImportTxtEvents();
   bindProductEvents();
   bindProductParamsEvents();
