@@ -180,6 +180,7 @@ let currentRole = 'conferente';
 let countProductsCache = [];
 let currentAllowedPages = [];
 let countKpiTicker = null;
+let countAuditPollingTimer = null;
 
 const PAGE_KEYS_BY_MODULE = {
   contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'],
@@ -365,6 +366,13 @@ function setActiveSub(subKey) {
   const parent = SUB_TO_PARENT[subKey];
   const parentEl = document.getElementById(`module-${parent}`);
   if (!parentEl) return;
+
+  // Para o polling de análise se estava ativo em outro submódulo
+  if (countAuditPollingTimer && subKey !== 'count-audit') {
+    clearInterval(countAuditPollingTimer);
+    countAuditPollingTimer = null;
+  }
+
   parentEl.querySelectorAll('.sub-section').forEach((s) => s.classList.remove('active'));
 
   const target = document.getElementById(`sub-${subKey}`);
@@ -377,7 +385,7 @@ function setActiveSub(subKey) {
   } else if (subKey === 'count') {
     loadCountProducts();
   } else if (subKey === 'count-audit') {
-    loadCountAuditAnalysis();
+    startCountAuditPolling();
   }
 }
 
@@ -1338,6 +1346,11 @@ async function syncPendingEvents() {
     saveCountEvents(updated);
     renderCounts();
     setFeedback(`Sincronizacao concluida: ${syncedIds.size} evento(s) enviado(s).`);
+    // Atualiza análise em tempo real se a aba estiver aberta
+    const auditVisible = document.getElementById('sub-count-audit')?.classList.contains('active');
+    if (auditVisible) {
+      loadCountAuditAnalysis();
+    }
   } catch {
     setFeedback('Sem conexao no momento. Contagem continua segura neste dispositivo.', true);
   } finally {
@@ -1697,6 +1710,73 @@ function bindImportTxtEvents() {
   const subSection = document.getElementById('sub-import-txt');
   if (subSection) {
     observer.observe(subSection, { attributes: true, attributeFilter: ['class'] });
+  }
+}
+
+async function startCountAuditPolling() {
+  // Para timer anterior se existir
+  if (countAuditPollingTimer) {
+    clearInterval(countAuditPollingTimer);
+    countAuditPollingTimer = null;
+  }
+
+  // Sincroniza eventos pendentes antes de carregar a análise
+  if (navigator.onLine && getToken()) {
+    setCountAuditFeedback('Sincronizando contagens...', false);
+    await syncPendingEventsForAudit();
+  }
+
+  await loadCountAuditAnalysis();
+
+  // Polling: a cada 30s sincroniza + recarrega a análise enquanto a aba estiver ativa
+  countAuditPollingTimer = setInterval(async () => {
+    const auditVisible = document.getElementById('sub-count-audit')?.classList.contains('active');
+    if (!auditVisible) {
+      clearInterval(countAuditPollingTimer);
+      countAuditPollingTimer = null;
+      return;
+    }
+    if (navigator.onLine && getToken()) {
+      await syncPendingEventsForAudit();
+    }
+    await loadCountAuditAnalysis();
+  }, 30000);
+}
+
+// Versão silenciosa do sync que não mexe no feedback da tela de contagem
+async function syncPendingEventsForAudit() {
+  if (syncInProgress) return;
+  const token = getToken();
+  if (!token) return;
+  const events = loadCountEvents();
+  const pending = events.filter((e) => !e.synced);
+  if (!pending.length) return;
+
+  try {
+    const response = await apiFetch(API_SYNC_COUNTS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        events: pending.map((event) => ({
+          client_event_id: event.client_event_id,
+          item_code: normalizeCountType(event.count_type) === 'unidade'
+            ? `${event.item_code} [UN]`
+            : `${event.item_code} [CX]`,
+          quantity: event.quantity,
+          observed_at: event.observed_at,
+          device_name: event.device_name,
+        })),
+      }),
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    const syncedIds = new Set(data.synced_ids || []);
+    const updated = events.map((ev) =>
+      syncedIds.has(ev.client_event_id) ? { ...ev, synced: true, synced_at: new Date().toISOString() } : ev
+    );
+    saveCountEvents(updated);
+  } catch {
+    // silencioso — falha de rede não interrompe a análise
   }
 }
 
