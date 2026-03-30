@@ -1508,18 +1508,25 @@ body.modal-open::before {
 }
 
 .count-product-code {
-  font-size: 1rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  background: #e8f0eb;
+  border-radius: 4px;
+  padding: 1px 6px;
+  display: inline-block;
+  width: fit-content;
+  margin-bottom: 2px;
 }
 
 .count-product-desc {
   font-size: 0.86rem;
-  color: var(--muted);
+  color: var(--ink);
   white-space: normal;
   line-height: 1.3;
   word-break: break-word;
+  font-weight: 500;
 }
 
 /* Remove setas do input numérico */

@@ -309,7 +309,8 @@ def list_products_catalog(
         )
     if q:
         statement = statement.where(
-            Product.cod_grup_descricao.contains(q)
+            Product.cod_produto.contains(q)
+            | Product.cod_grup_descricao.contains(q)
             | Product.cod_grup_marca.contains(q)
             | Product.cod_grup_sku.contains(q),
         )

@@ -162,6 +162,11 @@
                 <span class="module-card-title">Data de Vencimento</span>
                 <span class="module-card-desc">Controle por lote, validade e risco de perda</span>
               </button>
+              <button type="button" class="module-card" data-sub="import-txt">
+                <span class="module-card-icon">📂</span>
+                <span class="module-card-title">Importar Estoque</span>
+                <span class="module-card-desc">Importar histórico diário de saldo físico via arquivo TXT</span>
+              </button>
             </div>
           </div>
 
@@ -434,6 +439,41 @@
               </div>
               <ul id="validity-list" class="list">
                 <li><span>Nenhum registro de validade ainda.</span><strong>0</strong></li>
+              </ul>
+            </section>
+          </div>
+
+          <!-- Sub: Importar Estoque -->
+          <div id="sub-import-txt" class="sub-section">
+            <section class="card">
+              <div class="card-head">
+                <h2>Importar Estoque</h2>
+                <span class="chip">Atualização em lote</span>
+              </div>
+              <p class="muted">
+                Envie o arquivo TXT com o mapa diário de estoque para registrar o histórico e cadastrar eventuais novos produtos.
+              </p>
+              <form id="import-txt-form" class="product-form" autocomplete="off">
+                <div class="field">
+                  <label for="import-txt-date">Data Referência</label>
+                  <input id="import-txt-date" name="reference_date" type="date" required />
+                </div>
+                <div class="field">
+                  <label for="import-txt-file" class="btn-secondary btn-dark file-btn">Selecionar Arquivo TXT</label>
+                  <input id="import-txt-file" name="file" type="file" accept=".txt" required hidden />
+                  <span id="import-txt-filename" class="muted" style="margin-left:8px; font-size:14px;">Nenhum arquivo...</span>
+                </div>
+                <button type="submit" id="btn-import-txt">Importar Histórico</button>
+              </form>
+              <div id="import-txt-feedback" class="field-feedback" aria-live="polite"></div>
+            </section>
+            
+            <section class="card" style="margin-top:16px">
+              <div class="card-head">
+                <h3>Histórico de Importações</h3>
+              </div>
+              <ul id="import-txt-list" class="list">
+                <li><span>Nenhuma importação registrada ainda.</span></li>
               </ul>
             </section>
           </div>

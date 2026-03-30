@@ -17,6 +17,8 @@ from app.models.entities import (
     User,
     Vehicle,
     VehicleSnapshot,
+    InventoryImport,
+    InventoryImportItem,
 )
 
 __all__ = [
@@ -35,7 +37,8 @@ __all__ = [
     "EmployeeSnapshot",
     "ClientSnapshot",
     "VehicleSnapshot",
-    "ChangeLog",
     "SyncRun",
     "FailedImportRow",
+    "InventoryImport",
+    "InventoryImportItem",
 ]

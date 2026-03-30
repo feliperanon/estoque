@@ -249,6 +249,31 @@ class VehicleSnapshot(SQLModel, table=True):
     imported_at: datetime = Field(default_factory=utcnow)
 
 
+class InventoryImport(SQLModel, table=True):
+    __tablename__ = "inventory_imports"
+    __table_args__ = ({"schema": "app_core"},)
+
+    id: int | None = Field(default=None, primary_key=True)
+    reference_date: date = Field(index=True)
+    file_name: str | None = Field(default=None, max_length=255)
+    total_products: int = Field(default=0)
+    created_products: int = Field(default=0)
+    imported_by: str | None = Field(default=None, max_length=120)
+    imported_at: datetime = Field(default_factory=utcnow)
+
+
+class InventoryImportItem(SQLModel, table=True):
+    __tablename__ = "inventory_import_items"
+    __table_args__ = ({"schema": "app_core"},)
+
+    id: int | None = Field(default=None, primary_key=True)
+    inventory_import_id: int = Field(foreign_key="app_core.inventory_imports.id", index=True)
+    cod_produto: str = Field(max_length=120, index=True)
+    descricao: str = Field(max_length=255)
+    metrics: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class ChangeLog(SQLModel, table=True):
     __tablename__ = "change_log"
     __table_args__ = ({"schema": "audit"},)

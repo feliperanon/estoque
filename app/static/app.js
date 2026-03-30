@@ -174,7 +174,7 @@ let currentAllowedPages = [];
 let countKpiTicker = null;
 
 const PAGE_KEYS_BY_MODULE = {
-  contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity'],
+  contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt'],
   cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'],
   acesso: ['acesso'],
 };
@@ -247,7 +247,7 @@ const MODULE_ACCESS = {
   acesso: ['administrativo', 'admin'],
 };
 
-const SUB_MODULES = ['count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity'];
+const SUB_MODULES = ['count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt'];
 const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'];
 const SUB_TO_PARENT = {};
 SUB_MODULES.forEach(s => { SUB_TO_PARENT[s] = 'contagem'; });
@@ -264,6 +264,7 @@ const PAGE_TITLES = {
   break: 'Quebra',
   'direct-sale': 'Venda Direta',
   validity: 'Data de Vencimento',
+  'import-txt': 'Importar Estoque',
   'cadastro-produto': 'Cadastro de Produto',
   produtos: 'Produtos',
   'preco-produtos': 'Preço de Produtos',
@@ -997,6 +998,12 @@ function renderCountProducts(products) {
     const brandText = (product.cod_grup_marca || '').trim();
     const label = document.createElement('span');
     label.className = 'count-product-label';
+
+    const codeEl = document.createElement('span');
+    codeEl.className = 'count-product-code';
+    codeEl.textContent = codeText;
+    label.appendChild(codeEl);
+
     const descEl = document.createElement('span');
     descEl.className = 'count-product-desc';
     descEl.textContent = isInactive ? `${descText} (INATIVO)` : descText;
@@ -1105,10 +1112,10 @@ function filterCountProductsByTerm(term) {
     const marca = (product.cod_grup_marca || '').toLowerCase();
     const codigo = (product.cod_produto || '').toLowerCase();
     return (
-      sku.includes(normalized)
+      codigo.includes(normalized)
+      || sku.includes(normalized)
       || descricao.includes(normalized)
       || marca.includes(normalized)
-      || codigo.includes(normalized)
     );
   });
 }
@@ -1466,6 +1473,123 @@ function bindCountEvents() {
     updateNetworkStatus();
     setFeedback('Modo offline ativo. Continue contando normalmente.');
   });
+}
+
+function bindImportTxtEvents() {
+  const form = document.getElementById('import-txt-form');
+  const fileInput = document.getElementById('import-txt-file');
+  const fileNameDisplay = document.getElementById('import-txt-filename');
+  const feedback = document.getElementById('import-txt-feedback');
+  const listEl = document.getElementById('import-txt-list');
+
+  if (!form || !fileInput || !fileNameDisplay || !feedback || !listEl) return;
+
+  const setImportFeedback = (msg, isError = false) => {
+    feedback.textContent = msg;
+    feedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
+  };
+
+  const loadImports = async () => {
+    try {
+      const response = await apiFetch('/inventory/imports', {
+        headers: getAuthHeaders(),
+      });
+      if (handleUnauthorizedResponse(response)) return;
+      if (!response.ok) {
+        setImportFeedback('Erro ao carregar histórico.', true);
+        return;
+      }
+      const data = await response.json();
+      listEl.innerHTML = '';
+      if (!data.length) {
+        listEl.innerHTML = '<li><span>Nenhuma importação registrada ainda.</span></li>';
+        return;
+      }
+      for (const item of data) {
+        const li = document.createElement('li');
+        li.innerHTML = `<span><strong>Date ref:</strong> ${item.reference_date}</span>` +
+                       `<span><strong>File:</strong> ${item.file_name || '-'}</span>` +
+                       `<span><strong>Products:</strong> ${item.total_products}</span>` +
+                       `<span><strong>New:</strong> <span class="badge-active status-badge">${item.created_products}</span></span>`;
+        listEl.appendChild(li);
+      }
+    } catch {
+      setImportFeedback('Falha de conexão ao carregar histórico.', true);
+    }
+  };
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    fileNameDisplay.textContent = file ? file.name : 'Nenhum arquivo...';
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = fileInput.files?.[0];
+    const dateRef = document.getElementById('import-txt-date').value;
+    
+    if (!file) {
+      setImportFeedback('Selecione o arquivo.', true);
+      return;
+    }
+    if (!dateRef) {
+      setImportFeedback('Data de referência obrigatória.', true);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('reference_date', dateRef);
+    formData.append('file', file);
+
+    const btn = document.getElementById('btn-import-txt');
+    btn.disabled = true;
+    setImportFeedback('Importando, aguarde...');
+
+    try {
+      const response = await apiFetch('/inventory/import-txt', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: formData,
+      });
+
+      if (handleUnauthorizedResponse(response)) {
+        btn.disabled = false;
+        return;
+      }
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        setImportFeedback(err.detail || 'Falha ao importar.', true);
+        btn.disabled = false;
+        return;
+      }
+
+      const resData = await response.json();
+      form.reset();
+      fileNameDisplay.textContent = 'Nenhum arquivo...';
+      setImportFeedback(`Sucesso! ${resData.total_products} lidos, ${resData.created_products} novos produtos cadastrados.`);
+      await loadImports();
+    } catch {
+      setImportFeedback('Erro de conexão.', true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // Load exactly when active
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.target.classList.contains('active')) {
+        loadImports();
+      }
+    });
+  });
+  const subSection = document.getElementById('sub-import-txt');
+  if (subSection) {
+    observer.observe(subSection, { attributes: true, attributeFilter: ['class'] });
+  }
 }
 
 function getAuthHeaders() {
@@ -2851,6 +2975,7 @@ if (moduleNav) {
 (function init() {
   applyProductDefaultsToForms();
   bindCountEvents();
+  bindImportTxtEvents();
   bindProductEvents();
   bindProductParamsEvents();
   bindProdutosEvents();
