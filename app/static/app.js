@@ -1480,6 +1480,9 @@ function bindImportTxtEvents() {
   const fileNameDisplay = document.getElementById('import-txt-filename');
   const feedback = document.getElementById('import-txt-feedback');
   const listEl = document.getElementById('import-txt-list');
+  const detailsWrap = document.getElementById('import-txt-details');
+  const detailsMeta = document.getElementById('import-txt-details-meta');
+  const detailsItems = document.getElementById('import-txt-details-items');
 
   if (!form || !fileInput || !fileNameDisplay || !feedback || !listEl) return;
 
@@ -1502,15 +1505,70 @@ function bindImportTxtEvents() {
       listEl.innerHTML = '';
       if (!data.length) {
         listEl.innerHTML = '<li><span>Nenhuma importação registrada ainda.</span></li>';
+        if (detailsWrap) detailsWrap.style.display = 'none';
         return;
       }
+
+      const showImportDetails = async (importId) => {
+        if (!importId || !detailsWrap || !detailsMeta || !detailsItems) return;
+        detailsWrap.style.display = 'block';
+        detailsMeta.textContent = 'Carregando detalhes...';
+        detailsItems.innerHTML = '';
+        try {
+          const detailResp = await apiFetch(`/inventory/imports/${importId}`, {
+            headers: getAuthHeaders(),
+          });
+          if (handleUnauthorizedResponse(detailResp)) return;
+          if (!detailResp.ok) {
+            detailsMeta.textContent = 'Não foi possível carregar os detalhes.';
+            return;
+          }
+
+          const detail = await detailResp.json();
+          const items = Array.isArray(detail.items) ? detail.items : [];
+          detailsMeta.textContent =
+            `Ref: ${detail.reference_date || '-'} | Arquivo: ${detail.file_name || '-'} | ` +
+            `Produtos lidos: ${detail.total_products || 0} | Novos: ${detail.created_products || 0}`;
+
+          if (!items.length) {
+            detailsItems.innerHTML = '<li><span>Nenhum item encontrado nesta importação.</span></li>';
+            return;
+          }
+
+          const top = items.slice(0, 200);
+          for (const it of top) {
+            const li = document.createElement('li');
+            const metricsRaw = Array.isArray(it.metrics?.raw) ? it.metrics.raw.join(' ') : '-';
+            li.innerHTML = `<span><strong>${it.cod_produto || '-'}</strong> - ${it.descricao || '-'}</span>` +
+                           `<span class="muted">Métricas: ${metricsRaw}</span>`;
+            detailsItems.appendChild(li);
+          }
+
+          if (items.length > top.length) {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="muted">Mostrando ${top.length} de ${items.length} itens.</span>`;
+            detailsItems.appendChild(li);
+          }
+        } catch {
+          detailsMeta.textContent = 'Falha de conexão ao carregar detalhes.';
+        }
+      };
+
       for (const item of data) {
         const li = document.createElement('li');
+        li.className = 'users-list-item';
+        li.style.cursor = 'pointer';
+        li.title = 'Clique para abrir detalhes da importação';
         li.innerHTML = `<span><strong>Date ref:</strong> ${item.reference_date}</span>` +
                        `<span><strong>File:</strong> ${item.file_name || '-'}</span>` +
                        `<span><strong>Products:</strong> ${item.total_products}</span>` +
                        `<span><strong>New:</strong> <span class="badge-active status-badge">${item.created_products}</span></span>`;
+        li.addEventListener('click', () => showImportDetails(item.id));
         listEl.appendChild(li);
+      }
+
+      if (data[0]?.id) {
+        await showImportDetails(data[0].id);
       }
     } catch {
       setImportFeedback('Falha de conexão ao carregar histórico.', true);
@@ -1932,9 +1990,18 @@ async function uploadProductsExcel() {
       body: formData,
     });
 
+    if (handleUnauthorizedResponse(response)) {
+      return;
+    }
+
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      setProductImportFeedback(err.detail || 'Falha ao importar arquivo.', true);
+      const detail = String(err.detail || 'Falha ao importar arquivo.');
+      if (detail.toLowerCase().includes('uq_product_sku') || detail.toLowerCase().includes('cod_grup_sku')) {
+        setProductImportFeedback('Falha ao importar: banco ainda com regra legada de SKU único. Aguarde o deploy e tente novamente.', true);
+      } else {
+        setProductImportFeedback(detail, true);
+      }
       return;
     }
 

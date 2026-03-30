@@ -100,26 +100,41 @@ def _serialize_products(products: list[Product]) -> list[ProductRead]:
 
 
 def _drop_legacy_sku_unique_constraint(session: Session) -> None:
-    """Remove a constraint legada uq_product_sku caso ainda exista no Postgres."""
+    """Remove qualquer unique constraint legada em cod_grup_sku no Postgres."""
     bind = session.get_bind()
     if bind.dialect.name != "postgresql":
         return
 
-    exists = session.execute(
+    # Remove nome conhecido (idempotente).
+    session.execute(text("ALTER TABLE app_core.products DROP CONSTRAINT IF EXISTS uq_product_sku"))
+
+    # Remove qualquer unique em cima apenas de cod_grup_sku, mesmo com outro nome.
+    rows = session.execute(
         text(
             """
-            SELECT 1 FROM information_schema.table_constraints
-            WHERE constraint_schema = 'app_core'
-              AND table_name        = 'products'
-              AND constraint_name   = 'uq_product_sku'
-              AND constraint_type   = 'UNIQUE'
+            SELECT c.conname
+            FROM pg_constraint c
+            JOIN pg_class t ON t.oid = c.conrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(c.conkey)
+            WHERE c.contype = 'u'
+              AND n.nspname = 'app_core'
+              AND t.relname = 'products'
+            GROUP BY c.oid, c.conname
+            HAVING bool_and(a.attname = 'cod_grup_sku')
             """
         )
-    ).fetchone()
-    if exists:
-        logger.warning("Constraint legada uq_product_sku detectada; removendo em runtime")
-        session.execute(text("ALTER TABLE app_core.products DROP CONSTRAINT uq_product_sku"))
-        session.flush()
+    ).fetchall()
+
+    for (constraint_name,) in rows:
+        if not constraint_name:
+            continue
+        logger.warning("Removendo unique legada em SKU", extra={"constraint": constraint_name})
+        session.execute(
+            text(f'ALTER TABLE app_core.products DROP CONSTRAINT IF EXISTS "{constraint_name}"')
+        )
+
+    session.flush()
 
 
 def _norm_header(value: str) -> str:
