@@ -1148,6 +1148,7 @@ async function loadCountProducts() {
         headers: { Authorization: `Bearer ${token}` },
       });
     }
+    if (handleUnauthorizedResponse(resp)) return null;
     if (!resp.ok) return null;
     return resp.json();
   };

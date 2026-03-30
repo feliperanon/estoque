@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from openpyxl import load_workbook
-from sqlalchemy import String, cast, func
+from sqlalchemy import String, cast, func, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, or_, select
 
@@ -97,6 +97,29 @@ def _serialize_products(products: list[Product]) -> list[ProductRead]:
         except Exception:
             logger.exception("Registro de produto invalido ignorado", extra={"product_id": getattr(product, "id", None)})
     return result
+
+
+def _drop_legacy_sku_unique_constraint(session: Session) -> None:
+    """Remove a constraint legada uq_product_sku caso ainda exista no Postgres."""
+    bind = session.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
+
+    exists = session.execute(
+        text(
+            """
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_schema = 'app_core'
+              AND table_name        = 'products'
+              AND constraint_name   = 'uq_product_sku'
+              AND constraint_type   = 'UNIQUE'
+            """
+        )
+    ).fetchone()
+    if exists:
+        logger.warning("Constraint legada uq_product_sku detectada; removendo em runtime")
+        session.execute(text("ALTER TABLE app_core.products DROP CONSTRAINT uq_product_sku"))
+        session.flush()
 
 
 def _norm_header(value: str) -> str:
@@ -334,6 +357,7 @@ def create_product(
     session: Session = Depends(get_session),
     user: User = Depends(require_roles("administrativo", "admin")),
 ) -> Product:
+    _drop_legacy_sku_unique_constraint(session)
     cod = (payload.cod_produto or "").strip()
     if not cod:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Codigo do produto obrigatorio")
@@ -357,6 +381,7 @@ def import_products_payload(
     session: Session = Depends(get_session),
     user: User = Depends(require_roles("administrativo", "admin")),
 ) -> dict:
+    _drop_legacy_sku_unique_constraint(session)
     created = 0
     updated = 0
 
@@ -397,6 +422,7 @@ async def import_products_excel(
     session: Session = Depends(get_session),
     user: User = Depends(require_roles("administrativo", "admin")),
 ) -> dict:
+    _drop_legacy_sku_unique_constraint(session)
     filename = (file.filename or "").lower()
     if not (filename.endswith(".xlsx") or filename.endswith(".xlsm")):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Envie um arquivo .xlsx")
