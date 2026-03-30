@@ -49,20 +49,41 @@ document.addEventListener('DOMContentLoaded', () => {
   const ativoToggle = document.getElementById('count-products-status-toggle');
   if (ativoToggle) {
     ativoToggle.disabled = false;
-    ativoToggle.addEventListener('change', filtrarProdutos);
+    ativoToggle.addEventListener('change', () => {
+      filtrarProdutos();
+      atualizarStatusChip();
+    });
+    atualizarStatusChip();
   }
 });
+
+function atualizarStatusChip() {
+  const ativoToggle = document.getElementById('count-products-status-toggle');
+  const chip = document.getElementById('count-products-total');
+  if (!ativoToggle || !chip) return;
+  if (ativoToggle.checked) {
+    chip.classList.remove('chip-ativo');
+    chip.classList.add('chip-todos');
+    chip.style.background = '#ffeaea';
+    chip.style.color = '#b42318';
+  } else {
+    chip.classList.remove('chip-todos');
+    chip.classList.add('chip-ativo');
+    chip.style.background = '#e2f5e7';
+    chip.style.color = '#166534';
+  }
+}
 
 // Filtro de produtos por grupo e ativo
 function filtrarProdutos() {
   const grupo = (document.getElementById('count-group')?.value || '').trim().toLowerCase();
-  const soAtivos = document.getElementById('count-products-status-toggle')?.checked;
+  const mostrarTodos = document.getElementById('count-products-status-toggle')?.checked;
   let totalVisiveis = 0;
   const visiveis = [];
   document.querySelectorAll('.count-product-item').forEach(item => {
     let show = true;
-    // Filtro de ativos: se marcado, só mostra ativos
-    if (soAtivos && item.classList.contains('is-inactive')) show = false;
+    // Filtro de ativos: se NÃO marcado, só mostra ativos
+    if (!mostrarTodos && item.classList.contains('is-inactive')) show = false;
     // Filtro de grupo: se preenchido, só mostra se o grupo bate
     if (grupo) {
       const desc = item.querySelector('.count-product-desc')?.textContent?.toLowerCase() || '';
@@ -77,6 +98,7 @@ function filtrarProdutos() {
   // Atualiza o total exibido
   const totalSpan = document.getElementById('count-products-total');
   if (totalSpan) totalSpan.textContent = totalVisiveis;
+  atualizarStatusChip();
   // Atualiza barra de progresso após filtro
   updateCountProgress(visiveis.map(item => {
     // Recupera o código do produto do DOM
