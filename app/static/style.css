@@ -1,3 +1,91 @@
+/* === Ajustes finos: Card principal da contagem === */
+.count-main-card {
+  padding: 0;
+  margin-bottom: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+.count-main-card-inner {
+  width: 100%;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+  border-radius: 19px 19px 7px 7px;
+  padding: 0 0 18px 0;
+  border: none;
+}
+.count-main-title-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: #173328;
+  white-space: nowrap;
+  padding: 18px 18px 0 18px;
+}
+.count-main-chip {
+  margin-left: 10px;
+}
+.count-main-switch {
+  margin-left: 10px;
+}
+.count-main-filters-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  padding: 18px 18px 0 18px;
+}
+.count-main-filter-col {
+  flex: 1 1 0;
+  min-width: 120px;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.count-main-filter-date {
+  max-width: 180px;
+}
+.count-main-progress {
+  width: 100%;
+  margin-top: 14px;
+  padding: 0 18px;
+}
+@media (max-width: 900px) {
+  .count-main-title-row,
+  .count-main-filters-row,
+  .count-main-progress {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .count-main-card-inner {
+    border-radius: 14px 14px 7px 7px;
+  }
+  .count-main-filter-col {
+    min-width: 90px;
+    max-width: 100%;
+  }
+}
+@media (max-width: 600px) {
+  .count-main-title-row,
+  .count-main-filters-row,
+  .count-main-progress {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .count-main-card-inner {
+    border-radius: 10px 10px 7px 7px;
+  }
+}
 /* === Painel de Filtros da Contagem (Novo Layout) === */
 /* Painel de filtros compacto e clean */
 .count-filters-bar {
