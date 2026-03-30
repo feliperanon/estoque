@@ -2206,13 +2206,16 @@ async function loadCountAuditAnalysis() {
     const info = payload.import;
     if (info) {
       setCountAuditFeedback(`Base de saldo: ${info.reference_date || '-'} (${info.file_name || 'arquivo'})`);
+      renderCountAuditSummary(payload.summary || {});
+      window.lastCountAuditRows = payload.rows || [];
+      renderCountAuditRows(window.lastCountAuditRows);
     } else {
       setCountAuditFeedback('Nenhuma importação TXT encontrada para esta data.', true);
+      // Zera painel: limpa resumo, lista e total
+      renderCountAuditSummary({});
+      window.lastCountAuditRows = [];
+      renderCountAuditRows([]);
     }
-
-    renderCountAuditSummary(payload.summary || {});
-    window.lastCountAuditRows = payload.rows || [];
-    renderCountAuditRows(window.lastCountAuditRows);
   } catch {
     setCountAuditFeedback('Erro de conexão ao carregar análise de contagem.', true);
   }
