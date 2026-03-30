@@ -1237,18 +1237,19 @@ body.modal-open::before {
 }
 
 /* Painel de filtros horizontal, compacto e clean */
+/* Painel de filtros igual ao print: fundo azul, campos brancos, labels bold, tudo em linha, clean */
 .count-filters-bar {
-  background: #003865;
-  border-radius: 18px;
-  padding: 10px 14px 6px 14px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 10px rgba(0, 56, 101, 0.07);
+  background: #176d8c;
+  border-radius: 28px;
+  padding: 18px 18px 12px 18px;
+  margin-bottom: 18px;
+  box-shadow: none;
 }
-.count-filters-row--horizontal {
+.count-filters-row--print {
   display: flex;
   flex-direction: row;
-  align-items: flex-end;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 24px;
   width: 100%;
 }
 .count-filter-col {
@@ -1257,29 +1258,55 @@ body.modal-open::before {
   min-width: 0;
   flex: 1 1 0;
   align-items: flex-start;
-  gap: 2px;
-}
-.count-filter-col--produto { min-width: 180px; max-width: 260px; }
-.count-filter-col--grupo   { min-width: 220px; max-width: 420px; }
-.count-filter-col--data    { min-width: 160px; max-width: 220px; }
-.count-products-toolbar--inline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 120px;
-  margin-left: 8px;
-}
-.count-group-chips {
-  display: flex;
-  flex-direction: row;
   gap: 6px;
-  overflow-x: auto;
+}
+.count-filter-col--produto { min-width: 320px; max-width: 100%; }
+.count-filter-col--grupo   { min-width: 220px; max-width: 340px; }
+.count-filter-col--data    { min-width: 200px; max-width: 260px; }
+.count-filter-label {
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 400;
+  margin-bottom: 2px;
+  text-align: left;
+  letter-spacing: 0.01em;
+}
+.count-filter-label--bold {
+  font-weight: 700;
+}
+.count-filter-input {
   background: #fff;
-  border-radius: 10px;
-  padding: 4px 6px;
-  min-height: 32px;
-  max-width: 100%;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  border-radius: 16px;
+  border: 2px solid #176d8c;
+  padding: 14px 18px;
+  font-size: 1.25rem;
+  color: #222;
+  width: 100%;
+  box-shadow: none;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.count-filter-input:focus {
+  border-color: #f4a300;
+}
+.count-filter-date {
+  font-size: 1.25rem;
+  font-weight: 400;
+  text-align: left;
+  padding-right: 0;
+}
+@media (max-width: 900px) {
+  .count-filters-row--print {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .count-filter-col--produto,
+  .count-filter-col--grupo,
+  .count-filter-col--data {
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 @media (max-width: 900px) {
   .count-filters-row--horizontal {
