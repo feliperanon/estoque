@@ -1898,14 +1898,46 @@ function renderCountAuditSummary(summary) {
 
 function renderCountAuditRows(rows) {
   if (!countAuditList || !countAuditTotal) return;
-  const list = Array.isArray(rows) ? rows : [];
+  let list = Array.isArray(rows) ? rows : [];
+  // Filtro de pesquisa
+  const searchInput = document.getElementById('count-audit-search');
+  const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  if (searchTerm) {
+    list = list.filter(row => {
+      const cod = (row.cod_produto || '').toLowerCase();
+      const desc = (row.descricao || '').toLowerCase();
+      return cod.includes(searchTerm) || desc.includes(searchTerm);
+    });
+  }
+  // Ordenação: código (numérico), depois descrição (alfabética)
+  list = [...list].sort((a, b) => {
+    const codeA = (a.cod_produto || '').padStart(10, '0');
+    const codeB = (b.cod_produto || '').padStart(10, '0');
+    if (codeA < codeB) return -1;
+    if (codeA > codeB) return 1;
+    const descA = (a.descricao || '').toLowerCase();
+    const descB = (b.descricao || '').toLowerCase();
+    return descA.localeCompare(descB);
+  });
+  // Itens com diferença zerada vão para o final
+  const diffZero = [];
+  const diffOthers = [];
+  for (const row of list) {
+    const diffCx = Number(row.difference_caixa) || 0;
+    const diffUn = Number(row.difference_unidade) || 0;
+    if (diffCx === 0 && diffUn === 0) {
+      diffZero.push(row);
+    } else {
+      diffOthers.push(row);
+    }
+  }
+  list = [...diffOthers, ...diffZero];
   countAuditList.innerHTML = '';
   countAuditTotal.textContent = String(list.length);
   if (!list.length) {
     countAuditList.innerHTML = '<li class="count-audit-empty"><span>Nenhuma divergência encontrada para os filtros atuais.</span><strong>OK</strong></li>';
     return;
   }
-
   for (const row of list) {
     const li = document.createElement('li');
     let statusClass = 'is-ok';
@@ -1920,7 +1952,6 @@ function renderCountAuditRows(rows) {
       statusLabel = 'CONTAGEM';
       statusClass = 'is-warn';
     }
-
     const diffCx = Number(row.difference_caixa) || 0;
     const diffUn = Number(row.difference_unidade) || 0;
     const diffCxText = diffCx > 0 ? `+${formatIntegerBR(diffCx)}` : `${formatIntegerBR(diffCx)}`;
@@ -1950,6 +1981,28 @@ function renderCountAuditRows(rows) {
       `</div>`;
     countAuditList.appendChild(li);
   }
+}
+// Eventos para barra de pesquisa na análise de contagem
+const countAuditSearch = document.getElementById('count-audit-search');
+const countAuditClearSearch = document.getElementById('count-audit-clear-search');
+if (countAuditSearch) {
+  countAuditSearch.addEventListener('input', () => {
+    // Re-renderiza usando último payload
+    if (window.lastCountAuditRows) {
+      renderCountAuditRows(window.lastCountAuditRows);
+    }
+    countAuditClearSearch.style.display = countAuditSearch.value ? '' : 'none';
+  });
+}
+if (countAuditClearSearch) {
+  countAuditClearSearch.addEventListener('click', () => {
+    countAuditSearch.value = '';
+    countAuditClearSearch.style.display = 'none';
+    if (window.lastCountAuditRows) {
+      renderCountAuditRows(window.lastCountAuditRows);
+    }
+    countAuditSearch.focus();
+  });
 }
 
 async function loadCountAuditAnalysis() {
@@ -1991,7 +2044,8 @@ async function loadCountAuditAnalysis() {
     }
 
     renderCountAuditSummary(payload.summary || {});
-    renderCountAuditRows(payload.rows || []);
+    window.lastCountAuditRows = payload.rows || [];
+    renderCountAuditRows(window.lastCountAuditRows);
   } catch {
     setCountAuditFeedback('Erro de conexão ao carregar análise de contagem.', true);
   }
