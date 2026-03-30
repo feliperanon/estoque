@@ -12,7 +12,7 @@ import sqlmodel
 
 # revision identifiers, used by Alembic.
 revision: str = '0008_inventory_imports'
-down_revision: Union[str, None] = '0007_product_unique_cod_produto'
+down_revision: Union[str, None] = '20260327_0007'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

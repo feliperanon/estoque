@@ -738,7 +738,7 @@ function computeItemNetTotals(events) {
 
 function computeCountProgressStats(products = countProductsCache, events = loadCountEvents()) {
   const validProducts = (Array.isArray(products) ? products : [])
-    .map((p) => normalizeItemCode(p.cod_produto || p.cod_grup_sku || p.cod_grup_descricao || ''))
+    .map((p) => normalizeItemCode(p.cod_produto || p.cod_grup_descricao || ''))
     .filter(Boolean);
   const uniqueProducts = Array.from(new Set(validProducts));
   const total = uniqueProducts.length;
@@ -992,8 +992,8 @@ function renderCountProducts(products) {
       li.classList.add('is-inactive');
     }
 
-    const itemCode = normalizeItemCode(product.cod_produto || product.cod_grup_sku || product.cod_grup_descricao || '');
-    const codeText = (product.cod_produto || product.cod_grup_sku || '—').trim() || '—';
+    const itemCode = normalizeItemCode(product.cod_produto || product.cod_grup_descricao || '');
+    const codeText = (product.cod_produto || '—').trim() || '—';
     const descText = (product.cod_grup_descricao || 'Sem descricao').trim() || 'Sem descricao';
     const brandText = (product.cod_grup_marca || '').trim();
     const label = document.createElement('span');
@@ -1107,13 +1107,11 @@ function filterCountProductsByTerm(term) {
   const normalized = (term || '').trim().toLowerCase();
   if (!normalized) return countProductsCache;
   return countProductsCache.filter((product) => {
-    const sku = (product.cod_grup_sku || '').toLowerCase();
     const descricao = (product.cod_grup_descricao || '').toLowerCase();
     const marca = (product.cod_grup_marca || '').toLowerCase();
     const codigo = (product.cod_produto || '').toLowerCase();
     return (
       codigo.includes(normalized)
-      || sku.includes(normalized)
       || descricao.includes(normalized)
       || marca.includes(normalized)
     );
@@ -1351,8 +1349,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   let productName = itemCode;
   if (typeof countProductsCache !== 'undefined' && Array.isArray(countProductsCache)) {
     const found = countProductsCache.find(
-      p => normalizeItemCode(p.cod_produto || '') === itemCode || 
-           normalizeItemCode(p.cod_grup_sku || '') === itemCode ||
+      p => normalizeItemCode(p.cod_produto || '') === itemCode ||
            normalizeItemCode(p.cod_grup_descricao || '') === itemCode
     );
     if (found && found.cod_grup_descricao) {
