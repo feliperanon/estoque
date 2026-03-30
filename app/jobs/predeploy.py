@@ -1,4 +1,4 @@
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 from sqlmodel import SQLModel
 
 from app.db.session import engine
@@ -51,6 +51,90 @@ def _ensure_critical_tables() -> None:
 
 
 _BASE_CRITICAL = {"app_core.employees", "app_core.users", "app_core.products"}
+
+
+def _fix_product_constraints() -> None:
+    """Remove uq_product_sku e garante uq_product_cod de forma idempotente.
+
+    A migration 0007/0009 pode nao ter executado se o banco foi criado via
+    create_all (bootstrap) antes das migrations. Esta funcao executa o DDL
+    diretamente como garantia extra, independente do estado do Alembic.
+    Segura para rodar em qualquer estado do banco.
+    """
+    with engine.begin() as conn:
+        dialect = conn.dialect.name
+        if dialect != "postgresql":
+            return
+
+        # 1. Remove constraint legada que impede multiplos produtos com mesmo SKU.
+        has_uq_sku = conn.execute(
+            text(
+                """
+                SELECT 1 FROM information_schema.table_constraints
+                WHERE constraint_schema = 'app_core'
+                  AND table_name        = 'products'
+                  AND constraint_name   = 'uq_product_sku'
+                  AND constraint_type   = 'UNIQUE'
+                """
+            )
+        ).fetchone()
+        if has_uq_sku:
+            print("[predeploy] Removendo constraint legada uq_product_sku...")
+            conn.execute(
+                text("ALTER TABLE app_core.products DROP CONSTRAINT uq_product_sku")
+            )
+            print("[predeploy] uq_product_sku removida.")
+
+        # 2. Garante que cod_produto nao tem NULLs (necessario para a unique).
+        conn.execute(
+            text(
+                """
+                UPDATE app_core.products
+                SET cod_produto = COALESCE(
+                    NULLIF(TRIM(cod_produto), ''),
+                    NULLIF(TRIM(cod_grup_sku), ''),
+                    id::text
+                )
+                WHERE cod_produto IS NULL OR TRIM(cod_produto) = ''
+                """
+            )
+        )
+
+        # 3. Resolve duplicatas de cod_produto antes de criar constraint.
+        conn.execute(
+            text(
+                """
+                UPDATE app_core.products AS p1
+                SET cod_produto = TRIM(p1.cod_produto) || '-dup-' || p1.id::text
+                WHERE EXISTS (
+                    SELECT 1 FROM app_core.products p2
+                    WHERE TRIM(COALESCE(p2.cod_produto, '')) = TRIM(COALESCE(p1.cod_produto, ''))
+                      AND p2.id < p1.id
+                )
+                """
+            )
+        )
+
+        # 4. Cria uq_product_cod se ainda nao existe.
+        has_uq_cod = conn.execute(
+            text(
+                """
+                SELECT 1 FROM information_schema.table_constraints
+                WHERE constraint_schema = 'app_core'
+                  AND table_name        = 'products'
+                  AND constraint_name   = 'uq_product_cod'
+                  AND constraint_type   = 'UNIQUE'
+                """
+            )
+        ).fetchone()
+        if not has_uq_cod:
+            print("[predeploy] Criando constraint uq_product_cod...")
+            conn.execute(
+                text(
+                    "ALTER TABLE app_core.products ADD CONSTRAINT uq_product_cod UNIQUE (cod_produto)"
+                )
+            )
+            print("[predeploy] uq_product_cod criada.")
 
 
 def _assert_critical_tables() -> None:
