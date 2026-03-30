@@ -156,6 +156,7 @@ def _assert_critical_tables() -> None:
 def main() -> None:
     ensure_database_ready()
     _assert_critical_tables()
+    _fix_product_constraints()
     with SessionLocal() as session:
         ensure_admin_user(session)
 
