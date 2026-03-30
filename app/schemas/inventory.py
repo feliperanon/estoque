@@ -11,6 +11,8 @@ class InventoryImportItemRead(InventoryImportItemBase):
     id: int
     inventory_import_id: int
     created_at: datetime
+    pre_registered: bool = False
+    product_id: Optional[int] = None
 
     class Config:
         from_attributes = True

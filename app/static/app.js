@@ -1552,9 +1552,27 @@ function bindImportTxtEvents() {
           const top = items.slice(0, 200);
           for (const it of top) {
             const li = document.createElement('li');
+            if (it.pre_registered) {
+              li.classList.add('import-item-pre-registered');
+            }
             const metricsRaw = Array.isArray(it.metrics?.raw) ? it.metrics.raw.join(' ') : '-';
-            li.innerHTML = `<span><strong>${it.cod_produto || '-'}</strong> - ${it.descricao || '-'}</span>` +
+            const badge = it.pre_registered
+              ? '<span class="status-badge badge-active">PRÉ-CADASTRADO</span>'
+              : '<span class="status-badge">IMPORTADO</span>';
+            li.innerHTML = `<span><strong>${it.cod_produto || '-'}</strong> - ${it.descricao || '-'} ${badge}</span>` +
                            `<span class="muted">Métricas: ${metricsRaw}</span>`;
+
+            if (it.pre_registered && it.product_id) {
+              const btnEdit = document.createElement('button');
+              btnEdit.type = 'button';
+              btnEdit.className = 'btn-secondary btn-dark';
+              btnEdit.textContent = 'Editar cadastro';
+              btnEdit.addEventListener('click', (event) => {
+                event.stopPropagation();
+                openEditProduct(it.product_id);
+              });
+              li.appendChild(btnEdit);
+            }
             detailsItems.appendChild(li);
           }
 
@@ -1581,9 +1599,6 @@ function bindImportTxtEvents() {
         listEl.appendChild(li);
       }
 
-      if (data[0]?.id) {
-        await showImportDetails(data[0].id);
-      }
     } catch {
       setImportFeedback('Falha de conexão ao carregar histórico.', true);
     }

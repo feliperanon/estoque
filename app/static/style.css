@@ -1137,6 +1137,11 @@ body.modal-open::before {
   gap: 12px;
 }
 
+.list li.import-item-pre-registered {
+  background: #fff7db;
+  border-color: #e3c86a;
+}
+
 .actions-row {
   display: flex;
   flex-wrap: wrap;

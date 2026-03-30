@@ -149,7 +149,24 @@ def get_import_details(
     items = session.exec(
         select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == import_id)
     ).all()
-    
+
+    details_items = []
+    for item in items:
+        product = session.exec(select(Product).where(Product.cod_produto == item.cod_produto)).first()
+        pre_registered = bool(product and (product.source_system or "") == "txt_import")
+        details_items.append({
+            "id": item.id,
+            "inventory_import_id": item.inventory_import_id,
+            "cod_produto": item.cod_produto,
+            "descricao": item.descricao,
+            "metrics": item.metrics,
+            "created_at": item.created_at,
+            "pre_registered": pre_registered,
+            "product_id": product.id if product else None,
+        })
+
+    details_items.sort(key=lambda row: (not row["pre_registered"], row["cod_produto"]))
+
     return InventoryImportDetailRead(
         id=inv_import.id,
         reference_date=inv_import.reference_date,
@@ -158,5 +175,5 @@ def get_import_details(
         created_products=inv_import.created_products,
         imported_by=inv_import.imported_by,
         imported_at=inv_import.imported_at,
-        items=items
+        items=details_items
     )
