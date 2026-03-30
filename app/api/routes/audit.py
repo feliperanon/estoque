@@ -1,5 +1,5 @@
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, date, timezone
 import re
 
 from fastapi import APIRouter, Depends, Query
@@ -32,6 +32,13 @@ def _normalize_item_code(value: str | None) -> str:
     return raw
 
 
+def _extract_count_type(value: str | None) -> str:
+    raw = (value or "").strip().upper()
+    if raw.endswith("[UN]"):
+        return "unidade"
+    return "caixa"
+
+
 def _parse_inventory_metric_token(token: str) -> int:
     tok = (token or "").strip().upper()
     if not tok:
@@ -45,6 +52,13 @@ def _parse_inventory_metric_token(token: str) -> int:
         return int(tok)
     except Exception:
         return 0
+
+
+def _extract_import_quantities(raw_metrics: list[str]) -> tuple[int, int]:
+    metrics = [str(tok) for tok in raw_metrics]
+    caixa = _parse_inventory_metric_token(metrics[0]) if len(metrics) >= 1 else 0
+    unidade = _parse_inventory_metric_token(metrics[1]) if len(metrics) >= 2 else 0
+    return caixa, unidade
 
 
 @router.get("/stock-analysis")
@@ -89,39 +103,49 @@ def stock_analysis(
             continue
         raw_metrics = item.metrics.get("raw") if isinstance(item.metrics, dict) else []
         raw_metrics = raw_metrics if isinstance(raw_metrics, list) else []
-        qty_imported = sum(_parse_inventory_metric_token(str(tok)) for tok in raw_metrics)
+        import_caixa, import_unidade = _extract_import_quantities(raw_metrics)
         if code not in imported_by_code:
             imported_by_code[code] = {
                 "cod_produto": code,
                 "descricao": item.descricao or "",
-                "import_qty": 0,
+                "import_caixa": 0,
+                "import_unidade": 0,
             }
-        imported_by_code[code]["import_qty"] += qty_imported
+        imported_by_code[code]["import_caixa"] += import_caixa
+        imported_by_code[code]["import_unidade"] += import_unidade
         if not imported_by_code[code]["descricao"] and item.descricao:
             imported_by_code[code]["descricao"] = item.descricao
+
+    # Filtra eventos de contagem a partir do início do dia da reference_date (não do momento do upload).
+    # Isso garante que contagens feitas no mesmo dia do inventário, mas antes do upload, sejam incluídas.
+    ref_start = datetime.combine(current_import.reference_date, datetime.min.time()).replace(tzinfo=timezone.utc)
 
     count_logs = list(
         session.exec(
             select(ChangeLog).where(
                 ChangeLog.entity_name == "stock_count",
                 ChangeLog.action == "count_event",
-                ChangeLog.changed_at >= current_import.imported_at,
+                ChangeLog.changed_at >= ref_start,
             )
         ).all()
     )
 
-    counted_by_code: dict[str, int] = {}
+    counted_by_code: dict[str, dict[str, int]] = {}
     for log in count_logs:
         payload = log.payload if isinstance(log.payload, dict) else {}
-        code = _normalize_item_code(str(payload.get("item_code") or ""))
+        item_code = str(payload.get("item_code") or "")
+        code = _normalize_item_code(item_code)
         if not code:
             continue
+        count_type = _extract_count_type(item_code)
         qty_raw = payload.get("quantity", 0)
         try:
             qty = int(qty_raw)
         except Exception:
             qty = 0
-        counted_by_code[code] = counted_by_code.get(code, 0) + qty
+        if code not in counted_by_code:
+            counted_by_code[code] = {"caixa": 0, "unidade": 0}
+        counted_by_code[code][count_type] = counted_by_code[code].get(count_type, 0) + qty
 
     all_codes = set(imported_by_code.keys()) | set(counted_by_code.keys())
     rows: list[dict] = []
@@ -132,17 +156,22 @@ def stock_analysis(
 
     for code in all_codes:
         imported = imported_by_code.get(code)
-        import_qty = int(imported.get("import_qty", 0)) if imported else 0
-        counted_qty = int(counted_by_code.get(code, 0))
-        diff = counted_qty - import_qty
+        import_caixa = int(imported.get("import_caixa", 0)) if imported else 0
+        import_unidade = int(imported.get("import_unidade", 0)) if imported else 0
+        counted = counted_by_code.get(code, {"caixa": 0, "unidade": 0})
+        counted_caixa = int(counted.get("caixa", 0))
+        counted_unidade = int(counted.get("unidade", 0))
+        diff_caixa = counted_caixa - import_caixa
+        diff_unidade = counted_unidade - import_unidade
+        total_diff_abs = abs(diff_caixa) + abs(diff_unidade)
         status = "ok"
-        if imported and counted_qty == 0:
+        if imported and counted_caixa == 0 and counted_unidade == 0:
             status = "missing_in_count"
             missing_in_count += 1
-        elif not imported and counted_qty != 0:
+        elif not imported and (counted_caixa != 0 or counted_unidade != 0):
             status = "extra_in_count"
             extra_in_count += 1
-        elif diff != 0:
+        elif diff_caixa != 0 or diff_unidade != 0:
             status = "divergent"
             divergent_items += 1
         else:
@@ -155,14 +184,18 @@ def stock_analysis(
             {
                 "cod_produto": code,
                 "descricao": (imported or {}).get("descricao") or "",
-                "import_qty": import_qty,
-                "counted_qty": counted_qty,
-                "difference": diff,
+                "import_caixa": import_caixa,
+                "import_unidade": import_unidade,
+                "counted_caixa": counted_caixa,
+                "counted_unidade": counted_unidade,
+                "difference_caixa": diff_caixa,
+                "difference_unidade": diff_unidade,
+                "difference_abs": total_diff_abs,
                 "status": status,
             }
         )
 
-    rows.sort(key=lambda r: (abs(int(r["difference"])), r["cod_produto"]), reverse=True)
+    rows.sort(key=lambda r: (int(r["difference_abs"]), r["cod_produto"]), reverse=True)
     rows = rows[:limit]
 
     return {
