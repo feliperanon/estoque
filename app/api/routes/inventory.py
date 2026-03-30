@@ -1,20 +1,10 @@
-@router.delete("/imports/{import_id}", status_code=204)
-def delete_import(
-    import_id: int,
-    session: Session = Depends(get_session),
-    _: User = Depends(require_roles("administrativo", "admin")),
-):
-    _ensure_inventory_tables()
-    inv_import = session.get(InventoryImport, import_id)
-    if not inv_import:
-        raise HTTPException(status_code=404, detail="Importação não encontrada")
-    # Remove todos os itens relacionados
-    session.exec(
-        select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == import_id)
-    ).delete()
-    session.delete(inv_import)
-    session.commit()
-    return
+def _ensure_inventory_tables() -> None:
+    SQLModel.metadata.create_all(
+        engine,
+        tables=[InventoryImport.__table__, InventoryImportItem.__table__],
+        checkfirst=True,
+    )
+
 import logging
 import re
 from datetime import date
@@ -33,12 +23,23 @@ router = APIRouter(prefix="/inventory", tags=["inventory"])
 logger = logging.getLogger(__name__)
 
 
-def _ensure_inventory_tables() -> None:
-    SQLModel.metadata.create_all(
-        engine,
-        tables=[InventoryImport.__table__, InventoryImportItem.__table__],
-        checkfirst=True,
-    )
+@router.delete("/imports/{import_id}", status_code=204)
+def delete_import(
+    import_id: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("administrativo", "admin")),
+):
+    _ensure_inventory_tables()
+    inv_import = session.get(InventoryImport, import_id)
+    if not inv_import:
+        raise HTTPException(status_code=404, detail="Importação não encontrada")
+    # Remove todos os itens relacionados
+    session.exec(
+        select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == import_id)
+    ).delete()
+    session.delete(inv_import)
+    session.commit()
+    return
 
 
 @router.post("/import-txt", response_model=InventoryImportRead)

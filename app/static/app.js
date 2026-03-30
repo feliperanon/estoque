@@ -117,6 +117,10 @@ const netStatus     = document.getElementById('net-status');
 const countForm     = document.getElementById('count-form');
 const countFeedback = document.getElementById('count-feedback');
 const countProductsStatusToggle = document.getElementById('count-products-status-toggle');
+// Sempre manter o toggle "Ativo" marcado ao abrir o painel
+if (countProductsStatusToggle) {
+  countProductsStatusToggle.checked = true;
+}
 const countProductsList = document.getElementById('count-products-list');
 const countProductsTotal = document.getElementById('count-products-total');
 const countProgressFill = document.getElementById('count-progress-fill');
