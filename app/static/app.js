@@ -140,7 +140,31 @@ const btnProductUpload = document.getElementById('btn-product-upload');
 const productImportFeedback = document.getElementById('product-import-feedback');
 const productsList = document.getElementById('products-list');
 const productsTotal = document.getElementById('products-total');
-const countAuditImport = document.getElementById('count-audit-import');
+const countAuditDate = document.getElementById('count-audit-date');
+// Carrega datas de referência disponíveis para análise de estoque
+async function loadCountAuditDates() {
+  if (!countAuditDate) return;
+  countAuditDate.innerHTML = '<option>Carregando datas...</option>';
+  try {
+    const resp = await apiFetch('/import-dates', { headers: getAuthHeaders() });
+    if (!resp.ok) throw new Error('Erro ao buscar datas');
+    const dates = await resp.json();
+    if (!Array.isArray(dates) || !dates.length) {
+      countAuditDate.innerHTML = '<option>Nenhuma data encontrada</option>';
+      return;
+    }
+    countAuditDate.innerHTML = dates.map(d => `<option value="${d}">${formatDateBR(d)}</option>`).join('');
+    // Seleciona hoje por padrão, se existir
+    const today = new Date().toISOString().slice(0, 10);
+    if (dates.includes(today)) countAuditDate.value = today;
+  } catch {
+    countAuditDate.innerHTML = '<option>Erro ao carregar datas</option>';
+  }
+}
+// Inicializa o seletor de datas ao abrir o painel de análise
+if (countAuditDate) {
+  loadCountAuditDates();
+}
 const btnCountAuditRefresh = document.getElementById('btn-count-audit-refresh');
 const countAuditOnlyDiff = document.getElementById('count-audit-only-diff');
 const countAuditFeedback = document.getElementById('count-audit-feedback');
@@ -1584,29 +1608,32 @@ function bindImportTxtEvents() {
             const li = document.createElement('li');
             if (it.pre_registered) {
               li.classList.add('import-item-pre-registered');
-            }
-            const metricsRaw = Array.isArray(it.metrics?.raw) ? it.metrics.raw.join(' ') : '-';
-            const badge = it.pre_registered
-              ? '<span class="status-badge badge-active">PRÉ-CADASTRADO</span>'
-              : '<span class="status-badge">IMPORTADO</span>';
-            li.innerHTML = `<span><strong>${it.cod_produto || '-'}</strong> - ${it.descricao || '-'} ${badge}</span>` +
-                           `<span class="muted">Métricas: ${metricsRaw}</span>`;
-
-            if (it.pre_registered && it.product_id) {
-              const btnEdit = document.createElement('button');
-              btnEdit.type = 'button';
-              btnEdit.className = 'btn-secondary btn-dark';
-              btnEdit.textContent = 'Editar cadastro';
-              btnEdit.addEventListener('click', async (event) => {
-                event.stopPropagation();
-                if (!canAccessHash('produtos')) {
-                  setImportFeedback('Seu perfil não possui acesso ao módulo de produtos para edição.', true);
-                  return;
-                }
-                setActiveModule('produtos');
-                await openEditProduct(it.product_id);
-              });
-              li.appendChild(btnEdit);
+              // Exibe apenas CX e UNI (saldo físico)
+              const cx = it.saldo_cx || 0;
+              const uni = it.saldo_uni || 0;
+              li.innerHTML = `<span><strong>${it.cod_produto || '-'}<\/strong> - ${it.descricao || '-'} <span class="status-badge badge-active">PRÉ-CADASTRADO<\/span><\/span>` +
+                             `<span class="muted">CX ${cx} UNI ${uni}<\/span>`;
+              if (it.product_id) {
+                const btnEdit = document.createElement('button');
+                btnEdit.type = 'button';
+                btnEdit.className = 'btn-secondary btn-dark';
+                btnEdit.textContent = 'Editar cadastro';
+                btnEdit.addEventListener('click', async (event) => {
+                  event.stopPropagation();
+                  if (!canAccessHash('produtos')) {
+                    setImportFeedback('Seu perfil não possui acesso ao módulo de produtos para edição.', true);
+                    return;
+                  }
+                  setActiveModule('produtos');
+                  await openEditProduct(it.product_id);
+                });
+                li.appendChild(btnEdit);
+              }
+            } else {
+              const badge = '<span class="status-badge">IMPORTADO<\/span>';
+              const metricsRaw = Array.isArray(it.metrics?.raw) ? it.metrics.raw.join(' ') : '-';
+              li.innerHTML = `<span><strong>${it.cod_produto || '-'}<\/strong> - ${it.descricao || '-'} ${badge}<\/span>` +
+                             `<span class="muted">Métricas: ${metricsRaw}<\/span>`;
             }
             detailsItems.appendChild(li);
           }
@@ -1621,16 +1648,46 @@ function bindImportTxtEvents() {
         }
       };
 
+
       for (const item of data) {
         const li = document.createElement('li');
-        li.className = 'users-list-item';
-        li.style.cursor = 'pointer';
-        li.title = 'Clique para abrir detalhes da importação';
-        li.innerHTML = `<span><strong>Data de referência:</strong> ${formatDateBR(item.reference_date)}</span>` +
-                       `<span><strong>Arquivo:</strong> ${item.file_name || '-'}</span>` +
-                       `<span><strong>Produtos:</strong> ${formatIntegerBR(item.total_products)}</span>` +
-                       `<span><strong>Novos cadastros:</strong> <span class="badge-active status-badge">${formatIntegerBR(item.created_products)}</span></span>`;
-        li.addEventListener('click', () => showImportDetails(item.id));
+        li.className = 'import-txt-card';
+        li.innerHTML = `
+          <div class="import-txt-card-main" title="Clique para ver detalhes">
+            <div class="import-txt-card-meta">
+              <span class="import-txt-card-date">${formatDateBR(item.reference_date)}</span>
+              <span class="import-txt-card-file">${item.file_name || '-'}</span>
+            </div>
+            <div class="import-txt-card-info">
+              <span class="import-txt-card-prod">Produtos: <strong>${formatIntegerBR(item.total_products)}</strong></span>
+              <span class="import-txt-card-new">Novos: <strong class="badge-active status-badge">${formatIntegerBR(item.created_products)}</strong></span>
+            </div>
+          </div>
+          <button type="button" class="import-txt-delete-btn" title="Excluir importação" aria-label="Excluir importação">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M7.5 8.5v5m5-5v5M3 5.5h14M5.5 5.5V15a2 2 0 0 0 2 2h5a2 2 0 0 0 2-2V5.5" stroke="#b42318" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 3.5h3a1 1 0 0 1 1 1V5.5h-5V4.5a1 1 0 0 1 1-1Z" stroke="#b42318" stroke-width="1.5"/></svg>
+          </button>
+        `;
+        li.querySelector('.import-txt-card-main').addEventListener('click', () => showImportDetails(item.id));
+        li.querySelector('.import-txt-delete-btn').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('Tem certeza que deseja excluir esta importação? Esta ação não pode ser desfeita.')) return;
+          try {
+            const resp = await apiFetch(`/inventory/imports/${item.id}`, {
+              method: 'DELETE',
+              headers: getAuthHeaders(),
+            });
+            if (handleUnauthorizedResponse(resp)) return;
+            if (!resp.ok) {
+              setImportFeedback('Erro ao excluir importação.', true);
+              return;
+            }
+            setImportFeedback('Importação excluída com sucesso.', false);
+            await loadImports();
+            if (detailsWrap) detailsWrap.style.display = 'none';
+          } catch {
+            setImportFeedback('Erro de conexão ao excluir.', true);
+          }
+        });
         listEl.appendChild(li);
       }
 

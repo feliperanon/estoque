@@ -1,3 +1,20 @@
+@router.delete("/imports/{import_id}", status_code=204)
+def delete_import(
+    import_id: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("administrativo", "admin")),
+):
+    _ensure_inventory_tables()
+    inv_import = session.get(InventoryImport, import_id)
+    if not inv_import:
+        raise HTTPException(status_code=404, detail="Importação não encontrada")
+    # Remove todos os itens relacionados
+    session.exec(
+        select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == import_id)
+    ).delete()
+    session.delete(inv_import)
+    session.commit()
+    return
 import logging
 import re
 from datetime import date
@@ -133,6 +150,17 @@ def list_imports(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Falha de banco ao listar importacoes. Erro: {exc}",
         )
+@router.get("/import-dates", response_model=list[date])
+def list_import_dates(
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("administrativo", "admin", "conferente")),
+):
+    _ensure_inventory_tables()
+    # Busca datas únicas ordenadas decrescente
+    dates = session.exec(
+        select(InventoryImport.reference_date).distinct().order_by(InventoryImport.reference_date.desc())
+    ).all()
+    return [d[0] if isinstance(d, tuple) else d for d in dates]
 
 
 @router.get("/imports/{import_id}", response_model=InventoryImportDetailRead)

@@ -178,6 +178,55 @@
           <!-- Sub: Contagem de Estoque -->
           <div id="sub-count" class="sub-section">
             <div class="count-search-bar">
+              <div class="field" style="margin-bottom: 8px;">
+                <label for="count-date">Data da contagem</label>
+                <select id="count-date" class="search-input"></select>
+              </div>
+              <div class="field" style="margin-bottom: 8px;">
+                <label for="count-group">Grupo</label>
+                <select id="count-group" multiple size="4" class="search-input">
+                  <option value="Socorro Beb">Socorro Beb</option>
+                  <option value="Dikoko">Dikoko</option>
+                  <option value="Britvic">Britvic</option>
+                  <option value="Inga">Inga</option>
+                  <option value="Santissima">Santissima</option>
+                  <option value="Mate couro">Mate couro</option>
+                  <option value="Wow">Wow</option>
+                  <option value="Grafrutalle">Grafrutalle</option>
+                  <option value="Piraque">Piraque</option>
+                  <option value="Kydoidera">Kydoidera</option>
+                  <option value="Cory">Cory</option>
+                  <option value="Selmi">Selmi</option>
+                  <option value="Brothers Paiol">Brothers Paiol</option>
+                  <option value="Salinas">Salinas</option>
+                  <option value="Arbor">Arbor</option>
+                  <option value="Heineken">Heineken</option>
+                  <option value="Cepal">Cepal</option>
+                  <option value="Arcor">Arcor</option>
+                  <option value="Nestle">Nestle</option>
+                  <option value="Tres Lobos">Tres Lobos</option>
+                  <option value="Don Rigollo">Don Rigollo</option>
+                  <option value="Jack Power">Jack Power</option>
+                  <option value="Blue Bev">Blue Bev</option>
+                  <option value="Vanfall">Vanfall</option>
+                  <option value="Itts">Itts</option>
+                  <option value="Xeque Mate">Xeque Mate</option>
+                  <option value="Perfetti">Perfetti</option>
+                  <option value="Tampico">Tampico</option>
+                  <option value="Tapioca">Tapioca</option>
+                  <option value="Tial">Tial</option>
+                  <option value="Pergola">Pergola</option>
+                  <option value="Xa de Cana">Xa de Cana</option>
+                  <option value="Açai Futuro">Açai Futuro</option>
+                  <option value="Mais Coco">Mais Coco</option>
+                  <option value="Baly">Baly</option>
+                  <option value="Ferreira">Ferreira</option>
+                  <option value="Knofler">Knofler</option>
+                  <option value="Sunhot">Sunhot</option>
+                  <option value="Seleta">Seleta</option>
+                  <option value="SP TT">SP TT</option>
+                </select>
+              </div>
               <form id="count-form" class="count-form count-form--inline" autocomplete="off">
                 <div class="field">
                   <label for="item-code">Produto</label>
@@ -500,7 +549,7 @@
                   Compare saldo e contagem em tempo real para encontrar divergências com mais rapidez.
                 </p>
                 <div class="search-row" style="margin-bottom: 12px;">
-                  <select id="count-audit-import" class="search-input" style="max-width: 420px;"></select>
+                  <select id="count-audit-date" class="search-input" style="max-width: 420px;"></select>
                   <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark">Atualizar análise</button>
                 </div>
                 <label class="status-switch" for="count-audit-only-diff" title="Quando marcado, mostra apenas itens com diferença.">
