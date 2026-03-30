@@ -201,16 +201,24 @@
               <small id="count-progress-text">0% dos produtos contados (0/0)</small>
             </div>
             <div class="count-list-meta">
-              <div class="info-card" style="padding: 12px 18px; display: flex; align-items: center; gap: 18px; margin-bottom: 10px;">
-                <h3 style="margin: 0 18px 0 0; font-size: 1.18rem; font-weight: 700; color: #173328; white-space: nowrap;">Produtos para contagem</h3>
-                <div class="count-products-toolbar" style="display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;">
-                  <span id="count-products-total" class="chip">0</span>
-                  <label class="status-switch" for="count-products-status-toggle" title="Marcado: todos os cadastros (padrão para inventário). Desmarcado: apenas status ativo." style="margin: 0;">
-                    <span class="status-switch-label">Ativo</span>
-                    <input id="count-products-status-toggle" type="checkbox" checked />
-                    <span class="status-switch-slider" aria-hidden="true"></span>
-                    <span class="status-switch-label">Todos</span>
-                  </label>
+              <div class="info-card" style="padding: 16px 18px 12px 18px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 18px; width: 100%; flex-wrap: wrap;">
+                  <h3 style="margin: 0 18px 0 0; font-size: 1.18rem; font-weight: 700; color: #173328; white-space: nowrap;">Produtos para contagem</h3>
+                  <div class="count-products-toolbar" style="display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;">
+                    <span id="count-products-total" class="chip">0</span>
+                    <label class="status-switch" for="count-products-status-toggle" title="Marcado: todos os cadastros (padrão para inventário). Desmarcado: apenas status ativo." style="margin: 0;">
+                      <span class="status-switch-label">Ativo</span>
+                      <input id="count-products-status-toggle" type="checkbox" checked />
+                      <span class="status-switch-slider" aria-hidden="true"></span>
+                      <span class="status-switch-label">Todos</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="count-progress" aria-live="polite" style="width: 100%; margin-top: 8px;">
+                  <div class="count-progress-track">
+                    <div id="count-progress-fill" class="count-progress-fill"></div>
+                  </div>
+                  <small id="count-progress-text">0% dos produtos contados (0/0)</small>
                 </div>
               </div>
             </div>

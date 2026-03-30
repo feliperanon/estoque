@@ -1387,8 +1387,9 @@ async function loadCountProducts() {
   if (!token) return;
 
   const q = '';
+  // Corrigir lógica: checked = ativos, unchecked = todos
   const statusValue =
-    countProductsStatusToggle && !countProductsStatusToggle.checked ? 'ativo' : 'todos';
+    countProductsStatusToggle && countProductsStatusToggle.checked ? 'ativo' : 'todos';
   const fetchCatalog = async (statusParam) => {
     const buildUrl = (lim) => {
       const params = new URLSearchParams();
