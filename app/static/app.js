@@ -1,3 +1,60 @@
+// Lista de grupos para sugestão
+const GROUPS = [
+  "Socorro Beb", "Dikoko", "Britvic", "Inga", "Santissima", "Mate couro", "Wow", "Grafrutalle", "Piraque", "Kydoidera", "Cory", "Selmi", "Brothers Paiol", "Salinas", "Arbor", "Heineken", "Cepal", "Arcor", "Nestle", "Tres Lobos", "Don Rigollo", "Jack Power", "Blue Bev", "Vanfall", "Itts", "Xeque Mate", "Perfetti", "Tampico", "Tapioca", "Tial", "Pergola", "Xa de Cana", "Açai Futuro", "Mais Coco", "Baly", "Ferreira", "Knofler", "Sunhot", "Seleta", "SP TT"
+];
+
+// Autocomplete para Grupo
+document.addEventListener('DOMContentLoaded', () => {
+  const groupInput = document.getElementById('count-group');
+  if (!groupInput) return;
+  let suggestionBox = null;
+  function closeSuggestions() {
+    if (suggestionBox) {
+      suggestionBox.remove();
+      suggestionBox = null;
+    }
+  }
+  groupInput.addEventListener('input', function() {
+    closeSuggestions();
+    const value = this.value.trim().toLowerCase();
+    if (!value) return;
+    const matches = GROUPS.filter(g => g.toLowerCase().includes(value));
+    if (!matches.length) return;
+    suggestionBox = document.createElement('div');
+    suggestionBox.className = 'autocomplete-suggestions';
+    matches.forEach(g => {
+      const opt = document.createElement('div');
+      opt.className = 'autocomplete-suggestion';
+      opt.textContent = g;
+      opt.onclick = () => {
+        groupInput.value = g;
+        closeSuggestions();
+      };
+      suggestionBox.appendChild(opt);
+    });
+    const rect = groupInput.getBoundingClientRect();
+    suggestionBox.style.position = 'absolute';
+    suggestionBox.style.left = rect.left + window.scrollX + 'px';
+    suggestionBox.style.top = rect.bottom + window.scrollY + 'px';
+    suggestionBox.style.width = rect.width + 'px';
+    suggestionBox.style.zIndex = 1002;
+    document.body.appendChild(suggestionBox);
+  });
+  groupInput.addEventListener('blur', () => setTimeout(closeSuggestions, 150));
+});
+
+// Botão Ativo funcional
+document.addEventListener('DOMContentLoaded', () => {
+  const ativoToggle = document.getElementById('count-products-status-toggle');
+  if (ativoToggle) {
+    ativoToggle.disabled = false;
+    ativoToggle.addEventListener('change', () => {
+      // Chame aqui a função de filtro de produtos ativos
+      // Exemplo: filtrarProdutosAtivos(ativoToggle.checked);
+      // (implemente a lógica conforme seu app)
+    });
+  }
+});
 // === Grupos disponíveis para filtro (pode ser movido para API futuramente)
 const GROUPS = [
   "Socorro Beb", "Dikoko", "Britvic", "Inga", "Santissima", "Mate couro", "Wow", "Grafrutalle", "Piraque", "Kydoidera", "Cory", "Selmi", "Brothers Paiol", "Salinas", "Arbor", "Heineken", "Cepal", "Arcor", "Nestle", "Tres Lobos", "Don Rigollo", "Jack Power", "Blue Bev", "Vanfall", "Itts", "Xeque Mate", "Perfetti", "Tampico", "Tapioca", "Tial", "Pergola", "Xa de Cana", "Açai Futuro", "Mais Coco", "Baly", "Ferreira", "Knofler", "Sunhot", "Seleta", "SP TT"

@@ -1238,18 +1238,19 @@ body.modal-open::before {
 
 /* Painel de filtros horizontal, compacto e clean */
 /* Painel de filtros igual ao print: fundo azul, campos brancos, labels bold, tudo em linha, clean */
+/* Painel de filtros igual ao print: fundo azul, campos brancos, labels bold, tudo em linha, clean */
 .count-filters-bar {
   background: #176d8c;
-  border-radius: 28px;
-  padding: 18px 18px 12px 18px;
-  margin-bottom: 18px;
+  border-radius: 22px;
+  padding: 10px 10px 8px 10px;
+  margin-bottom: 14px;
   box-shadow: none;
 }
 .count-filters-row--print {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
-  gap: 24px;
+  align-items: flex-end;
+  gap: 10px;
   width: 100%;
 }
 .count-filter-col {
@@ -1258,16 +1259,16 @@ body.modal-open::before {
   min-width: 0;
   flex: 1 1 0;
   align-items: flex-start;
-  gap: 6px;
+  gap: 3px;
 }
-.count-filter-col--produto { min-width: 320px; max-width: 100%; }
-.count-filter-col--grupo   { min-width: 220px; max-width: 340px; }
-.count-filter-col--data    { min-width: 200px; max-width: 260px; }
+.count-filter-col--produto { min-width: 120px; max-width: 100%; }
+.count-filter-col--grupo   { min-width: 100px; max-width: 220px; }
+.count-filter-col--data    { min-width: 100px; max-width: 160px; }
 .count-filter-label {
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 1.02rem;
   font-weight: 400;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
   text-align: left;
   letter-spacing: 0.01em;
 }
@@ -1276,10 +1277,10 @@ body.modal-open::before {
 }
 .count-filter-input {
   background: #fff;
-  border-radius: 16px;
-  border: 2px solid #176d8c;
-  padding: 14px 18px;
-  font-size: 1.25rem;
+  border-radius: 10px;
+  border: 1.5px solid #176d8c;
+  padding: 7px 10px;
+  font-size: 0.98rem;
   color: #222;
   width: 100%;
   box-shadow: none;
@@ -1290,16 +1291,34 @@ body.modal-open::before {
   border-color: #f4a300;
 }
 .count-filter-date {
-  font-size: 1.25rem;
+  font-size: 0.98rem;
   font-weight: 400;
   text-align: left;
   padding-right: 0;
 }
+/* Autocomplete sugestões */
+.autocomplete-suggestions {
+  background: #fff;
+  border: 1.5px solid #176d8c;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(23,109,140,0.08);
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 0.98rem;
+}
+.autocomplete-suggestion {
+  padding: 7px 14px;
+  cursor: pointer;
+  color: #176d8c;
+}
+.autocomplete-suggestion:hover {
+  background: #e6f3fa;
+}
 @media (max-width: 900px) {
   .count-filters-row--print {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 6px;
   }
   .count-filter-col--produto,
   .count-filter-col--grupo,
@@ -1307,6 +1326,41 @@ body.modal-open::before {
     min-width: 0;
     max-width: 100%;
   }
+}
+@media (max-width: 600px) {
+  .count-filters-bar {
+    padding: 6px 2px 4px 2px;
+    border-radius: 10px;
+  }
+  .count-filters-row--print {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .count-filter-label {
+    font-size: 0.92rem;
+  }
+  .count-filter-input {
+    font-size: 0.92rem;
+    border-radius: 7px;
+    padding: 5px 6px;
+  }
+}
+/* Menu lateral fixo */
+.sidebar-menu {
+  position: fixed;
+  top: 0;
+  left: -280px;
+  width: 280px;
+  height: 100vh;
+  background: var(--bg);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+  transition: left 0.3s ease;
+  overflow-y: auto;
+  padding-top: 52px;
 }
 @media (max-width: 900px) {
   .count-filters-row--horizontal {
