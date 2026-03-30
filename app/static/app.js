@@ -959,6 +959,7 @@ async function loadUsersAdminList() {
     const resp = await apiFetch('/users', {
       headers: { Authorization: `Bearer ${token}` },
     });
+    if (handleUnauthorizedResponse(resp)) return;
     if (!resp.ok) return;
     const users = await resp.json();
     usersAdminCache = Array.isArray(users) ? users : [];

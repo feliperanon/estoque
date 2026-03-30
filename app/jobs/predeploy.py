@@ -3,7 +3,15 @@ from sqlmodel import SQLModel
 
 from app.db.session import engine
 from app.db.session import SessionLocal
-from app.models import ChangeLog, Employee, Product, ProductHistory, User
+from app.models import (
+    ChangeLog,
+    Employee,
+    InventoryImport,
+    InventoryImportItem,
+    Product,
+    ProductHistory,
+    User,
+)
 from app.services.bootstrap import ensure_admin_user, ensure_database_ready
 
 
@@ -47,6 +55,19 @@ def _ensure_critical_tables() -> None:
             SQLModel.metadata.create_all(engine, tables=[table], checkfirst=True)
         except Exception:
             # Tabela pode ter dependência não satisfeita; seguir adiante.
+            pass
+
+
+def _ensure_inventory_tables() -> None:
+    # Tabelas de importação de inventário não são críticas para subir API,
+    # mas precisam existir para evitar erro 500 nos endpoints /inventory/imports.
+    for table in [
+        InventoryImport.__table__,
+        InventoryImportItem.__table__,
+    ]:
+        try:
+            SQLModel.metadata.create_all(engine, tables=[table], checkfirst=True)
+        except Exception:
             pass
 
 
@@ -156,6 +177,7 @@ def _assert_critical_tables() -> None:
 def main() -> None:
     ensure_database_ready()
     _assert_critical_tables()
+    _ensure_inventory_tables()
     _fix_product_constraints()
     with SessionLocal() as session:
         ensure_admin_user(session)
