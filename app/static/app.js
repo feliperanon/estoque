@@ -911,6 +911,23 @@ function formatDateTime(isoValue) {
   return date.toLocaleString('pt-BR');
 }
 
+function formatDateBR(value) {
+  if (!value) return '-';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    const [year, month, day] = String(value).split('-');
+    return `${day}/${month}/${year}`;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString('pt-BR');
+}
+
+function formatIntegerBR(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '0';
+  return num.toLocaleString('pt-BR');
+}
+
 function setFeedback(message, isError = false, isSuccess = false) {
   if (!countFeedback) return;
   countFeedback.textContent = message;
@@ -1541,8 +1558,8 @@ function bindImportTxtEvents() {
           const detail = await detailResp.json();
           const items = Array.isArray(detail.items) ? detail.items : [];
           detailsMeta.textContent =
-            `Ref: ${detail.reference_date || '-'} | Arquivo: ${detail.file_name || '-'} | ` +
-            `Produtos lidos: ${detail.total_products || 0} | Novos: ${detail.created_products || 0}`;
+            `Data de referência: ${formatDateBR(detail.reference_date)} | Arquivo: ${detail.file_name || '-'} | ` +
+            `Produtos lidos: ${formatIntegerBR(detail.total_products)} | Novos cadastros: ${formatIntegerBR(detail.created_products)}`;
 
           if (!items.length) {
             detailsItems.innerHTML = '<li><span>Nenhum item encontrado nesta importação.</span></li>';
@@ -1567,9 +1584,14 @@ function bindImportTxtEvents() {
               btnEdit.type = 'button';
               btnEdit.className = 'btn-secondary btn-dark';
               btnEdit.textContent = 'Editar cadastro';
-              btnEdit.addEventListener('click', (event) => {
+              btnEdit.addEventListener('click', async (event) => {
                 event.stopPropagation();
-                openEditProduct(it.product_id);
+                if (!canAccessHash('produtos')) {
+                  setImportFeedback('Seu perfil não possui acesso ao módulo de produtos para edição.', true);
+                  return;
+                }
+                setActiveModule('produtos');
+                await openEditProduct(it.product_id);
               });
               li.appendChild(btnEdit);
             }
@@ -1578,7 +1600,7 @@ function bindImportTxtEvents() {
 
           if (items.length > top.length) {
             const li = document.createElement('li');
-            li.innerHTML = `<span class="muted">Mostrando ${top.length} de ${items.length} itens.</span>`;
+            li.innerHTML = `<span class="muted">Mostrando ${formatIntegerBR(top.length)} de ${formatIntegerBR(items.length)} itens.</span>`;
             detailsItems.appendChild(li);
           }
         } catch {
@@ -1591,10 +1613,10 @@ function bindImportTxtEvents() {
         li.className = 'users-list-item';
         li.style.cursor = 'pointer';
         li.title = 'Clique para abrir detalhes da importação';
-        li.innerHTML = `<span><strong>Date ref:</strong> ${item.reference_date}</span>` +
-                       `<span><strong>File:</strong> ${item.file_name || '-'}</span>` +
-                       `<span><strong>Products:</strong> ${item.total_products}</span>` +
-                       `<span><strong>New:</strong> <span class="badge-active status-badge">${item.created_products}</span></span>`;
+        li.innerHTML = `<span><strong>Data de referência:</strong> ${formatDateBR(item.reference_date)}</span>` +
+                       `<span><strong>Arquivo:</strong> ${item.file_name || '-'}</span>` +
+                       `<span><strong>Produtos:</strong> ${formatIntegerBR(item.total_products)}</span>` +
+                       `<span><strong>Novos cadastros:</strong> <span class="badge-active status-badge">${formatIntegerBR(item.created_products)}</span></span>`;
         li.addEventListener('click', () => showImportDetails(item.id));
         listEl.appendChild(li);
       }
@@ -1655,7 +1677,7 @@ function bindImportTxtEvents() {
       const resData = await response.json();
       form.reset();
       fileNameDisplay.textContent = 'Nenhum arquivo...';
-      setImportFeedback(`Sucesso! ${resData.total_products} lidos, ${resData.created_products} novos produtos cadastrados.`);
+      setImportFeedback(`Sucesso! ${formatIntegerBR(resData.total_products)} produtos lidos e ${formatIntegerBR(resData.created_products)} novos produtos cadastrados.`);
       await loadImports();
     } catch {
       setImportFeedback('Erro de conexão.', true);
@@ -1751,11 +1773,15 @@ function renderCountAuditRows(rows) {
     else if (row.status === 'extra_in_count') statusLabel = 'SO CONTAGEM';
     else if (row.status === 'divergent') statusLabel = 'DIVERGENTE';
 
-    const diff = Number(row.difference) || 0;
-    const diffText = diff > 0 ? `+${diff}` : `${diff}`;
+    const diffCx = Number(row.difference_caixa) || 0;
+    const diffUn = Number(row.difference_unidade) || 0;
+    const diffCxText = diffCx > 0 ? `+${diffCx}` : `${diffCx}`;
+    const diffUnText = diffUn > 0 ? `+${diffUn}` : `${diffUn}`;
     li.innerHTML =
       `<span><strong>${row.cod_produto || '-'}</strong> - ${(row.descricao || 'Sem descrição')}</span>` +
-      `<span class="muted">TXT: ${Number(row.import_qty) || 0} | Contado: ${Number(row.counted_qty) || 0} | Dif: ${diffText}</span>` +
+      `<span class="muted">TXT CX: ${Number(row.import_caixa) || 0} | TXT UN: ${Number(row.import_unidade) || 0}</span>` +
+      `<span class="muted">Contado CX: ${Number(row.counted_caixa) || 0} | Contado UN: ${Number(row.counted_unidade) || 0}</span>` +
+      `<span class="muted">Dif CX: ${diffCxText} | Dif UN: ${diffUnText}</span>` +
       `<strong>${statusLabel}</strong>`;
     countAuditList.appendChild(li);
   }
@@ -2379,7 +2405,16 @@ async function openEditProduct(id) {
   try {
     const resp = await apiFetch(`${API_PRODUCTS}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
     if (handleUnauthorizedResponse(resp)) { return; }
-    if (!resp.ok) { setProdutosFeedback('Produto não encontrado.', true); return; }
+    if (!resp.ok) {
+      if (resp.status === 403) {
+        setProdutosFeedback('Seu perfil não possui permissão para editar produtos.', true);
+      } else if (resp.status === 404) {
+        setProdutosFeedback('Produto não encontrado.', true);
+      } else {
+        setProdutosFeedback('Falha ao carregar produto para edição.', true);
+      }
+      return;
+    }
     const p = await resp.json();
 
     document.getElementById('edit-product-id').value = p.id;
