@@ -175,6 +175,7 @@ const countAuditFeedback = document.getElementById('count-audit-feedback');
 const countAuditSummary = document.getElementById('count-audit-summary');
 const countAuditList = document.getElementById('count-audit-list');
 const countAuditTotal = document.getElementById('count-audit-total');
+const countAuditImport = document.getElementById('count-audit-date');
 const roleDisplay = document.getElementById('role-display');
 const moduleNav = document.getElementById('module-nav');
 const topbarPageTitle = document.querySelector('.topbar .topbar-title');
