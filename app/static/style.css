@@ -1,3 +1,70 @@
+/* === Ajuste cirúrgico: Linha do título e filtros contagem === */
+.count-main-title-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+.count-main-title {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: #173328;
+}
+.count-main-chip {
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+.count-main-switch {
+  margin-left: 18px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Linha dos filtros: 50% 30% 20% no desktop */
+.count-main-filters-row {
+  display: grid;
+  grid-template-columns: 50% 30% 20%;
+  gap: 14px;
+  width: 100%;
+  align-items: end;
+  margin-top: 10px;
+}
+.count-main-filter-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.count-main-filter-date {
+  max-width: 180px;
+}
+
+@media (max-width: 900px) {
+  .count-main-title-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .count-main-switch {
+    align-self: flex-end;
+    margin-left: 0;
+    margin-top: 6px;
+  }
+  .count-main-filters-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
 /* Chips de status Ativo/Todos */
 .chip-ativo {
   background: #e2f5e7 !important;
