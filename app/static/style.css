@@ -1239,34 +1239,37 @@ body.modal-open::before {
 /* Painel de filtros horizontal, compacto e clean */
 /* Painel de filtros igual ao print: fundo azul, campos brancos, labels bold, tudo em linha, clean */
 /* Painel de filtros igual ao print: fundo azul, campos brancos, labels bold, tudo em linha, clean */
+/* Painel de filtros igual ao print: fundo azul, campos brancos, labels bold, tudo em linha, clean, responsivo fixo */
 .count-filters-bar {
   background: #176d8c;
   border-radius: 22px;
-  padding: 10px 10px 8px 10px;
-  margin-bottom: 14px;
+  padding: 7px 7px 4px 7px;
+  margin-bottom: 10px;
   box-shadow: none;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 .count-filters-row--print {
   display: flex;
   flex-direction: row;
   align-items: flex-end;
-  gap: 10px;
+  gap: 6px;
   width: 100%;
 }
 .count-filter-col {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  flex: 1 1 0;
   align-items: flex-start;
-  gap: 3px;
+  gap: 2px;
 }
-.count-filter-col--produto { min-width: 120px; max-width: 100%; }
-.count-filter-col--grupo   { min-width: 100px; max-width: 220px; }
-.count-filter-col--data    { min-width: 100px; max-width: 160px; }
+.count-filter-col--produto { flex-basis: 50%; min-width: 0; }
+.count-filter-col--grupo   { flex-basis: 30%; min-width: 0; }
+.count-filter-col--data    { flex-basis: 20%; min-width: 0; }
 .count-filter-label {
   color: #fff;
-  font-size: 1.02rem;
+  font-size: 0.98rem;
   font-weight: 400;
   margin-bottom: 1px;
   text-align: left;
@@ -1277,9 +1280,9 @@ body.modal-open::before {
 }
 .count-filter-input {
   background: #fff;
-  border-radius: 10px;
-  border: 1.5px solid #176d8c;
-  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1.2px solid #176d8c;
+  padding: 5px 8px;
   font-size: 0.98rem;
   color: #222;
   width: 100%;
@@ -1299,7 +1302,7 @@ body.modal-open::before {
 /* Autocomplete sugestões */
 .autocomplete-suggestions {
   background: #fff;
-  border: 1.5px solid #176d8c;
+  border: 1.2px solid #176d8c;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(23,109,140,0.08);
   max-height: 180px;
@@ -1318,33 +1321,33 @@ body.modal-open::before {
   .count-filters-row--print {
     flex-direction: row;
     align-items: flex-end;
-    gap: 6px;
+    gap: 4px;
   }
-  .count-filter-col--produto,
-  .count-filter-col--grupo,
-  .count-filter-col--data {
-    min-width: 0;
-    max-width: 100%;
-  }
+  .count-filter-col--produto { flex-basis: 50%; }
+  .count-filter-col--grupo   { flex-basis: 30%; }
+  .count-filter-col--data    { flex-basis: 20%; }
 }
 @media (max-width: 600px) {
   .count-filters-bar {
-    padding: 6px 2px 4px 2px;
-    border-radius: 10px;
+    padding: 3px 1px 2px 1px;
+    border-radius: 7px;
   }
   .count-filters-row--print {
     flex-direction: row;
     align-items: flex-end;
-    gap: 4px;
+    gap: 2px;
   }
   .count-filter-label {
     font-size: 0.92rem;
   }
   .count-filter-input {
     font-size: 0.92rem;
-    border-radius: 7px;
-    padding: 5px 6px;
+    border-radius: 5px;
+    padding: 3px 4px;
   }
+  .count-filter-col--produto { flex-basis: 50%; }
+  .count-filter-col--grupo   { flex-basis: 30%; }
+  .count-filter-col--data    { flex-basis: 20%; }
 }
 /* Menu lateral fixo */
 .sidebar-menu {

@@ -1,5 +1,5 @@
 
-// Autocomplete para Grupo
+// Autocomplete para Grupo + filtro funcional
 document.addEventListener('DOMContentLoaded', () => {
   const groupInput = document.getElementById('count-group');
   if (!groupInput) return;
@@ -13,7 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
   groupInput.addEventListener('input', function() {
     closeSuggestions();
     const value = this.value.trim().toLowerCase();
-    if (!value) return;
+    if (!value) {
+      filtrarProdutos();
+      return;
+    }
     const matches = GROUPS.filter(g => g.toLowerCase().includes(value));
     if (!matches.length) return;
     suggestionBox = document.createElement('div');
@@ -25,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
       opt.onclick = () => {
         groupInput.value = g;
         closeSuggestions();
+        filtrarProdutos();
       };
       suggestionBox.appendChild(opt);
     });
@@ -37,6 +41,40 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(suggestionBox);
   });
   groupInput.addEventListener('blur', () => setTimeout(closeSuggestions, 150));
+  groupInput.addEventListener('change', filtrarProdutos);
+});
+
+// Botão Ativo funcional + filtro
+document.addEventListener('DOMContentLoaded', () => {
+  const ativoToggle = document.getElementById('count-products-status-toggle');
+  if (ativoToggle) {
+    ativoToggle.disabled = false;
+    ativoToggle.addEventListener('change', filtrarProdutos);
+  }
+});
+
+// Filtro de produtos por grupo e ativo
+function filtrarProdutos() {
+  const grupo = (document.getElementById('count-group')?.value || '').trim().toLowerCase();
+  const soAtivos = document.getElementById('count-products-status-toggle')?.checked;
+  document.querySelectorAll('.count-product-item').forEach(item => {
+    let show = true;
+    if (soAtivos && item.classList.contains('is-inactive')) show = false;
+    if (grupo) {
+      const desc = item.querySelector('.count-product-desc')?.textContent?.toLowerCase() || '';
+      show = show && desc.includes(grupo);
+    }
+    item.style.display = show ? '' : 'none';
+  });
+}
+
+// Data da contagem predefinida hoje
+document.addEventListener('DOMContentLoaded', () => {
+  const dateInput = document.getElementById('count-date');
+  if (dateInput && !dateInput.value) {
+    const today = new Date();
+    dateInput.value = today.toISOString().slice(0, 10);
+  }
 });
 
 // Botão Ativo funcional
