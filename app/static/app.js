@@ -145,29 +145,10 @@ const productImportFeedback = document.getElementById('product-import-feedback')
 const productsList = document.getElementById('products-list');
 const productsTotal = document.getElementById('products-total');
 const countAuditDate = document.getElementById('count-audit-date');
-// Carrega datas de referência disponíveis para análise de estoque
-async function loadCountAuditDates() {
-  if (!countAuditDate) return;
-  countAuditDate.innerHTML = '<option>Carregando datas...</option>';
-  try {
-    const resp = await apiFetch('/import-dates', { headers: getAuthHeaders() });
-    if (!resp.ok) throw new Error('Erro ao buscar datas');
-    const dates = await resp.json();
-    if (!Array.isArray(dates) || !dates.length) {
-      countAuditDate.innerHTML = '<option>Nenhuma data encontrada</option>';
-      return;
-    }
-    countAuditDate.innerHTML = dates.map(d => `<option value="${d}">${formatDateBR(d)}</option>`).join('');
-    // Seleciona hoje por padrão, se existir
-    const today = new Date().toISOString().slice(0, 10);
-    if (dates.includes(today)) countAuditDate.value = today;
-  } catch {
-    countAuditDate.innerHTML = '<option>Erro ao carregar datas</option>';
-  }
-}
-// Inicializa o seletor de datas ao abrir o painel de análise
+// Inicializa campo de data para hoje por padrão
 if (countAuditDate) {
-  loadCountAuditDates();
+  const today = new Date().toISOString().slice(0, 10);
+  countAuditDate.value = today;
 }
 const btnCountAuditRefresh = document.getElementById('btn-count-audit-refresh');
 const countAuditOnlyDiff = document.getElementById('count-audit-only-diff');
@@ -175,7 +156,7 @@ const countAuditFeedback = document.getElementById('count-audit-feedback');
 const countAuditSummary = document.getElementById('count-audit-summary');
 const countAuditList = document.getElementById('count-audit-list');
 const countAuditTotal = document.getElementById('count-audit-total');
-const countAuditImport = document.getElementById('count-audit-date');
+const countAuditImport = countAuditDate;
 const roleDisplay = document.getElementById('role-display');
 const moduleNav = document.getElementById('module-nav');
 const topbarPageTitle = document.querySelector('.topbar .topbar-title');
@@ -1849,34 +1830,8 @@ function setCountAuditFeedback(message, isError = false) {
 }
 
 async function loadCountAuditImports() {
-  if (!countAuditImport) return [];
-  const response = await apiFetch('/inventory/imports', {
-    headers: getAuthHeaders(),
-  });
-  if (handleUnauthorizedResponse(response)) return [];
-  if (!response.ok) {
-    throw new Error('Falha ao carregar importações de estoque');
-  }
-  const data = await response.json();
-  const imports = Array.isArray(data) ? data : [];
-
-  countAuditImport.innerHTML = '';
-  if (!imports.length) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = 'Nenhuma importação disponível';
-    countAuditImport.appendChild(opt);
-    return [];
-  }
-
-  for (const row of imports) {
-    const opt = document.createElement('option');
-    opt.value = String(row.id || '');
-    opt.textContent = `${row.reference_date || '-'} - ${row.file_name || 'arquivo'}`;
-    countAuditImport.appendChild(opt);
-  }
-
-  return imports;
+  // Não faz mais nada: campo de data é livre
+  return [];
 }
 
 function renderCountAuditSummary(summary) {
@@ -2016,14 +1971,10 @@ async function loadCountAuditAnalysis() {
   if (!token) return;
 
   try {
-    if (!countAuditImport.options.length) {
-      await loadCountAuditImports();
-    }
-
-    const importId = (countAuditImport.value || '').trim();
+    const referenceDate = (countAuditImport.value || '').trim();
     const onlyDiff = countAuditOnlyDiff ? countAuditOnlyDiff.checked : true;
     const params = new URLSearchParams();
-    if (importId) params.set('import_id', importId);
+    if (referenceDate) params.set('reference_date', referenceDate);
     params.set('only_diff', onlyDiff ? 'true' : 'false');
     params.set('limit', '1000');
 
@@ -2041,11 +1992,8 @@ async function loadCountAuditAnalysis() {
     const info = payload.import;
     if (info) {
       setCountAuditFeedback(`Base de saldo: ${info.reference_date || '-'} (${info.file_name || 'arquivo'})`);
-      if (countAuditImport && info.id && !countAuditImport.value) {
-        countAuditImport.value = String(info.id);
-      }
     } else {
-      setCountAuditFeedback('Nenhuma importação TXT encontrada para comparar.', true);
+      setCountAuditFeedback('Nenhuma importação TXT encontrada para esta data.', true);
     }
 
     renderCountAuditSummary(payload.summary || {});
