@@ -490,39 +490,41 @@
 
           <!-- Sub: Análise de Contagem -->
           <div id="sub-count-audit" class="sub-section">
-            <section class="card">
-              <div class="card-head">
-                <h2>Análise de Contagem de Estoque</h2>
-                <span class="chip">Auditoria</span>
-              </div>
-              <p class="muted">
-                Comparação entre o estoque importado por TXT e a contagem sincronizada em tempo real.
-              </p>
-              <div class="search-row" style="margin-bottom: 12px;">
-                <select id="count-audit-import" class="search-input" style="max-width: 420px;"></select>
-                <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark">Atualizar análise</button>
-              </div>
-              <label class="status-switch" for="count-audit-only-diff" title="Quando marcado, mostra apenas itens com diferença.">
-                <span class="status-switch-label">Todos</span>
-                <input id="count-audit-only-diff" type="checkbox" checked />
-                <span class="status-switch-slider" aria-hidden="true"></span>
-                <span class="status-switch-label">Só divergências</span>
-              </label>
-              <div id="count-audit-feedback" class="field-feedback" aria-live="polite"></div>
-            </section>
-            <section class="card" style="margin-top:16px">
-              <div class="card-head">
-                <h3>Resumo da Análise</h3>
-              </div>
-              <ul id="count-audit-summary" class="list">
-                <li><span>Total importado</span><strong>0</strong></li>
-                <li><span>Total contado</span><strong>0</strong></li>
-                <li><span>Sem diferença</span><strong>0</strong></li>
-                <li><span>Divergentes</span><strong>0</strong></li>
-                <li><span>Sem contagem</span><strong>0</strong></li>
-                <li><span>Só na contagem</span><strong>0</strong></li>
-              </ul>
-            </section>
+            <div class="count-audit-top-row">
+              <section class="card count-audit-controls-card">
+                <div class="card-head">
+                  <h2>Análise de Contagem de Estoque</h2>
+                  <span class="chip">Auditoria</span>
+                </div>
+                <p class="muted">
+                  Comparação entre o estoque importado por TXT e a contagem sincronizada em tempo real.
+                </p>
+                <div class="search-row" style="margin-bottom: 12px;">
+                  <select id="count-audit-import" class="search-input" style="max-width: 420px;"></select>
+                  <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark">Atualizar análise</button>
+                </div>
+                <label class="status-switch" for="count-audit-only-diff" title="Quando marcado, mostra apenas itens com diferença.">
+                  <span class="status-switch-label">Todos</span>
+                  <input id="count-audit-only-diff" type="checkbox" checked />
+                  <span class="status-switch-slider" aria-hidden="true"></span>
+                  <span class="status-switch-label">Só divergências</span>
+                </label>
+                <div id="count-audit-feedback" class="field-feedback" aria-live="polite"></div>
+              </section>
+              <section class="card count-audit-summary-card">
+                <div class="card-head">
+                  <h3>Resumo da Análise</h3>
+                </div>
+                <ul id="count-audit-summary" class="list">
+                  <li><span>Total importado</span><strong>0</strong></li>
+                  <li><span>Total contado</span><strong>0</strong></li>
+                  <li><span>Sem diferença</span><strong>0</strong></li>
+                  <li><span>Divergentes</span><strong>0</strong></li>
+                  <li><span>Sem contagem</span><strong>0</strong></li>
+                  <li><span>Só na contagem</span><strong>0</strong></li>
+                </ul>
+              </section>
+            </div>
             <section class="card" style="margin-top:16px">
               <div class="card-head">
                 <h3>Diferenças por Produto</h3>

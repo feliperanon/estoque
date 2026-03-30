@@ -1142,6 +1142,26 @@ body.modal-open::before {
   border-color: #e3c86a;
 }
 
+/* Análise de Contagem — cards do topo lado a lado */
+.count-audit-top-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: start;
+}
+
+.count-audit-controls-card,
+.count-audit-summary-card {
+  height: 100%;
+}
+
+@media (max-width: 700px) {
+  .count-audit-top-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .actions-row {
   display: flex;
   flex-wrap: wrap;

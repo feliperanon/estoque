@@ -1,5 +1,5 @@
 import hashlib
-from datetime import datetime, date, timezone
+from datetime import datetime, timezone
 import re
 
 from fastapi import APIRouter, Depends, Query
@@ -116,16 +116,14 @@ def stock_analysis(
         if not imported_by_code[code]["descricao"] and item.descricao:
             imported_by_code[code]["descricao"] = item.descricao
 
-    # Filtra eventos de contagem a partir do início do dia da reference_date (não do momento do upload).
-    # Isso garante que contagens feitas no mesmo dia do inventário, mas antes do upload, sejam incluídas.
-    ref_start = datetime.combine(current_import.reference_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-
+    # Busca todos os eventos de contagem sem filtro de data.
+    # O usuário seleciona qual importação comparar; restringir por data
+    # exclui contagens feitas antes do upload do TXT (problema recorrente).
     count_logs = list(
         session.exec(
             select(ChangeLog).where(
                 ChangeLog.entity_name == "stock_count",
                 ChangeLog.action == "count_event",
-                ChangeLog.changed_at >= ref_start,
             )
         ).all()
     )
