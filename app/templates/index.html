@@ -178,18 +178,27 @@
           <!-- Sub: Contagem de Estoque -->
           <div id="sub-count" class="sub-section">
             <div class="count-filters-bar">
-              <div class="count-filters-row">
-                <div class="count-filter-col">
+              <div class="count-filters-row count-filters-row--horizontal">
+                <div class="count-filter-col count-filter-col--produto">
                   <label class="count-filter-label" for="item-code">Produto</label>
                   <input id="item-code" name="item-code" type="text" class="count-filter-input" placeholder="" autocomplete="off" />
                 </div>
-                <div class="count-filter-col">
+                <div class="count-filter-col count-filter-col--grupo">
                   <label class="count-filter-label" for="count-group">Grupo</label>
                   <div id="count-group-chips" class="count-group-chips"></div>
                 </div>
-                <div class="count-filter-col">
+                <div class="count-filter-col count-filter-col--data">
                   <label class="count-filter-label" for="count-date">Data da Contagem</label>
                   <input id="count-date" name="count-date" type="date" class="count-filter-input count-filter-date" />
+                </div>
+                <div class="count-products-toolbar count-products-toolbar--inline">
+                  <span id="count-products-total" class="chip">0</span>
+                  <label class="status-switch" for="count-products-status-toggle" title="Marcado: todos os cadastros (padrão para inventário). Desmarcado: apenas status ativo.">
+                    <span class="status-switch-label">Ativo</span>
+                    <input id="count-products-status-toggle" type="checkbox" checked disabled>
+                    <span class="status-switch-slider" aria-hidden="true"></span>
+                    <span class="status-switch-label">Todos</span>
+                  </label>
                 </div>
               </div>
             </div>
