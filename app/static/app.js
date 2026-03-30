@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function filtrarProdutos() {
   const grupo = (document.getElementById('count-group')?.value || '').trim().toLowerCase();
   const soAtivos = document.getElementById('count-products-status-toggle')?.checked;
+  let totalVisiveis = 0;
   document.querySelectorAll('.count-product-item').forEach(item => {
     let show = true;
     // Filtro de ativos: se marcado, só mostra ativos
@@ -67,7 +68,13 @@ function filtrarProdutos() {
       show = show && desc.includes(grupo);
     }
     item.style.display = show ? '' : 'none';
+    if (show) totalVisiveis++;
   });
+  // Atualiza o total exibido
+  const totalSpan = document.getElementById('count-products-total');
+  if (totalSpan) totalSpan.textContent = totalVisiveis;
+  // Atualiza barra de progresso após filtro
+  updateCountProgress(Array.from(document.querySelectorAll('.count-product-item')).filter(item => item.style.display !== 'none'));
   // Atualiza chips de grupo selecionado
   const chipsContainer = document.getElementById('count-group-chips');
   if (chipsContainer) {
