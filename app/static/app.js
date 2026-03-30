@@ -59,13 +59,26 @@ function filtrarProdutos() {
   const soAtivos = document.getElementById('count-products-status-toggle')?.checked;
   document.querySelectorAll('.count-product-item').forEach(item => {
     let show = true;
+    // Filtro de ativos: se marcado, só mostra ativos
     if (soAtivos && item.classList.contains('is-inactive')) show = false;
+    // Filtro de grupo: se preenchido, só mostra se o grupo bate
     if (grupo) {
       const desc = item.querySelector('.count-product-desc')?.textContent?.toLowerCase() || '';
       show = show && desc.includes(grupo);
     }
     item.style.display = show ? '' : 'none';
   });
+  // Atualiza chips de grupo selecionado
+  const chipsContainer = document.getElementById('count-group-chips');
+  if (chipsContainer) {
+    chipsContainer.innerHTML = '';
+    if (grupo) {
+      const chip = document.createElement('span');
+      chip.className = 'count-group-chip';
+      chip.textContent = grupo;
+      chipsContainer.appendChild(chip);
+    }
+  }
 }
 
 // Data da contagem predefinida hoje

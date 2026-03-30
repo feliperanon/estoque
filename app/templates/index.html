@@ -177,19 +177,19 @@
 
           <!-- Sub: Contagem de Estoque -->
           <div id="sub-count" class="sub-section">
-            <div class="count-filters-bar">
-              <div class="count-filters-row count-filters-row--horizontal count-filters-row--print">
+            <div class="count-filters-bar" style="position:sticky;top:0;z-index:100;">
+              <div class="count-filters-row count-filters-row--print">
                 <div class="count-filter-col count-filter-col--produto">
                   <label class="count-filter-label count-filter-label--bold" for="item-code">Produto</label>
-                  <input id="item-code" name="item-code" type="text" class="count-filter-input" placeholder="" autocomplete="off" />
+                  <input id="item-code" name="item-code" type="text" class="count-filter-input" placeholder="" autocomplete="off" aria-label="Produto" />
                 </div>
                 <div class="count-filter-col count-filter-col--grupo">
                   <label class="count-filter-label count-filter-label--bold" for="count-group">Grupo</label>
-                  <input id="count-group" name="count-group" type="text" class="count-filter-input" placeholder="" autocomplete="off" />
+                  <input id="count-group" name="count-group" type="text" class="count-filter-input" placeholder="" autocomplete="off" aria-label="Grupo" />
                 </div>
                 <div class="count-filter-col count-filter-col--data">
                   <label class="count-filter-label count-filter-label--bold" for="count-date">Data da Contagem</label>
-                  <input id="count-date" name="count-date" type="date" class="count-filter-input count-filter-date" />
+                  <input id="count-date" name="count-date" type="date" class="count-filter-input count-filter-date" aria-label="Data da Contagem" />
                 </div>
               </div>
             </div>
