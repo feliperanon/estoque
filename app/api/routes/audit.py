@@ -1,8 +1,9 @@
 import hashlib
 from datetime import datetime, timezone
 import re
+import logging
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
@@ -11,6 +12,7 @@ from app.db.session import get_session
 from app.models import ChangeLog, InventoryImport, InventoryImportItem, User
 
 router = APIRouter(prefix="/audit", tags=["audit"])
+logger = logging.getLogger(__name__)
 
 
 class CountEventInput(BaseModel):
@@ -234,38 +236,48 @@ def ingest_count_events(
     user: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> dict:
     synced_ids: list[str] = []
+    max_pg_int = 2_147_483_647
 
-    for event in payload.events:
-        event_hash = hashlib.sha256(event.client_event_id.encode("utf-8")).hexdigest()
-        entity_id = int(event_hash[:8], 16)
+    try:
+        for event in payload.events:
+            event_hash = hashlib.sha256(event.client_event_id.encode("utf-8")).hexdigest()
+            # Mantem entity_id dentro do limite do INTEGER do PostgreSQL.
+            entity_id = (int(event_hash[:16], 16) % max_pg_int) + 1
 
-        existing = session.exec(
-            select(ChangeLog).where(
-                ChangeLog.entity_name == "stock_count",
-                ChangeLog.action == "count_event",
-                ChangeLog.entity_id == entity_id,
+            existing = session.exec(
+                select(ChangeLog).where(
+                    ChangeLog.entity_name == "stock_count",
+                    ChangeLog.action == "count_event",
+                    ChangeLog.entity_id == entity_id,
+                )
+            ).first()
+            if existing:
+                synced_ids.append(event.client_event_id)
+                continue
+
+            log = ChangeLog(
+                entity_name="stock_count",
+                entity_id=entity_id,
+                action="count_event",
+                actor=user.username,
+                changed_at=datetime.now(timezone.utc),
+                payload={
+                    "client_event_id": event.client_event_id,
+                    "item_code": event.item_code,
+                    "quantity": event.quantity,
+                    "observed_at": event.observed_at,
+                    "device_name": event.device_name,
+                },
             )
-        ).first()
-        if existing:
+            session.add(log)
             synced_ids.append(event.client_event_id)
-            continue
 
-        log = ChangeLog(
-            entity_name="stock_count",
-            entity_id=entity_id,
-            action="count_event",
-            actor=user.username,
-            changed_at=datetime.now(timezone.utc),
-            payload={
-                "client_event_id": event.client_event_id,
-                "item_code": event.item_code,
-                "quantity": event.quantity,
-                "observed_at": event.observed_at,
-                "device_name": event.device_name,
-            },
+        session.commit()
+        return {"received": len(payload.events), "synced": len(synced_ids), "synced_ids": synced_ids}
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Falha ao sincronizar eventos de contagem")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Falha ao sincronizar contagem: {exc}",
         )
-        session.add(log)
-        synced_ids.append(event.client_event_id)
-
-    session.commit()
-    return {"received": len(payload.events), "synced": len(synced_ids), "synced_ids": synced_ids}
