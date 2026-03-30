@@ -1156,9 +1156,217 @@ body.modal-open::before {
   height: 100%;
 }
 
+.count-audit-summary-card .list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.count-audit-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbf8 100%);
+}
+
+.count-audit-summary-item.is-neutral {
+  background: linear-gradient(180deg, #f7faf7 0%, #edf5ef 100%);
+}
+
+.count-audit-summary-item.is-info {
+  background: linear-gradient(180deg, #f2f8ff 0%, #e3f0ff 100%);
+}
+
+.count-audit-summary-item.is-ok {
+  background: linear-gradient(180deg, #eefaf0 0%, #daf2df 100%);
+}
+
+.count-audit-summary-item.is-warn {
+  background: linear-gradient(180deg, #fff7eb 0%, #ffe9c8 100%);
+}
+
+.count-audit-summary-item.is-danger {
+  background: linear-gradient(180deg, #fff3f3 0%, #ffdede 100%);
+}
+
+.count-audit-summary-item.is-purple {
+  background: linear-gradient(180deg, #f7f2ff 0%, #e9dcff 100%);
+}
+
+.count-audit-summary-label {
+  font-size: 0.82rem;
+  color: #466050;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.count-audit-summary-value {
+  font-size: 1.55rem;
+  line-height: 1;
+  color: #153521;
+}
+
+.count-audit-empty {
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px dashed #c8d5c9;
+  background: #f8fbf8;
+}
+
+.count-audit-item {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid #dbe7dc;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fcf9 100%);
+  box-shadow: 0 10px 24px rgba(21, 53, 33, 0.05);
+}
+
+.count-audit-item.is-warn {
+  border-color: #f2c676;
+  background: linear-gradient(180deg, #fffdf7 0%, #fff5df 100%);
+}
+
+.count-audit-item.is-danger {
+  border-color: #efb0b0;
+  background: linear-gradient(180deg, #fff9f9 0%, #ffeded 100%);
+}
+
+.count-audit-item.is-purple {
+  border-color: #cdb5f6;
+  background: linear-gradient(180deg, #fcfaff 0%, #f1ebff 100%);
+}
+
+.count-audit-item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.count-audit-item-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.count-audit-item-code {
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e8f0eb;
+  color: #2b5d3f;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.count-audit-item-desc {
+  font-size: 1rem;
+  line-height: 1.35;
+  color: #163121;
+}
+
+.count-audit-badge {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.count-audit-badge.is-ok {
+  background: #e2f5e7;
+  color: #166534;
+}
+
+.count-audit-badge.is-warn {
+  background: #ffefcf;
+  color: #9a5a00;
+}
+
+.count-audit-badge.is-danger {
+  background: #ffe1e1;
+  color: #b42318;
+}
+
+.count-audit-badge.is-purple {
+  background: #eee4ff;
+  color: #6f42c1;
+}
+
+.count-audit-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.count-audit-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(139, 160, 144, 0.26);
+}
+
+.count-audit-balance {
+  background: linear-gradient(180deg, #f7fbf7 0%, #edf5ef 100%);
+}
+
+.count-audit-counted {
+  background: linear-gradient(180deg, #eef8ff 0%, #dfeeff 100%);
+}
+
+.count-audit-diff.is-warn {
+  background: linear-gradient(180deg, #fff8ee 0%, #ffebcd 100%);
+}
+
+.count-audit-diff.is-danger {
+  background: linear-gradient(180deg, #fff5f5 0%, #ffe3e3 100%);
+}
+
+.count-audit-diff.is-purple {
+  background: linear-gradient(180deg, #f8f4ff 0%, #ece2ff 100%);
+}
+
+.count-audit-metric-label {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 800;
+  color: #486252;
+}
+
+.count-audit-metric-value {
+  font-size: 1rem;
+  line-height: 1.3;
+  color: #173322;
+}
+
 @media (max-width: 700px) {
   .count-audit-top-row {
     grid-template-columns: 1fr;
+  }
+
+  .count-audit-summary-card .list,
+  .count-audit-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .count-audit-item-head {
+    flex-direction: column;
   }
 }
 

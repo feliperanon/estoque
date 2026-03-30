@@ -1822,16 +1822,19 @@ function renderCountAuditSummary(summary) {
   const s = summary || {};
   countAuditSummary.innerHTML = '';
   const rows = [
-    ['Total importado', Number(s.total_import_items) || 0],
-    ['Total contado', Number(s.counted_items) || 0],
-    ['Sem diferença', Number(s.equal_items) || 0],
-    ['Divergentes', Number(s.divergent_items) || 0],
-    ['Sem contagem', Number(s.missing_in_count) || 0],
-    ['Só na contagem', Number(s.extra_in_count) || 0],
+    ['Itens com saldo', Number(s.total_import_items) || 0, 'is-neutral'],
+    ['Itens com contagem', Number(s.counted_items) || 0, 'is-info'],
+    ['Conferidos', Number(s.equal_items) || 0, 'is-ok'],
+    ['Divergências', Number(s.divergent_items) || 0, 'is-warn'],
+    ['Sem contagem', Number(s.missing_in_count) || 0, 'is-danger'],
+    ['Só na contagem', Number(s.extra_in_count) || 0, 'is-purple'],
   ];
-  for (const [label, value] of rows) {
+  for (const [label, value, tone] of rows) {
     const li = document.createElement('li');
-    li.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+    li.className = `count-audit-summary-item ${tone}`;
+    li.innerHTML =
+      `<span class="count-audit-summary-label">${label}</span>` +
+      `<strong class="count-audit-summary-value">${formatIntegerBR(value)}</strong>`;
     countAuditSummary.appendChild(li);
   }
 }
@@ -1842,27 +1845,52 @@ function renderCountAuditRows(rows) {
   countAuditList.innerHTML = '';
   countAuditTotal.textContent = String(list.length);
   if (!list.length) {
-    countAuditList.innerHTML = '<li><span>Nenhuma divergência encontrada para os filtros atuais.</span><strong>OK</strong></li>';
+    countAuditList.innerHTML = '<li class="count-audit-empty"><span>Nenhuma divergência encontrada para os filtros atuais.</span><strong>OK</strong></li>';
     return;
   }
 
   for (const row of list) {
     const li = document.createElement('li');
+    let statusClass = 'is-ok';
     let statusLabel = 'OK';
-    if (row.status === 'missing_in_count') statusLabel = 'SEM CONTAGEM';
-    else if (row.status === 'extra_in_count') statusLabel = 'SO CONTAGEM';
-    else if (row.status === 'divergent') statusLabel = 'DIVERGENTE';
+    if (row.status === 'missing_in_count') {
+      statusLabel = 'SEM CONTAGEM';
+      statusClass = 'is-danger';
+    } else if (row.status === 'extra_in_count') {
+      statusLabel = 'SO NA CONTAGEM';
+      statusClass = 'is-purple';
+    } else if (row.status === 'divergent') {
+      statusLabel = 'CONTAGEM';
+      statusClass = 'is-warn';
+    }
 
     const diffCx = Number(row.difference_caixa) || 0;
     const diffUn = Number(row.difference_unidade) || 0;
-    const diffCxText = diffCx > 0 ? `+${diffCx}` : `${diffCx}`;
-    const diffUnText = diffUn > 0 ? `+${diffUn}` : `${diffUn}`;
+    const diffCxText = diffCx > 0 ? `+${formatIntegerBR(diffCx)}` : `${formatIntegerBR(diffCx)}`;
+    const diffUnText = diffUn > 0 ? `+${formatIntegerBR(diffUn)}` : `${formatIntegerBR(diffUn)}`;
+    li.className = `count-audit-item ${statusClass}`;
     li.innerHTML =
-      `<span><strong>${row.cod_produto || '-'}</strong> - ${(row.descricao || 'Sem descrição')}</span>` +
-      `<span class="muted">TXT CX: ${Number(row.import_caixa) || 0} | TXT UN: ${Number(row.import_unidade) || 0}</span>` +
-      `<span class="muted">Contado CX: ${Number(row.counted_caixa) || 0} | Contado UN: ${Number(row.counted_unidade) || 0}</span>` +
-      `<span class="muted">Dif CX: ${diffCxText} | Dif UN: ${diffUnText}</span>` +
-      `<strong>${statusLabel}</strong>`;
+      `<div class="count-audit-item-head">` +
+        `<div class="count-audit-item-title">` +
+          `<span class="count-audit-item-code">${row.cod_produto || '-'}</span>` +
+          `<strong class="count-audit-item-desc">${row.descricao || 'Sem descrição'}</strong>` +
+        `</div>` +
+        `<span class="count-audit-badge ${statusClass}">${statusLabel}</span>` +
+      `</div>` +
+      `<div class="count-audit-metrics">` +
+        `<div class="count-audit-metric count-audit-balance">` +
+          `<span class="count-audit-metric-label">Saldo</span>` +
+          `<strong class="count-audit-metric-value">CX ${formatIntegerBR(Number(row.import_caixa) || 0)} | UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong>` +
+        `</div>` +
+        `<div class="count-audit-metric count-audit-counted">` +
+          `<span class="count-audit-metric-label">Contagem</span>` +
+          `<strong class="count-audit-metric-value">CX ${formatIntegerBR(Number(row.counted_caixa) || 0)} | UN ${formatIntegerBR(Number(row.counted_unidade) || 0)}</strong>` +
+        `</div>` +
+        `<div class="count-audit-metric count-audit-diff ${statusClass}">` +
+          `<span class="count-audit-metric-label">Diferença</span>` +
+          `<strong class="count-audit-metric-value">CX ${diffCxText} | UN ${diffUnText}</strong>` +
+        `</div>` +
+      `</div>`;
     countAuditList.appendChild(li);
   }
 }
@@ -1897,7 +1925,7 @@ async function loadCountAuditAnalysis() {
     const payload = await response.json();
     const info = payload.import;
     if (info) {
-      setCountAuditFeedback(`Base TXT: ${info.reference_date || '-'} (${info.file_name || 'arquivo'})`);
+      setCountAuditFeedback(`Base de saldo: ${info.reference_date || '-'} (${info.file_name || 'arquivo'})`);
       if (countAuditImport && info.id && !countAuditImport.value) {
         countAuditImport.value = String(info.id);
       }
