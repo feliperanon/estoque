@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class CountEventInput(BaseModel):
     client_event_id: str = Field(min_length=8, max_length=100)
     item_code: str = Field(min_length=1, max_length=120)
-    quantity: int = Field(ge=1, le=500000)
+    quantity: int = Field(ge=-500000, le=500000)
     observed_at: str
     device_name: str | None = Field(default=None, max_length=120)
 
@@ -240,6 +240,9 @@ def ingest_count_events(
 
     try:
         for event in payload.events:
+            if event.quantity == 0:
+                # Ignora eventos neutros para evitar ruido e validacao desnecessaria.
+                continue
             event_hash = hashlib.sha256(event.client_event_id.encode("utf-8")).hexdigest()
             # Mantem entity_id dentro do limite do INTEGER do PostgreSQL.
             entity_id = (int(event_hash[:16], 16) % max_pg_int) + 1
