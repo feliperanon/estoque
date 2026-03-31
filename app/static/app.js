@@ -214,7 +214,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const viewLogin = document.getElementById('view-login');
   if (viewLogin) viewLogin.style.display = 'none';
 });
-});
 /**
  * app.js — Controle de SPA do sistema Estoque.
  * Gerencia alternância entre tela de login e dashboard,
