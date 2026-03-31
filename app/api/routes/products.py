@@ -10,7 +10,7 @@ from sqlalchemy import String, and_, cast, func, or_, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
-from app.api.deps import get_current_user, require_cadastro_access, require_roles
+from app.api.deps import require_cadastro_access, require_roles
 from app.db.session import get_session
 from app.models import Product, ProductHistory, User
 from app.schemas.products import ProductCreate, ProductHistoryRead, ProductImportPayload, ProductRead, ProductUpdate
@@ -710,7 +710,7 @@ def update_product(
     product_id: int,
     payload: ProductUpdate,
     session: Session = Depends(get_session),
-    user: User = Depends(require_roles("administrativo", "admin")),
+    user: User = Depends(require_cadastro_access),
 ) -> Product:
     product = session.get(Product, product_id)
     if not product:
