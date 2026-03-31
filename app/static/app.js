@@ -2653,8 +2653,13 @@ async function uploadProductsExcel() {
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       const detail = String(err.detail || 'Falha ao importar arquivo.');
-      if (detail.toLowerCase().includes('uq_product_sku') || detail.toLowerCase().includes('cod_grup_sku')) {
-        setProductImportFeedback('Falha ao importar: banco ainda com regra legada de SKU único. Aguarde o deploy e tente novamente.', true);
+      const dlow = detail.toLowerCase();
+      if (dlow.includes('uq_product_sku')) {
+        setProductImportFeedback(
+          'Falha ao importar: ainda existe restrição única antiga em SKU no banco. Rode a migração ou tente de novo (o servidor tenta remover automaticamente). Detalhe: ' +
+            detail,
+          true,
+        );
       } else {
         setProductImportFeedback(detail, true);
       }
@@ -2693,7 +2698,7 @@ async function uploadProductsExcel() {
 
     if (ignored > 0) {
       msg +=
-        ' Linhas ignoradas: confira codigo, descricao e SKU/EAN (cabecalhos e celulas vazias).';
+        ' Linhas ignoradas: confira codigo do produto e nome/descricao (cabecalhos reconhecidos e celulas vazias). SKU e opcional.';
     }
 
     if (failed > 0) {

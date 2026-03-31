@@ -202,7 +202,8 @@ HEADER_ALIASES = {
     "prioridade": "grup_prioridade",
 }
 
-REQUIRED_FIELDS = {"cod_produto", "cod_grup_descricao", "cod_grup_sku"}
+# Importação por planilha: obrigatório código do produto + nome/descrição. SKU é opcional (espelha o código se vazio).
+REQUIRED_FIELDS = {"cod_produto", "cod_grup_descricao"}
 
 _ATIVO_STATUS_SYNONYMS = frozenset(
     {
@@ -272,7 +273,7 @@ def _catalog_status_is_ativo_clause():
 
 
 def _fill_import_row_defaults(row_data: dict[str, str | None]) -> None:
-    """Preenche codigo/SKU/descricao quando a planilha BI usa menos colunas."""
+    """Preenche codigo/SKU/descricao quando a planilha traz só codigo+nome ou colunas BI parciais."""
     cod = (row_data.get("cod_produto") or "").strip()
     sku = (row_data.get("cod_grup_sku") or "").strip()
     desc = (row_data.get("cod_grup_descricao") or "").strip()
@@ -283,7 +284,7 @@ def _fill_import_row_defaults(row_data: dict[str, str | None]) -> None:
         row_data["cod_produto"] = sku
         cod = sku
     if not desc:
-        row_data["cod_grup_descricao"] = cod or sku or None
+        row_data["cod_grup_descricao"] = (cod or sku or "").strip() or None
 
 
 def _map_headers(raw_headers: tuple) -> tuple[list[str | None], int]:
@@ -500,21 +501,17 @@ async def import_products_excel(
             if "status" in row_data and row_data.get("status") is not None:
                 row_data["status"] = _normalize_import_status(row_data["status"])
 
-            if any(not row_data.get(field) for field in REQUIRED_FIELDS):
-                ignored += 1
-                continue
-
-            sku = (row_data.get("cod_grup_sku") or "").strip()
             cod_produto = (row_data.get("cod_produto") or "").strip()
-            if not sku:
-                ignored += 1
-                continue
-            if not cod_produto:
+            descricao = (row_data.get("cod_grup_descricao") or "").strip()
+            if not cod_produto or not descricao:
                 ignored += 1
                 continue
 
-            row_data["cod_grup_sku"] = sku
             row_data["cod_produto"] = cod_produto
+            row_data["cod_grup_descricao"] = descricao
+            # SKU não é chave de negócio: se a planilha não tiver coluna SKU, usa o mesmo código do produto.
+            sku = (row_data.get("cod_grup_sku") or "").strip() or cod_produto
+            row_data["cod_grup_sku"] = sku
 
             try:
                 # Mesmo codigo de produto no arquivo: uma unica linha de cadastro (atualiza a staged).
@@ -547,6 +544,7 @@ async def import_products_excel(
                 continue
 
         try:
+            _drop_legacy_sku_unique_constraint(session)
             session.flush()
         except Exception as exc:
             session.rollback()
