@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Filtro de produtos por grupo e ativo
 function filtrarProdutos() {
-  const grupo = (document.getElementById('count-group')?.value || '').trim();
+  const grupo = (document.getElementById('count-group')?.value || '').trim().toLowerCase();
   let totalVisiveis = 0;
   const visiveis = [];
   document.querySelectorAll('.count-product-item').forEach(item => {
@@ -59,7 +59,7 @@ function filtrarProdutos() {
     // Filtro de grupo: se preenchido, só mostra se o grupo bate
     if (grupo) {
       const desc = item.querySelector('.count-product-desc')?.textContent?.toLowerCase() || '';
-      show = show && desc.includes(grupo.toLowerCase());
+      show = show && desc.includes(grupo);
     }
     item.style.display = show ? '' : 'none';
     if (show) {
@@ -75,40 +75,15 @@ function filtrarProdutos() {
     const codeEl = item.querySelector('.count-product-code');
     return { cod_produto: codeEl ? codeEl.textContent : '' };
   }));
-
-  // CHIP de grupo selecionado
-  const chipContainer = document.getElementById('count-group-chip-container');
-  if (chipContainer) {
-    chipContainer.innerHTML = '';
+  // Atualiza chips de grupo selecionado
+  const chipsContainer = document.getElementById('count-group-chips');
+  if (chipsContainer) {
+    chipsContainer.innerHTML = '';
     if (grupo) {
       const chip = document.createElement('span');
       chip.className = 'count-group-chip';
       chip.textContent = grupo;
-      chip.style.background = '#e8f0eb';
-      chip.style.color = '#176d8c';
-      chip.style.fontWeight = '600';
-      chip.style.padding = '2px 10px 2px 10px';
-      chip.style.borderRadius = '16px';
-      chip.style.marginRight = '6px';
-      chip.style.display = 'inline-flex';
-      chip.style.alignItems = 'center';
-      // Botão X
-      const btn = document.createElement('button');
-      btn.textContent = '×';
-      btn.setAttribute('aria-label', 'Limpar grupo');
-      btn.style.background = 'none';
-      btn.style.border = 'none';
-      btn.style.color = '#176d8c';
-      btn.style.fontWeight = 'bold';
-      btn.style.fontSize = '1.1em';
-      btn.style.marginLeft = '6px';
-      btn.style.cursor = 'pointer';
-      btn.onclick = function() {
-        document.getElementById('count-group').value = '';
-        filtrarProdutos();
-      };
-      chip.appendChild(btn);
-      chipContainer.appendChild(chip);
+      chipsContainer.appendChild(chip);
     }
   }
 }
@@ -1436,15 +1411,21 @@ async function loadCountProducts() {
 
   try {
     let products = await fetchCatalog(statusValue);
+    console.log('Produtos retornados da API:', products);
     if (products === null) {
       renderCountProducts([]);
       setFeedback('Nao foi possivel carregar a lista de produtos para contagem.', true);
       return;
     }
-
+    if (!Array.isArray(products) || products.length === 0) {
+      renderCountProducts([]);
+      setFeedback('Nenhum produto ativo encontrado. Verifique se há produtos cadastrados como ATIVO.', true);
+      return;
+    }
     countProductsCache = products;
     renderCountProducts(countProductsCache);
-  } catch {
+  } catch (e) {
+    console.error('Erro ao carregar produtos:', e);
     renderCountProducts([]);
     setFeedback('Sem conexao para carregar produtos.', true);
   }
