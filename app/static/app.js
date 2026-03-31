@@ -1291,6 +1291,7 @@ function renderCountProducts(products) {
     const vUn = Math.max(0, Math.round(Number(netUn) || 0));
     li.innerHTML = `
       <div class="count-product-label">
+        <span class="count-product-desc">${desc}</span>
         <div class="count-product-label-top">
           <span class="count-product-code">${cod}</span>
           <div class="count-product-readout" aria-live="polite" title="Totais contados neste aparelho (soma dos lançamentos)">
@@ -1301,7 +1302,6 @@ function renderCountProducts(products) {
             </span>
           </div>
         </div>
-        <span class="count-product-desc">${desc}</span>
       </div>
       <div class="count-product-controls">
         <div class="count-control-row">

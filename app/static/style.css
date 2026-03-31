@@ -2605,19 +2605,23 @@ form#count-form.count-form {
   outline-offset: 2px;
 }
 
+/* ── Contagem: item operacional (mobile-first, hierarquia clara) ── */
 .count-product-item {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 14px;
+  padding: 12px 14px;
   cursor: pointer;
-  border-radius: 8px;
-  transition: background 0.1s;
+  border-radius: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f8faf8;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 .count-product-item:hover {
-  background: #eef5ef;
+  background: #f1f5f2;
+  border-color: rgba(47, 111, 69, 0.14);
 }
 
 .count-product-label {
@@ -2626,15 +2630,16 @@ form#count-form.count-form {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   overflow: hidden;
 }
 
 .count-product-label-top {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 8px 12px;
+  justify-content: space-between;
+  gap: 8px;
   width: 100%;
   min-width: 0;
 }
@@ -2642,55 +2647,63 @@ form#count-form.count-form {
 .count-product-readout {
   margin-left: auto;
   flex-shrink: 0;
+  max-width: min(100%, 11.5rem);
 }
+
 .count-product-readout-inner {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--primary-blue-soft, #eff6ff);
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  font-size: 0.875rem;
-  color: #1e40af;
-  font-weight: 600;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(241, 245, 249, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.35;
 }
+
 .count-product-readout-cx strong,
 .count-product-readout-un strong {
   font-variant-numeric: tabular-nums;
-  font-size: 1rem;
-  color: #1e3a8a;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
 }
+
 .count-product-readout-sep {
-  opacity: 0.45;
+  opacity: 0.5;
   font-weight: 400;
+  padding: 0 1px;
 }
 
 @media (max-width: 600px) {
   .count-product-readout {
-    margin-left: 0;
-    width: 100%;
+    max-width: 11rem;
   }
+
   .count-product-readout-inner {
-    width: 100%;
     justify-content: center;
+    padding: 3px 7px;
   }
 }
 
 .count-product-code {
-  font-size: 0.8125rem;
-  font-weight: 800;
+  font-size: 0.75rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: #0f172a;
+  color: #64748b;
   letter-spacing: 0.02em;
-  background: #f1f5f9;
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  padding: 0;
   display: inline-block;
-  width: fit-content;
-  max-width: 100%;
-  margin-bottom: 0;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .count-last-launch {
@@ -2725,11 +2738,13 @@ form#count-form.count-form {
 }
 
 .count-product-desc {
-  font-size: 0.9375rem;
-  color: var(--ink);
+  font-size: 1.02rem;
+  color: #0f172a;
   white-space: normal;
-  line-height: 1.35;
+  line-height: 1.38;
+  letter-spacing: -0.02em;
   word-break: break-word;
+  overflow-wrap: anywhere;
   font-weight: 600;
 }
 
@@ -2746,68 +2761,85 @@ form#count-form.count-form {
 }
 
 .count-product-controls {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
+  width: min(100%, 19rem);
+  min-width: min(100%, 15rem);
 }
 
+/* Linha operacional: sigla | − | valor | + */
 .count-control-row {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 2.75rem 44px minmax(3.25rem, 1fr) 44px;
+  align-items: stretch;
   gap: 8px;
-  flex-wrap: nowrap;
   min-width: 0;
 }
 
 .count-control-type {
-  min-width: 58px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #345648;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  max-width: 2.75rem;
+  align-self: center;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #3d5248;
+  text-transform: uppercase;
 }
 
 .count-product-qty {
-  width: auto;
-  min-width: 3.25rem;
-  max-width: 5.5rem;
-  min-height: 40px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 44px;
   padding: 6px 8px;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
   text-align: center;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--ink);
+  font-weight: 700;
+  color: #0f172a;
   background: #fff;
-  flex: 1 1 auto;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 }
+
 .count-product-qty:focus {
   outline: none;
   border-color: var(--primary-blue, #2563eb);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 .btn-count-adjust {
   flex-shrink: 0;
-  min-width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  border: 1px solid var(--border-soft);
+  min-width: 44px;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
   background: #fff;
   color: var(--ink);
   cursor: pointer;
   font-weight: 700;
   line-height: 1;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
+}
+
+.btn-count-adjust:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn-count-adjust.btn-minus {
   background: #fee2e2;
   border-color: #fecaca;
-  color: #b91c1c;
+  color: #991b1b;
 }
 
 .btn-count-adjust.btn-plus {
@@ -2846,38 +2878,53 @@ form#count-form.count-form {
 
 .count-list-flat .count-product-item {
   border-radius: 0;
-  border-left: none;
-  border-right: none;
-  border-top: none;
-  border-bottom: 1px solid var(--border-soft);
-  background: var(--white);
-  padding: 12px clamp(10px, 3vw, 18px);
+  border: none;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  padding: 14px clamp(12px, 3.5vw, 18px);
   align-items: flex-start;
 }
+
+.count-list-flat .count-product-item:hover {
+  background: #fafcfb;
+}
+
 @media (max-width: 600px) {
-  .count-product-qty {
-    font-size: 16px;
-    min-height: 44px;
-    max-width: none;
+  .count-product-desc {
+    font-size: 1.05rem;
+    line-height: 1.4;
   }
+
+  .count-product-qty {
+    font-size: 1.125rem;
+    min-height: 46px;
+  }
+
   .count-product-item {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 12px;
+    padding: 14px 12px;
   }
+
   .count-product-controls {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
     align-self: stretch;
-    flex-direction: column;
     gap: 10px;
   }
-  .count-product-controls .count-control-row {
-    flex: 1;
-    justify-content: flex-start;
-    width: 100%;
+
+  .count-control-row {
+    grid-template-columns: 2.75rem 46px minmax(3rem, 1fr) 46px;
+    gap: 10px;
   }
+
   .btn-count-adjust {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 46px;
+    width: 46px;
+    min-height: 46px;
+    height: 46px;
   }
 }
 
@@ -3547,26 +3594,6 @@ form#count-form.count-form {
 
 #sub-count .count-main-card-inner + .count-products-shell {
   border-top: 1px solid var(--border-soft);
-}
-
-/* Lista: linhas mais estáveis, código em destaque */
-.count-list-flat .count-product-item {
-  padding: 14px clamp(12px, 3vw, 20px);
-}
-
-.count-product-code {
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #475569;
-  background: #f1f5f9;
-}
-
-.count-product-desc {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #0f172a;
-  line-height: 1.4;
 }
 
 /* ═══ Shell unificado: cabeçalho de área + landing alinhada ao /app ═══ */
