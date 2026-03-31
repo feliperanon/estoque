@@ -17,7 +17,7 @@
     gap: 0 !important;
     align-items: stretch !important;
   }
-  #count-audit-list.list {
+  #sub-count-audit #count-audit-list {
     padding-left: 0;
   }
 }
@@ -2076,7 +2076,19 @@ form#count-form.count-form {
 }
 
 /* ── Análise de Contagem (#sub-count-audit) — dashboard premium (referência TailAdmin) ── */
+/* Variáveis sem display: flex aqui — senão vencem .sub-section { display: none } e a análise aparece em toda contagem. */
 #sub-count-audit.count-audit-page {
+  --audit-radius: 0.75rem;
+  --audit-radius-sm: 0.5rem;
+  --audit-border: #e2e8f0;
+  --audit-border-strong: #cbd5e1;
+  --audit-muted: #64748b;
+  --audit-ink: #0f172a;
+  --audit-surface: #f8fafc;
+  --audit-accent: #3b82f6;
+}
+
+#module-contagem #sub-count-audit.sub-section.active.count-audit-page {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -2085,10 +2097,10 @@ form#count-form.count-form {
 }
 
 #sub-count-audit.count-audit-page > .card {
-  border-radius: 0.75rem;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--audit-radius);
+  border: 1px solid var(--audit-border);
   background: #fff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
   padding: 1.25rem 1.35rem;
 }
 
@@ -2285,6 +2297,16 @@ form#count-form.count-form {
   font-size: 0.8125rem;
 }
 
+/* Painel de filtros (bloco superior elegante) */
+#sub-count-audit .count-audit-filters-panel {
+  margin-top: 0.75rem;
+  padding: 1rem 1rem 0.25rem;
+  border-radius: var(--audit-radius-sm, 0.5rem);
+  background: var(--audit-surface, #f8fafc);
+  border: 1px solid var(--audit-border, #e2e8f0);
+  box-sizing: border-box;
+}
+
 /* Filtros: pesquisa + ordenação na mesma linha (desktop); coluna no mobile */
 #sub-count-audit .count-audit-filters {
   display: flex;
@@ -2292,9 +2314,9 @@ form#count-form.count-form {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem 1rem;
-  margin: 1rem 0 0;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #f1f5f9;
+  margin: 0;
+  padding-bottom: 0.85rem;
+  border-bottom: none;
 }
 
 #sub-count-audit .count-audit-search-row {
@@ -2364,13 +2386,23 @@ form#count-form.count-form {
   margin-top: 0;
 }
 
-.count-audit-list-main {
+/* Área da listagem: “tabela” leve com borda */
+#sub-count-audit .count-audit-list-panel {
+  margin-top: 1rem;
+  border-radius: var(--audit-radius-sm, 0.5rem);
+  border: 1px solid var(--audit-border, #e2e8f0);
+  background: var(--audit-surface, #f8fafc);
+  overflow: hidden;
+  min-width: 0;
+}
+
+#sub-count-audit ul.count-audit-list-main {
   margin: 0;
   padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0;
 }
 
 /* Resumo KPIs */
@@ -2521,64 +2553,87 @@ form#count-form.count-form {
 }
 
 .count-audit-empty {
-  padding: 1.25rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px dashed #cbd5e1;
-  background: #f8fafc;
+  padding: 2rem 1.25rem;
+  border-radius: 0;
+  border: none;
+  border-bottom: none;
+  background: transparent;
   color: #64748b;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
 }
 
-#count-audit-list li.count-audit-group-header {
+#sub-count-audit ul.count-audit-list-main > li.count-audit-empty {
+  flex-direction: column;
+  border-left: none;
+}
+
+#sub-count-audit #count-audit-list li.count-audit-group-header {
   display: block;
   padding: 0;
   margin: 0;
   border: none;
+  border-bottom: 1px solid var(--audit-border, #e2e8f0);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
 
-#count-audit-list .count-audit-group-title {
+#sub-count-audit #count-audit-list .count-audit-group-title {
   display: block;
-  padding: 0.65rem 0.75rem;
-  margin: 0.75rem 0 0;
+  padding: 0.55rem 1rem;
+  margin: 0;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #64748b;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem 0.5rem 0 0;
+  color: var(--audit-muted, #64748b);
+  background: #eef2f6;
+  border: none;
+  border-radius: 0;
 }
 
-#count-audit-list li.count-audit-group-header:first-child .count-audit-group-title {
+#sub-count-audit #count-audit-list li.count-audit-group-header:first-child .count-audit-group-title {
   margin-top: 0;
 }
 
-#sub-count-audit #count-audit-list.list > li.count-audit-item {
+#sub-count-audit ul.count-audit-list-main > li.count-audit-item {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 1rem 1.1rem;
-  border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
+  padding: 0.9rem 1rem 1rem;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--audit-border, #e2e8f0);
+  border-left: 3px solid transparent;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 }
 
-.count-audit-item.is-warn {
-  border-color: #fcd34d;
+#sub-count-audit ul.count-audit-list-main > li.count-audit-item:last-child {
+  border-bottom: none;
+}
+
+#sub-count-audit ul.count-audit-list-main > li.count-audit-item.is-ok {
+  border-left-color: #22c55e;
+  background: #fafcfb;
+}
+
+#sub-count-audit ul.count-audit-list-main > li.count-audit-item.is-warn {
+  border-left-color: #f59e0b;
   background: #fffbeb;
 }
 
-.count-audit-item.is-danger {
-  border-color: #fca5a5;
+#sub-count-audit ul.count-audit-list-main > li.count-audit-item.is-danger {
+  border-left-color: #ef4444;
   background: #fef2f2;
 }
 
-.count-audit-item.is-purple {
-  border-color: #c4b5fd;
+#sub-count-audit ul.count-audit-list-main > li.count-audit-item.is-purple {
+  border-left-color: #8b5cf6;
   background: #faf5ff;
 }
 
@@ -2741,6 +2796,10 @@ form#count-form.count-form {
 }
 
 @media (max-width: 700px) {
+  #sub-count-audit .count-audit-filters-panel {
+    padding: 0.85rem 0.75rem 0.15rem;
+  }
+
   #sub-count-audit .count-audit-filters {
     flex-direction: column;
     align-items: stretch;

@@ -76,6 +76,28 @@ def require_roles(*allowed_roles: str):
     return _dependency
 
 
+def _normalize_allowed_pages_list(raw) -> list[str]:
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        return [str(p).strip().lower() for p in raw if str(p).strip()]
+    return []
+
+
+def require_stock_analysis_access(user: User = Depends(get_current_user)) -> User:
+    """GET /audit/stock-analysis: alinhado ao front — administrativo/admin ou allowed_pages com 'count-audit'."""
+    role = (user.role or "").strip().lower()
+    if role in ("admin", "administrativo"):
+        return user
+    pages = _normalize_allowed_pages_list(user.allowed_pages)
+    if "count-audit" in pages:
+        return user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Sem permissao para analise de contagem",
+    )
+
+
 def require_import_secret(x_import_secret: str = Header(default="")) -> None:
     settings = get_settings()
     if x_import_secret != settings.import_secret:

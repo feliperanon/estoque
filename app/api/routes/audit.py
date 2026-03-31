@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_current_user, require_roles, require_stock_analysis_access
 from app.db.session import get_session
 from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, User
 
@@ -234,7 +234,7 @@ def stock_analysis(
     only_active_products: bool = Query(default=True, alias="only_active"),
     limit: int = Query(default=500, ge=1, le=5000),
     session: Session = Depends(get_session),
-    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+    _: User = Depends(require_stock_analysis_access),
 ) -> dict:
     from app.api.routes.products import _catalog_status_is_ativo_clause
 

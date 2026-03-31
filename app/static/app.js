@@ -482,7 +482,7 @@ const REGISTER_PROFILE_PRESETS = {
     'direct-sale',
     'validity',
     'import-txt',
-    'count-audit',
+    /* count-audit: só com permissão explícita no cadastro do usuário (não no preset) */
   ],
 };
 
@@ -497,6 +497,9 @@ const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'preco-produtos', 'parame
 const SUB_TO_PARENT = {};
 SUB_MODULES.forEach(s => { SUB_TO_PARENT[s] = 'contagem'; });
 CADASTRO_SUBS.forEach(s => { SUB_TO_PARENT[s] = 'cadastro'; });
+
+/** Não liberar só por ter "contagem" em allowed_pages (auditoria / análise). */
+const SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED = new Set(['count-audit']);
 
 const PAGE_TITLES = {
   contagem: 'Contagem',
@@ -668,6 +671,14 @@ function canAccessHash(hashKey) {
   if (currentRole === 'admin') return true;
   const k = String(hashKey || '').trim().toLowerCase();
   if (!k) return false;
+
+  if (SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED.has(k)) {
+    if (currentAllowedPages.length) {
+      return currentAllowedPages.includes(k);
+    }
+    return ['administrativo', 'admin'].includes(currentRole);
+  }
+
   if (currentAllowedPages.length) {
     if (currentAllowedPages.includes(k)) return true;
     const parent = SUB_TO_PARENT[k];
@@ -710,7 +721,10 @@ function renderModuleNav() {
     if (hashModule && canAccessHash(hashModule)) {
       setActiveModule(hashModule, false);
     } else {
-      setActiveModule(firstVisible);
+      setActiveModule(firstVisible, false);
+      if (hashModule && hashModule !== firstVisible) {
+        history.replaceState(null, '', `${APP_BASE_PATH}#${firstVisible}`);
+      }
     }
   }
 }
@@ -3929,10 +3943,7 @@ function bindModuleEvents() {
   });
 
   window.addEventListener('hashchange', () => {
-    const hashKey = getCurrentHashKey();
-    if (hashKey && canAccessHash(hashKey)) {
-      setActiveModule(hashKey, false);
-    }
+    renderModuleNav();
   });
 }
 
