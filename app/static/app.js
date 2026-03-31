@@ -44,8 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
   groupInput.addEventListener('change', filtrarProdutos);
 });
 
-// Botão Ativo funcional + filtro
-// Removido: switch Ativo/Todos e lógica associada
+// Filtro de produtos por grupo (contagem: apenas ativos na API e na renderização)
 
 // Filtro de produtos por grupo e ativo
 function filtrarProdutos() {
@@ -97,18 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Botão Ativo funcional
-document.addEventListener('DOMContentLoaded', () => {
-  const ativoToggle = document.getElementById('count-products-status-toggle');
-  if (ativoToggle) {
-    ativoToggle.disabled = false;
-    ativoToggle.addEventListener('change', () => {
-      // Chame aqui a função de filtro de produtos ativos
-      // Exemplo: filtrarProdutosAtivos(ativoToggle.checked);
-      // (implemente a lógica conforme seu app)
-    });
-  }
-});
 // === Grupos disponíveis para filtro (pode ser movido para API futuramente)
 const GROUPS = [
   "Socorro Beb", "Dikoko", "Britvic", "Inga", "Santissima", "Mate couro", "Wow", "Grafrutalle", "Piraque", "Kydoidera", "Cory", "Selmi", "Brothers Paiol", "Salinas", "Arbor", "Heineken", "Cepal", "Arcor", "Nestle", "Tres Lobos", "Don Rigollo", "Jack Power", "Blue Bev", "Vanfall", "Itts", "Xeque Mate", "Perfetti", "Tampico", "Tapioca", "Tial", "Pergola", "Xa de Cana", "Açai Futuro", "Mais Coco", "Baly", "Ferreira", "Knofler", "Sunhot", "Seleta", "SP TT"
@@ -321,15 +308,9 @@ const userDisplay   = document.getElementById('user-display');
 const netStatus     = document.getElementById('net-status');
 const countForm     = document.getElementById('count-form');
 const countFeedback = document.getElementById('count-feedback');
-const countProductsStatusToggle = document.getElementById('count-products-status-toggle');
-// Sempre manter o toggle "Ativo" marcado ao abrir o painel
-if (countProductsStatusToggle) {
-  countProductsStatusToggle.checked = true;
-}
 const countProductsList = document.getElementById('count-products-list');
 const countProductsTotal = document.getElementById('count-products-total');
 const countProgressFill = document.getElementById('count-progress-fill');
-const countProgressText = document.getElementById('count-progress-text');
 const kpiCountPercent = document.getElementById('kpi-count-percent');
 const kpiCountUser = document.getElementById('kpi-count-user');
 const kpiCountWindow = document.getElementById('kpi-count-window');
@@ -1129,6 +1110,27 @@ function makeCountTotalKey(itemCode, countType) {
   return `${normalizeItemCode(itemCode)}::${normalizeCountType(countType)}`;
 }
 
+/** Soma eventos de contagem por produto e tipo (caixa vs unidade). */
+function getNetByProductAndType(productCode, countType) {
+  const base = normalizeItemCode(productCode);
+  const ct = normalizeCountType(countType);
+  let sum = 0;
+  for (const event of loadCountEvents()) {
+    if (normalizeItemCode(event.item_code || '') !== base) continue;
+    if (normalizeCountType(event.count_type) !== ct) continue;
+    sum += Number(event.quantity || 0);
+  }
+  return sum;
+}
+
+function escapeHtml(text) {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function formatDateTime(isoValue) {
   const date = new Date(isoValue);
   if (Number.isNaN(date.getTime())) return isoValue;
@@ -1247,9 +1249,8 @@ function renderCountProducts(products) {
   // Não usar style.display = '' aqui: em style.css #view-dashboard { display: none } e some o app inteiro.
   showDashboard();
   countProductsList.hidden = false;
-  if (!countProductsTotal) return;
   countProductsList.innerHTML = '';
-  countProductsTotal.textContent = `${ativos.length}`;
+  if (countProductsTotal) countProductsTotal.textContent = `${ativos.length}`;
   const feedback = document.getElementById('count-feedback');
   if (feedback) feedback.textContent = `Renderizando ${ativos.length} produtos ativos.`;
 
@@ -1266,13 +1267,33 @@ function renderCountProducts(products) {
   }
 
   for (const product of ativos) {
+    const codRaw = String(product.cod_produto || '');
+    const cod = escapeHtml(codRaw);
+    const desc = escapeHtml(product.cod_grup_descricao || '');
+    const codRef = encodeURIComponent(codRaw);
+    const netCx = getNetByProductAndType(codRaw, 'caixa');
+    const netUn = getNetByProductAndType(codRaw, 'unidade');
     const li = document.createElement('li');
     li.className = 'count-product-item';
-    // Adiciona a descrição em um span específico para o filtro funcionar
     li.innerHTML = `
-      <span class="count-product-code">${product.cod_produto || ''}</span>
-      <span class="count-product-desc">${product.cod_grup_descricao || ''}</span>
-      <strong>${product.status || ''}</strong>
+      <div class="count-product-label">
+        <span class="count-product-code">${cod}</span>
+        <span class="count-product-desc">${desc}</span>
+      </div>
+      <div class="count-product-controls">
+        <div class="count-control-row">
+          <span class="count-control-type">CX</span>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
+          <span class="count-product-total" aria-live="polite">${formatIntegerBR(netCx)}</span>
+          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
+        </div>
+        <div class="count-control-row">
+          <span class="count-control-type">UN</span>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
+          <span class="count-product-total" aria-live="polite">${formatIntegerBR(netUn)}</span>
+          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
+        </div>
+      </div>
     `;
     countProductsList.appendChild(li);
   }
@@ -1306,9 +1327,8 @@ async function loadCountProducts() {
   if (!token) return;
 
   const q = '';
-  // Corrigir lógica: checked = ativos, unchecked = todos
-  const statusValue =
-    countProductsStatusToggle && countProductsStatusToggle.checked ? 'ativo' : 'todos';
+  /* Contagem operacional: sempre catálogo ativo no backend; sem toggle no front */
+  const statusValue = 'ativo';
   const fetchCatalog = async (statusParam) => {
     const buildUrl = (lim) => {
       const params = new URLSearchParams();
@@ -1610,15 +1630,15 @@ async function importBackup(file) {
 }
 
 function bindCountEvents() {
-  if (!countForm) return;
-
-  countForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const itemCode = document.getElementById('item-code').value;
-    registerCount(itemCode);
-    document.getElementById('item-code').value = '';
-    document.getElementById('item-code').focus();
-  });
+  if (countForm) {
+    countForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const itemCode = document.getElementById('item-code').value;
+      registerCount(itemCode);
+      document.getElementById('item-code').value = '';
+      document.getElementById('item-code').focus();
+    });
+  }
 
   if (btnSync) {
     btnSync.addEventListener('click', () => {
@@ -1652,6 +1672,25 @@ function bindCountEvents() {
   if (countProductsStatusToggle) {
     countProductsStatusToggle.addEventListener('change', () => {
       loadCountProducts();
+    });
+  }
+
+  const countListEl = document.getElementById('count-products-list');
+  if (countListEl && countListEl.dataset.countDelegates !== '1') {
+    countListEl.dataset.countDelegates = '1';
+    countListEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-count-adjust');
+      if (!btn || !countListEl.contains(btn)) return;
+      e.preventDefault();
+      const ref = decodeURIComponent(btn.getAttribute('data-coderef') || '');
+      const delta = Number(btn.dataset.delta);
+      const countType = btn.dataset.countType || 'caixa';
+      if (!ref || !Number.isFinite(delta)) return;
+      registerCountDelta(ref, delta, countType);
+      const input = document.getElementById('item-code');
+      const term = (input && input.value || '').trim();
+      const toShow = term ? filterCountProductsByTerm(term) : countProductsCache;
+      renderCountProducts(toShow);
     });
   }
 
@@ -2127,16 +2166,42 @@ async function loadCountAuditAnalysis() {
       return;
     }
 
-    const payload = await response.json();
-    const info = payload.import;
+    let payload = await response.json();
+    let info = payload.import;
+    let usedFallbackImport = false;
+    // Se a data escolhida não tem TXT, tenta a última importação do sistema (backend sem reference_date)
+    if (!info && referenceDate) {
+      const retryParams = new URLSearchParams();
+      retryParams.set('only_diff', onlyDiff ? 'true' : 'false');
+      retryParams.set('limit', '1000');
+      const retryResp = await apiFetch(`${API_STOCK_ANALYSIS}?${retryParams.toString()}`, {
+        headers: getAuthHeaders(),
+      });
+      if (handleUnauthorizedResponse(retryResp)) return;
+      if (retryResp.ok) {
+        payload = await retryResp.json();
+        info = payload.import;
+        if (info) {
+          usedFallbackImport = true;
+          setCountAuditFeedback(
+            `Sem TXT na data ${referenceDate}. Exibindo última importação: ${info.reference_date || '-'} (${info.file_name || 'arquivo'}).`,
+            false,
+          );
+        }
+      }
+    }
     if (info) {
-      setCountAuditFeedback(`Base de saldo: ${info.reference_date || '-'} (${info.file_name || 'arquivo'})`);
+      if (!usedFallbackImport) {
+        setCountAuditFeedback(`Base de saldo: ${info.reference_date || '-'} (${info.file_name || 'arquivo'})`);
+      }
       renderCountAuditSummary(payload.summary || {});
       window.lastCountAuditRows = payload.rows || [];
       renderCountAuditRows(window.lastCountAuditRows);
     } else {
-      setCountAuditFeedback('Nenhuma importação TXT encontrada para esta data.', true);
-      // Zera painel: limpa resumo, lista e total
+      setCountAuditFeedback(
+        'Nenhuma importação TXT cadastrada. Em Contagem → Importar Estoque, envie o arquivo TXT com a data de referência; depois atualize esta análise.',
+        true,
+      );
       renderCountAuditSummary({});
       window.lastCountAuditRows = [];
       renderCountAuditRows([]);
