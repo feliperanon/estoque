@@ -1669,12 +1669,6 @@ function bindCountEvents() {
     });
   }
 
-  if (countProductsStatusToggle) {
-    countProductsStatusToggle.addEventListener('change', () => {
-      loadCountProducts();
-    });
-  }
-
   const countListEl = document.getElementById('count-products-list');
   if (countListEl && countListEl.dataset.countDelegates !== '1') {
     countListEl.dataset.countDelegates = '1';
