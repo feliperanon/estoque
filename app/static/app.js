@@ -1058,14 +1058,78 @@ function computeCountProgressStats(products = countProductsCache) {
     .filter(Boolean);
   const uniqueProducts = Array.from(new Set(validProducts));
   const total = uniqueProducts.length;
-  /* Contado = há saldo > 0 em CX ou UN (alinhado aos lançamentos por tipo) */
-  const counted = uniqueProducts.filter((code) => {
-    const cx = getNetByProductAndType(code, 'caixa');
-    const un = getNetByProductAndType(code, 'unidade');
-    return Number(cx) > 0 || Number(un) > 0;
-  }).length;
-  const percent = total > 0 ? Math.min(100, Math.round((counted / total) * 100)) : 0;
-  return { total, counted, percent };
+  const hasTxt = countImportBalancesState.hasTxt;
+
+  /*
+   * Sem TXT: percent = produtos com algum lançamento / total produtos.
+   * Com TXT e linha no arquivo: cada produto vale 2 metades (CX + UN); só CX ou só UN = 50% desse item.
+   * Com TXT mas código fora do arquivo: 1 metade (há lançamento ou não).
+   */
+  if (!hasTxt) {
+    let counted = 0;
+    for (const code of uniqueProducts) {
+      const cx = Number(getNetByProductAndType(code, 'caixa')) || 0;
+      const un = Number(getNetByProductAndType(code, 'unidade')) || 0;
+      if (cx > 0 || un > 0) counted += 1;
+    }
+    const percent = total > 0 ? Math.min(100, Math.round((counted / total) * 100)) : 0;
+    return {
+      total,
+      counted,
+      percent,
+      usesDimProgress: false,
+      dimCompleted: 0,
+      dimTotal: 0,
+    };
+  }
+
+  let dimCompleted = 0;
+  let dimTotal = 0;
+  let counted = 0;
+  for (const code of uniqueProducts) {
+    const pair = getCountSaldoPair(code);
+    const netCx = getNetByProductAndType(code, 'caixa');
+    const netUn = getNetByProductAndType(code, 'unidade');
+    if (pair) {
+      const dimCx = countDimensionMatchesSaldo(code, 'caixa', netCx, pair.import_caixa);
+      const dimUn = countDimensionMatchesSaldo(code, 'unidade', netUn, pair.import_unidade);
+      dimTotal += 2;
+      if (dimCx === true) dimCompleted += 1;
+      if (dimUn === true) dimCompleted += 1;
+      if (dimCx === true && dimUn === true) counted += 1;
+    } else {
+      dimTotal += 1;
+      const cx = Number(netCx) || 0;
+      const un = Number(netUn) || 0;
+      if (cx > 0 || un > 0) {
+        dimCompleted += 1;
+        counted += 1;
+      }
+    }
+  }
+  const percent = dimTotal > 0 ? Math.min(100, Math.round((100 * dimCompleted) / dimTotal)) : 0;
+  return {
+    total,
+    counted,
+    percent,
+    usesDimProgress: true,
+    dimCompleted,
+    dimTotal,
+  };
+}
+
+/** Texto da barra principal: com TXT usa metades CX/UN (ex.: 1 de 2 = 50%). */
+function countProgressDetailLabel(stats) {
+  const { total, counted, usesDimProgress, dimCompleted, dimTotal } = stats;
+  if (!total) {
+    return countImportBalancesState.hasTxt
+      ? '0 de 0 metades (CX e UN) conferidas com o saldo do TXT'
+      : '0 de 0 produtos com lançamento';
+  }
+  if (usesDimProgress && dimTotal > 0) {
+    return `${dimCompleted} de ${dimTotal} metades (CX e UN) conferidas com o saldo do TXT`;
+  }
+  return `${counted} de ${total} produtos com lançamento`;
 }
 
 function formatClock(dateValue) {
@@ -1121,7 +1185,8 @@ function estimateCountFinish(events, totalProducts) {
 function updateCountKpi(products = countProductsCache) {
   if (!kpiCountPercent || !kpiCountWindow || !kpiCountElapsed || !kpiCountEta) return;
   const events = loadCountEvents();
-  const { total, counted, percent } = computeCountProgressStats(products, events);
+  const stats = computeCountProgressStats(products);
+  const { total, percent } = stats;
   kpiCountPercent.textContent = `${percent}%`;
 
   if (!events.length) {
@@ -1137,7 +1202,7 @@ function updateCountKpi(products = countProductsCache) {
     .sort((a, b) => a - b);
   const startMs = timestamps[0] || Date.now();
   const lastMs = timestamps[timestamps.length - 1] || startMs;
-  const finished = total > 0 && counted >= total;
+  const finished = total > 0 && percent >= 100;
   const endMs = finished ? lastMs : null;
   const elapsedMs = (finished ? endMs : Date.now()) - startMs;
 
@@ -1165,24 +1230,28 @@ function startCountKpiTicker() {
 function updateCountProgress(products = countProductsCache) {
   const fill = document.getElementById('count-progress-fill') || countProgressFill;
   if (!fill) return;
-  const { total, counted, percent } = computeCountProgressStats(products);
+  const stats = computeCountProgressStats(products);
+  const { total, percent } = stats;
   if (!total) {
     fill.style.width = '0%';
     const percentSpan = document.getElementById('count-progress-percent');
     if (percentSpan) percentSpan.textContent = '0%';
     const labelSpan = document.getElementById('count-progress-label');
-    if (labelSpan) labelSpan.textContent = 'concluído';
+    if (labelSpan) labelSpan.textContent = 'em andamento';
     const detailSpan = document.getElementById('count-progress-detail');
-    if (detailSpan) detailSpan.textContent = '0 de 0 produtos contados';
+    if (detailSpan) detailSpan.textContent = countProgressDetailLabel(stats);
     return;
   }
   fill.style.width = `${percent}%`;
   const percentSpan = document.getElementById('count-progress-percent');
   if (percentSpan) percentSpan.textContent = `${percent}%`;
   const labelSpan = document.getElementById('count-progress-label');
-  if (labelSpan) labelSpan.textContent = 'concluído';
+  /* "concluído" só quando 100% do escopo atual; evita 100% + divergência UN parecer finalizado. */
+  if (labelSpan) {
+    labelSpan.textContent = percent >= 100 ? 'concluído' : 'em andamento';
+  }
   const detailSpan = document.getElementById('count-progress-detail');
-  if (detailSpan) detailSpan.textContent = `${counted} de ${total} produtos contados`;
+  if (detailSpan) detailSpan.textContent = countProgressDetailLabel(stats);
 }
 
 function getDeviceName() {
