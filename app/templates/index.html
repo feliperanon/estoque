@@ -410,16 +410,19 @@
           </div>
 
           <!-- Sub: Importar Estoque -->
-          <div id="sub-import-txt" class="sub-section">
-            <section class="card">
-              <div class="card-head">
-                <h2>Importar Estoque</h2>
-                <span class="chip">Atualização em lote</span>
+          <div id="sub-import-txt" class="sub-section import-txt-page">
+            <section class="card import-txt-hero" aria-labelledby="import-txt-title">
+              <div class="import-txt-hero-head">
+                <div class="import-txt-hero-head-text">
+                  <p class="import-txt-eyebrow">Histórico · saldo físico</p>
+                  <h2 id="import-txt-title" class="import-txt-hero-title">Importar estoque (TXT)</h2>
+                  <p class="muted import-txt-hero-lead">
+                    Envie o arquivo de inventário em texto para gravar o saldo do dia e manter a análise de contagem alinhada ao relatório.
+                  </p>
+                </div>
+                <span class="chip import-txt-chip">Arquivo .txt</span>
               </div>
-              <p class="muted">
-                Envie o arquivo TXT com o mapa diário de estoque para registrar o histórico e cadastrar eventuais novos produtos.
-              </p>
-              <form id="import-txt-form" class="product-form" autocomplete="off">
+              <form id="import-txt-form" class="product-form import-txt-form-block" autocomplete="off">
                 <div class="field">
                   <label for="import-txt-date">Data Referência</label>
                   <input id="import-txt-date" name="reference_date" type="date" required />

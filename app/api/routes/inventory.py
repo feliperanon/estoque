@@ -6,7 +6,6 @@ def _ensure_inventory_tables() -> None:
     )
 
 import logging
-import re
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -18,6 +17,7 @@ from app.db.session import engine
 from app.db.session import get_session
 from app.models import Product, User, InventoryImport, InventoryImportItem
 from app.schemas.inventory import InventoryImportRead, InventoryImportDetailRead
+from app.services.inventory_txt_parse import build_import_item_metrics, parse_inventory_txt_line
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 logger = logging.getLogger(__name__)
@@ -75,21 +75,16 @@ async def import_inventory_txt(
         created_products = 0
         seen_in_txt = set()
 
-        # Regex para capturar COD.RED, DESCRICAO, e colunas de métricas.
-        pattern = re.compile(r"^(\d+)\s+(.+?)\s+((?:-?\d*I?|I)(?:\s+(?:-?\d*I?|I))*)$")
-
         for line in text.splitlines():
-            line = line.strip()
-            if not line:
+            parsed = parse_inventory_txt_line(line)
+            if not parsed:
                 continue
 
-            match = pattern.search(line)
-            if not match:
+            cod = str(parsed["cod_produto"])
+            desc = str(parsed["descricao"])
+            raw_tokens = parsed["raw"]
+            if not isinstance(raw_tokens, list):
                 continue
-
-            cod = match.group(1).strip()
-            desc = match.group(2).strip()
-            metrics = match.group(3).split()
 
             total_products += 1
 
@@ -98,7 +93,7 @@ async def import_inventory_txt(
                 inventory_import_id=new_import.id,
                 cod_produto=cod,
                 descricao=desc,
-                metrics={"raw": metrics},
+                metrics=build_import_item_metrics([str(t) for t in raw_tokens]),
             )
             session.add(item)
 

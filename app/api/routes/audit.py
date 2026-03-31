@@ -16,6 +16,7 @@ from sqlmodel import Session, select
 from app.api.deps import require_roles, require_stock_analysis_access
 from app.db.session import get_session
 from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, User
+from app.services.inventory_txt_parse import extract_caixa_unidade_from_txt_tokens
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 logger = logging.getLogger(__name__)
@@ -76,26 +77,25 @@ def _aggregate_count_events_by_code(session: Session) -> dict[str, dict[str, int
     return counted_by_code
 
 
-def _parse_inventory_metric_token(token: str) -> int:
-    tok = (token or "").strip().upper()
-    if not tok:
-        return 0
-    if tok == "I":
-        return 0
-    tok = tok.replace("I", "")
-    if tok in {"", "+", "-"}:
-        return 0
-    try:
-        return int(tok)
-    except Exception:
-        return 0
-
-
-def _extract_import_quantities(raw_metrics: list[str]) -> tuple[int, int]:
-    metrics = [str(tok) for tok in raw_metrics]
-    caixa = _parse_inventory_metric_token(metrics[0]) if len(metrics) >= 1 else 0
-    unidade = _parse_inventory_metric_token(metrics[1]) if len(metrics) >= 2 else 0
-    return caixa, unidade
+def _extract_import_quantities(metrics: dict | list | None) -> tuple[int, int]:
+    """CX/UN a partir do JSON do item (preferência: caixa/unidade gravados na importação)."""
+    if metrics is None:
+        return 0, 0
+    if isinstance(metrics, dict):
+        caixa = metrics.get("caixa")
+        unidade = metrics.get("unidade")
+        if caixa is not None and unidade is not None:
+            try:
+                return int(caixa), int(unidade)
+            except (TypeError, ValueError):
+                pass
+        raw = metrics.get("raw")
+        if isinstance(raw, list):
+            return extract_caixa_unidade_from_txt_tokens([str(x) for x in raw])
+        return 0, 0
+    if isinstance(metrics, list):
+        return extract_caixa_unidade_from_txt_tokens([str(x) for x in metrics])
+    return 0, 0
 
 
 @router.get("/import-balances")
@@ -138,9 +138,9 @@ def import_balances(
             code = _normalize_item_code(item.cod_produto)
             if not code:
                 continue
-            raw_metrics = item.metrics.get("raw") if isinstance(item.metrics, dict) else []
-            raw_metrics = raw_metrics if isinstance(raw_metrics, list) else []
-            import_caixa, import_unidade = _extract_import_quantities(raw_metrics)
+            import_caixa, import_unidade = _extract_import_quantities(
+                item.metrics if isinstance(item.metrics, dict) else None
+            )
             if code not in imported_by_code:
                 imported_by_code[code] = {
                     "cod_produto": code,
@@ -271,9 +271,9 @@ def _compute_stock_analysis(
             code = _normalize_item_code(item.cod_produto)
             if not code:
                 continue
-            raw_metrics = item.metrics.get("raw") if isinstance(item.metrics, dict) else []
-            raw_metrics = raw_metrics if isinstance(raw_metrics, list) else []
-            import_caixa, import_unidade = _extract_import_quantities(raw_metrics)
+            import_caixa, import_unidade = _extract_import_quantities(
+                item.metrics if isinstance(item.metrics, dict) else None
+            )
             if code not in imported_by_code:
                 imported_by_code[code] = {
                     "cod_produto": code,

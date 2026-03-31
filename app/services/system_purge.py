@@ -8,9 +8,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from sqlalchemy import delete, update
-from sqlmodel import Session, select
+from sqlalchemy import delete, text, update
+from sqlmodel import Session, SQLModel, select
 
+from app.core.config import get_settings
+from app.db.session import get_engine
 from app.models import (
     ChangeLog,
     Client,
@@ -36,6 +38,48 @@ from app.models import (
 
 logger = logging.getLogger(__name__)
 
+# Tabelas tocadas pelo purge (ordem irrelevante: create_all ordena por FK).
+_PURGE_MODELS: tuple[type, ...] = (
+    Employee,
+    User,
+    ClientGroup,
+    Client,
+    Vehicle,
+    DriverVehicleAssignment,
+    DeliverySession,
+    GateCheck,
+    Product,
+    ProductHistory,
+    InventoryImport,
+    InventoryImportItem,
+    ImportJob,
+    SourceMap,
+    EmployeeSnapshot,
+    ClientSnapshot,
+    VehicleSnapshot,
+    ChangeLog,
+    SyncRun,
+    FailedImportRow,
+)
+
+
+def _ensure_purge_tables_exist() -> None:
+    """
+    Garante que o DDL exista antes do DELETE.
+
+    Em PostgreSQL o bootstrap pode ter criado só um subconjunto de tabelas;
+    sem isso o purge falha com relação inexistente (500).
+    """
+    settings = get_settings()
+    engine = get_engine()
+    if not settings.sqlalchemy_database_url.startswith("sqlite"):
+        with engine.begin() as conn:
+            conn.execute(text("CREATE SCHEMA IF NOT EXISTS legacy_snapshot"))
+            conn.execute(text("CREATE SCHEMA IF NOT EXISTS app_core"))
+            conn.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
+    tables = [m.__table__ for m in _PURGE_MODELS]
+    SQLModel.metadata.create_all(engine, tables=tables, checkfirst=True)
+
 
 def purge_all_except_users(session: Session) -> dict[str, Any]:
     """
@@ -43,6 +87,8 @@ def purge_all_except_users(session: Session) -> dict[str, Any]:
     Zera vínculo employee_id dos usuários antes de apagar funcionários.
     """
     stats: dict[str, int] = {}
+
+    _ensure_purge_tables_exist()
 
     def run_delete(model, label: str) -> None:
         res = session.exec(delete(model))
