@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=19" />
+    <link rel="stylesheet" href="/static/style.css?v=20" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -625,6 +625,21 @@
                 <input id="produtos-search" type="text" placeholder="Buscar por codigo, SKU ou descrição..." class="search-input" />
                 <button id="btn-produtos-search" type="button" class="btn-secondary btn-dark">Buscar</button>
               </div>
+              <div class="produtos-status-filters" role="group" aria-label="Filtrar listagem por status do produto">
+                <span class="produtos-status-filters-label">Status na busca</span>
+                <label class="inline-check">
+                  <input type="checkbox" id="produtos-filter-ativo" checked />
+                  <span>Ativo</span>
+                </label>
+                <label class="inline-check">
+                  <input type="checkbox" id="produtos-filter-inativo" checked />
+                  <span>Inativo</span>
+                </label>
+                <label class="inline-check">
+                  <input type="checkbox" id="produtos-filter-precadastro" checked />
+                  <span>Pré-cadastro</span>
+                </label>
+              </div>
               <div id="produtos-feedback" class="field-feedback" aria-live="polite"></div>
               <div class="card-head" style="margin-top:12px">
                 <h3>Resultados</h3>
@@ -861,7 +876,7 @@
     </div>
 
     <div id="install-feedback" class="install-feedback" aria-live="polite"></div>
-    <script src="/static/app.js?v=17"></script>
+    <script src="/static/app.js?v=18"></script>
     <script src="/static/pwa-install.js?v=6"></script>
   </body>
 </html>

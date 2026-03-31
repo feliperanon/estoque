@@ -251,7 +251,18 @@ function downgradeLimitAfter422(current) {
   return current;
 }
 
-async function apiFetchProductsList(searchQuery) {
+function getProdutosStatusFilters() {
+  const a = document.getElementById('produtos-filter-ativo');
+  const i = document.getElementById('produtos-filter-inativo');
+  const p = document.getElementById('produtos-filter-precadastro');
+  const out = [];
+  if (a?.checked) out.push('ativo');
+  if (i?.checked) out.push('inativo');
+  if (p?.checked) out.push('pre-cadastro');
+  return out;
+}
+
+async function apiFetchProductsList(searchQuery, statusFilters) {
   const token = getToken();
   if (!token) return null;
 
@@ -260,6 +271,19 @@ async function apiFetchProductsList(searchQuery) {
     params.set('limit', String(limit));
     const qt = (searchQuery || '').trim();
     if (qt) params.set('q', qt);
+    if (Array.isArray(statusFilters) && statusFilters.length > 0) {
+      const full =
+        statusFilters.length === 3 &&
+        statusFilters.includes('ativo') &&
+        statusFilters.includes('inativo') &&
+        statusFilters.includes('pre-cadastro');
+      if (!full) {
+        statusFilters.forEach((s) => {
+          const t = String(s || '').trim().toLowerCase();
+          if (t) params.append('status', t);
+        });
+      }
+    }
     return `${API_PRODUCTS}?${params.toString()}`;
   };
 
@@ -2849,13 +2873,43 @@ function formatPrice(v) {
   return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+function produtoStatusBadgeMeta(p) {
+  const raw = (p.status || '').trim();
+  const sl = raw.toLowerCase();
+  const isAtivo =
+    !raw ||
+    sl === 'ativo' ||
+    sl === 's' ||
+    sl === 'sim' ||
+    sl === '1' ||
+    sl === 'true' ||
+    sl === 'ativado' ||
+    sl === 'active';
+  if (isAtivo) {
+    return { cls: 'badge-active', label: raw || 'ativo' };
+  }
+  if (sl.includes('pre') && sl.includes('cadastro')) {
+    return { cls: 'badge-precadastro', label: raw };
+  }
+  if (sl === 'inativo' || sl === 'inactive' || ['n', 'nao', 'no', '0', 'false'].includes(sl)) {
+    return { cls: 'badge-inactive', label: raw || 'inativo' };
+  }
+  return { cls: 'badge-status-other', label: raw || '—' };
+}
+
 async function searchProdutos() {
   const q = document.getElementById('produtos-search').value.trim();
   const token = getToken();
   if (!token) return;
 
+  const filters = getProdutosStatusFilters();
+  if (!filters.length) {
+    setProdutosFeedback('Selecione pelo menos um status (Ativo, Inativo ou Pré-cadastro).', true);
+    return;
+  }
+
   try {
-    const resp = await apiFetchProductsList(q);
+    const resp = await apiFetchProductsList(q, filters);
     if (!resp) return;
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao buscar produtos.', true); return; }
@@ -2892,13 +2946,13 @@ function renderProdutosTable(products) {
 
   for (const p of products) {
     const tr = document.createElement('tr');
-    const statusClass = (p.status || 'ativo').toLowerCase() === 'ativo' ? 'badge-active' : 'badge-inactive';
+    const st = produtoStatusBadgeMeta(p);
     tr.innerHTML = `
       <td>${p.cod_produto || '—'}</td>
       <td>${p.cod_grup_sku || '—'}</td>
       <td>${p.cod_grup_descricao || '—'}</td>
       <td>${formatPrice(p.price)}</td>
-      <td><span class="status-badge ${statusClass}">${p.status || 'ativo'}</span></td>
+      <td><span class="status-badge ${st.cls}">${st.label}</span></td>
       <td>${formatDate(p.created_at)}</td>
       <td class="actions-cell">
         <button class="btn-icon" data-action="edit" data-id="${p.id}" title="Editar">✏️</button>

@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from openpyxl import load_workbook
-from sqlalchemy import String, cast, func, text
+from sqlalchemy import String, and_, cast, func, or_, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import Session, or_, select
+from sqlmodel import Session, select
 
 from app.api.deps import get_current_user, require_roles
 from app.db.session import get_session
@@ -278,6 +278,57 @@ def _catalog_status_is_ativo_clause():
     )
 
 
+def _status_pre_cadastro_clause():
+    """Status de pré-cadastro (rótulos comuns e variações com/sem acento)."""
+    col = cast(Product.status, String)
+    sl = func.lower(func.trim(col))
+    raw = Product.status
+    return or_(
+        sl.in_(("pre-cadastro", "pré-cadastro", "pre cadastro", "pré cadastro", "precadastro")),
+        sl.like("%pre%cadastro%"),
+        sl.like("%pré%cadastro%"),
+        raw.ilike("%pre%cadastro%"),
+        raw.ilike("%pré%cadastro%"),
+    )
+
+
+def _status_inativo_clause():
+    """Inativo explícito (sinônimos da importação), excluindo ativos e pré-cadastro."""
+    col = cast(Product.status, String)
+    sl = func.lower(func.trim(col))
+    inativo_ish = or_(
+        sl == "inativo",
+        sl.in_(tuple(_INATIVO_STATUS_SYNONYMS)),
+        Product.status == "Inativo",
+        Product.status == "INATIVO",
+    )
+    return and_(
+        inativo_ish,
+        func.not_(_catalog_status_is_ativo_clause()),
+        func.not_(_status_pre_cadastro_clause()),
+    )
+
+
+def _normalize_list_status_tokens(raw: list[str] | None) -> set[str]:
+    """Normaliza query params status=... para ativo | inativo | pre-cadastro."""
+    if not raw:
+        return set()
+    out: set[str] = set()
+    for item in raw:
+        t = _strip_accents_lower((item or "").strip())
+        if not t:
+            continue
+        if t in ("ativo", "ativos", "a"):
+            out.add("ativo")
+        elif t in ("inativo", "inativos", "i"):
+            out.add("inativo")
+        elif t in ("pre-cadastro", "pre cadastro", "precadastro", "p", "pre") or (
+            "pre" in t and "cadastro" in t
+        ):
+            out.add("pre-cadastro")
+    return out
+
+
 def _fill_import_row_defaults(row_data: dict[str, str | None]) -> None:
     """Preenche codigo/SKU/descricao quando a planilha traz só codigo+nome ou colunas BI parciais."""
     cod = (row_data.get("cod_produto") or "").strip()
@@ -310,12 +361,28 @@ def list_products(
     _: User = Depends(require_roles("administrativo", "admin")),
     q: str | None = Query(default=None),
     limit: int = Query(default=500, ge=1, le=20000),
+    status: list[str] | None = Query(default=None),
 ) -> list[ProductRead]:
     statement = select(Product)
     if q:
         statement = statement.where(
             Product.cod_produto.contains(q) | Product.cod_grup_descricao.contains(q) | Product.cod_grup_sku.contains(q),
         )
+
+    tokens = _normalize_list_status_tokens(status)
+    if tokens:
+        if tokens == {"ativo", "inativo", "pre-cadastro"}:
+            pass
+        else:
+            parts = []
+            if "ativo" in tokens:
+                parts.append(_catalog_status_is_ativo_clause())
+            if "inativo" in tokens:
+                parts.append(_status_inativo_clause())
+            if "pre-cadastro" in tokens:
+                parts.append(_status_pre_cadastro_clause())
+            if parts:
+                statement = statement.where(or_(*parts))
 
     try:
         products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
