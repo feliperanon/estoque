@@ -150,6 +150,9 @@ def _norm_header(value: str) -> str:
     return normalized
 
 
+# Modelo oficial de importação (planilha BI — 8 colunas):
+# Cia → cod_grup_cia | Tipo → cod_grup_tipo | Segmento → cod_grup_segmento | Marca → cod_grup_marca
+# Produto → cod_grup_descricao | Codigo → cod_produto | SKU → cod_grup_sku | Custo → price
 HEADER_ALIASES = {
     "cod_grup_sp": "cod_grup_sp",
     "grup_sp": "cod_grup_sp",
@@ -215,9 +218,13 @@ HEADER_ALIASES = {
     "price": "price",
     "preco": "price",
     "preco_rs": "price",
+    "preco_unitario": "price",
     "custo": "price",
+    "custo_rs": "price",
+    "custo_unitario": "price",
     "valor": "price",
     "valor_rs": "price",
+    "valor_unitario": "price",
 }
 
 # Importação por planilha: obrigatório código do produto + nome/descrição. SKU é opcional (espelha o código se vazio).
@@ -341,17 +348,72 @@ def _normalize_list_status_tokens(raw: list[str] | None) -> set[str]:
     return out
 
 
+def _parse_br_price(value: object) -> float | None:
+    """Interpreta custo/preço: número Excel, ou texto tipo R$ 1.234,56 / 60,03."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip()
+    if not s:
+        return None
+    s = re.sub(r"^(R\$|USD|\$)\s*", "", s, flags=re.IGNORECASE).strip()
+    s = s.replace(" ", "")
+    if not s:
+        return None
+    if "," in s and "." in s:
+        # 1.234,56 (BR) vs 1,234.56 (US)
+        if s.rfind(",") > s.rfind("."):
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            s = s.replace(",", "")
+    elif "," in s:
+        parts = s.split(",")
+        if len(parts) == 2 and len(parts[1]) <= 2 and parts[1].isdigit():
+            int_part = parts[0].replace(".", "")
+            s = f"{int_part}.{parts[1]}"
+        else:
+            s = s.replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
 def _coerce_price_in_row(row_data: dict[str, str | float | None]) -> None:
     """Converte coluna de custo/preço da planilha para float."""
     raw = row_data.get("price")
     if raw is None or (isinstance(raw, str) and not str(raw).strip()):
         row_data.pop("price", None)
         return
-    try:
-        s = str(raw).strip().replace(",", ".")
-        row_data["price"] = float(s) if s else None
-    except ValueError:
+    parsed = _parse_br_price(raw)
+    if parsed is None:
         row_data.pop("price", None)
+    else:
+        row_data["price"] = parsed
+
+
+def _normalize_codigo_import(row_data: dict[str, str | None]) -> None:
+    """Evita cod_produto '140.0' quando o Excel grava código como float."""
+    raw = row_data.get("cod_produto")
+    if raw is None:
+        return
+    s = str(raw).strip()
+    if not s:
+        return
+    if re.fullmatch(r"-?\d+\.0+", s):
+        row_data["cod_produto"] = s.split(".")[0]
+        return
+    try:
+        num = float(s.replace(",", "."))
+        if num == int(num) and abs(num) < 1e15:
+            row_data["cod_produto"] = str(int(num))
+            return
+    except ValueError:
+        pass
+    row_data["cod_produto"] = s
 
 
 def _fill_import_row_defaults(row_data: dict[str, str | None]) -> None:
@@ -557,7 +619,7 @@ async def import_products_excel(
         best_score = 0
 
         # Algumas planilhas trazem titulo/descricao antes do cabecalho.
-        for idx, row in enumerate(all_rows[:15]):
+        for idx, row in enumerate(all_rows[:30]):
             current_mapped, score = _map_headers(row)
             if score > best_score:
                 best_score = score
@@ -595,6 +657,7 @@ async def import_products_excel(
             if not any(row_data.values()):
                 continue
 
+            _normalize_codigo_import(row_data)
             _coerce_price_in_row(row_data)
             _fill_import_row_defaults(row_data)
             if "status" in row_data and row_data.get("status") is not None:
