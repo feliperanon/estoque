@@ -41,6 +41,35 @@ def _extract_count_type(value: str | None) -> str:
     return "caixa"
 
 
+def _aggregate_count_events_by_code(session: Session) -> dict[str, dict[str, int]]:
+    """Soma CX/UN por produto a partir do ChangeLog (todos os usuários / aparelhos sincronizados)."""
+    count_logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_count",
+                ChangeLog.action == "count_event",
+            )
+        ).all()
+    )
+    counted_by_code: dict[str, dict[str, int]] = {}
+    for log in count_logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        item_code = str(payload.get("item_code") or "")
+        code = _normalize_item_code(item_code)
+        if not code:
+            continue
+        count_type = _extract_count_type(item_code)
+        qty_raw = payload.get("quantity", 0)
+        try:
+            qty = int(qty_raw)
+        except Exception:
+            qty = 0
+        if code not in counted_by_code:
+            counted_by_code[code] = {"caixa": 0, "unidade": 0}
+        counted_by_code[code][count_type] = counted_by_code[code].get(count_type, 0) + qty
+    return counted_by_code
+
+
 def _parse_inventory_metric_token(token: str) -> int:
     tok = (token or "").strip().upper()
     if not tok:
@@ -177,6 +206,25 @@ def import_balances(
     }
 
 
+@router.get("/count-server-totals")
+def count_server_totals(
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """
+    Totais CX/UN já sincronizados no servidor (ChangeLog), somando todos os conferentes.
+    Usado na tela de contagem para exibir o mesmo total operacional em qualquer aparelho.
+    """
+    counted_by_code = _aggregate_count_events_by_code(session)
+    balances: dict[str, dict[str, int]] = {}
+    for code, rec in counted_by_code.items():
+        balances[code] = {
+            "caixa": int(rec.get("caixa", 0)),
+            "unidade": int(rec.get("unidade", 0)),
+        }
+    return {"balances": balances}
+
+
 @router.get("/stock-analysis")
 def stock_analysis(
 
@@ -298,34 +346,8 @@ def stock_analysis(
             active_rows = session.exec(select(Product.cod_produto).where(_catalog_status_is_ativo_clause())).all()
             active_set = {_normalize_item_code(c) for c in active_rows if c}
 
-    # Busca todos os eventos de contagem sem filtro de data.
-    # O usuário seleciona qual importação comparar; restringir por data
-    # exclui contagens feitas antes do upload do TXT (problema recorrente).
-    count_logs = list(
-        session.exec(
-            select(ChangeLog).where(
-                ChangeLog.entity_name == "stock_count",
-                ChangeLog.action == "count_event",
-            )
-        ).all()
-    )
-
-    counted_by_code: dict[str, dict[str, int]] = {}
-    for log in count_logs:
-        payload = log.payload if isinstance(log.payload, dict) else {}
-        item_code = str(payload.get("item_code") or "")
-        code = _normalize_item_code(item_code)
-        if not code:
-            continue
-        count_type = _extract_count_type(item_code)
-        qty_raw = payload.get("quantity", 0)
-        try:
-            qty = int(qty_raw)
-        except Exception:
-            qty = 0
-        if code not in counted_by_code:
-            counted_by_code[code] = {"caixa": 0, "unidade": 0}
-        counted_by_code[code][count_type] = counted_by_code[code].get(count_type, 0) + qty
+    # Busca todos os eventos de contagem sem filtro de data (mesma agregação que /count-server-totals).
+    counted_by_code = _aggregate_count_events_by_code(session)
 
     all_codes = set(imported_by_code.keys()) | set(counted_by_code.keys())
     rows: list[dict] = []

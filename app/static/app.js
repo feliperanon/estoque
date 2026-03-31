@@ -209,6 +209,7 @@ const API_REGISTER = '/auth/register';
 const API_SYNC_COUNTS = '/audit/count-events';
 const API_STOCK_ANALYSIS = '/audit/stock-analysis';
 const API_IMPORT_BALANCES = '/audit/import-balances';
+const API_COUNT_SERVER_TOTALS = '/audit/count-server-totals';
 const API_PRODUCTS = '/products';
 /** Alinhado ao `le` em GET /products e /products/catalog (products.py). */
 const PRODUCTS_LIST_LIMIT = 20000;
@@ -219,8 +220,10 @@ const APP_BASE_PATH = '/app';
 const TOKEN_KEY  = 'estoque_token';
 const USER_KEY   = 'estoque_user';
 const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
-/** Saldo CX/UN do último TXT (ou data em #count-date), para comparar na contagem. */
+/** Saldo CX/UN do último TXT (ou data em #count-date), para comparar na contagem (sem exibir valores na UI). */
 let countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+/** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
+let countServerCountState = { ok: false, balances: {} };
 const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
 const DEVICE_NAME_KEY = 'estoque_device_name_v1';
 let activeApiBasePrimary = API_BASE_URL_PRIMARY;
@@ -341,7 +344,6 @@ const countFeedback = document.getElementById('count-feedback');
 const countProductsList = document.getElementById('count-products-list');
 const countProductsListDone = document.getElementById('count-products-list-done');
 const countProductsDoneWrap = document.getElementById('count-products-done-wrap');
-const countSaldoTxtHint = document.getElementById('count-saldo-txt-hint');
 const countProductsTotal = document.getElementById('count-products-total');
 const countProgressFill = document.getElementById('count-progress-fill');
 const kpiCountPercent = document.getElementById('kpi-count-percent');
@@ -1153,10 +1155,40 @@ function makeCountTotalKey(itemCode, countType) {
   return `${normalizeItemCode(itemCode)}::${normalizeCountType(countType)}`;
 }
 
-/** Soma eventos de contagem por produto e tipo (caixa vs unidade). */
+/** Soma apenas eventos locais ainda não sincronizados (evita duplicar o que já está no servidor). */
+function getUnsyncedNetByProductAndType(productCode, countType) {
+  const base = normalizeItemCode(productCode);
+  const ct = normalizeCountType(countType);
+  let sum = 0;
+  for (const event of loadCountEvents()) {
+    if (event.synced) continue;
+    if (normalizeItemCode(event.item_code || '') !== base) continue;
+    if (normalizeCountType(event.count_type) !== ct) continue;
+    sum += Number(event.quantity || 0);
+  }
+  return sum;
+}
+
+function getServerNetForProductAndType(productCode, countType) {
+  if (!countServerCountState.ok) return 0;
+  const base = normalizeItemCode(productCode);
+  const ct = normalizeCountType(countType);
+  const b = countServerCountState.balances[base];
+  if (!b) return 0;
+  return ct === 'unidade' ? Number(b.unidade) || 0 : Number(b.caixa) || 0;
+}
+
+/**
+ * Total exibido na contagem: servidor (todos os conferentes) + lançamentos locais ainda não enviados.
+ * Offline ou falha na API: volta ao comportamento anterior (só soma local).
+ */
 function getNetByProductAndType(productCode, countType) {
   const base = normalizeItemCode(productCode);
   const ct = normalizeCountType(countType);
+  const unsynced = getUnsyncedNetByProductAndType(productCode, countType);
+  if (countServerCountState.ok) {
+    return getServerNetForProductAndType(productCode, countType) + unsynced;
+  }
   let sum = 0;
   for (const event of loadCountEvents()) {
     if (normalizeItemCode(event.item_code || '') !== base) continue;
@@ -1164,6 +1196,27 @@ function getNetByProductAndType(productCode, countType) {
     sum += Number(event.quantity || 0);
   }
   return sum;
+}
+
+async function loadServerCountTotals() {
+  const token = getToken();
+  if (!token) {
+    countServerCountState = { ok: false, balances: {} };
+    return;
+  }
+  try {
+    const response = await apiFetch(API_COUNT_SERVER_TOTALS, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      countServerCountState = { ok: false, balances: {} };
+      return;
+    }
+    const data = await response.json();
+    countServerCountState = { ok: true, balances: data.balances || {} };
+  } catch {
+    countServerCountState = { ok: false, balances: {} };
+  }
 }
 
 function escapeHtml(text) {
@@ -1316,9 +1369,23 @@ function countDimensionMatchesSaldo(codRaw, countType, net, saldoVal) {
   const s = Math.max(0, Math.round(Number(saldoVal) || 0));
   if (n !== s) return false;
   if (s === 0) {
-    return hasAnyCountEventsForType(codRaw, countType) || countExplicitZeroStored(codRaw, countType);
+    return hasAnyCountActivityForType(codRaw, countType) || countExplicitZeroStored(codRaw, countType);
   }
   return true;
+}
+
+/** Há lançamento local ou total já sincronizado no servidor (para saldo TXT zero). */
+function hasAnyCountActivityForType(codRaw, countType) {
+  if (hasAnyCountEventsForType(codRaw, countType)) return true;
+  const base = normalizeItemCode(codRaw);
+  const ct = normalizeCountType(countType);
+  if (countServerCountState.ok) {
+    const b = countServerCountState.balances[base];
+    if (!b) return false;
+    const v = ct === 'unidade' ? Number(b.unidade) || 0 : Number(b.caixa) || 0;
+    if (v !== 0) return true;
+  }
+  return false;
 }
 
 async function loadImportBalancesForCount() {
@@ -1383,10 +1450,6 @@ function renderCountProducts(products) {
     countProductsList.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
     if (countProductsListDone) countProductsListDone.innerHTML = '';
     if (countProductsDoneWrap) countProductsDoneWrap.hidden = true;
-    if (countSaldoTxtHint) {
-      countSaldoTxtHint.hidden = true;
-      countSaldoTxtHint.textContent = '';
-    }
     updateCountProgress([]);
     // Garante que o menu de módulos e dashboard continuam visíveis
     const moduleNav = document.getElementById('module-nav');
@@ -1396,19 +1459,6 @@ function renderCountProducts(products) {
     const dashboardContent = document.querySelector('.dashboard-content');
     if (dashboardContent) dashboardContent.style.display = '';
     return;
-  }
-
-  if (countSaldoTxtHint) {
-    if (countImportBalancesState.hasTxt) {
-      countSaldoTxtHint.hidden = false;
-      const fn = countImportBalancesState.importLabel || '';
-      countSaldoTxtHint.textContent = fn
-        ? `Comparando com o saldo do TXT: ${fn}`
-        : 'Comparando com o saldo importado do TXT.';
-    } else {
-      countSaldoTxtHint.hidden = true;
-      countSaldoTxtHint.textContent = '';
-    }
   }
 
   const rowClassFromMatch = (m) => {
@@ -1429,8 +1479,6 @@ function renderCountProducts(products) {
     const dimUn = countDimensionMatchesSaldo(codRaw, 'unidade', netUn, pair ? pair.import_unidade : 0);
     const vCx = Math.max(0, Math.round(Number(netCx) || 0));
     const vUn = Math.max(0, Math.round(Number(netUn) || 0));
-    const saldoCx = pair ? Math.max(0, Math.round(Number(pair.import_caixa) || 0)) : null;
-    const saldoUn = pair ? Math.max(0, Math.round(Number(pair.import_unidade) || 0)) : null;
 
     let cardClass = 'count-product-item';
     if (hasTxt && pair) {
@@ -1440,13 +1488,6 @@ function renderCountProducts(products) {
         cardClass += ' count-product-item--recontagem';
       }
     }
-
-    const saldoBlock = hasTxt && pair
-      ? `<div class="count-product-saldo" aria-label="Saldo no arquivo TXT">
-          <span class="count-product-saldo-label">Saldo TXT</span>
-          <span class="count-product-saldo-values">CX ${formatIntegerBR(saldoCx)} · UN ${formatIntegerBR(saldoUn)}</span>
-        </div>`
-      : '';
 
     const badgeCx = hasTxt && pair
       ? (dimCx === false
@@ -1470,7 +1511,6 @@ function renderCountProducts(products) {
     li.innerHTML = `
       <div class="count-product-label">
         <span class="count-product-desc">${desc}</span>
-        ${saldoBlock}
       </div>
       <div class="count-product-controls">
         <div class="count-control-row ${rowClassFromMatch(dimCx)}">
@@ -1480,7 +1520,7 @@ function renderCountProducts(products) {
             data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
           <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="Total contado em caixas neste aparelho (soma dos lançamentos)">
+            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="Total em caixas: equipe (sincronizado) + pendente neste aparelho">
               <span class="count-product-readout-inner">
                 <strong class="count-product-readout-value">${formatIntegerBR(vCx)}</strong>
               </span>
@@ -1495,7 +1535,7 @@ function renderCountProducts(products) {
             data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
           <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="Total contado em unidades neste aparelho (soma dos lançamentos)">
+            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="Total em unidades: equipe (sincronizado) + pendente neste aparelho">
               <span class="count-product-readout-inner">
                 <strong class="count-product-readout-value">${formatIntegerBR(vUn)}</strong>
               </span>
@@ -1611,23 +1651,23 @@ async function loadCountProducts() {
   try {
     let products = await fetchCatalog(statusValue);
     if (products === null) {
-      await loadImportBalancesForCount();
+      await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
       renderCountProducts([]);
       setFeedback('Nao foi possivel carregar a lista de produtos para contagem.', true);
       return;
     }
     if (!Array.isArray(products) || products.length === 0) {
-      await loadImportBalancesForCount();
+      await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
       renderCountProducts([]);
       setFeedback('Nenhum produto ativo encontrado. Verifique se há produtos cadastrados como ATIVO.', true);
       return;
     }
     countProductsCache = products;
-    await loadImportBalancesForCount();
+    await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
     renderCountProducts(countProductsCache);
   } catch (e) {
     console.error('Erro ao carregar produtos:', e);
-    loadImportBalancesForCount().then(() => renderCountProducts([]));
+    Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]).then(() => renderCountProducts([]));
     setFeedback('Sem conexao para carregar produtos.', true);
   }
 }
@@ -1770,6 +1810,8 @@ async function syncPendingEvents() {
     saveCountEvents(updated);
     renderCounts();
     setFeedback(`Sincronizacao concluida: ${syncedIds.size} evento(s) enviado(s).`);
+    await loadServerCountTotals();
+    refreshCountProductListView();
     // Atualiza análise em tempo real se a aba estiver aberta
     const auditVisible = document.getElementById('sub-count-audit')?.classList.contains('active');
     if (auditVisible) {
@@ -1867,7 +1909,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   const netUn = Math.max(0, Math.round(Number(getNetByProductAndType(itemCode, 'unidade')) || 0));
   const deltaStr = quantity > 0 ? `+${quantity}` : String(quantity);
   setFeedback(
-    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total agora ${formatIntegerBR(netCx)} CX e ${formatIntegerBR(netUn)} UN`,
+    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total operação ${formatIntegerBR(netCx)} CX e ${formatIntegerBR(netUn)} UN`,
     false,
     true,
   );
@@ -1880,7 +1922,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
       `<span class="count-last-launch-body">` +
       `<strong class="count-last-launch-name">${escapeHtml(productName)}</strong> ` +
       `<span class="count-last-launch-delta">(${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'})</span>` +
-      ` · Contado: <strong>${formatIntegerBR(netCx)} CX</strong> · <strong>${formatIntegerBR(netUn)} UN</strong>` +
+      ` · Total operação: <strong>${formatIntegerBR(netCx)} CX</strong> · <strong>${formatIntegerBR(netUn)} UN</strong>` +
       `</span>`;
   }
 
@@ -1982,7 +2024,7 @@ function bindCountEvents() {
   const countDateEl = document.getElementById('count-date');
   if (countDateEl) {
     countDateEl.addEventListener('change', async () => {
-      await loadImportBalancesForCount();
+      await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
       refreshCountProductListView();
     });
   }
@@ -2040,6 +2082,7 @@ function bindCountEvents() {
   window.addEventListener('online', () => {
     updateNetworkStatus();
     syncPendingEvents();
+    loadServerCountTotals().then(() => refreshCountProductListView());
   });
 
   window.addEventListener('offline', () => {

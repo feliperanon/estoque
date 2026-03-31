@@ -3147,27 +3147,6 @@ form#count-form.count-form {
   margin: -2px -4px;
 }
 
-.count-product-saldo {
-  font-size: 0.6875rem;
-  color: #64748b;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: baseline;
-  margin-top: 4px;
-}
-
-.count-product-saldo-label {
-  font-weight: 700;
-  color: #475569;
-}
-
-.count-product-saldo-values {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: #334155;
-}
-
 .count-product-item--conferido {
   background: rgba(220, 252, 231, 0.35) !important;
   border-left: 3px solid #22c55e;
@@ -3176,16 +3155,6 @@ form#count-form.count-form {
 .count-product-item--recontagem {
   background: rgba(255, 237, 213, 0.4) !important;
   border-left: 3px solid #ea580c;
-}
-
-.count-saldo-txt-hint {
-  margin: 8px 0 0;
-  padding: 8px 10px;
-  font-size: 0.8125rem;
-  color: #334155;
-  background: rgba(37, 99, 235, 0.06);
-  border: 1px solid rgba(37, 99, 235, 0.12);
-  border-radius: 4px;
 }
 
 .count-all-done-msg {
