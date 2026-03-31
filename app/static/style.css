@@ -5,6 +5,7 @@
   }
   .card .search-input,
   .card #count-audit-search,
+  .card #count-audit-sort,
   .card #count-audit-clear-search {
     max-width: 100% !important;
     width: 100%;
@@ -2227,17 +2228,40 @@ form#count-form.count-form {
   gap: 12px;
   flex-wrap: wrap;
 }
+.count-audit-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
 .count-audit-search-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  margin-bottom: 12px;
 }
 .count-audit-search-input {
   flex: 1;
   min-width: 0;
   min-height: 44px;
+}
+.count-audit-sort-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.count-audit-sort-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ink, #0f172a);
+  white-space: nowrap;
+}
+.count-audit-sort-select {
+  flex: 1;
+  min-width: min(100%, 12rem);
+  min-height: 44px;
+  max-width: 100%;
 }
 .count-audit-list-main {
   gap: 0;
@@ -2871,7 +2895,8 @@ form#count-form.count-form {
 
 /* ── Contagem: item operacional (densidade alta, leitura rápida) ── */
 /* Neutraliza regras genéricas de .list li nesta lista */
-#sub-count #count-products-list.list.count-list-flat li.count-product-item {
+#sub-count #count-products-list.list.count-list-flat li.count-product-item,
+#sub-count #count-products-list-done.list.count-list-flat li.count-product-item {
   border: none;
   border-radius: 0;
   background: #fff;
@@ -2940,6 +2965,10 @@ form#count-form.count-form {
   font-size: inherit;
   line-height: inherit;
   color: #0f172a;
+}
+
+.count-product-readout-value {
+  margin-left: 20px;
 }
 
 .count-control-row .count-product-readout--by-control .count-product-readout-value {
@@ -3059,13 +3088,129 @@ form#count-form.count-form {
   min-width: min(100%, 13rem);
 }
 
-/* Linha operacional: sigla | − | valor | + | total (à direita) */
+/* Linha operacional: sigla | − | valor | + | total + selo (à direita) */
 .count-control-row {
   display: grid;
-  grid-template-columns: 2.25rem 32px minmax(0, 1fr) 32px auto;
+  grid-template-columns: 2.25rem 32px minmax(0, 1fr) 32px minmax(0, auto);
   align-items: center;
   gap: 4px;
   min-width: 0;
+}
+
+.count-control-tail {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.count-control-tail .count-product-readout.count-product-readout--by-control {
+  margin-left: 0;
+}
+
+.count-row-badge {
+  flex-shrink: 0;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.count-row-badge--ok {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+}
+
+.count-row-badge--recount {
+  color: #9a3412;
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+}
+
+.count-control-row--recount {
+  background: rgba(255, 237, 213, 0.4);
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.count-control-row--ok {
+  background: rgba(220, 252, 231, 0.45);
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.count-product-saldo {
+  font-size: 0.6875rem;
+  color: #64748b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin-top: 4px;
+}
+
+.count-product-saldo-label {
+  font-weight: 700;
+  color: #475569;
+}
+
+.count-product-saldo-values {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #334155;
+}
+
+.count-product-item--conferido {
+  background: rgba(220, 252, 231, 0.35) !important;
+  border-left: 3px solid #22c55e;
+}
+
+.count-product-item--recontagem {
+  background: rgba(255, 237, 213, 0.4) !important;
+  border-left: 3px solid #ea580c;
+}
+
+.count-saldo-txt-hint {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  font-size: 0.8125rem;
+  color: #334155;
+  background: rgba(37, 99, 235, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  border-radius: 4px;
+}
+
+.count-all-done-msg {
+  list-style: none;
+  padding: 12px 10px;
+  margin: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.count-products-done-wrap {
+  margin-top: 12px;
+  padding: 10px 10px 6px;
+  border-top: 1px dashed rgba(15, 23, 42, 0.12);
+}
+
+.count-products-done-title {
+  margin: 0 0 4px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.count-products-done-sub {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
 }
 
 .count-control-type {
@@ -3193,7 +3338,8 @@ form#count-form.count-form {
     padding: 4px 6px;
   }
 
-  #sub-count #count-products-list.list.count-list-flat li.count-product-item {
+  #sub-count #count-products-list.list.count-list-flat li.count-product-item,
+  #sub-count #count-products-list-done.list.count-list-flat li.count-product-item {
     padding: 4px 6px;
     gap: 4px;
   }

@@ -63,6 +63,120 @@ def _extract_import_quantities(raw_metrics: list[str]) -> tuple[int, int]:
     return caixa, unidade
 
 
+@router.get("/import-balances")
+def import_balances(
+    reference_date: str | None = Query(default=None),
+    only_active: bool = Query(default=True, alias="only_active"),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """
+    Saldo CX/UN por produto conforme importação TXT (mesma base da análise de contagem).
+    has_txt_import=false quando não há arquivo (fallback catálogo 0/0) — a UI não deve validar “bateu”.
+    """
+    from app.api.routes.products import _catalog_status_is_ativo_clause
+
+    current_import = None
+    if reference_date:
+        current_import = session.exec(
+            select(InventoryImport)
+            .where(InventoryImport.reference_date == reference_date)
+            .order_by(InventoryImport.imported_at.desc())
+            .limit(1)
+        ).first()
+    else:
+        current_import = session.exec(
+            select(InventoryImport).order_by(InventoryImport.imported_at.desc()).limit(1)
+        ).first()
+
+    use_catalog_fallback = False
+    imported_by_code: dict[str, dict] = {}
+    import_meta: dict | None = None
+
+    if current_import:
+        import_items = list(
+            session.exec(
+                select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == current_import.id)
+            ).all()
+        )
+        for item in import_items:
+            code = _normalize_item_code(item.cod_produto)
+            if not code:
+                continue
+            raw_metrics = item.metrics.get("raw") if isinstance(item.metrics, dict) else []
+            raw_metrics = raw_metrics if isinstance(raw_metrics, list) else []
+            import_caixa, import_unidade = _extract_import_quantities(raw_metrics)
+            if code not in imported_by_code:
+                imported_by_code[code] = {
+                    "cod_produto": code,
+                    "descricao": item.descricao or "",
+                    "import_caixa": 0,
+                    "import_unidade": 0,
+                }
+            imported_by_code[code]["import_caixa"] += import_caixa
+            imported_by_code[code]["import_unidade"] += import_unidade
+            if not imported_by_code[code]["descricao"] and item.descricao:
+                imported_by_code[code]["descricao"] = item.descricao
+        import_meta = {
+            "id": current_import.id,
+            "reference_date": current_import.reference_date,
+            "file_name": current_import.file_name,
+            "imported_at": current_import.imported_at,
+            "total_products": current_import.total_products,
+            "created_products": current_import.created_products,
+        }
+    elif only_active:
+        use_catalog_fallback = True
+        prods = list(
+            session.exec(
+                select(Product.cod_produto, Product.cod_grup_descricao)
+                .where(_catalog_status_is_ativo_clause())
+                .order_by(Product.cod_grup_descricao)
+            ).all()
+        )
+        for cod_raw, desc in prods:
+            code = _normalize_item_code(cod_raw)
+            if not code:
+                continue
+            imported_by_code[code] = {
+                "cod_produto": code,
+                "descricao": (desc or "").strip(),
+                "import_caixa": 0,
+                "import_unidade": 0,
+            }
+        ref_label = (reference_date or "").strip()
+        file_note = (
+            f"Sem importação TXT para {ref_label} — saldo 0 CX / 0 UN (somente ativos)"
+            if ref_label
+            else "Sem importação TXT — saldo 0 CX / 0 UN (somente produtos ativos)"
+        )
+        import_meta = {
+            "id": None,
+            "reference_date": reference_date or None,
+            "file_name": file_note,
+            "imported_at": None,
+            "total_products": len(imported_by_code),
+            "created_products": 0,
+        }
+    else:
+        return {"has_txt_import": False, "import": None, "balances": {}}
+
+    has_txt_import = bool(current_import) and not use_catalog_fallback
+
+    balances: dict[str, dict[str, int]] = {}
+    for code, rec in imported_by_code.items():
+        balances[code] = {
+            "import_caixa": int(rec.get("import_caixa", 0)),
+            "import_unidade": int(rec.get("import_unidade", 0)),
+        }
+
+    return {
+        "has_txt_import": has_txt_import,
+        "import": import_meta,
+        "balances": balances,
+    }
+
+
 @router.get("/stock-analysis")
 def stock_analysis(
 

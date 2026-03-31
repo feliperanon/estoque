@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=31" />
+    <link rel="stylesheet" href="/static/style.css?v=34" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -209,8 +209,14 @@
               <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
               </form>
             </div>
+            <p id="count-saldo-txt-hint" class="count-saldo-txt-hint" role="status" aria-live="polite" hidden></p>
             <div class="count-products-shell">
               <ul id="count-products-list" class="list count-list-flat"></ul>
+              <div id="count-products-done-wrap" class="count-products-done-wrap" hidden>
+                <h3 class="count-products-done-title">Estoque conferido</h3>
+                <p class="count-products-done-sub muted">CX e UN conferidos com o saldo do TXT.</p>
+                <ul id="count-products-list-done" class="list count-list-flat count-list-done"></ul>
+              </div>
             </div>
           </div>
 
@@ -544,9 +550,29 @@
                 <h3>Produtos ativos</h3>
                 <span id="count-audit-total" class="chip" aria-live="polite">0</span>
               </div>
-              <div class="count-audit-search-row">
-                <input id="count-audit-search" class="search-input count-audit-search-input" type="text" placeholder="Filtrar por código ou descrição..." autocomplete="off" />
-                <button id="count-audit-clear-search" type="button" class="btn-secondary btn-small" title="Limpar pesquisa" style="display:none;">Limpar</button>
+              <div class="count-audit-filters">
+                <div class="count-audit-search-row">
+                  <input id="count-audit-search" class="search-input count-audit-search-input" type="text" placeholder="Código, descrição ou grupo..." autocomplete="off" aria-label="Filtrar lista" />
+                  <button id="count-audit-clear-search" type="button" class="btn-secondary btn-small" title="Limpar pesquisa" style="display:none;">Limpar</button>
+                </div>
+                <div class="count-audit-sort-row">
+                  <label class="count-audit-sort-label" for="count-audit-sort">Ordenar por</label>
+                  <select id="count-audit-sort" class="search-input count-audit-sort-select" aria-label="Ordenar lista de produtos">
+                    <option value="status">Situação (prioridade)</option>
+                    <option value="cod_asc">Código (menor → maior)</option>
+                    <option value="cod_desc">Código (maior → menor)</option>
+                    <option value="nome_asc">Nome A–Z</option>
+                    <option value="nome_desc">Nome Z–A</option>
+                    <option value="grupo_asc">Grupo A–Z</option>
+                    <option value="grupo_desc">Grupo Z–A</option>
+                    <option value="diff_desc">Maior diferença (abs.)</option>
+                    <option value="diff_asc">Menor diferença (abs.)</option>
+                    <option value="saldo_cx_desc">Saldo CX (maior)</option>
+                    <option value="saldo_cx_asc">Saldo CX (menor)</option>
+                    <option value="saldo_un_desc">Saldo UN (maior)</option>
+                    <option value="saldo_un_asc">Saldo UN (menor)</option>
+                  </select>
+                </div>
               </div>
               <ul id="count-audit-list" class="list count-audit-list-main">
                 <li class="count-audit-empty"><span>Carregue a análise para ver os produtos ativos.</span><strong>—</strong></li>
@@ -878,7 +904,7 @@
     </div>
 
     <div id="install-feedback" class="install-feedback" aria-live="polite"></div>
-    <script src="/static/app.js?v=25"></script>
+    <script src="/static/app.js?v=27"></script>
     <script src="/static/pwa-install.js?v=6"></script>
   </body>
 </html>
