@@ -1250,6 +1250,13 @@ function renderCountProducts(products) {
 
   if (!ativos.length) {
     countProductsList.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
+    // Garante que o menu de módulos e dashboard continuam visíveis
+    const moduleNav = document.getElementById('module-nav');
+    if (moduleNav) moduleNav.style.display = '';
+    const sidebarMenu = document.getElementById('sidebar-menu');
+    if (sidebarMenu) sidebarMenu.style.display = '';
+    const dashboardContent = document.querySelector('.dashboard-content');
+    if (dashboardContent) dashboardContent.style.display = '';
     return;
   }
 
@@ -1259,6 +1266,14 @@ function renderCountProducts(products) {
     li.innerHTML = `<span>${product.cod_produto || ''} - ${product.cod_grup_descricao || ''}</span><strong>${product.status || ''}</strong>`;
     countProductsList.appendChild(li);
   }
+  // Garante que o menu de módulos e dashboard continuam visíveis
+  const moduleNav = document.getElementById('module-nav');
+  if (moduleNav) moduleNav.style.display = '';
+  const sidebarMenu = document.getElementById('sidebar-menu');
+  if (sidebarMenu) sidebarMenu.style.display = '';
+  const dashboardContent = document.querySelector('.dashboard-content');
+  if (dashboardContent) dashboardContent.style.display = '';
+}
 }
 
 function filterCountProductsByTerm(term) {
