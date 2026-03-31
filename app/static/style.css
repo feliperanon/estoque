@@ -72,10 +72,10 @@
 .count-main-filters-row {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 2fr);
-  gap: 12px 14px;
+  gap: 12px 16px;
   width: 100%;
-  align-items: end;
-  margin-top: 12px;
+  align-items: start;
+  margin-top: 16px;
   padding: 0 18px;
 }
 .count-main-filter-col--produto {
@@ -91,7 +91,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  align-items: stretch;
 }
 .count-main-filter-date {
   min-width: 0;
@@ -99,40 +100,76 @@
 .count-filter-label {
   font-weight: 600;
   color: var(--ink);
-  margin-bottom: 0;
+  margin: 0;
+  padding: 0;
   font-size: 0.8125rem;
+  line-height: 1.3;
+  flex-shrink: 0;
 }
+.count-main-card-inner .count-filter-label--bold {
+  font-weight: 700;
+}
+/* Campo unificado: borda no wrapper; ícone em flex (evita absolute solto na viewport) */
 .count-filter-input-wrapper {
   position: relative;
   display: flex;
+  flex-direction: row;
   align-items: center;
-}
-.count-filter-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  opacity: 0.55;
-}
-.count-filter-input {
+  gap: 8px;
   width: 100%;
+  min-width: 0;
   min-height: 44px;
-  padding: 10px 12px 10px 36px;
+  padding: 0 12px 0 10px;
   border: 1px solid var(--border-soft, #e2e8f0);
   border-radius: 10px;
   background: #fff;
-  font-size: 1rem;
-  color: var(--ink);
-  outline: none;
+  box-sizing: border-box;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.count-filter-input:focus {
+.count-filter-input-wrapper:focus-within {
   border-color: var(--primary-blue, #2563eb);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
+.count-filter-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  color: #64748b;
+}
+.count-group-chip-slot {
+  margin-top: 8px;
+}
+.count-filter-icon svg {
+  display: block;
+}
+.count-filter-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 1rem;
+  color: var(--ink);
+  outline: none;
+  box-shadow: none;
+}
+.count-filter-input:focus {
+  border: none;
+  box-shadow: none;
+}
+.count-filter-input-wrapper .count-filter-input:focus {
+  outline: none;
+}
 .count-filter-date {
-  padding-right: 10px;
+  min-height: 42px;
+  padding-right: 4px;
 }
 .count-main-progress {
   width: 100%;
@@ -231,7 +268,7 @@
   align-items: flex-start;
   gap: 2px;
 }
-.count-filter-label {
+.count-filters-bar .count-filter-label {
   color: #fff;
   font-size: 0.98rem;
   font-weight: 500;
@@ -239,7 +276,7 @@
   text-align: left;
   letter-spacing: 0.01em;
 }
-.count-filter-input {
+.count-filters-bar .count-filter-input {
   background: #fff;
   border-radius: 10px;
   border: none;
@@ -251,10 +288,10 @@
   outline: none;
   transition: box-shadow 0.15s, border-color 0.15s;
 }
-.count-filter-input:focus {
+.count-filters-bar .count-filter-input:focus {
   box-shadow: 0 0 0 2px #f4a30044;
 }
-.count-filter-date {
+.count-filters-bar .count-filter-date {
   font-size: 1.15rem;
   font-weight: 400;
   text-align: right;
@@ -1572,7 +1609,7 @@ form#count-form.count-form {
 .count-filter-col--produto { flex-basis: 50%; min-width: 0; }
 .count-filter-col--grupo   { flex-basis: 30%; min-width: 0; }
 .count-filter-col--data    { flex-basis: 20%; min-width: 0; }
-.count-filter-label {
+.count-filters-bar .count-filter-label {
   color: #fff;
   font-size: 0.98rem;
   font-weight: 400;
@@ -1580,10 +1617,10 @@ form#count-form.count-form {
   text-align: left;
   letter-spacing: 0.01em;
 }
-.count-filter-label--bold {
+.count-filters-bar .count-filter-label--bold {
   font-weight: 700;
 }
-.count-filter-input {
+.count-filters-bar .count-filter-input {
   background: #fff;
   border-radius: 8px;
   border: 1.2px solid #176d8c;
@@ -1595,10 +1632,10 @@ form#count-form.count-form {
   outline: none;
   transition: border-color 0.15s;
 }
-.count-filter-input:focus {
+.count-filters-bar .count-filter-input:focus {
   border-color: #f4a300;
 }
-.count-filter-date {
+.count-filters-bar .count-filter-date {
   font-size: 0.98rem;
   font-weight: 400;
   text-align: left;
@@ -1642,10 +1679,10 @@ form#count-form.count-form {
     align-items: flex-end;
     gap: 2px;
   }
-  .count-filter-label {
+  .count-filters-bar .count-filter-label {
     font-size: 0.92rem;
   }
-  .count-filter-input {
+  .count-filters-bar .count-filter-input {
     font-size: 0.92rem;
     border-radius: 5px;
     padding: 3px 4px;
