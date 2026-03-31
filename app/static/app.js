@@ -805,6 +805,11 @@ function ensureDailyCountReset() {
   const today = getLocalDateKey();
   const lastReset = localStorage.getItem(COUNT_EVENTS_DAY_KEY);
   if (lastReset === today) return false;
+  /* Sem chave de dia (primeira execução ou migração): não apagar lançamentos; só ancorar o dia. */
+  if (lastReset === null || lastReset === '') {
+    localStorage.setItem(COUNT_EVENTS_DAY_KEY, today);
+    return false;
+  }
   localStorage.removeItem(COUNT_EVENTS_KEY);
   localStorage.setItem(COUNT_EVENTS_DAY_KEY, today);
   return true;
@@ -2039,12 +2044,28 @@ function bindCountEvents() {
       const btn = e.target.closest('.btn-count-adjust');
       if (!btn || !countShell.contains(btn)) return;
       e.preventDefault();
-      /* Só aplica delta nos botões; não chamar applyCountQtyFromInput aqui (evita duplicar com o valor digitado). */
-      const ref = decodeURIComponent(btn.getAttribute('data-coderef') || '');
-      const delta = Number(btn.dataset.delta);
+      const codRefEnc = btn.getAttribute('data-coderef') || '';
+      const deltaBtn = Number(btn.dataset.delta);
       const countType = btn.dataset.countType || 'caixa';
-      if (!ref || !Number.isFinite(delta)) return;
-      registerCountDelta(ref, delta, countType);
+      if (!codRefEnc || !Number.isFinite(deltaBtn)) return;
+      const row = btn.closest('.count-control-row');
+      const inp = row ? row.querySelector('input.count-product-qty') : null;
+      const digitsOnly = String(inp?.value ?? '').replace(/\D/g, '');
+      const refDecoded = decodeURIComponent(codRefEnc);
+      /* Com número no campo: ajusta o alvo e aplica como total absoluto (mesmo fluxo do blur). */
+      if (digitsOnly !== '') {
+        let n = parseInt(digitsOnly, 10);
+        if (!Number.isFinite(n)) n = 0;
+        if (n < 0) n = 0;
+        let next = n + deltaBtn;
+        if (next < 0) next = 0;
+        if (inp) inp.value = String(next);
+        applyCountQtyFromInput(codRefEnc, countType, String(next));
+        refreshCountListAfterEdit();
+        return;
+      }
+      /* Campo vazio: mantém o fluxo operacional (±1 por toque), como antes. */
+      registerCountDelta(refDecoded, deltaBtn, countType);
       refreshCountListAfterEdit();
     });
     countShell.addEventListener('focusout', (e) => {
