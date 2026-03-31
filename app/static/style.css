@@ -3705,3 +3705,9 @@ body.sidebar-drawer-open {
     grid-template-columns: 1fr;
   }
 }
+
+/* Página inicial: itens do menu sempre visíveis (sem app.js / renderModuleNav) */
+.app-layout--public .sidebar-module-btn,
+.app-layout--public .sidebar-nav-item {
+  display: flex !important;
+}
