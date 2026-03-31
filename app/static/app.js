@@ -1279,7 +1279,16 @@ function renderCountProducts(products) {
     const vUn = Math.max(0, Math.round(Number(netUn) || 0));
     li.innerHTML = `
       <div class="count-product-label">
-        <span class="count-product-code">${cod}</span>
+        <div class="count-product-label-top">
+          <span class="count-product-code">${cod}</span>
+          <div class="count-product-readout" aria-live="polite" title="Totais contados neste aparelho (soma dos lançamentos)">
+            <span class="count-product-readout-inner">
+              <span class="count-product-readout-cx"><strong>${formatIntegerBR(vCx)}</strong> CX</span>
+              <span class="count-product-readout-sep" aria-hidden="true">·</span>
+              <span class="count-product-readout-un"><strong>${formatIntegerBR(vUn)}</strong> UN</span>
+            </span>
+          </div>
+        </div>
         <span class="count-product-desc">${desc}</span>
       </div>
       <div class="count-product-controls">
@@ -1592,7 +1601,26 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   }
 
   const countTypeLabel = countType === 'unidade' ? 'Unidade' : 'Caixa';
-  setFeedback(`${productName} (${countTypeLabel}) salvo`, false, true);
+  const netCx = Math.max(0, Math.round(Number(getNetByProductAndType(itemCode, 'caixa')) || 0));
+  const netUn = Math.max(0, Math.round(Number(getNetByProductAndType(itemCode, 'unidade')) || 0));
+  const deltaStr = quantity > 0 ? `+${quantity}` : String(quantity);
+  setFeedback(
+    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total agora ${formatIntegerBR(netCx)} CX e ${formatIntegerBR(netUn)} UN`,
+    false,
+    true,
+  );
+
+  const lastLaunch = document.getElementById('count-last-launch');
+  if (lastLaunch) {
+    lastLaunch.hidden = false;
+    lastLaunch.innerHTML =
+      `<span class="count-last-launch-kicker">Último lançamento</span>` +
+      `<span class="count-last-launch-body">` +
+      `<strong class="count-last-launch-name">${escapeHtml(productName)}</strong> ` +
+      `<span class="count-last-launch-delta">(${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'})</span>` +
+      ` · Contado: <strong>${formatIntegerBR(netCx)} CX</strong> · <strong>${formatIntegerBR(netUn)} UN</strong>` +
+      `</span>`;
+  }
 
   if (navigator.onLine) {
     syncPendingEvents();
@@ -1702,11 +1730,7 @@ function bindCountEvents() {
       const btn = e.target.closest('.btn-count-adjust');
       if (!btn || !countListEl.contains(btn)) return;
       e.preventDefault();
-      const row = btn.closest('.count-control-row');
-      const qtyInput = row ? row.querySelector('.count-product-qty') : null;
-      if (qtyInput) {
-        applyCountQtyFromInput(qtyInput.getAttribute('data-coderef') || '', qtyInput.getAttribute('data-count-type') || 'caixa', qtyInput.value);
-      }
+      /* Só aplica delta nos botões; não chamar applyCountQtyFromInput aqui (evita duplicar com o valor digitado). */
       const ref = decodeURIComponent(btn.getAttribute('data-coderef') || '');
       const delta = Number(btn.dataset.delta);
       const countType = btn.dataset.countType || 'caixa';

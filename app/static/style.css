@@ -2447,7 +2447,7 @@ form#count-form.count-form {
 
 .count-product-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
@@ -2466,8 +2466,55 @@ form#count-form.count-form {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   overflow: hidden;
+}
+
+.count-product-label-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.count-product-readout {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.count-product-readout-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--primary-blue-soft, #eff6ff);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  font-size: 0.875rem;
+  color: #1e40af;
+  font-weight: 600;
+}
+.count-product-readout-cx strong,
+.count-product-readout-un strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 1rem;
+  color: #1e3a8a;
+}
+.count-product-readout-sep {
+  opacity: 0.45;
+  font-weight: 400;
+}
+
+@media (max-width: 600px) {
+  .count-product-readout {
+    margin-left: 0;
+    width: 100%;
+  }
+  .count-product-readout-inner {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .count-product-code {
@@ -2483,7 +2530,38 @@ form#count-form.count-form {
   display: inline-block;
   width: fit-content;
   max-width: 100%;
+  margin-bottom: 0;
+}
+
+.count-last-launch {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #14532d;
+}
+.count-last-launch-kicker {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #166534;
   margin-bottom: 4px;
+}
+.count-last-launch-body {
+  display: block;
+}
+.count-last-launch-delta {
+  color: #15803d;
+  font-weight: 700;
+}
+.count-last-launch-name {
+  font-weight: 700;
+  color: #052e16;
 }
 
 .count-product-desc {

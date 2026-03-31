@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=9" />
+    <link rel="stylesheet" href="/static/style.css?v=10" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -222,6 +222,7 @@
                 </div>
               </div>
               <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
+              <div id="count-last-launch" class="count-last-launch" role="status" aria-live="polite" hidden></div>
               </form>
             </div>
             <div class="count-products-shell">
@@ -876,7 +877,7 @@
     </div>
 
     <div id="install-feedback" class="install-feedback" aria-live="polite"></div>
-    <script src="/static/app.js?v=12"></script>
+    <script src="/static/app.js?v=13"></script>
     <script src="/static/pwa-install.js?v=6"></script>
   </body>
 </html>
