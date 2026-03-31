@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=7" />
+    <link rel="stylesheet" href="/static/style.css?v=8" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -508,35 +508,41 @@
             </section>
           </div>
 
-          <!-- Sub: Análise de Contagem -->
+          <!-- Sub: Análise de Contagem (somente produtos ativos no catálogo) -->
           <div id="sub-count-audit" class="sub-section">
-            <div class="count-audit-top-row">
-              <section class="card count-audit-controls-card">
-                <div class="card-head">
-                  <h2>Painel de Análise de Estoque</h2>
-                  <span class="chip">Auditoria</span>
+            <section class="card count-audit-hero">
+              <div class="count-audit-hero-head">
+                <div>
+                  <h2 class="count-audit-hero-title">Análise de estoque</h2>
+                  <p class="muted count-audit-hero-lead">
+                    Compara saldo (TXT ou saldo zero) com a contagem registrada. Lista apenas <strong>produtos ativos</strong>.
+                  </p>
                 </div>
-                <p class="muted">
-                  Compare saldo e contagem em tempo real para encontrar divergências com mais rapidez.
-                </p>
-                <div class="search-row" style="margin-bottom: 12px;">
-                  <input id="count-audit-date" class="search-input" type="date" style="max-width: 220px;" />
-                  <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark">Atualizar análise</button>
+                <span class="chip count-audit-chip-ativo">Somente ativos</span>
+              </div>
+              <div class="count-audit-toolbar">
+                <div class="count-audit-field">
+                  <label class="count-audit-label" for="count-audit-date">Data da importação TXT (opcional)</label>
+                  <input id="count-audit-date" class="search-input count-audit-date-input" type="date" />
                 </div>
-                <label class="status-switch" for="count-audit-only-diff" title="Quando marcado, mostra apenas itens com diferença.">
-                  <span class="status-switch-label">Todos</span>
-                  <input id="count-audit-only-diff" type="checkbox" checked />
+                <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark count-audit-btn-refresh">Atualizar análise</button>
+                <label class="status-switch count-audit-switch" for="count-audit-only-diff" title="Marcado: oculta linhas OK (iguais).">
+                  <span class="status-switch-label">Listar todos</span>
+                  <input id="count-audit-only-diff" type="checkbox" />
                   <span class="status-switch-slider" aria-hidden="true"></span>
                   <span class="status-switch-label">Só divergências</span>
                 </label>
-                <div id="count-audit-feedback" class="field-feedback" aria-live="polite"></div>
-              </section>
+              </div>
+              <div id="count-audit-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite"></div>
+            </section>
+
+            <div class="count-audit-top-row">
               <section class="card count-audit-summary-card">
                 <div class="card-head">
-                  <h3>Resumo Operacional</h3>
+                  <h3>Resumo</h3>
                 </div>
                 <ul id="count-audit-summary" class="list">
-                  <li><span>Itens com saldo</span><strong>0</strong></li>
+                  <li><span>Itens com saldo (base)</span><strong>0</strong></li>
                   <li><span>Itens com contagem</span><strong>0</strong></li>
                   <li><span>Conferidos</span><strong>0</strong></li>
                   <li><span>Divergências</span><strong>0</strong></li>
@@ -545,16 +551,18 @@
                 </ul>
               </section>
             </div>
-            <section class="card" style="margin-top:16px">
-              <div class="card-head">
-                <h3>Contagem por Produto</h3>
+
+            <section class="card count-audit-list-card">
+              <div class="card-head count-audit-list-head">
+                <h3>Produtos ativos</h3>
+                <span id="count-audit-total" class="chip" aria-live="polite">0</span>
               </div>
-              <div style="margin-bottom: 10px; display: flex; gap: 8px; align-items: center;">
-                <input id="count-audit-search" class="search-input" type="text" placeholder="Pesquisar por código ou descrição..." style="max-width: 320px;" autocomplete="off" />
+              <div class="count-audit-search-row">
+                <input id="count-audit-search" class="search-input count-audit-search-input" type="text" placeholder="Filtrar por código ou descrição..." autocomplete="off" />
                 <button id="count-audit-clear-search" type="button" class="btn-secondary btn-small" title="Limpar pesquisa" style="display:none;">Limpar</button>
               </div>
-              <ul id="count-audit-list" class="list">
-                <li><span>Nenhuma divergência encontrada.</span><strong>OK</strong></li>
+              <ul id="count-audit-list" class="list count-audit-list-main">
+                <li class="count-audit-empty"><span>Carregue a análise para ver os produtos ativos.</span><strong>—</strong></li>
               </ul>
             </section>
           </div>
@@ -866,7 +874,7 @@
     </div>
 
     <div id="install-feedback" class="install-feedback" aria-live="polite"></div>
-    <script src="/static/app.js?v=10"></script>
+    <script src="/static/app.js?v=11"></script>
     <script src="/static/pwa-install.js?v=6"></script>
   </body>
 </html>

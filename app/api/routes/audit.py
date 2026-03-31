@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 from app.api.deps import get_current_user, require_roles
 from app.db.session import get_session
-from app.models import ChangeLog, InventoryImport, InventoryImportItem, User
+from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, User
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 logger = logging.getLogger(__name__)
@@ -68,11 +68,14 @@ def stock_analysis(
 
     import_id: int | None = Query(default=None, ge=1),
     reference_date: str | None = Query(default=None),
-    only_diff: bool = Query(default=True),
+    only_diff: bool = Query(default=False),
+    only_active_products: bool = Query(default=True, alias="only_active"),
     limit: int = Query(default=500, ge=1, le=5000),
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> dict:
+    from app.api.routes.products import _catalog_status_is_ativo_clause
+
     current_import = None
     if import_id is not None:
         current_import = session.get(InventoryImport, import_id)
@@ -89,7 +92,77 @@ def stock_analysis(
             select(InventoryImport).order_by(InventoryImport.imported_at.desc()).limit(1)
         ).first()
 
-    if not current_import:
+    use_catalog_fallback = False
+    imported_by_code: dict[str, dict] = {}
+    import_meta: dict | None = None
+
+    if current_import:
+        import_items = list(
+            session.exec(
+                select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == current_import.id)
+            ).all()
+        )
+        for item in import_items:
+            code = _normalize_item_code(item.cod_produto)
+            if not code:
+                continue
+            raw_metrics = item.metrics.get("raw") if isinstance(item.metrics, dict) else []
+            raw_metrics = raw_metrics if isinstance(raw_metrics, list) else []
+            import_caixa, import_unidade = _extract_import_quantities(raw_metrics)
+            if code not in imported_by_code:
+                imported_by_code[code] = {
+                    "cod_produto": code,
+                    "descricao": item.descricao or "",
+                    "import_caixa": 0,
+                    "import_unidade": 0,
+                }
+            imported_by_code[code]["import_caixa"] += import_caixa
+            imported_by_code[code]["import_unidade"] += import_unidade
+            if not imported_by_code[code]["descricao"] and item.descricao:
+                imported_by_code[code]["descricao"] = item.descricao
+        import_meta = {
+            "id": current_import.id,
+            "reference_date": current_import.reference_date,
+            "file_name": current_import.file_name,
+            "imported_at": current_import.imported_at,
+            "total_products": current_import.total_products,
+            "created_products": current_import.created_products,
+        }
+    elif only_active_products:
+        # Sem TXT: baseia a análise no catálogo de produtos ativos com saldo 0 CX / 0 UN
+        use_catalog_fallback = True
+        prods = list(
+            session.exec(
+                select(Product.cod_produto, Product.cod_grup_descricao)
+                .where(_catalog_status_is_ativo_clause())
+                .order_by(Product.cod_grup_descricao)
+            ).all()
+        )
+        for cod_raw, desc in prods:
+            code = _normalize_item_code(cod_raw)
+            if not code:
+                continue
+            imported_by_code[code] = {
+                "cod_produto": code,
+                "descricao": (desc or "").strip(),
+                "import_caixa": 0,
+                "import_unidade": 0,
+            }
+        ref_label = (reference_date or "").strip()
+        file_note = (
+            f"Sem importação TXT para {ref_label} — saldo 0 CX / 0 UN (somente ativos)"
+            if ref_label
+            else "Sem importação TXT — saldo 0 CX / 0 UN (somente produtos ativos)"
+        )
+        import_meta = {
+            "id": None,
+            "reference_date": reference_date or None,
+            "file_name": file_note,
+            "imported_at": None,
+            "total_products": len(imported_by_code),
+            "created_products": 0,
+        }
+    else:
         return {
             "import": None,
             "summary": {
@@ -103,31 +176,13 @@ def stock_analysis(
             "rows": [],
         }
 
-    import_items = list(
-        session.exec(
-            select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == current_import.id)
-        ).all()
-    )
-
-    imported_by_code: dict[str, dict] = {}
-    for item in import_items:
-        code = _normalize_item_code(item.cod_produto)
-        if not code:
-            continue
-        raw_metrics = item.metrics.get("raw") if isinstance(item.metrics, dict) else []
-        raw_metrics = raw_metrics if isinstance(raw_metrics, list) else []
-        import_caixa, import_unidade = _extract_import_quantities(raw_metrics)
-        if code not in imported_by_code:
-            imported_by_code[code] = {
-                "cod_produto": code,
-                "descricao": item.descricao or "",
-                "import_caixa": 0,
-                "import_unidade": 0,
-            }
-        imported_by_code[code]["import_caixa"] += import_caixa
-        imported_by_code[code]["import_unidade"] += import_unidade
-        if not imported_by_code[code]["descricao"] and item.descricao:
-            imported_by_code[code]["descricao"] = item.descricao
+    active_set: set[str] | None = None
+    if only_active_products:
+        if use_catalog_fallback:
+            active_set = set(imported_by_code.keys())
+        else:
+            active_rows = session.exec(select(Product.cod_produto).where(_catalog_status_is_ativo_clause())).all()
+            active_set = {_normalize_item_code(c) for c in active_rows if c}
 
     # Busca todos os eventos de contagem sem filtro de data.
     # O usuário seleciona qual importação comparar; restringir por data
@@ -166,6 +221,8 @@ def stock_analysis(
     extra_in_count = 0
 
     for code in all_codes:
+        if active_set is not None and code not in active_set:
+            continue
         imported = imported_by_code.get(code)
         import_caixa = int(imported.get("import_caixa", 0)) if imported else 0
         import_unidade = int(imported.get("import_unidade", 0)) if imported else 0
@@ -209,18 +266,16 @@ def stock_analysis(
     rows.sort(key=lambda r: (int(r["difference_abs"]), r["cod_produto"]), reverse=True)
     rows = rows[:limit]
 
+    def _len_codes(mapping: dict[str, dict]) -> int:
+        if active_set is None:
+            return len(mapping)
+        return sum(1 for c in mapping if c in active_set)
+
     return {
-        "import": {
-            "id": current_import.id,
-            "reference_date": current_import.reference_date,
-            "file_name": current_import.file_name,
-            "imported_at": current_import.imported_at,
-            "total_products": current_import.total_products,
-            "created_products": current_import.created_products,
-        },
+        "import": import_meta,
         "summary": {
-            "total_import_items": len(imported_by_code),
-            "counted_items": len(counted_by_code),
+            "total_import_items": _len_codes(imported_by_code),
+            "counted_items": _len_codes(counted_by_code),
             "equal_items": equal_items,
             "divergent_items": divergent_items,
             "missing_in_count": missing_in_count,

@@ -1765,16 +1765,101 @@ form#count-form.count-form {
   border-color: #e3c86a;
 }
 
-/* Análise de Contagem — cards do topo lado a lado */
+/* Análise de Contagem — layout operacional */
+.count-audit-hero {
+  margin-bottom: 16px;
+}
+.count-audit-hero-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.count-audit-hero-title {
+  margin: 0;
+  color: var(--accent);
+  font-size: clamp(1.2rem, 3vw, 1.45rem);
+}
+.count-audit-hero-lead {
+  margin: 8px 0 0;
+  max-width: 62ch;
+  line-height: 1.5;
+}
+.count-audit-chip-ativo {
+  flex-shrink: 0;
+  background: var(--primary-blue-soft, #eff6ff);
+  color: var(--primary-blue, #2563eb);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  font-weight: 700;
+}
+.count-audit-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+.count-audit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.count-audit-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+}
+.count-audit-date-input {
+  max-width: 240px;
+  min-height: 44px;
+}
+.count-audit-btn-refresh {
+  min-height: 44px;
+}
+.count-audit-switch {
+  margin-left: auto;
+}
+.count-audit-feedback-block {
+  margin-top: 12px;
+  min-height: 22px;
+}
+.count-audit-list-card {
+  margin-top: 0;
+}
+.count-audit-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.count-audit-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.count-audit-search-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+}
+.count-audit-list-main {
+  gap: 0;
+}
+
+/* Resumo em largura útil */
 .count-audit-top-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-bottom: 16px;
   align-items: start;
 }
 
-.count-audit-controls-card,
 .count-audit-summary-card {
   height: 100%;
 }
@@ -1981,6 +2066,11 @@ form#count-form.count-form {
 @media (max-width: 700px) {
   .count-audit-top-row {
     grid-template-columns: 1fr;
+  }
+
+  .count-audit-switch {
+    margin-left: 0;
+    width: 100%;
   }
 
   .count-audit-summary-card .list,

@@ -2028,7 +2028,7 @@ function renderCountAuditSummary(summary) {
 }
 
 function renderCountAuditRows(rows) {
-  if (!countAuditList || !countAuditTotal) return;
+  if (!countAuditList) return;
   let list = Array.isArray(rows) ? rows : [];
   // Filtro de pesquisa
   const searchInput = document.getElementById('count-audit-search');
@@ -2064,9 +2064,14 @@ function renderCountAuditRows(rows) {
   }
   list = [...diffOthers, ...diffZero];
   countAuditList.innerHTML = '';
-  countAuditTotal.textContent = String(list.length);
+  if (countAuditTotal) countAuditTotal.textContent = String(list.length);
   if (!list.length) {
-    countAuditList.innerHTML = '<li class="count-audit-empty"><span>Nenhuma divergência encontrada para os filtros atuais.</span><strong>OK</strong></li>';
+    const onlyDiff = countAuditOnlyDiff ? countAuditOnlyDiff.checked : false;
+    const hasSearch = !!(searchInput && searchInput.value.trim());
+    let msg = 'Nenhum produto ativo corresponde aos filtros.';
+    if (hasSearch) msg = 'Nenhum resultado para a pesquisa.';
+    else if (onlyDiff) msg = 'Nenhuma divergência entre saldo e contagem (produtos ativos).';
+    countAuditList.innerHTML = `<li class="count-audit-empty"><span>${msg}</span><strong>—</strong></li>`;
     return;
   }
   for (const row of list) {
@@ -2143,12 +2148,12 @@ async function loadCountAuditAnalysis() {
 
   try {
     const referenceDate = (countAuditImport.value || '').trim();
-    // Por padrão, mostrar todos os itens (inclusive OK)
     const onlyDiff = countAuditOnlyDiff ? countAuditOnlyDiff.checked : false;
     const params = new URLSearchParams();
     if (referenceDate) params.set('reference_date', referenceDate);
     params.set('only_diff', onlyDiff ? 'true' : 'false');
-    params.set('limit', '1000');
+    params.set('only_active', 'true');
+    params.set('limit', '5000');
 
     const response = await apiFetch(`${API_STOCK_ANALYSIS}?${params.toString()}`, {
       headers: getAuthHeaders(),
@@ -2160,46 +2165,37 @@ async function loadCountAuditAnalysis() {
       return;
     }
 
-    let payload = await response.json();
-    let info = payload.import;
-    let usedFallbackImport = false;
-    // Se a data escolhida não tem TXT, tenta a última importação do sistema (backend sem reference_date)
-    if (!info && referenceDate) {
-      const retryParams = new URLSearchParams();
-      retryParams.set('only_diff', onlyDiff ? 'true' : 'false');
-      retryParams.set('limit', '1000');
-      const retryResp = await apiFetch(`${API_STOCK_ANALYSIS}?${retryParams.toString()}`, {
-        headers: getAuthHeaders(),
-      });
-      if (handleUnauthorizedResponse(retryResp)) return;
-      if (retryResp.ok) {
-        payload = await retryResp.json();
-        info = payload.import;
-        if (info) {
-          usedFallbackImport = true;
-          setCountAuditFeedback(
-            `Sem TXT na data ${referenceDate}. Exibindo última importação: ${info.reference_date || '-'} (${info.file_name || 'arquivo'}).`,
-            false,
-          );
-        }
-      }
-    }
-    if (info) {
-      if (!usedFallbackImport) {
-        setCountAuditFeedback(`Base de saldo: ${info.reference_date || '-'} (${info.file_name || 'arquivo'})`);
-      }
-      renderCountAuditSummary(payload.summary || {});
-      window.lastCountAuditRows = payload.rows || [];
-      renderCountAuditRows(window.lastCountAuditRows);
-    } else {
+    const payload = await response.json();
+    const info = payload.import;
+    const rows = payload.rows || [];
+
+    if (!info) {
       setCountAuditFeedback(
-        'Nenhuma importação TXT cadastrada. Em Contagem → Importar Estoque, envie o arquivo TXT com a data de referência; depois atualize esta análise.',
+        'Não foi possível montar a análise. Verifique permissões ou tente novamente.',
         true,
       );
       renderCountAuditSummary({});
       window.lastCountAuditRows = [];
       renderCountAuditRows([]);
+      return;
     }
+
+    const isSynthetic = info.id == null;
+    if (isSynthetic) {
+      setCountAuditFeedback(
+        `${info.file_name || 'Análise sem TXT.'} Importe um TXT em Contagem → Importar Estoque quando quiser comparar com o saldo do arquivo.`,
+        false,
+      );
+    } else {
+      setCountAuditFeedback(
+        `Base de saldo (TXT): ${info.reference_date || '-'} — ${info.file_name || 'arquivo'}`,
+        false,
+      );
+    }
+
+    renderCountAuditSummary(payload.summary || {});
+    window.lastCountAuditRows = rows;
+    renderCountAuditRows(window.lastCountAuditRows);
   } catch {
     setCountAuditFeedback('Erro de conexão ao carregar análise de contagem.', true);
   }
