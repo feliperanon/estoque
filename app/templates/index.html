@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=12" />
+    <link rel="stylesheet" href="/static/style.css?v=13" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -179,9 +179,9 @@
 
           <!-- Sub: Contagem de Estoque -->
           <div id="sub-count" class="sub-section">
-            <div class="info-card master-container count-main-card">
+            <div class="info-card master-container count-main-card count-main-card--outer">
               <form id="count-form" class="count-form" autocomplete="off" novalidate>
-              <div class="card cart count-main-card-inner count-main-card-extended">
+              <div class="count-main-card-inner count-main-card-extended">
                 <div class="count-main-title-row">
                   <span class="count-main-title">Produtos para contagem</span>
                   <span id="count-products-total" class="count-main-chip" aria-live="polite"></span>
@@ -215,8 +215,10 @@
                     <div id="count-progress-fill" class="count-progress-fill"></div>
                   </div>
                   <div class="count-progress-info">
-                    <span id="count-progress-percent" class="count-progress-percent">0%</span>
-                    <span id="count-progress-label" class="count-progress-label">concluído</span>
+                    <span class="count-progress-summary">
+                      <span id="count-progress-percent" class="count-progress-percent">0%</span>
+                      <span id="count-progress-label" class="count-progress-label">concluído</span>
+                    </span>
                     <span id="count-progress-detail" class="count-progress-detail">0 de 0 produtos contados</span>
                   </div>
                 </div>
