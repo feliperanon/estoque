@@ -1956,37 +1956,35 @@ function registerCount(itemCodeInput) {
   registerCountDelta(itemCodeInput, 1, 'caixa');
 }
 
-/** Aplica quantidade absoluta digitada (delta em relação ao saldo já contado na sessão). */
-function applyCountQtyFromInput(codRefEnc, countTypeRaw, rawValue) {
+function parseCountOperationQty(rawValue) {
+  const normalized = String(rawValue ?? '').trim();
+  if (!/^\d+$/.test(normalized)) return null;
+  const quantity = parseInt(normalized, 10);
+  if (!Number.isFinite(quantity) || quantity <= 0) return null;
+  return quantity;
+}
+
+/** Aplica operação (+/-) com base no valor digitado, sem sobrescrever total absoluto. */
+function applyCountQtyFromInput(codRefEnc, countTypeRaw, rawValue, operationDirection) {
   const codRaw = decodeURIComponent(String(codRefEnc || ''));
   const itemCode = normalizeItemCode(codRaw);
   const countType = normalizeCountType(countTypeRaw || 'caixa');
-  if (!itemCode) return;
-  const current = getNetByProductAndType(itemCode, countType);
-  const digitsOnly = String(rawValue ?? '').replace(/\D/g, '');
-  /* Campo limpo: não tratar como 0 (evita lançar delta negativo sem intenção / contagem em duplicidade). */
-  if (digitsOnly === '') {
-    refreshCountProductListView();
-    return;
+  const direction = Number(operationDirection);
+  if (!itemCode || !Number.isFinite(direction) || (direction !== 1 && direction !== -1)) {
+    return { applied: false, reason: 'invalid_direction' };
   }
-  let next = parseInt(digitsOnly, 10);
-  if (!Number.isFinite(next)) next = 0;
-  if (next < 0) next = 0;
-  const delta = next - current;
+  const quantity = parseCountOperationQty(rawValue);
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    return { applied: false, reason: 'invalid_qty' };
+  }
+  const current = Math.max(0, Math.round(Number(getNetByProductAndType(itemCode, countType)) || 0));
+  const requestedDelta = direction > 0 ? quantity : -quantity;
+  const delta = Math.max(-current, requestedDelta);
   if (delta === 0) {
-    if (next === 0 && current === 0 && countImportBalancesState.hasTxt) {
-      const pair = getCountSaldoPair(itemCode);
-      if (pair) {
-        const s = countType === 'caixa' ? pair.import_caixa : pair.import_unidade;
-        if (Math.max(0, Math.round(Number(s) || 0)) === 0) {
-          setCountExplicitZero(itemCode, countType, true);
-        }
-      }
-    }
-    refreshCountProductListView();
-    return;
+    return { applied: false, reason: 'already_zero' };
   }
   registerCountDelta(itemCode, delta, countType);
+  return { applied: true };
 }
 
 function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa') {
@@ -2172,22 +2170,16 @@ function bindCountEvents() {
       if (!codRefEnc || !Number.isFinite(deltaBtn)) return;
       const row = btn.closest('.count-control-row');
       const inp = row ? row.querySelector('input.count-product-qty') : null;
-      const digitsOnly = String(inp?.value ?? '').replace(/\D/g, '');
-      const refDecoded = decodeURIComponent(codRefEnc);
-      /* Com número no campo: ajusta o alvo e aplica como total absoluto (mesmo fluxo do blur). */
-      if (digitsOnly !== '') {
-        let n = parseInt(digitsOnly, 10);
-        if (!Number.isFinite(n)) n = 0;
-        if (n < 0) n = 0;
-        let next = n + deltaBtn;
-        if (next < 0) next = 0;
-        if (inp) inp.value = String(next);
-        applyCountQtyFromInput(codRefEnc, countType, String(next));
-        refreshCountListAfterEdit();
+      const result = applyCountQtyFromInput(codRefEnc, countType, inp?.value ?? '', deltaBtn);
+      if (!result.applied) {
+        if (result.reason === 'invalid_qty') {
+          setFeedback('Informe uma quantidade inteira maior que zero para aplicar a operação.', true);
+        } else if (result.reason === 'already_zero') {
+          setFeedback('Total já está em zero para este item.', false);
+        }
         return;
       }
-      /* Campo vazio: mantém o fluxo operacional (±1 por toque), como antes. */
-      registerCountDelta(refDecoded, deltaBtn, countType);
+      if (inp) inp.value = '';
       refreshCountListAfterEdit();
     });
     countShell.addEventListener('focusout', (e) => {
@@ -2199,10 +2191,12 @@ function bindCountEvents() {
       if (next && typeof next.closest === 'function' && next.closest('.btn-count-adjust') && countShell.contains(next)) {
         return;
       }
-      const ref = inp.getAttribute('data-coderef') || '';
-      const ct = inp.getAttribute('data-count-type') || 'caixa';
-      applyCountQtyFromInput(ref, ct, inp.value);
-      refreshCountListAfterEdit();
+      const qty = parseCountOperationQty(inp.value);
+      if (!Number.isInteger(qty)) {
+        inp.value = '';
+        return;
+      }
+      inp.value = String(qty);
     });
     countShell.addEventListener('keydown', (e) => {
       const inp = e.target;
