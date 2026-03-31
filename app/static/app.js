@@ -1225,9 +1225,16 @@ async function loadUsersAdminList() {
 }
 
 function renderCountProducts(products) {
-  // Filtra apenas produtos com status 'ativo' (case-insensitive)
+  // Filtra itens ativos considerando sinônimos do backend (null/vazio, 'S', '1', 'Sim', etc)
+  const isActive = (status) => {
+    const s = String(status || '').trim().toLowerCase();
+    // No backend, null ou vazio é considerado Ativo por padrão no catálogo
+    if (!s || s === 'ativo' || s === 's' || s === 'sim' || s === '1' || s === 'true' || s === 'ativado' || s === 'active') return true;
+    return false;
+  };
+
   const ativos = Array.isArray(products)
-    ? products.filter(p => (p.status || '').toLowerCase() === 'ativo')
+    ? products.filter(p => isActive(p.status))
     : [];
   console.log('DEBUG: Produtos recebidos:', products);
   console.log('DEBUG: Produtos ativos para renderizar:', ativos);
@@ -1273,7 +1280,6 @@ function renderCountProducts(products) {
   if (sidebarMenu) sidebarMenu.style.display = '';
   const dashboardContent = document.querySelector('.dashboard-content');
   if (dashboardContent) dashboardContent.style.display = '';
-}
 }
 
 function filterCountProductsByTerm(term) {
