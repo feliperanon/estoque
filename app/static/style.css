@@ -38,6 +38,13 @@
   /* overflow-x ≠ visible quebra position:sticky do cabeçalho no scroll da página */
   min-width: 0;
   --count-sticky-under-app: 52px;
+  /* Padrão de espaçamento — linhas CX/UN (controles + total + selo) */
+  --cc-gap: 8px;
+  --cc-gap-tail: 8px;
+  --cc-stack: 8px;
+  --cc-pad-x: 8px;
+  --cc-pad-y: 6px;
+  --cc-radius: 8px;
 }
 .count-main-card {
   padding: 0;
@@ -3128,11 +3135,11 @@ form#count-form.count-form {
   max-width: 7rem;
 }
 
-/* Total à direita do + (borda externa da linha): só número, mesma escala do input */
+/* Total à direita do +: alinhamento só com grid gap — sem margin arbitrária */
 .count-control-row .count-product-readout.count-product-readout--by-control {
   margin: 0;
   max-width: none;
-  min-width: 2ch;
+  min-width: 0;
   justify-self: end;
   text-align: right;
   font-size: 0.875rem;
@@ -3141,17 +3148,19 @@ form#count-form.count-form {
 }
 
 .count-control-row .count-product-readout--by-control .count-product-readout-inner {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 0;
-  background: transparent;
-  border: none;
-  font-size: inherit;
-  line-height: inherit;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px 10px;
+  min-width: 2.75ch;
+  border-radius: 6px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  font-size: 0.875rem;
+  line-height: 1.2;
   color: #0f172a;
-  /* Alinhado ao layout: 50px à esquerda do bloco do total (demais lados zerados) */
-  margin: 0 0 0 50px;
 }
 
 .count-product-readout-value {
@@ -3270,10 +3279,11 @@ form#count-form.count-form {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 3px;
+  gap: var(--cc-stack, 8px);
   flex-shrink: 0;
   width: min(100%, 17.5rem);
   min-width: min(100%, 13rem);
+  box-sizing: border-box;
 }
 
 /* Linha operacional: sigla | − | valor | + | total + selo (à direita) */
@@ -3281,16 +3291,22 @@ form#count-form.count-form {
   display: grid;
   grid-template-columns: 2.25rem 32px minmax(0, 1fr) 32px minmax(0, auto);
   align-items: center;
-  gap: 4px;
+  gap: var(--cc-gap, 8px);
   min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--cc-pad-y, 6px) var(--cc-pad-x, 8px);
+  border-radius: var(--cc-radius, 8px);
 }
 
 .count-control-tail {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--cc-gap-tail, 8px);
   min-width: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .count-control-tail .count-product-readout.count-product-readout--by-control {
@@ -3299,12 +3315,13 @@ form#count-form.count-form {
 
 .count-row-badge {
   flex-shrink: 0;
+  margin: 0;
   font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -3321,18 +3338,16 @@ form#count-form.count-form {
   border: 1px solid #fdba74;
 }
 
+.count-control-row--neutral {
+  background: rgba(248, 250, 252, 0.95);
+}
+
 .count-control-row--recount {
-  background: rgba(255, 237, 213, 0.4);
-  border-radius: 4px;
-  padding: 2px 4px;
-  margin: -2px -4px;
+  background: rgba(255, 237, 213, 0.45);
 }
 
 .count-control-row--ok {
-  background: rgba(220, 252, 231, 0.45);
-  border-radius: 4px;
-  padding: 2px 4px;
-  margin: -2px -4px;
+  background: rgba(220, 252, 231, 0.5);
 }
 
 .count-product-item--conferido {
@@ -3506,12 +3521,12 @@ form#count-form.count-form {
     min-width: 0;
     max-width: none;
     align-self: stretch;
-    gap: 4px;
+    gap: var(--cc-stack, 8px);
   }
 
   .count-control-row {
     grid-template-columns: 2.25rem 36px minmax(0, 1fr) 36px auto;
-    gap: 5px;
+    gap: var(--cc-gap, 8px);
   }
 
   .btn-count-adjust {
