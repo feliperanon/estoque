@@ -2234,7 +2234,7 @@ function bindImportTxtEvents() {
               // Exibe apenas CX e UNI (saldo físico)
               const cx = it.saldo_cx || 0;
               const uni = it.saldo_uni || 0;
-              li.innerHTML = `<span><strong>${it.cod_produto || '-'}<\/strong> - ${it.descricao || '-'} <span class="status-badge badge-active">PRÉ-CADASTRADO<\/span><\/span>` +
+              li.innerHTML = `<span><strong>${it.cod_produto || '-'}<\/strong> - ${it.descricao || '-'} <span class="status-badge badge-inactive">Inativo · via TXT (regularizar no cadastro)<\/span><\/span>` +
                              `<span class="muted">CX ${cx} UNI ${uni}<\/span>`;
               if (it.product_id) {
                 const btnEdit = document.createElement('button');

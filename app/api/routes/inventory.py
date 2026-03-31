@@ -105,11 +105,12 @@ async def import_inventory_txt(
                 # Pre cadastro de produto
                 existing = session.exec(select(Product).where(Product.cod_produto == cod)).first()
                 if not existing:
+                    # Não entra na contagem (só ativos); regularização no Cadastro.
                     new_product = Product(
                         cod_produto=cod,
                         cod_grup_sku=cod,
                         cod_grup_descricao=desc,
-                        status="ativo",
+                        status="inativo",
                     )
                     from app.services.imports import apply_common_source_fields
 
