@@ -88,12 +88,15 @@ async def import_inventory_txt(
 
             total_products += 1
 
+            numeric_tail = parsed.get("numeric_tail")
+            nt = str(numeric_tail) if numeric_tail is not None else None
+
             # Salva o historico do item
             item = InventoryImportItem(
                 inventory_import_id=new_import.id,
                 cod_produto=cod,
                 descricao=desc,
-                metrics=build_import_item_metrics([str(t) for t in raw_tokens]),
+                metrics=build_import_item_metrics([str(t) for t in raw_tokens], nt),
             )
             session.add(item)
 

@@ -16,7 +16,10 @@ from sqlmodel import Session, select
 from app.api.deps import require_roles, require_stock_analysis_access
 from app.db.session import get_session
 from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, User
-from app.services.inventory_txt_parse import extract_caixa_unidade_from_txt_tokens
+from app.services.inventory_txt_parse import (
+    extract_caixa_unidade_from_numeric_tail,
+    extract_caixa_unidade_from_txt_tokens,
+)
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 logger = logging.getLogger(__name__)
@@ -89,6 +92,11 @@ def _extract_import_quantities(metrics: dict | list | None) -> tuple[int, int]:
                 return int(caixa), int(unidade)
             except (TypeError, ValueError):
                 pass
+        nt = metrics.get("numeric_tail")
+        if isinstance(nt, str):
+            got = extract_caixa_unidade_from_numeric_tail(nt)
+            if got is not None:
+                return got
         raw = metrics.get("raw")
         if isinstance(raw, list):
             return extract_caixa_unidade_from_txt_tokens([str(x) for x in raw])
