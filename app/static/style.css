@@ -520,6 +520,9 @@
   --muted:    #64748b;
   --primary-blue: #2563eb;
   --primary-blue-soft: #eff6ff;
+  --sidebar-width: 260px;
+  --sidebar-drawer-max: min(300px, 88vw);
+  --focus-ring-blue: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 /* ── Reset básico ──────────────────────────────────── */
@@ -3132,4 +3135,245 @@ form#count-form.count-form {
   .topbar-title {
     font-size: 0.9rem;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Shell dashboard (inspirado em admin / form-elements): sidebar desktop + drawer
+   mobile, conteúdo fluido, foco azul nos formulários, bloco único contagem.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Overlay mobile: leve desfoque + z-index estável */
+.sidebar-overlay {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.42);
+  z-index: 1100;
+}
+
+.sidebar-menu {
+  z-index: 1110;
+}
+
+/* Drawer: largura confortável e sombra mais limpa */
+@media (max-width: 1023px) {
+  .sidebar-menu {
+    width: var(--sidebar-drawer-max);
+    max-width: 100vw;
+    left: calc(-1 * var(--sidebar-drawer-max));
+    padding-top: 56px;
+    background: #ffffff;
+    border-right: 1px solid var(--border-soft);
+    box-shadow: 12px 0 40px rgba(15, 23, 42, 0.12);
+    transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar-menu.open {
+    left: 0;
+  }
+
+  .sidebar-close-btn {
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #f1f5f9;
+    border: 1px solid var(--border-soft);
+    color: #334155;
+  }
+
+  .sidebar-close-btn:hover {
+    background: #e2e8f0;
+  }
+}
+
+/* Hambúrguer: integrado ao painel (superfície clara, sombra suave) */
+.btn-menu-toggle.menu-fab {
+  top: 14px;
+  left: 14px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid var(--border-soft);
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.btn-menu-toggle.menu-fab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 8px 20px rgba(15, 23, 42, 0.1);
+  border-color: #cbd5e1;
+}
+
+.btn-menu-toggle.menu-fab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring-blue), 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.dashboard-menu-fab-wrap {
+  z-index: 1120;
+}
+
+/* Desktop: sidebar fixa, sem FAB, conteúdo ao lado */
+@media (min-width: 1024px) {
+  .sidebar-overlay {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+  .sidebar-menu {
+    left: 0 !important;
+    width: var(--sidebar-width);
+    height: 100vh;
+    min-height: 100%;
+    padding-top: 0;
+    background: #ffffff;
+    border-right: 1px solid var(--border-soft);
+    box-shadow: none;
+    transition: none;
+  }
+
+  .sidebar-close-btn {
+    display: none !important;
+  }
+
+  .dashboard-menu-fab-wrap {
+    display: none !important;
+  }
+
+  #view-dashboard .dashboard-content {
+    padding-top: 24px;
+    padding-left: clamp(20px, 2.5vw, 36px);
+    padding-right: clamp(20px, 2.5vw, 36px);
+    margin-left: var(--sidebar-width);
+    max-width: none;
+    width: auto;
+    min-height: 100vh;
+    box-sizing: border-box;
+  }
+
+  .menu-fab {
+    display: none !important;
+  }
+}
+
+/* Mobile/tablet: respiro superior para o FAB */
+@media (max-width: 1023px) {
+  #view-dashboard .dashboard-content {
+    padding-top: 58px;
+  }
+}
+
+/* Sidebar: hierarquia e item ativo (estilo admin limpo) */
+.sidebar-user-info {
+  padding: 20px 18px 16px;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.sidebar-nav {
+  padding: 12px 10px 20px;
+  gap: 4px;
+  background: #ffffff;
+  border-bottom: none;
+}
+
+.sidebar-module-btn {
+  margin: 0 2px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border-left: none;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.sidebar-module-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.sidebar-module-btn.active {
+  background: var(--primary-blue-soft);
+  color: #1d4ed8;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18);
+}
+
+.sidebar-actions {
+  padding: 14px 14px 20px;
+  background: #f8fafc;
+  border-top: 1px solid var(--border-soft);
+  gap: 10px;
+}
+
+.sidebar-actions .btn-secondary {
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+
+/* Formulários no app: foco azul (alinhado a inputs modernos) */
+#view-dashboard .field input:focus,
+#view-dashboard .field select:focus,
+#view-dashboard .field textarea:focus {
+  border-color: var(--primary-blue);
+  box-shadow: var(--focus-ring-blue);
+}
+
+/* Cards: uma camada só, sombra leve */
+#view-dashboard .card {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.06);
+  border-radius: 14px;
+}
+
+.mini-kpi-card {
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+/* Contagem: painel de filtros + lista como um único bloco */
+#sub-count .count-main-card-inner {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-bottom: 0;
+  box-shadow: none;
+  border-bottom: none;
+}
+
+#sub-count .count-products-shell {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: 1px solid var(--border-soft);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+#sub-count .count-main-card-inner + .count-products-shell {
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Lista: linhas mais estáveis, código em destaque */
+.count-list-flat .count-product-item {
+  padding: 14px clamp(12px, 3vw, 20px);
+}
+
+.count-product-code {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.count-product-desc {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1.4;
 }
