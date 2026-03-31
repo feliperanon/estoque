@@ -2285,20 +2285,25 @@ form#count-form.count-form {
   font-size: 0.8125rem;
 }
 
-.count-audit-filters {
+/* Filtros: pesquisa + ordenação na mesma linha (desktop); coluna no mobile */
+#sub-count-audit .count-audit-filters {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
   margin: 1rem 0 0;
   padding-bottom: 1rem;
   border-bottom: 1px solid #f1f5f9;
 }
 
-.count-audit-search-row {
+#sub-count-audit .count-audit-search-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 .count-audit-search-input {
@@ -2319,11 +2324,13 @@ form#count-form.count-form {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
-.count-audit-sort-row {
+#sub-count-audit .count-audit-sort-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.5rem;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .count-audit-sort-label {
@@ -2333,11 +2340,12 @@ form#count-form.count-form {
   white-space: nowrap;
 }
 
-.count-audit-sort-select {
-  flex: 1;
-  min-width: min(100%, 14rem);
+#sub-count-audit .count-audit-sort-select {
+  flex: 1 1 auto;
+  width: 12.5rem;
+  min-width: min(100%, 11rem);
+  max-width: min(100%, 20rem);
   min-height: 2.75rem;
-  max-width: 100%;
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
   border: 1px solid #e2e8f0;
@@ -2346,7 +2354,7 @@ form#count-form.count-form {
   color: #0f172a;
 }
 
-.count-audit-sort-select:focus {
+#sub-count-audit .count-audit-sort-select:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
@@ -2374,23 +2382,31 @@ form#count-form.count-form {
   align-items: start;
 }
 
-.count-audit-summary-card {
+/* Só dentro da sub-seção Análise de Contagem — não usar .list no <ul> (evita .list li global) */
+#sub-count-audit .count-audit-summary-card {
   height: 100%;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
-.count-audit-summary-card .card-head {
+#sub-count-audit .count-audit-summary-card .card-head {
   margin-bottom: 0.75rem;
   padding-bottom: 0;
   border-bottom: none;
 }
 
-.count-audit-kpi-list {
+#sub-count-audit ul.count-audit-kpi-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
   margin: 0;
   padding: 0;
   list-style: none;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 /* Placeholder antes do primeiro render JS (sem .count-audit-summary-item ainda) */
@@ -2421,7 +2437,7 @@ form#count-form.count-form {
   font-variant-numeric: tabular-nums;
 }
 
-.count-audit-summary-item {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2432,60 +2448,62 @@ form#count-form.count-form {
   background: #fff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   border-left: 3px solid #94a3b8;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
-.count-audit-summary-item.is-neutral {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item.is-neutral {
   border-left-color: #64748b;
   background: #fafafa;
 }
 
-.count-audit-summary-item.is-info {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item.is-info {
   border-left-color: #3b82f6;
   background: #f8fafc;
 }
 
-.count-audit-summary-item.is-ok {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item.is-ok {
   border-left-color: #22c55e;
   background: #f0fdf4;
 }
 
-.count-audit-summary-item.is-warn {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item.is-warn {
   border-left-color: #f59e0b;
   background: #fffbeb;
 }
 
-.count-audit-summary-item.is-danger {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item.is-danger {
   border-left-color: #ef4444;
   background: #fef2f2;
 }
 
-.count-audit-summary-item.is-purple {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item.is-purple {
   border-left-color: #8b5cf6;
   background: #faf5ff;
 }
 
-.count-audit-summary-item--clickable {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item--clickable {
   cursor: pointer;
   user-select: none;
   transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 
-.count-audit-summary-item--clickable:hover {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item--clickable:hover {
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
   border-color: #cbd5e1;
 }
 
-.count-audit-summary-item--clickable:focus-visible {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item--clickable:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
 
-.count-audit-summary-item--clickable.is-selected {
+#sub-count-audit ul.count-audit-kpi-list > li.count-audit-summary-item--clickable.is-selected {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
-.count-audit-summary-label {
+#sub-count-audit ul.count-audit-kpi-list .count-audit-summary-label {
   font-size: 0.6875rem;
   color: #64748b;
   font-weight: 600;
@@ -2494,7 +2512,7 @@ form#count-form.count-form {
   line-height: 1.3;
 }
 
-.count-audit-summary-value {
+#sub-count-audit ul.count-audit-kpi-list .count-audit-summary-value {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1;
@@ -2687,7 +2705,7 @@ form#count-form.count-form {
 }
 
 @media (max-width: 1100px) {
-  .count-audit-kpi-list {
+  #sub-count-audit ul.count-audit-kpi-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -2723,11 +2741,25 @@ form#count-form.count-form {
 }
 
 @media (max-width: 700px) {
+  #sub-count-audit .count-audit-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #sub-count-audit .count-audit-sort-row {
+    flex-wrap: wrap;
+  }
+
+  #sub-count-audit .count-audit-sort-select {
+    width: 100%;
+    max-width: none;
+  }
+
   .count-audit-top-row {
     grid-template-columns: 1fr;
   }
 
-  .count-audit-kpi-list {
+  #sub-count-audit ul.count-audit-kpi-list {
     grid-template-columns: 1fr;
   }
 
