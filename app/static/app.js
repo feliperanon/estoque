@@ -2136,64 +2136,127 @@ async function loadCountAuditImports() {
   return [];
 }
 
+/** Filtro do resumo (clique no card): null = todos. */
+let countAuditSummaryFilterKey = null;
+
+function updateCountAuditSummarySelection() {
+  if (!countAuditSummary) return;
+  countAuditSummary.querySelectorAll('.count-audit-summary-item[data-count-audit-filter]').forEach((el) => {
+    const active = el.dataset.countAuditFilter === countAuditSummaryFilterKey;
+    el.classList.toggle('is-selected', active);
+    el.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
 function renderCountAuditSummary(summary) {
   if (!countAuditSummary) return;
   const s = summary || {};
   countAuditSummary.innerHTML = '';
   const rows = [
-    ['Itens com saldo', Number(s.total_import_items) || 0, 'is-neutral'],
-    ['Itens com contagem', Number(s.counted_items) || 0, 'is-info'],
-    ['Conferidos', Number(s.equal_items) || 0, 'is-ok'],
-    ['Divergências', Number(s.divergent_items) || 0, 'is-warn'],
-    ['Sem contagem', Number(s.missing_in_count) || 0, 'is-danger'],
-    ['Só na contagem', Number(s.extra_in_count) || 0, 'is-purple'],
+    ['Itens com saldo', Number(s.total_import_items) || 0, 'is-neutral', 'balance'],
+    ['Itens com contagem', Number(s.counted_items) || 0, 'is-info', 'counted'],
+    ['Conferidos', Number(s.equal_items) || 0, 'is-ok', 'equal'],
+    ['Divergências', Number(s.divergent_items) || 0, 'is-warn', 'divergent'],
+    ['Sem contagem', Number(s.missing_in_count) || 0, 'is-danger', 'missing'],
+    ['Só na contagem', Number(s.extra_in_count) || 0, 'is-purple', 'extra'],
   ];
-  for (const [label, value, tone] of rows) {
+  for (const [label, value, tone, filterKey] of rows) {
     const li = document.createElement('li');
-    li.className = `count-audit-summary-item ${tone}`;
+    li.className = `count-audit-summary-item count-audit-summary-item--clickable ${tone}`;
+    li.setAttribute('data-count-audit-filter', filterKey);
+    li.setAttribute('role', 'button');
+    li.setAttribute('tabindex', '0');
+    li.setAttribute('aria-pressed', 'false');
+    li.title = `Filtrar lista: ${label}. Clique de novo para mostrar todos.`;
     li.innerHTML =
       `<span class="count-audit-summary-label">${label}</span>` +
       `<strong class="count-audit-summary-value">${formatIntegerBR(value)}</strong>`;
     countAuditSummary.appendChild(li);
   }
+  updateCountAuditSummarySelection();
+
+  if (!countAuditSummary.dataset.filterBound) {
+    countAuditSummary.dataset.filterBound = '1';
+    countAuditSummary.addEventListener('click', (e) => {
+      const li = e.target.closest('.count-audit-summary-item[data-count-audit-filter]');
+      if (!li) return;
+      const key = li.dataset.countAuditFilter;
+      countAuditSummaryFilterKey = countAuditSummaryFilterKey === key ? null : key;
+      updateCountAuditSummarySelection();
+      if (window.lastCountAuditRows) {
+        renderCountAuditRows(window.lastCountAuditRows);
+      }
+    });
+    countAuditSummary.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const li = e.target.closest('.count-audit-summary-item[data-count-audit-filter]');
+      if (!li) return;
+      e.preventDefault();
+      li.click();
+    });
+  }
+}
+
+function getAuditStatusRank(status) {
+  const m = { missing_in_count: 0, divergent: 1, extra_in_count: 2, ok: 3 };
+  return m[status] ?? 9;
+}
+
+function sortCountAuditRowsForDisplay(list) {
+  list.sort((a, b) => {
+    const r = getAuditStatusRank(a.status) - getAuditStatusRank(b.status);
+    if (r !== 0) return r;
+    const da = Number(a.difference_abs) || 0;
+    const db = Number(b.difference_abs) || 0;
+    if (da !== db) return db - da;
+    const ga = (a.grupo || 'Sem grupo').toLowerCase();
+    const gb = (b.grupo || 'Sem grupo').toLowerCase();
+    if (ga !== gb) return ga.localeCompare(gb, 'pt-BR');
+    const ca = String(a.cod_produto || '').padStart(24, '0');
+    const cb = String(b.cod_produto || '').padStart(24, '0');
+    return ca.localeCompare(cb);
+  });
+}
+
+function matchesCountAuditSummaryFilter(row, key) {
+  if (!key) return true;
+  const cx = Number(row.counted_caixa) || 0;
+  const un = Number(row.counted_unidade) || 0;
+  switch (key) {
+    case 'balance':
+      return row.status !== 'extra_in_count';
+    case 'counted':
+      return cx !== 0 || un !== 0;
+    case 'equal':
+      return row.status === 'ok';
+    case 'divergent':
+      return row.status === 'divergent';
+    case 'missing':
+      return row.status === 'missing_in_count';
+    case 'extra':
+      return row.status === 'extra_in_count';
+    default:
+      return true;
+  }
 }
 
 function renderCountAuditRows(rows) {
   if (!countAuditList) return;
-  let list = Array.isArray(rows) ? rows : [];
-  // Filtro de pesquisa
+  let list = Array.isArray(rows) ? rows.slice() : [];
+  if (countAuditSummaryFilterKey) {
+    list = list.filter((row) => matchesCountAuditSummaryFilter(row, countAuditSummaryFilterKey));
+  }
   const searchInput = document.getElementById('count-audit-search');
   const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
   if (searchTerm) {
-    list = list.filter(row => {
+    list = list.filter((row) => {
       const cod = (row.cod_produto || '').toLowerCase();
       const desc = (row.descricao || '').toLowerCase();
       return cod.includes(searchTerm) || desc.includes(searchTerm);
     });
   }
-  // Ordenação: código (numérico), depois descrição (alfabética)
-  list = [...list].sort((a, b) => {
-    const codeA = (a.cod_produto || '').padStart(10, '0');
-    const codeB = (b.cod_produto || '').padStart(10, '0');
-    if (codeA < codeB) return -1;
-    if (codeA > codeB) return 1;
-    const descA = (a.descricao || '').toLowerCase();
-    const descB = (b.descricao || '').toLowerCase();
-    return descA.localeCompare(descB);
-  });
-  // Itens com diferença zerada vão para o final
-  const diffZero = [];
-  const diffOthers = [];
-  for (const row of list) {
-    const diffCx = Number(row.difference_caixa) || 0;
-    const diffUn = Number(row.difference_unidade) || 0;
-    if (diffCx === 0 && diffUn === 0) {
-      diffZero.push(row);
-    } else {
-      diffOthers.push(row);
-    }
-  }
-  list = [...diffOthers, ...diffZero];
+  sortCountAuditRowsForDisplay(list);
+
   countAuditList.innerHTML = '';
   if (countAuditTotal) countAuditTotal.textContent = String(list.length);
   if (!list.length) {
@@ -2201,11 +2264,21 @@ function renderCountAuditRows(rows) {
     const hasSearch = !!(searchInput && searchInput.value.trim());
     let msg = 'Nenhum produto ativo corresponde aos filtros.';
     if (hasSearch) msg = 'Nenhum resultado para a pesquisa.';
+    else if (countAuditSummaryFilterKey) msg = 'Nenhum item neste filtro do resumo.';
     else if (onlyDiff) msg = 'Nenhuma divergência entre saldo e contagem (produtos ativos).';
     countAuditList.innerHTML = `<li class="count-audit-empty"><span>${msg}</span><strong>—</strong></li>`;
     return;
   }
+  let lastGrupo = null;
   for (const row of list) {
+    const g = String(row.grupo || 'Sem grupo').trim() || 'Sem grupo';
+    if (g !== lastGrupo) {
+      lastGrupo = g;
+      const gh = document.createElement('li');
+      gh.className = 'count-audit-group-header';
+      gh.innerHTML = `<span class="count-audit-group-title">${escapeHtml(g)}</span>`;
+      countAuditList.appendChild(gh);
+    }
     const li = document.createElement('li');
     let statusClass = 'is-ok';
     let statusLabel = 'OK';
@@ -2299,6 +2372,7 @@ async function loadCountAuditAnalysis() {
     const payload = await response.json();
     const info = payload.import;
     const rows = payload.rows || [];
+    countAuditSummaryFilterKey = null;
 
     if (!info) {
       setCountAuditFeedback(

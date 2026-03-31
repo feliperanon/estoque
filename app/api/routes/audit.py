@@ -220,6 +220,20 @@ def stock_analysis(
     missing_in_count = 0
     extra_in_count = 0
 
+    grupos_by_code: dict[str, str] = {}
+    if only_active_products:
+        prod_grup = session.exec(
+            select(Product.cod_produto, Product.cod_grup_familia, Product.cod_grup_segmento).where(
+                _catalog_status_is_ativo_clause()
+            )
+        ).all()
+        for cod_raw, fam, seg in prod_grup:
+            c = _normalize_item_code(cod_raw)
+            if not c:
+                continue
+            label = (str(fam or "").strip() or str(seg or "").strip())
+            grupos_by_code[c] = label if label else "Sem grupo"
+
     for code in all_codes:
         if active_set is not None and code not in active_set:
             continue
@@ -260,10 +274,21 @@ def stock_analysis(
                 "difference_unidade": diff_unidade,
                 "difference_abs": total_diff_abs,
                 "status": status,
+                "grupo": grupos_by_code.get(code, "Sem grupo"),
             }
         )
 
-    rows.sort(key=lambda r: (int(r["difference_abs"]), r["cod_produto"]), reverse=True)
+    def _status_rank(st: str) -> int:
+        return {"missing_in_count": 0, "divergent": 1, "extra_in_count": 2, "ok": 3}.get(st, 9)
+
+    rows.sort(
+        key=lambda r: (
+            _status_rank(str(r["status"])),
+            -int(r["difference_abs"]),
+            (r.get("grupo") or "Sem grupo").lower(),
+            str(r["cod_produto"]),
+        )
+    )
     rows = rows[:limit]
 
     def _len_codes(mapping: dict[str, dict]) -> int:
