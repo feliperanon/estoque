@@ -202,6 +202,18 @@ function renderGroupChips() {
 // Inicializar chips ao carregar tela de contagem
 document.addEventListener('DOMContentLoaded', () => {
   renderGroupChips();
+  // Garante que o menu lateral e dashboard estejam sempre visíveis ao carregar
+  const moduleNav = document.getElementById('module-nav');
+  if (moduleNav) moduleNav.style.display = '';
+  const sidebarMenu = document.getElementById('sidebar-menu');
+  if (sidebarMenu) sidebarMenu.style.display = '';
+  const dashboardContent = document.querySelector('.dashboard-content');
+  if (dashboardContent) dashboardContent.style.display = '';
+  const viewDashboard = document.getElementById('view-dashboard');
+  if (viewDashboard) viewDashboard.style.display = 'block';
+  const viewLogin = document.getElementById('view-login');
+  if (viewLogin) viewLogin.style.display = 'none';
+});
 });
 /**
  * app.js — Controle de SPA do sistema Estoque.
