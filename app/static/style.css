@@ -34,6 +34,8 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  /* overflow-x ≠ visible quebra position:sticky do cabeçalho no scroll da página */
+  min-width: 0;
   --count-sticky-under-app: 52px;
 }
 .count-main-card {
@@ -68,27 +70,30 @@
   position: sticky;
   top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app));
   z-index: 45;
-  background: var(--white);
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
-  border: 1px solid var(--border-soft, #e2e8f0);
+  background: #fff;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.07);
+  border: 1px solid rgba(15, 23, 42, 0.07);
   border-bottom: none;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   margin-bottom: 0;
-  padding: 10px 12px 10px;
+  padding: 6px 10px 8px;
+  isolation: isolate;
 }
 #sub-count .count-main-card-inner.count-op-header .count-last-launch {
-  margin-top: 10px;
+  margin-top: 6px;
   margin-bottom: 0;
-  padding: 10px 10px 8px;
-  border-radius: 10px;
-  font-size: 0.8125rem;
-  line-height: 1.35;
-  border-top: 1px solid var(--border-soft, #e2e8f0);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  background: rgba(240, 253, 244, 0.95);
+  border: 1px solid rgba(34, 197, 94, 0.18);
+  color: #166534;
 }
 #sub-count .count-main-card-inner.count-op-header .count-last-launch-kicker {
   margin-bottom: 2px;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
 }
 #sub-count .count-main-card-inner.count-op-header .count-last-launch-body {
   display: block;
@@ -100,7 +105,7 @@
   flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px 10px;
+  gap: 6px 8px;
   width: 100%;
   min-width: 0;
   padding: 0;
@@ -108,11 +113,11 @@
 .count-main-title {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: clamp(0.95rem, 2.8vw, 1.15rem);
+  font-size: clamp(0.875rem, 2.2vw, 1rem);
   font-weight: 700;
   color: var(--ink);
   letter-spacing: -0.02em;
-  line-height: 1.25;
+  line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -122,26 +127,31 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 0.8125rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--primary-blue, #2563eb);
-  background: var(--primary-blue-soft, #eff6ff);
-  border: 1px solid rgba(37, 99, 235, 0.18);
+  background: rgba(239, 246, 255, 0.85);
+  border: 1px solid rgba(37, 99, 235, 0.12);
   white-space: nowrap;
 }
-/* Filtros contagem: desktop 50/30/20 = 5fr 3fr 2fr; mobile 1 coluna */
+/* Filtros contagem: mobile 1 col; desktop 50/30/20 = 5fr 3fr 2fr */
 .count-main-filters-row {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 2fr);
-  gap: 10px 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px 10px;
   width: 100%;
   align-items: start;
-  margin-top: 10px;
+  margin-top: 6px;
   padding: 0;
   box-sizing: border-box;
+}
+@media (min-width: 768px) {
+  .count-main-filters-row {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 2fr);
+  }
 }
 .count-main-filter-col--produto {
   grid-column: auto;
@@ -156,9 +166,36 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   align-items: stretch;
 }
+
+/* Filtros só na tela de contagem: mais baixos, menos “formulário” */
+#sub-count .count-main-card-inner.count-op-header .count-filter-input-wrapper {
+  min-height: 36px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border-color: rgba(15, 23, 42, 0.09);
+  box-shadow: none;
+}
+#sub-count .count-main-card-inner.count-op-header .count-filter-input {
+  min-height: 32px;
+  padding: 4px 0;
+  font-size: 0.875rem;
+}
+#sub-count .count-main-card-inner.count-op-header .count-filter-input-wrapper--date .count-filter-input.count-filter-date {
+  min-height: 32px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+#sub-count .count-main-card-inner.count-op-header .count-filter-label {
+  font-size: 0.75rem;
+}
+
+#sub-count .count-main-card-inner.count-op-header .count-filter-input-wrapper:focus-within {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
 .count-main-filter-date {
   min-width: 0;
 }
@@ -274,12 +311,12 @@
 }
 .count-main-progress {
   width: 100%;
-  margin-top: 10px;
+  margin-top: 6px;
   padding: 0;
 }
 .count-main-progress .count-progress-track {
   order: 0;
-  height: 8px;
+  height: 4px;
   width: 100%;
   min-width: 0;
   align-self: stretch;
@@ -290,7 +327,7 @@
 .count-progress.count-main-progress {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   margin-top: 0;
 }
 .count-progress-info {
@@ -336,20 +373,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Empilha filtros só em telas estreitas; tablet paisagem/desktop = uma linha 50/30/20 */
 @media (max-width: 767px) {
-  .count-main-filters-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-    row-gap: 12px;
-  }
   .count-main-filter-col--produto,
   .count-main-filter-col--grupo,
   .count-main-filter-col--data {
     grid-column: 1 / -1;
   }
   .count-main-filter-col {
-    gap: 0.35rem;
+    gap: 0.3rem;
   }
 }
 @media (max-width: 600px) {
@@ -1119,8 +1150,8 @@ button[type="submit"]:disabled {
 
 .menu-fab {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  left: max(12px, env(safe-area-inset-left, 0px));
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: max(10px, env(safe-area-inset-left, 0px));
   z-index: 60;
 }
 
@@ -1294,46 +1325,6 @@ button[type="submit"]:disabled {
   background: #e8f0eb;
   color: var(--accent);
   border-left-color: var(--accent);
-}
-
-.sidebar-actions {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background: var(--white);
-  border-top: 1px solid var(--border);
-  margin-top: auto;
-}
-
-.sidebar-brand-logo {
-  width: 100%;
-  max-height: 76px;
-  object-fit: contain;
-  display: block;
-}
-
-.sidebar-brand-placeholder {
-  width: 100%;
-  text-align: center;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  line-height: 1.25;
-  color: #0d3f2f;
-  text-transform: uppercase;
-}
-
-.sidebar-actions .btn-secondary {
-  width: 100%;
-  text-align: center;
-  justify-content: center;
-  color: #b91c1c;
-  border: 1.5px solid #fecaca;
-  background: #fff1f1;
-}
-
-.sidebar-actions .btn-secondary:hover {
-  background: #ffe3e3;
 }
 
 /* ── Sub-nav (filhos dentro de módulo mãe) ── */
@@ -2740,22 +2731,36 @@ form#count-form.count-form {
 }
 
 /* ── Contagem: item operacional (densidade alta, leitura rápida) ── */
+/* Neutraliza regras genéricas de .list li nesta lista */
+#sub-count #count-products-list.list.count-list-flat li.count-product-item {
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+  font-size: inherit;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 6px;
+}
+
 .count-product-item {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 4px 6px;
   cursor: pointer;
   border-radius: 0;
   border: none;
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
   background: #fff;
-  transition: background 0.1s ease;
+  transition: background 0.08s ease;
 }
 
 .count-product-item:hover {
-  background: #f8faf9;
+  background: #f8fafc;
 }
 
 .count-product-label {
@@ -2764,24 +2769,45 @@ form#count-form.count-form {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   overflow: hidden;
-}
-
-.count-product-label-top {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  width: 100%;
-  min-width: 0;
 }
 
 .count-product-readout {
   margin-left: auto;
   flex-shrink: 0;
-  max-width: 9rem;
+  max-width: 7rem;
+}
+
+/* Total à direita do + (borda externa da linha): só número, mesma escala do input */
+.count-control-row .count-product-readout.count-product-readout--by-control {
+  margin-left: 0;
+  max-width: none;
+  min-width: 2ch;
+  justify-self: end;
+  text-align: right;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  align-self: center;
+}
+
+.count-control-row .count-product-readout--by-control .count-product-readout-inner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-size: inherit;
+  line-height: inherit;
+  color: #0f172a;
+}
+
+.count-control-row .count-product-readout--by-control .count-product-readout-value {
+  font-size: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
 }
 
 /* Resumo contado: apoio discreto (não compete com a descrição) */
@@ -2789,57 +2815,41 @@ form#count-form.count-form {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 3px;
-  padding: 0 0 0 4px;
-  border-radius: 0;
-  background: transparent;
-  border: none;
-  font-size: 0.625rem;
+  gap: 1px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(241, 245, 249, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  font-size: 0.5625rem;
   font-weight: 500;
   color: #94a3b8;
-  line-height: 1.2;
+  line-height: 1.1;
   letter-spacing: 0.02em;
 }
 
 .count-product-readout-cx strong,
 .count-product-readout-un strong {
   font-variant-numeric: tabular-nums;
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .count-product-readout-sep {
-  opacity: 0.55;
+  opacity: 0.45;
   font-weight: 400;
   padding: 0 1px;
   color: #cbd5e1;
 }
 
 @media (max-width: 600px) {
-  .count-product-readout {
-    max-width: 7.5rem;
+  .count-product-readout:not(.count-product-readout--by-control) {
+    max-width: 6.5rem;
   }
 
   .count-product-readout-inner {
     justify-content: flex-end;
   }
-}
-
-.count-product-code {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: #94a3b8;
-  letter-spacing: 0.03em;
-  background: transparent;
-  border: none;
-  padding: 0;
-  display: inline-block;
-  max-width: 38%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .count-last-launch {
@@ -2874,11 +2884,11 @@ form#count-form.count-form {
 }
 
 .count-product-desc {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   color: #0f172a;
-  line-height: 1.28;
+  line-height: 1.18;
   letter-spacing: -0.02em;
-  font-weight: 600;
+  font-weight: 700;
   word-break: break-word;
   overflow-wrap: anywhere;
   display: -webkit-box;
@@ -2904,18 +2914,18 @@ form#count-form.count-form {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 5px;
+  gap: 3px;
   flex-shrink: 0;
-  width: min(100%, 17rem);
-  min-width: min(100%, 13.5rem);
+  width: min(100%, 17.5rem);
+  min-width: min(100%, 13rem);
 }
 
-/* Linha operacional compacta: sigla | − | valor | + */
+/* Linha operacional: sigla | − | valor | + | total (à direita) */
 .count-control-row {
   display: grid;
-  grid-template-columns: 2.25rem 40px minmax(2.75rem, 1fr) 40px;
+  grid-template-columns: 2.25rem 32px minmax(0, 1fr) 32px auto;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -2935,41 +2945,40 @@ form#count-form.count-form {
   width: 100%;
   min-width: 0;
   max-width: none;
-  min-height: 40px;
-  height: 40px;
-  padding: 4px 6px;
+  min-height: 34px;
+  height: 34px;
+  padding: 1px 4px;
   border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 6px;
+  border-radius: 4px;
   text-align: center;
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: #0f172a;
   background: #fff;
-  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.04);
 }
 
 .count-product-qty:focus {
   outline: none;
   border-color: var(--primary-blue, #2563eb);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 
 .btn-count-adjust {
   flex-shrink: 0;
-  min-width: 40px;
-  width: 40px;
-  min-height: 40px;
-  height: 40px;
+  min-width: 32px;
+  width: 32px;
+  min-height: 34px;
+  height: 34px;
   padding: 0;
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #fff;
   color: var(--ink);
   cursor: pointer;
   font-weight: 700;
   line-height: 1;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .btn-count-adjust:active:not(:disabled) {
@@ -2999,15 +3008,15 @@ form#count-form.count-form {
 }
 
 /* ── Data Table ─────────────────────────────────────── */
-/* Lista de contagem dentro do shell (bloco único, sombra leve) */
+/* Lista de contagem: bloco leve, sem “cardzão” */
 .count-products-shell {
   background: var(--white);
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 4px;
+  box-shadow: none;
   overflow: hidden;
   max-width: 100%;
-  margin-top: 2px;
+  margin-top: 0;
 }
 .count-list-flat {
   gap: 0;
@@ -3018,31 +3027,36 @@ form#count-form.count-form {
 
 .count-list-flat .count-product-item {
   border-radius: 0;
-  padding: 8px clamp(10px, 2.5vw, 14px);
+  padding: 3px 6px;
   align-items: flex-start;
 }
 
 .count-list-flat .count-product-item:hover {
-  background: #f9fafb;
+  background: #f8fafc;
 }
 
 @media (max-width: 600px) {
   .count-product-desc {
-    font-size: 0.9375rem;
-    line-height: 1.3;
+    font-size: 0.8125rem;
+    line-height: 1.2;
   }
 
   .count-product-qty {
-    font-size: 1rem;
-    min-height: 42px;
-    height: 42px;
+    font-size: 0.875rem;
+    min-height: 36px;
+    height: 36px;
   }
 
   .count-product-item {
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
-    padding: 8px 10px;
+    gap: 4px;
+    padding: 4px 6px;
+  }
+
+  #sub-count #count-products-list.list.count-list-flat li.count-product-item {
+    padding: 4px 6px;
+    gap: 4px;
   }
 
   .count-product-controls {
@@ -3050,19 +3064,19 @@ form#count-form.count-form {
     min-width: 0;
     max-width: none;
     align-self: stretch;
-    gap: 6px;
+    gap: 4px;
   }
 
   .count-control-row {
-    grid-template-columns: 2.25rem 42px minmax(2.5rem, 1fr) 42px;
-    gap: 8px;
+    grid-template-columns: 2.25rem 36px minmax(0, 1fr) 36px auto;
+    gap: 5px;
   }
 
   .btn-count-adjust {
-    min-width: 42px;
-    width: 42px;
-    min-height: 42px;
-    height: 42px;
+    min-width: 36px;
+    width: 36px;
+    min-height: 36px;
+    height: 36px;
   }
 }
 
@@ -3362,13 +3376,10 @@ form#count-form.count-form {
     min-width: 100%;
   }
 
-  /* Controles de contagem: compactar */
-  .count-product-controls {
-    gap: 4px;
-  }
-
-  .count-product-qty {
-    width: 58px;
+  /* Controles de contagem: grid flexível (evita width fixo que quebra a linha CX/UN) */
+  #sub-count .count-control-row .count-product-qty {
+    width: 100%;
+    min-width: 0;
   }
 
   /* Modal: tela quase cheia */
@@ -3476,10 +3487,10 @@ form#count-form.count-form {
   }
 }
 
-/* Hambúrguer: integrado ao painel (superfície clara, sombra suave) — z-index alinhado ao wrap */
+/* Hambúrguer: fixed no viewport; z-index 60 > cabeçalho contagem (45) e app-header (40); abaixo da sidebar/overlay abertos */
 .btn-menu-toggle.menu-fab {
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  left: max(12px, env(safe-area-inset-left, 0px));
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: max(10px, env(safe-area-inset-left, 0px));
   width: 44px;
   height: 44px;
   padding: 0;
@@ -3698,39 +3709,39 @@ form#count-form.count-form {
 .sidebar-actions {
   display: flex;
   flex-direction: column;
-  padding: 14px 14px 20px;
-  background: var(--sidebar-bg-deep);
-  border-top: 1px solid var(--sidebar-border);
-  gap: 10px;
+  margin-top: auto;
   flex-shrink: 0;
+  padding: 10px 14px 18px;
+  background: transparent;
+  border-top: 1px solid var(--sidebar-border);
 }
 
-.sidebar-status-row {
-  display: flex;
-  justify-content: flex-start;
+.sidebar-btn-logout-minimal {
+  width: 100%;
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 4px;
-}
-
-.net-status-sidebar {
-  color: #bbf7d0;
-  background: rgba(34, 197, 94, 0.15);
-  border-color: rgba(34, 197, 94, 0.35);
-}
-
-.sidebar-actions .sidebar-btn-logout,
-.sidebar-actions .btn-secondary.sidebar-btn-logout {
-  border-radius: 10px;
-  padding: 10px 14px;
+  justify-content: center;
+  padding: 10px 12px;
+  font-size: 0.8125rem;
   font-weight: 600;
-  font-size: 0.875rem;
-  color: #fecaca;
-  border: 1px solid rgba(248, 113, 113, 0.35);
-  background: rgba(255, 255, 255, 0.06);
+  letter-spacing: 0.02em;
+  color: var(--sidebar-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
-.sidebar-actions .sidebar-btn-logout:hover {
-  background: rgba(248, 113, 113, 0.15);
+.sidebar-btn-logout-minimal:hover {
+  color: var(--sidebar-text);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--sidebar-border);
+}
+
+.sidebar-btn-logout-minimal:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.55);
+  outline-offset: 2px;
 }
 
 /* Formulários no app: foco azul (alinhado a inputs modernos) */
@@ -3761,8 +3772,8 @@ form#count-form.count-form {
   margin-top: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-  border-top: 1px solid var(--border-soft);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.06);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: none;
 }
 
 /* ═══ Shell unificado: cabeçalho de área + landing alinhada ao /app ═══ */

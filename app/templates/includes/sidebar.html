@@ -60,14 +60,10 @@
     </nav>
 
     <div class="sidebar-actions">
-      <img src="/static/logo-souza-pinto.png" alt="Souza Pinto Distribuidora" class="sidebar-brand-logo" />
-      <div class="sidebar-status-row">
-        <span class="net-status net-status-sidebar">ONLINE</span>
-      </div>
       {% if sidebar_landing %}
-      <button type="button" id="btn-logout" class="btn-secondary sidebar-btn-logout">Entrar no sistema</button>
+      <button type="button" id="btn-logout" class="sidebar-btn-logout-minimal">Entrar no sistema</button>
       {% else %}
-      <button type="button" id="btn-logout" class="btn-secondary sidebar-btn-logout">Sair</button>
+      <button type="button" id="btn-logout" class="sidebar-btn-logout-minimal">Sair do sistema</button>
       {% endif %}
     </div>
   </div>

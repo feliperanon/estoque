@@ -71,8 +71,10 @@ function filtrarProdutos() {
   if (totalSpan) totalSpan.textContent = totalVisiveis;
   // Atualiza barra de progresso após filtro
   updateCountProgress(visiveis.map(item => {
-    const codeEl = item.querySelector('.count-product-code');
-    return { cod_produto: codeEl ? codeEl.textContent : '' };
+    const inp = item.querySelector('input.count-product-qty[data-coderef]');
+    const codRef = inp?.getAttribute('data-coderef');
+    const cod_produto = codRef ? decodeURIComponent(codRef) : '';
+    return { cod_produto };
   }));
   // Atualiza chips de grupo selecionado
   const chipsContainer = document.getElementById('count-group-chips');
@@ -1304,7 +1306,6 @@ function renderCountProducts(products) {
 
   for (const product of ativos) {
     const codRaw = String(product.cod_produto || '');
-    const cod = escapeHtml(codRaw);
     const desc = escapeHtml(product.cod_grup_descricao || '');
     const codRef = encodeURIComponent(codRaw);
     const netCx = getNetByProductAndType(codRaw, 'caixa');
@@ -1313,34 +1314,35 @@ function renderCountProducts(products) {
     li.className = 'count-product-item';
     const vCx = Math.max(0, Math.round(Number(netCx) || 0));
     const vUn = Math.max(0, Math.round(Number(netUn) || 0));
+    /* Input sempre vazio na lista: total só no readout; após +/− ou lançamento por teclado o campo não replica o saldo. */
     li.innerHTML = `
       <div class="count-product-label">
         <span class="count-product-desc">${desc}</span>
-        <div class="count-product-label-top">
-          <span class="count-product-code">${cod}</span>
-          <div class="count-product-readout" aria-live="polite" title="Totais contados neste aparelho (soma dos lançamentos)">
-            <span class="count-product-readout-inner">
-              <span class="count-product-readout-cx"><strong>${formatIntegerBR(vCx)}</strong> CX</span>
-              <span class="count-product-readout-sep" aria-hidden="true">·</span>
-              <span class="count-product-readout-un"><strong>${formatIntegerBR(vUn)}</strong> UN</span>
-            </span>
-          </div>
-        </div>
       </div>
       <div class="count-product-controls">
         <div class="count-control-row">
           <span class="count-control-type">CX</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
           <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
-            data-coderef="${codRef}" data-count-type="caixa" value="${vCx}" aria-label="Quantidade em caixas" />
+            data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
+          <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="Total contado em caixas neste aparelho (soma dos lançamentos)">
+            <span class="count-product-readout-inner">
+              <strong class="count-product-readout-value">${formatIntegerBR(vCx)}</strong>
+            </span>
+          </div>
         </div>
         <div class="count-control-row">
           <span class="count-control-type">UN</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
           <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
-            data-coderef="${codRef}" data-count-type="unidade" value="${vUn}" aria-label="Quantidade em unidades" />
+            data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
+          <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="Total contado em unidades neste aparelho (soma dos lançamentos)">
+            <span class="count-product-readout-inner">
+              <strong class="count-product-readout-value">${formatIntegerBR(vUn)}</strong>
+            </span>
+          </div>
         </div>
       </div>
     `;
@@ -1369,6 +1371,14 @@ function filterCountProductsByTerm(term) {
       || marca.includes(normalized)
     );
   });
+}
+
+/** Re-renderiza a lista de contagem respeitando o filtro de busca atual. */
+function refreshCountProductListView() {
+  const input = document.getElementById('item-code');
+  const term = (input && input.value || '').trim();
+  const toShow = term ? filterCountProductsByTerm(term) : countProductsCache;
+  renderCountProducts(toShow);
 }
 
 async function loadCountProducts() {
@@ -1589,7 +1599,12 @@ function applyCountQtyFromInput(codRefEnc, countTypeRaw, rawValue) {
   if (!itemCode) return;
   const current = getNetByProductAndType(itemCode, countType);
   const digitsOnly = String(rawValue ?? '').replace(/\D/g, '');
-  let next = digitsOnly === '' ? 0 : parseInt(digitsOnly, 10);
+  /* Campo limpo: não tratar como 0 (evita lançar delta negativo sem intenção / contagem em duplicidade). */
+  if (digitsOnly === '') {
+    refreshCountProductListView();
+    return;
+  }
+  let next = parseInt(digitsOnly, 10);
   if (!Number.isFinite(next)) next = 0;
   if (next < 0) next = 0;
   const delta = next - current;
@@ -1758,10 +1773,7 @@ function bindCountEvents() {
   if (countListEl && countListEl.dataset.countDelegates !== '1') {
     countListEl.dataset.countDelegates = '1';
     const refreshCountListAfterEdit = () => {
-      const input = document.getElementById('item-code');
-      const term = (input && input.value || '').trim();
-      const toShow = term ? filterCountProductsByTerm(term) : countProductsCache;
-      renderCountProducts(toShow);
+      refreshCountProductListView();
     };
     countListEl.addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-count-adjust');
