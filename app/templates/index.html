@@ -184,32 +184,39 @@
                 <div class="count-main-title-row">
                   <span class="count-main-title">Produtos para contagem</span>
                   <span id="count-products-total" class="chip count-main-chip">0</span>
-                  <label class="status-switch count-main-switch" for="count-products-status-toggle" title="Marcado: todos os cadastros (padrão para inventário). Desmarcado: apenas status ativo.">
-                    <span class="status-switch-label">Ativo</span>
-                    <input id="count-products-status-toggle" type="checkbox" checked />
-                    <span class="status-switch-slider" aria-hidden="true"></span>
-                    <span class="status-switch-label">Todos</span>
-                  </label>
                 </div>
                 <div class="count-main-filters-row">
                   <div class="count-main-filter-col">
                     <label class="count-filter-label count-filter-label--bold" for="item-code">Produto</label>
-                    <input id="item-code" name="item-code" type="text" class="count-filter-input" placeholder="" autocomplete="off" aria-label="Produto" />
+                    <div class="count-filter-input-wrapper">
+                      <span class="count-filter-icon"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="#176d8c" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="#176d8c" stroke-width="2"/></svg></span>
+                      <input id="item-code" name="item-code" type="text" class="count-filter-input" placeholder="Buscar produto..." autocomplete="off" aria-label="Produto" />
+                    </div>
                   </div>
                   <div class="count-main-filter-col">
                     <label class="count-filter-label count-filter-label--bold" for="count-group">Grupo</label>
-                    <input id="count-group" name="count-group" type="text" class="count-filter-input" placeholder="" autocomplete="off" aria-label="Grupo" />
+                    <div class="count-filter-input-wrapper">
+                      <span class="count-filter-icon"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="#176d8c" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="#176d8c" stroke-width="2"/></svg></span>
+                      <input id="count-group" name="count-group" type="text" class="count-filter-input" placeholder="Buscar grupo..." autocomplete="off" aria-label="Grupo" />
+                    </div>
                   </div>
                   <div class="count-main-filter-col count-main-filter-date">
                     <label class="count-filter-label count-filter-label--bold" for="count-date">Data da Contagem</label>
-                    <input id="count-date" name="count-date" type="date" class="count-filter-input count-filter-date" aria-label="Data da Contagem" />
+                    <div class="count-filter-input-wrapper">
+                      <span class="count-filter-icon"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="#176d8c" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="#176d8c" stroke-width="2"/></svg></span>
+                      <input id="count-date" name="count-date" type="date" class="count-filter-input count-filter-date" aria-label="Data da Contagem" />
+                    </div>
                   </div>
                 </div>
                 <div class="count-progress count-main-progress" aria-live="polite">
                   <div class="count-progress-track">
                     <div id="count-progress-fill" class="count-progress-fill"></div>
                   </div>
-                  <small id="count-progress-text">0% dos produtos contados (0/0)</small>
+                  <div class="count-progress-info">
+                    <span id="count-progress-percent" class="count-progress-percent">0%</span>
+                    <span id="count-progress-label" class="count-progress-label">concluído</span>
+                    <span id="count-progress-detail" class="count-progress-detail">0 de 0 produtos contados</span>
+                  </div>
                 </div>
               </div>
               <div id="count-feedback" class="field-feedback" aria-live="polite"></div>

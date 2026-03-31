@@ -45,45 +45,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Botão Ativo funcional + filtro
-document.addEventListener('DOMContentLoaded', () => {
-  const ativoToggle = document.getElementById('count-products-status-toggle');
-  if (ativoToggle) {
-    ativoToggle.disabled = false;
-    ativoToggle.addEventListener('change', () => {
-      filtrarProdutos();
-      atualizarStatusChip();
-    });
-    atualizarStatusChip();
-  }
-});
-
-function atualizarStatusChip() {
-  const ativoToggle = document.getElementById('count-products-status-toggle');
-  const chip = document.getElementById('count-products-total');
-  if (!ativoToggle || !chip) return;
-  if (ativoToggle.checked) {
-    chip.classList.remove('chip-ativo');
-    chip.classList.add('chip-todos');
-    chip.style.background = '#ffeaea';
-    chip.style.color = '#b42318';
-  } else {
-    chip.classList.remove('chip-todos');
-    chip.classList.add('chip-ativo');
-    chip.style.background = '#e2f5e7';
-    chip.style.color = '#166534';
-  }
-}
+// Removido: switch Ativo/Todos e lógica associada
 
 // Filtro de produtos por grupo e ativo
 function filtrarProdutos() {
   const grupo = (document.getElementById('count-group')?.value || '').trim().toLowerCase();
-  const mostrarTodos = document.getElementById('count-products-status-toggle')?.checked;
   let totalVisiveis = 0;
   const visiveis = [];
   document.querySelectorAll('.count-product-item').forEach(item => {
     let show = true;
-    // Filtro de ativos: se NÃO marcado, só mostra ativos
-    if (!mostrarTodos && item.classList.contains('is-inactive')) show = false;
+    // Filtro de ativos: só mostra ativos (is-inactive = oculto)
+    if (item.classList.contains('is-inactive')) show = false;
     // Filtro de grupo: se preenchido, só mostra se o grupo bate
     if (grupo) {
       const desc = item.querySelector('.count-product-desc')?.textContent?.toLowerCase() || '';
@@ -98,10 +70,8 @@ function filtrarProdutos() {
   // Atualiza o total exibido
   const totalSpan = document.getElementById('count-products-total');
   if (totalSpan) totalSpan.textContent = totalVisiveis;
-  atualizarStatusChip();
   // Atualiza barra de progresso após filtro
   updateCountProgress(visiveis.map(item => {
-    // Recupera o código do produto do DOM
     const codeEl = item.querySelector('.count-product-code');
     return { cod_produto: codeEl ? codeEl.textContent : '' };
   }));
@@ -1110,24 +1080,25 @@ function startCountKpiTicker() {
 }
 
 function updateCountProgress(products = countProductsCache) {
-  if (!countProgressFill || !countProgressText) return;
+  if (!countProgressFill) return;
   const { total, counted, percent } = computeCountProgressStats(products, loadCountEvents());
   if (!total) {
     countProgressFill.style.width = '0%';
-    countProgressText.textContent = '0% dos produtos contados (0/0)';
+    const percentSpan = document.getElementById('count-progress-percent');
+    if (percentSpan) percentSpan.textContent = '0%';
+    const labelSpan = document.getElementById('count-progress-label');
+    if (labelSpan) labelSpan.textContent = 'concluído';
+    const detailSpan = document.getElementById('count-progress-detail');
+    if (detailSpan) detailSpan.textContent = '0 de 0 produtos contados';
     return;
   }
-
   countProgressFill.style.width = `${percent}%`;
-  countProgressFill.classList.remove('is-low', 'is-mid', 'is-high');
-  if (percent >= 80) {
-    countProgressFill.classList.add('is-high');
-  } else if (percent >= 40) {
-    countProgressFill.classList.add('is-mid');
-  } else {
-    countProgressFill.classList.add('is-low');
-  }
-  countProgressText.textContent = `${percent}% dos produtos contados (${counted}/${total})`;
+  const percentSpan = document.getElementById('count-progress-percent');
+  if (percentSpan) percentSpan.textContent = `${percent}%`;
+  const labelSpan = document.getElementById('count-progress-label');
+  if (labelSpan) labelSpan.textContent = 'concluído';
+  const detailSpan = document.getElementById('count-progress-detail');
+  if (detailSpan) detailSpan.textContent = `${counted} de ${total} produtos contados`;
 }
 
 function getDeviceName() {
