@@ -1225,6 +1225,22 @@ async function loadUsersAdminList() {
 }
 
 function renderCountProducts(products) {
+    // DEBUG: Verificar se o UL existe
+    console.log('DEBUG: countProductsList:', countProductsList);
+    if (!countProductsList) {
+      const feedback = document.getElementById('count-feedback');
+      if (feedback) feedback.textContent = 'ERRO: Elemento da lista de produtos não encontrado!';
+      return;
+    }
+    // DEBUG: Forçar exibição do UL
+    countProductsList.style.display = '';
+    // DEBUG: Garantir que a tela de contagem está ativa
+    const subCount = document.getElementById('sub-count');
+    if (subCount) subCount.style.display = '';
+    const viewDashboard = document.getElementById('view-dashboard');
+    if (viewDashboard) viewDashboard.style.display = '';
+    // DEBUG extra: garantir que o UL está visível
+    countProductsList.hidden = false;
   if (!countProductsList || !countProductsTotal) return;
   countProductsList.innerHTML = '';
   countProductsTotal.textContent = `${products.length}`;
