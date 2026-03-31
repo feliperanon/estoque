@@ -3,7 +3,7 @@ const URLS = [
   "/",
   "/app",
   "/static/style.css?v=15",
-  "/static/app.js?v=14",
+  "/static/app.js?v=15",
   "/static/manifest.json",
   "/static/favicon.svg",
 ];

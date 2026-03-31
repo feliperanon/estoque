@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 
 from app.core.config import get_settings
 from app.core.security import create_access_token, get_password_hash, verify_password
-from app.api.deps import EMERGENCY_ADMIN_SUBJECT
+from app.api.deps import EMERGENCY_ADMIN_SUBJECT, get_current_user
 from app.db.session import get_session
 from app.models import User
 from app.schemas.auth import LegacyLoginInput, LocalRegisterInput, Token, TokenWithUser, UserInfo
@@ -219,3 +219,9 @@ def register_local_user(
 
     token = create_access_token(str(user.id))
     return TokenWithUser(access_token=token, user=_to_user_info(user))
+
+
+@router.get("/me", response_model=UserInfo)
+def read_current_user_profile(user: User = Depends(get_current_user)) -> UserInfo:
+    """Valida o Bearer token e devolve o perfil; usado pelo front para sessão ao carregar a página."""
+    return _to_user_info(user)

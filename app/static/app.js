@@ -210,6 +210,7 @@ const API_PRODUCTS = '/products';
 /** Alinhado ao `le` em GET /products e /products/catalog (products.py). */
 const PRODUCTS_LIST_LIMIT = 20000;
 const API_PRODUCTS_CATALOG = '/products/catalog';
+const API_AUTH_ME = '/auth/me';
 const API_PRODUCTS_IMPORT_EXCEL = '/products/import-excel';
 const APP_BASE_PATH = '/app';
 const TOKEN_KEY  = 'estoque_token';
@@ -445,6 +446,7 @@ const REGISTER_PROFILE_PRESETS = {
     'break',
     'direct-sale',
     'validity',
+    'import-txt',
     'count-audit',
   ],
 };
@@ -631,12 +633,17 @@ function setActiveModule(moduleKey, updateHistory = true) {
 
 function canAccessHash(hashKey) {
   if (currentRole === 'admin') return true;
+  const k = String(hashKey || '').trim().toLowerCase();
+  if (!k) return false;
   if (currentAllowedPages.length) {
-    return currentAllowedPages.includes(hashKey);
+    if (currentAllowedPages.includes(k)) return true;
+    const parent = SUB_TO_PARENT[k];
+    if (parent && currentAllowedPages.includes(parent)) return true;
+    return false;
   }
-  const parent = SUB_TO_PARENT[hashKey];
+  const parent = SUB_TO_PARENT[k];
   if (parent) return canAccessModule(parent);
-  return canAccessModule(hashKey);
+  return canAccessModule(k);
 }
 
 function renderSubCardsAccess() {
@@ -2307,10 +2314,54 @@ function bindCountAuditEvents() {
 
 function getAuthHeaders() {
   const token = getToken();
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
+  const h = { 'Content-Type': 'application/json' };
+  if (token) {
+    h.Authorization = `Bearer ${token}`;
+  }
+  return h;
+}
+
+/** Valida token antes de montar o dashboard; evita rajada de 401 com sessão expirada. */
+async function validateSessionOrClear() {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const resp = await apiFetch(API_AUTH_ME, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (resp.status === 401) {
+      clearSession();
+      if (loginError) {
+        loginError.textContent = 'Sessão expirada ou inválida. Faça login novamente.';
+      }
+      showLogin();
+      return false;
+    }
+    if (!resp.ok) {
+      return true;
+    }
+    try {
+      const profile = await resp.json();
+      const prev = getUser() || {};
+      saveSession(token, {
+        ...prev,
+        username: profile.username ?? prev.username,
+        name: profile.name ?? prev.name,
+        full_name: profile.name ?? prev.full_name,
+        email: profile.email ?? prev.email,
+        phone: profile.phone ?? prev.phone,
+        role: profile.role ?? prev.role,
+        allowed_pages: Array.isArray(profile.allowed_pages)
+          ? profile.allowed_pages
+          : prev.allowed_pages,
+      });
+    } catch {
+      /* mantém user em cache */
+    }
+    return true;
+  } catch {
+    return true;
+  }
 }
 
 function loadProductDefaults() {
@@ -3708,7 +3759,7 @@ if (moduleNav) {
 }
 
 // ── Inicialização ───────────────────────────────────────────────
-(function init() {
+(async function init() {
   applyProductDefaultsToForms();
   bindCountEvents();
   bindCountAuditEvents();
@@ -3720,11 +3771,15 @@ if (moduleNav) {
   bindModuleEvents();
   bindExtraModules();
   const token = getToken();
-  const user  = getUser();
+  const user = getUser();
 
-  if (token && user) {
-    initDashboard(user);
-  } else {
+  if (!token || !user) {
     showLogin();
+    return;
   }
+  const ok = await validateSessionOrClear();
+  if (!ok) {
+    return;
+  }
+  initDashboard(getUser() || user);
 })();
