@@ -84,6 +84,32 @@ def _normalize_allowed_pages_list(raw) -> list[str]:
     return []
 
 
+# Chaves alinhadas a PAGE_KEYS_BY_MODULE.cadastro em app/static/app.js
+_CADASTRO_PAGE_KEYS = frozenset(
+    {
+        "cadastro",
+        "cadastro-produto",
+        "produtos",
+        "preco-produtos",
+        "parametros-produto",
+    }
+)
+
+
+def require_cadastro_access(user: User = Depends(get_current_user)) -> User:
+    """Rotas de cadastro de produtos: mesmo critério que canAccessModule('cadastro') no front."""
+    role = (user.role or "").strip().lower()
+    if role in ("admin", "administrativo"):
+        return user
+    pages = _normalize_allowed_pages_list(user.allowed_pages)
+    if pages and any(p in _CADASTRO_PAGE_KEYS for p in pages):
+        return user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Sem permissao para este modulo",
+    )
+
+
 def require_stock_analysis_access(user: User = Depends(get_current_user)) -> User:
     """GET /audit/stock-analysis: alinhado ao front — administrativo/admin ou allowed_pages com 'count-audit'."""
     role = (user.role or "").strip().lower()

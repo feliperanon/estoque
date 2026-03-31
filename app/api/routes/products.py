@@ -10,7 +10,7 @@ from sqlalchemy import String, and_, cast, func, or_, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_current_user, require_cadastro_access, require_roles
 from app.db.session import get_session
 from app.models import Product, ProductHistory, User
 from app.schemas.products import ProductCreate, ProductHistoryRead, ProductImportPayload, ProductRead, ProductUpdate
@@ -358,7 +358,7 @@ def _map_headers(raw_headers: tuple) -> tuple[list[str | None], int]:
 @router.get("", response_model=list[ProductRead])
 def list_products(
     session: Session = Depends(get_session),
-    _: User = Depends(require_roles("administrativo", "admin")),
+    _: User = Depends(require_cadastro_access),
     q: str | None = Query(default=None),
     limit: int = Query(default=500, ge=1, le=20000),
     status: list[str] | None = Query(default=None),
@@ -444,7 +444,7 @@ def list_products_catalog(
 def create_product(
     payload: ProductCreate,
     session: Session = Depends(get_session),
-    user: User = Depends(require_roles("administrativo", "admin")),
+    user: User = Depends(require_cadastro_access),
 ) -> Product:
     _drop_legacy_sku_unique_constraint(session)
     cod = (payload.cod_produto or "").strip()
@@ -468,7 +468,7 @@ def create_product(
 def import_products_payload(
     payload: ProductImportPayload,
     session: Session = Depends(get_session),
-    user: User = Depends(require_roles("administrativo", "admin")),
+    user: User = Depends(require_cadastro_access),
 ) -> dict:
     _drop_legacy_sku_unique_constraint(session)
     created = 0
@@ -509,7 +509,7 @@ def import_products_payload(
 async def import_products_excel(
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
-    user: User = Depends(require_roles("administrativo", "admin")),
+    user: User = Depends(require_cadastro_access),
 ) -> dict:
     _drop_legacy_sku_unique_constraint(session)
     filename = (file.filename or "").lower()
@@ -695,7 +695,7 @@ def _record_history(session: Session, product_id: int, field: str, old_val, new_
 def get_product(
     product_id: int,
     session: Session = Depends(get_session),
-    _: User = Depends(require_roles("administrativo", "admin")),
+    _: User = Depends(require_cadastro_access),
 ) -> Product:
     product = session.get(Product, product_id)
     if not product:
@@ -749,7 +749,7 @@ def update_product(
 def toggle_product_status(
     product_id: int,
     session: Session = Depends(get_session),
-    user: User = Depends(require_roles("administrativo", "admin")),
+    user: User = Depends(require_cadastro_access),
 ) -> Product:
     product = session.get(Product, product_id)
     if not product:
@@ -774,7 +774,7 @@ def toggle_product_status(
 def delete_product(
     product_id: int,
     session: Session = Depends(get_session),
-    user: User = Depends(require_roles("administrativo", "admin")),
+    user: User = Depends(require_cadastro_access),
 ) -> dict:
     product = session.get(Product, product_id)
     if not product:
@@ -797,7 +797,7 @@ def delete_product(
 def get_product_history(
     product_id: int,
     session: Session = Depends(get_session),
-    _: User = Depends(require_roles("administrativo", "admin")),
+    _: User = Depends(require_cadastro_access),
 ) -> list[ProductHistory]:
     product = session.get(Product, product_id)
     if not product:
