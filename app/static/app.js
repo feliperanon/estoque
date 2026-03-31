@@ -1270,7 +1270,12 @@ function renderCountProducts(products) {
   for (const product of ativos) {
     const li = document.createElement('li');
     li.className = 'count-product-item';
-    li.innerHTML = `<span>${product.cod_produto || ''} - ${product.cod_grup_descricao || ''}</span><strong>${product.status || ''}</strong>`;
+    // Adiciona a descrição em um span específico para o filtro funcionar
+    li.innerHTML = `
+      <span class="count-product-code">${product.cod_produto || ''}</span>
+      <span class="count-product-desc">${product.cod_grup_descricao || ''}</span>
+      <strong>${product.status || ''}</strong>
+    `;
     countProductsList.appendChild(li);
   }
   // Garante que o menu de módulos e dashboard continuam visíveis
