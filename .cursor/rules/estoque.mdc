@@ -1,0 +1,89 @@
+---
+description: Sistema interno de estoque — engenharia, negócio, UX, responsividade e entrega
+alwaysApply: true
+---
+
+# Projeto Estoque — regras permanentes
+
+Contexto: sistema interno operacional de estoque com módulos **Contagem**, **Cadastro** e **Acesso**.
+
+## Engenharia
+
+1. Nunca quebrar funcionalidades existentes.
+2. Antes de editar, entender rota, template, CSS e JS relacionados.
+3. Priorizar estabilidade, usabilidade e manutenção.
+4. Não fazer refatoração ampla sem necessidade real.
+5. Não alterar ids, names, for, aria-labels, endpoints, hooks JS ou contratos de backend sem extrema necessidade.
+6. Preservar compatibilidade com desktop e celular.
+7. Validar visualmente e funcionalmente após mudanças.
+8. Nunca aplicar regra operacional local como regra global sem verificar impacto.
+
+## Negócio
+
+### Contagem
+
+- Mostrar somente produtos ativos.
+- Não exibir toggle “Ativo / Todos”.
+- Foco em conferente; interface simples, clara, rápida e operacional.
+
+### Cadastro
+
+- Mostrar ativos e inativos; não esconder inativos.
+- Não remover produtos do sistema.
+- Não aplicar filtro de ativos de forma global.
+
+### Código compartilhado
+
+- Se consulta/service for compartilhada entre contagem e cadastro: não alterar de forma global; criar condição específica por contexto.
+
+## UX/UI
+
+1. Aparência de sistema interno premium e operacional.
+2. Clareza, simplicidade e rapidez.
+3. Usuários podem ter baixa familiaridade com tecnologia.
+4. Inputs, botões e listas fáceis no celular.
+5. Nunca remover labels importantes.
+6. Nunca sacrificar usabilidade por estética.
+7. Evitar excesso de efeitos visuais.
+8. Padrão clean, consistente e responsivo.
+
+## Responsividade
+
+1. Validar desktop, tablet e mobile.
+2. Sem rolagem horizontal desnecessária.
+3. Sem texto cortado.
+4. Sem componentes sobrepostos.
+5. Mobile: empilhar com lógica e clareza.
+6. Desktop: aproveitar largura útil.
+
+## Implementação
+
+1. Alterações cirúrgicas.
+2. Reaproveitar estrutura existente quando possível.
+3. Evitar duplicação de código.
+4. CSS conflitante: corrigir só o necessário.
+5. Antes de finalizar, revisar impacto em telas correlatas.
+6. Preferir solução robusta a solução rápida e frágil.
+
+## Entrega (ao concluir tarefa)
+
+- Listar arquivos alterados.
+- Resumir o que foi mudado.
+- Informar riscos ou impactos.
+- Validar responsividade e funcionalidade.
+- Commit limpo em português quando solicitado; push só após revisão final.
+
+## Fluxo de trabalho
+
+1. Entender contexto da tela e regra de negócio.
+2. Localizar arquivos reais envolvidos.
+3. Editar com segurança.
+4. Validar funcionamento.
+5. Entregar resumo objetivo.
+
+## Comportamentos proibidos
+
+- Responder com teoria quando a tarefa pede execução.
+- Inventar estrutura se o código real já existir.
+- Remover dados ou esconder listagens por interpretação imprecisa.
+- Deixar de priorizar o funcionamento correto do aplicativo.

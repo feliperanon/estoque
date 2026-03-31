@@ -199,20 +199,9 @@ function renderGroupChips() {
   }
 }
 
-// Inicializar chips ao carregar tela de contagem
+// Chips de grupo na tela de contagem (não alterar login/dashboard aqui: init() já chama showLogin/showDashboard)
 document.addEventListener('DOMContentLoaded', () => {
   renderGroupChips();
-  // Garante que o menu lateral e dashboard estejam sempre visíveis ao carregar
-  const moduleNav = document.getElementById('module-nav');
-  if (moduleNav) moduleNav.style.display = '';
-  const sidebarMenu = document.getElementById('sidebar-menu');
-  if (sidebarMenu) sidebarMenu.style.display = '';
-  const dashboardContent = document.querySelector('.dashboard-content');
-  if (dashboardContent) dashboardContent.style.display = '';
-  const viewDashboard = document.getElementById('view-dashboard');
-  if (viewDashboard) viewDashboard.style.display = 'block';
-  const viewLogin = document.getElementById('view-login');
-  if (viewLogin) viewLogin.style.display = 'none';
 });
 /**
  * app.js — Controle de SPA do sistema Estoque.
@@ -1247,8 +1236,6 @@ function renderCountProducts(products) {
   const ativos = Array.isArray(products)
     ? products.filter(p => isActive(p.status))
     : [];
-  console.log('DEBUG: Produtos recebidos:', products);
-  console.log('DEBUG: Produtos ativos para renderizar:', ativos);
   if (!countProductsList) {
     const feedback = document.getElementById('count-feedback');
     if (feedback) feedback.textContent = 'ERRO: Elemento da lista de produtos não encontrado!';
@@ -1257,8 +1244,8 @@ function renderCountProducts(products) {
   countProductsList.style.display = '';
   const subCount = document.getElementById('sub-count');
   if (subCount) subCount.style.display = '';
-  const viewDashboard = document.getElementById('view-dashboard');
-  if (viewDashboard) viewDashboard.style.display = '';
+  // Não usar style.display = '' aqui: em style.css #view-dashboard { display: none } e some o app inteiro.
+  showDashboard();
   countProductsList.hidden = false;
   if (!countProductsTotal) return;
   countProductsList.innerHTML = '';
@@ -1350,7 +1337,6 @@ async function loadCountProducts() {
 
   try {
     let products = await fetchCatalog(statusValue);
-    console.log('Produtos retornados da API:', products);
     if (products === null) {
       renderCountProducts([]);
       setFeedback('Nao foi possivel carregar a lista de produtos para contagem.', true);
