@@ -639,49 +639,114 @@ body {
 
 /* ── Views ─────────────────────────────────────────── */
 #view-login {
-  display: none;            /* controlado pelo app.js */
+  display: none;            /* controlado pelo app.js: flex */
   min-height: 100vh;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: clamp(16px, 4vw, 32px);
+  position: relative;
+  background: linear-gradient(165deg, #f1f5f9 0%, #e8eef5 40%, #f8fafc 100%);
+}
+
+#view-login::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 90% 55% at 50% -15%, rgba(37, 99, 235, 0.09), transparent 52%);
+  pointer-events: none;
 }
 
 #view-dashboard {
   display: none;            /* controlado pelo app.js */
 }
 
-/* ── Card de login ─────────────────────────────────── */
-.login-card {
+/* ── Card de login (painel alinhado ao dashboard) ─── */
+#view-login .login-card {
+  position: relative;
+  z-index: 1;
   background: var(--white);
   border-radius: 16px;
-  padding: 48px 40px;
+  padding: 40px 36px 44px;
   width: 100%;
-  max-width: 400px;
-  box-shadow: 0 8px 40px var(--shadow);
+  max-width: 420px;
+  border: 1px solid var(--border-soft);
+  border-top: 3px solid var(--primary-blue, #2563eb);
+  box-shadow: var(--shadow-card), 0 16px 48px rgba(15, 23, 42, 0.07);
 }
 
 .login-logo {
   text-align: center;
-  margin-bottom: 36px;
+  margin-bottom: 28px;
 }
 
-.logo-icon {
-  font-size: 3rem;
-  display: block;
-  margin-bottom: 8px;
+#view-login .logo-icon {
+  font-size: 2rem;
   line-height: 1;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-blue-soft, #eff6ff);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  border-radius: 14px;
 }
 
 .login-logo h1 {
-  font-size: 1.9rem;
-  color: var(--accent);
-  margin: 0 0 4px;
+  font-size: clamp(1.45rem, 4vw, 1.85rem);
+  color: var(--ink);
+  margin: 0 0 6px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .login-logo p {
   font-size: 0.9rem;
   color: var(--muted);
   margin: 0;
+  font-weight: 500;
+}
+
+#view-login .field {
+  margin-bottom: 18px;
+}
+
+#view-login .field label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+#view-login .field input {
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#view-login .field input:focus {
+  border-color: var(--primary-blue, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+#view-login .field-error {
+  margin-bottom: 12px;
+  min-height: 20px;
+}
+
+#view-login button[type="submit"] {
+  margin-top: 4px;
+  min-height: 48px;
+  border-radius: 10px;
+  font-weight: 700;
+  background: linear-gradient(120deg, var(--accent) 0%, #146b51 100%);
+  box-shadow: 0 2px 8px rgba(11, 61, 46, 0.2);
+}
+
+#view-login button[type="submit"]:hover:not(:disabled) {
+  box-shadow: 0 4px 14px rgba(11, 61, 46, 0.22);
 }
 
 /* ── Formulário ────────────────────────────────────── */
@@ -2554,8 +2619,8 @@ form#count-form.count-form {
   }
 
   /* Login */
-  .login-card {
-    padding: 28px 16px;
+  #view-login .login-card {
+    padding: 28px 18px 32px;
   }
 
   /* Topbar: esconder itens secundários, compactar */
