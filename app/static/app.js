@@ -1225,36 +1225,35 @@ async function loadUsersAdminList() {
 }
 
 function renderCountProducts(products) {
-    // DEBUG: Verificar se o UL existe
-    console.log('DEBUG: countProductsList:', countProductsList);
-    if (!countProductsList) {
-      const feedback = document.getElementById('count-feedback');
-      if (feedback) feedback.textContent = 'ERRO: Elemento da lista de produtos não encontrado!';
-      return;
-    }
-    // DEBUG: Forçar exibição do UL
-    countProductsList.style.display = '';
-    // DEBUG: Garantir que a tela de contagem está ativa
-    const subCount = document.getElementById('sub-count');
-    if (subCount) subCount.style.display = '';
-    const viewDashboard = document.getElementById('view-dashboard');
-    if (viewDashboard) viewDashboard.style.display = '';
-    // DEBUG extra: garantir que o UL está visível
-    countProductsList.hidden = false;
-  if (!countProductsList || !countProductsTotal) return;
+  // Filtra apenas produtos com status 'ativo' (case-insensitive)
+  const ativos = Array.isArray(products)
+    ? products.filter(p => (p.status || '').toLowerCase() === 'ativo')
+    : [];
+  console.log('DEBUG: Produtos recebidos:', products);
+  console.log('DEBUG: Produtos ativos para renderizar:', ativos);
+  if (!countProductsList) {
+    const feedback = document.getElementById('count-feedback');
+    if (feedback) feedback.textContent = 'ERRO: Elemento da lista de produtos não encontrado!';
+    return;
+  }
+  countProductsList.style.display = '';
+  const subCount = document.getElementById('sub-count');
+  if (subCount) subCount.style.display = '';
+  const viewDashboard = document.getElementById('view-dashboard');
+  if (viewDashboard) viewDashboard.style.display = '';
+  countProductsList.hidden = false;
+  if (!countProductsTotal) return;
   countProductsList.innerHTML = '';
-  countProductsTotal.textContent = `${products.length}`;
-  // DEBUG: Exibir na tela o total de produtos recebidos
+  countProductsTotal.textContent = `${ativos.length}`;
   const feedback = document.getElementById('count-feedback');
-  if (feedback) feedback.textContent = `Renderizando ${products.length} produtos.`;
+  if (feedback) feedback.textContent = `Renderizando ${ativos.length} produtos ativos.`;
 
-  if (!products.length) {
-    countProductsList.innerHTML = '<li><span>Nenhum produto encontrado para o filtro atual.</span><strong>0</strong></li>';
+  if (!ativos.length) {
+    countProductsList.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
     return;
   }
 
-  // FORÇAR EXIBIÇÃO DE TODOS OS PRODUTOS, ignorando filtros e lógica antiga
-  for (const product of products) {
+  for (const product of ativos) {
     const li = document.createElement('li');
     li.className = 'count-product-item';
     li.innerHTML = `<span>${product.cod_produto || ''} - ${product.cod_grup_descricao || ''}</span><strong>${product.status || ''}</strong>`;
