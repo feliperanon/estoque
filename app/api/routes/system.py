@@ -1,5 +1,7 @@
 """Manutenção perigosa do sistema (somente admin)."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlmodel import Session
@@ -8,6 +10,8 @@ from app.api.deps import require_roles
 from app.db.session import get_session
 from app.models import User
 from app.services.system_purge import purge_all_except_users
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -40,6 +44,7 @@ def purge_except_users(
     try:
         return purge_all_except_users(session)
     except Exception as e:
+        logger.exception("purge-except-users falhou")
         session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

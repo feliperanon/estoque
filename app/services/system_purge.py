@@ -12,7 +12,6 @@ from sqlalchemy import delete, text, update
 from sqlmodel import Session, SQLModel, select
 
 from app.core.config import get_settings
-from app.db.session import get_engine
 from app.models import (
     ChangeLog,
     Client,
@@ -63,22 +62,25 @@ _PURGE_MODELS: tuple[type, ...] = (
 )
 
 
-def _ensure_purge_tables_exist() -> None:
+def _ensure_purge_tables_exist(session: Session) -> None:
     """
     Garante que o DDL exista antes do DELETE.
 
     Em PostgreSQL o bootstrap pode ter criado só um subconjunto de tabelas;
     sem isso o purge falha com relação inexistente (500).
+
+    DDL roda na mesma conexão/transação da sessão do purge, evitando que
+    CREATE TABLE em outra conexão fique invisível ao DELETE na sessão atual
+    (comportamento de snapshot/transação no PostgreSQL).
     """
     settings = get_settings()
-    engine = get_engine()
+    conn = session.connection()
     if not settings.sqlalchemy_database_url.startswith("sqlite"):
-        with engine.begin() as conn:
-            conn.execute(text("CREATE SCHEMA IF NOT EXISTS legacy_snapshot"))
-            conn.execute(text("CREATE SCHEMA IF NOT EXISTS app_core"))
-            conn.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS legacy_snapshot"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS app_core"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
     tables = [m.__table__ for m in _PURGE_MODELS]
-    SQLModel.metadata.create_all(engine, tables=tables, checkfirst=True)
+    SQLModel.metadata.create_all(conn, tables=tables, checkfirst=True)
 
 
 def purge_all_except_users(session: Session) -> dict[str, Any]:
@@ -88,7 +90,7 @@ def purge_all_except_users(session: Session) -> dict[str, Any]:
     """
     stats: dict[str, int] = {}
 
-    _ensure_purge_tables_exist()
+    _ensure_purge_tables_exist(session)
 
     def run_delete(model, label: str) -> None:
         res = session.exec(delete(model))
