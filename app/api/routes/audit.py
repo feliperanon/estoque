@@ -65,18 +65,29 @@ def _extract_import_quantities(raw_metrics: list[str]) -> tuple[int, int]:
 
 @router.get("/stock-analysis")
 def stock_analysis(
+
     import_id: int | None = Query(default=None, ge=1),
+    reference_date: str | None = Query(default=None),
     only_diff: bool = Query(default=True),
     limit: int = Query(default=500, ge=1, le=5000),
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> dict:
-    if import_id is None:
+    current_import = None
+    if import_id is not None:
+        current_import = session.get(InventoryImport, import_id)
+    elif reference_date:
+        # Busca importação pela data de referência exata
+        current_import = session.exec(
+            select(InventoryImport)
+            .where(InventoryImport.reference_date == reference_date)
+            .order_by(InventoryImport.imported_at.desc())
+            .limit(1)
+        ).first()
+    else:
         current_import = session.exec(
             select(InventoryImport).order_by(InventoryImport.imported_at.desc()).limit(1)
         ).first()
-    else:
-        current_import = session.get(InventoryImport, import_id)
 
     if not current_import:
         return {
