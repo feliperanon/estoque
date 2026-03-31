@@ -1,3 +1,25 @@
+/* Ajuste responsivo para mobile na lista de contagem */
+@media (max-width: 600px) {
+  .card .card-head h3 {
+    font-size: 1.1em;
+  }
+  .card .search-input,
+  .card #count-audit-search,
+  .card #count-audit-clear-search {
+    max-width: 100% !important;
+    width: 100%;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .card > div[style*="display: flex"] {
+    flex-direction: column !important;
+    gap: 0 !important;
+    align-items: stretch !important;
+  }
+  #count-audit-list.list {
+    padding-left: 0;
+  }
+}
 /* === Ajuste cirúrgico: Linha do título e filtros contagem === */
 .count-main-title-row {
   display: flex;

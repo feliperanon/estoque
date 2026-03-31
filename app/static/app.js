@@ -2179,7 +2179,8 @@ async function loadCountAuditAnalysis() {
 
   try {
     const referenceDate = (countAuditImport.value || '').trim();
-    const onlyDiff = countAuditOnlyDiff ? countAuditOnlyDiff.checked : true;
+    // Por padrão, mostrar todos os itens (inclusive OK)
+    const onlyDiff = countAuditOnlyDiff ? countAuditOnlyDiff.checked : false;
     const params = new URLSearchParams();
     if (referenceDate) params.set('reference_date', referenceDate);
     params.set('only_diff', onlyDiff ? 'true' : 'false');
