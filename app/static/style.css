@@ -2945,7 +2945,7 @@ form#count-form.count-form {
 
 /* Total à direita do + (borda externa da linha): só número, mesma escala do input */
 .count-control-row .count-product-readout.count-product-readout--by-control {
-  margin-left: 0;
+  margin: 0;
   max-width: none;
   min-width: 2ch;
   justify-self: end;
@@ -2965,6 +2965,8 @@ form#count-form.count-form {
   font-size: inherit;
   line-height: inherit;
   color: #0f172a;
+  /* Alinhado ao layout: 50px à esquerda do bloco do total (demais lados zerados) */
+  margin: 0 0 0 50px;
 }
 
 .count-product-readout-value {
@@ -2972,6 +2974,7 @@ form#count-form.count-form {
 }
 
 .count-control-row .count-product-readout--by-control .count-product-readout-value {
+  margin: 0;
   font-size: inherit;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -3106,7 +3109,7 @@ form#count-form.count-form {
 }
 
 .count-control-tail .count-product-readout.count-product-readout--by-control {
-  margin-left: 0;
+  margin: 0;
 }
 
 .count-row-badge {
