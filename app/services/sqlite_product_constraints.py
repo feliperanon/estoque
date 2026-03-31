@@ -29,7 +29,12 @@ def _dialect_name(bind: Any) -> str:
 
 
 def _drop_sqlite_unique_indexes_on_cod_grup_sku_only(bind: Any) -> None:
-    """Remove qualquer índice UNIQUE que cubra somente cod_grup_sku (nome variável no SQLite)."""
+    """Remove qualquer índice UNIQUE que cubra somente cod_grup_sku (nome variável no SQLite).
+
+    Índices ``sqlite_autoindex_*`` pertencem a UNIQUE/PK implícitos: o SQLite **não** permite
+    ``DROP INDEX`` neles; é preciso recriar a tabela. Aqui só removemos índices nomeados
+    (ex.: ``uq_product_sku``) e ignoramos os auto com aviso.
+    """
     bind.execute(text("DROP INDEX IF EXISTS uq_product_sku"))
 
     rows = bind.execute(text("PRAGMA index_list('products')")).fetchall()
@@ -37,6 +42,17 @@ def _drop_sqlite_unique_indexes_on_cod_grup_sku_only(bind: Any) -> None:
         idx_name = row[1]
         is_unique = row[2]
         if not is_unique:
+            continue
+        name_str = str(idx_name)
+        if name_str.startswith("sqlite_autoindex_"):
+            info_rows = bind.execute(text(f'PRAGMA index_info("{idx_name}")')).fetchall()
+            col_names = [r[2] for r in info_rows if r[2] is not None]
+            if col_names == ["cod_grup_sku"]:
+                logger.warning(
+                    "SQLite: UNIQUE em cod_grup_sku via %s nao pode ser removido com "
+                    "DROP INDEX; unicidade legada pode permanecer ate recriar a tabela.",
+                    name_str,
+                )
             continue
         info_rows = bind.execute(text(f'PRAGMA index_info("{idx_name}")')).fetchall()
         col_names = [r[2] for r in info_rows if r[2] is not None]
