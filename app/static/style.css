@@ -34,13 +34,13 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  --count-sticky-under-app: 52px;
 }
 .count-main-card {
   padding: 0;
-  margin-bottom: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 35;
+  margin-bottom: 0;
+  position: relative;
+  z-index: 1;
   background: none;
   border: none;
   box-shadow: none;
@@ -56,6 +56,42 @@
   border-radius: 14px;
   padding: 12px 14px 12px;
   border: 1px solid var(--border-soft, #e2e8f0);
+}
+
+/* Contagem: cabeçalho operacional único (sticky abaixo do app-header) */
+@media (max-width: 1023px) {
+  #sub-count {
+    --count-sticky-under-app: 54px;
+  }
+}
+#sub-count .count-main-card-inner.count-op-header {
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app));
+  z-index: 42;
+  background: var(--white);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border-soft, #e2e8f0);
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-bottom: 0;
+}
+#sub-count .count-main-card-inner.count-op-header .count-last-launch {
+  margin-top: 10px;
+  margin-bottom: 0;
+  padding: 10px 10px 8px;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  border-top: 1px solid var(--border-soft, #e2e8f0);
+}
+#sub-count .count-main-card-inner.count-op-header .count-last-launch-kicker {
+  margin-bottom: 2px;
+  font-size: 0.65rem;
+}
+#sub-count .count-main-card-inner.count-op-header .count-last-launch-body {
+  display: block;
+  word-break: break-word;
 }
 .count-main-title-row {
   display: flex;
@@ -3575,25 +3611,13 @@ form#count-form.count-form {
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
-/* Contagem: painel de filtros + lista como um único bloco */
-#sub-count .count-main-card-inner {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  margin-bottom: 0;
-  box-shadow: none;
-  border-bottom: none;
-}
-
+/* Contagem: lista acoplada ao cabeçalho operacional */
 #sub-count .count-products-shell {
   margin-top: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
   border-top: 1px solid var(--border-soft);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.06);
-}
-
-#sub-count .count-main-card-inner + .count-products-shell {
-  border-top: 1px solid var(--border-soft);
 }
 
 /* ═══ Shell unificado: cabeçalho de área + landing alinhada ao /app ═══ */

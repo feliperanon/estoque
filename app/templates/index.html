@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=18" />
+    <link rel="stylesheet" href="/static/style.css?v=19" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -163,7 +163,7 @@
           <div id="sub-count" class="sub-section">
             <div class="info-card master-container count-main-card count-main-card--outer">
               <form id="count-form" class="count-form" autocomplete="off" novalidate>
-              <div class="count-main-card-inner count-main-card-extended">
+              <div class="count-main-card-inner count-main-card-extended count-op-header">
                 <div class="count-main-title-row">
                   <span class="count-main-title">Produtos para contagem</span>
                   <span id="count-products-total" class="count-main-chip" aria-live="polite"></span>
@@ -204,9 +204,9 @@
                     <span id="count-progress-detail" class="count-progress-detail">0 de 0 produtos contados</span>
                   </div>
                 </div>
+                <div id="count-last-launch" class="count-last-launch" role="status" aria-live="polite" hidden></div>
               </div>
               <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
-              <div id="count-last-launch" class="count-last-launch" role="status" aria-live="polite" hidden></div>
               </form>
             </div>
             <div class="count-products-shell">
