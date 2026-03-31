@@ -38,7 +38,6 @@ def get_current_user(
             allowed_pages=[
                 "contagem",
                 "count",
-                "recount",
                 "pull",
                 "return",
                 "break",
@@ -46,7 +45,6 @@ def get_current_user(
                 "cadastro",
                 "cadastro-produto",
                 "produtos",
-                "preco-produtos",
                 "parametros-produto",
                 "acesso",
             ],
@@ -90,7 +88,6 @@ _CADASTRO_PAGE_KEYS = frozenset(
         "cadastro",
         "cadastro-produto",
         "produtos",
-        "preco-produtos",
         "parametros-produto",
     }
 )

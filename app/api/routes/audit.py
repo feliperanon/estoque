@@ -1,13 +1,19 @@
 import hashlib
-from datetime import datetime, timezone
 import re
 import logging
+from datetime import datetime, timezone
+from io import BytesIO
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
-from app.api.deps import get_current_user, require_roles, require_stock_analysis_access
+from app.api.deps import require_roles, require_stock_analysis_access
 from app.db.session import get_session
 from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, User
 
@@ -225,16 +231,13 @@ def count_server_totals(
     return {"balances": balances}
 
 
-@router.get("/stock-analysis")
-def stock_analysis(
-
-    import_id: int | None = Query(default=None, ge=1),
-    reference_date: str | None = Query(default=None),
-    only_diff: bool = Query(default=False),
-    only_active_products: bool = Query(default=True, alias="only_active"),
-    limit: int = Query(default=500, ge=1, le=5000),
-    session: Session = Depends(get_session),
-    _: User = Depends(require_stock_analysis_access),
+def _compute_stock_analysis(
+    session: Session,
+    import_id: int | None,
+    reference_date: str | None,
+    only_diff: bool,
+    only_active_products: bool,
+    limit: int,
 ) -> dict:
     from app.api.routes.products import _catalog_status_is_ativo_clause
 
@@ -444,6 +447,203 @@ def stock_analysis(
         },
         "rows": rows,
     }
+
+
+def _audit_status_label_pt(status: str) -> str:
+    return {
+        "ok": "OK",
+        "missing_in_count": "Sem contagem",
+        "extra_in_count": "Só na contagem",
+        "divergent": "Divergência",
+    }.get(status, status)
+
+
+def _build_stock_analysis_excel_workbook(
+    data: dict,
+    emitted_at_br: datetime,
+    emitted_by: str,
+) -> BytesIO:
+    """Monta planilha formatada com cabeçalho, resumo e linhas da análise."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Análise"
+
+    title_font = Font(name="Calibri", size=18, bold=True, color="FFFFFF")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill(
+        start_color="1B4332",
+        end_color="1B4332",
+        fill_type="solid",
+    )
+    sub_fill = PatternFill(
+        start_color="D8F3DC",
+        end_color="D8F3DC",
+        fill_type="solid",
+    )
+    thin = Side(style="thin", color="B7B7B7")
+    border_all = Border(left=thin, right=thin, top=thin, bottom=thin)
+    wrap = Alignment(wrap_text=True, vertical="center", horizontal="left")
+    center = Alignment(horizontal="center", vertical="center")
+
+    ncols = 11
+    last_col = get_column_letter(ncols)
+
+    ws.merge_cells(f"A1:{last_col}1")
+    c1 = ws["A1"]
+    c1.value = "Análise de Contagem · Estoque"
+    c1.font = title_font
+    c1.fill = header_fill
+    c1.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 28
+
+    ws.merge_cells(f"A2:{last_col}2")
+    ws["A2"].value = (
+        f"Emitido em: {emitted_at_br.strftime('%d/%m/%Y %H:%M:%S')}  ·  "
+        f"Emitido por: {emitted_by}"
+    )
+    ws["A2"].font = Font(name="Calibri", size=11, bold=True, color="1B4332")
+    ws["A2"].fill = sub_fill
+    ws["A2"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    ws.row_dimensions[2].height = 22
+
+    imp = data.get("import") or {}
+    ref_line = ""
+    if imp:
+        ref = imp.get("reference_date") or "—"
+        fname = imp.get("file_name") or "—"
+        ref_line = f"Base de saldo: data ref. {ref}  |  {fname}"
+    else:
+        ref_line = "Base de saldo: não disponível"
+
+    ws.merge_cells(f"A3:{last_col}3")
+    ws["A3"].value = ref_line
+    ws["A3"].font = Font(name="Calibri", size=10)
+    ws["A3"].alignment = wrap
+
+    s = data.get("summary") or {}
+    summary_text = (
+        f"Resumo — Itens com saldo: {s.get('total_import_items', 0)}  |  "
+        f"Com contagem: {s.get('counted_items', 0)}  |  "
+        f"Conferidos: {s.get('equal_items', 0)}  |  "
+        f"Divergências: {s.get('divergent_items', 0)}  |  "
+        f"Sem contagem: {s.get('missing_in_count', 0)}  |  "
+        f"Só na contagem: {s.get('extra_in_count', 0)}"
+    )
+    ws.merge_cells(f"A4:{last_col}4")
+    ws["A4"].value = summary_text
+    ws["A4"].font = Font(name="Calibri", size=10, italic=True)
+    ws["A4"].alignment = wrap
+
+    headers = [
+        "Código",
+        "Grupo",
+        "Produto",
+        "Situação",
+        "Saldo CX",
+        "Saldo UN",
+        "Contagem CX",
+        "Contagem UN",
+        "Dif. CX",
+        "Dif. UN",
+        "|Dif| total",
+    ]
+    start_row = 6
+    for col_idx, h in enumerate(headers, start=1):
+        cell = ws.cell(row=start_row, column=col_idx, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border_all
+        cell.alignment = center
+
+    rows = data.get("rows") or []
+    for i, row in enumerate(rows, start=start_row + 1):
+        status = _audit_status_label_pt(str(row.get("status") or ""))
+        vals = [
+            row.get("cod_produto") or "",
+            row.get("grupo") or "",
+            row.get("descricao") or "",
+            status,
+            int(row.get("import_caixa") or 0),
+            int(row.get("import_unidade") or 0),
+            int(row.get("counted_caixa") or 0),
+            int(row.get("counted_unidade") or 0),
+            int(row.get("difference_caixa") or 0),
+            int(row.get("difference_unidade") or 0),
+            int(row.get("difference_abs") or 0),
+        ]
+        for j, v in enumerate(vals, start=1):
+            cell = ws.cell(row=i, column=j, value=v)
+            cell.border = border_all
+            if j > 4:
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    widths = [14, 18, 42, 16, 10, 10, 12, 12, 10, 10, 12]
+    for idx, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(idx)].width = w
+
+    ws.freeze_panes = f"A{start_row + 1}"
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+@router.get("/stock-analysis")
+def stock_analysis(
+    import_id: int | None = Query(default=None, ge=1),
+    reference_date: str | None = Query(default=None),
+    only_diff: bool = Query(default=False),
+    only_active_products: bool = Query(default=True, alias="only_active"),
+    limit: int = Query(default=500, ge=1, le=5000),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_stock_analysis_access),
+) -> dict:
+    return _compute_stock_analysis(
+        session,
+        import_id=import_id,
+        reference_date=reference_date,
+        only_diff=only_diff,
+        only_active_products=only_active_products,
+        limit=limit,
+    )
+
+
+@router.get("/stock-analysis/export.xlsx")
+def export_stock_analysis_excel(
+    import_id: int | None = Query(default=None, ge=1),
+    reference_date: str | None = Query(default=None),
+    only_diff: bool = Query(default=False),
+    only_active_products: bool = Query(default=True, alias="only_active"),
+    limit: int = Query(default=20000, ge=1, le=50000),
+    session: Session = Depends(get_session),
+    user: User = Depends(require_stock_analysis_access),
+) -> StreamingResponse:
+    """Exporta a mesma análise da tela em Excel com layout e metadados de emissão."""
+    data = _compute_stock_analysis(
+        session,
+        import_id=import_id,
+        reference_date=reference_date,
+        only_diff=only_diff,
+        only_active_products=only_active_products,
+        limit=limit,
+    )
+    emitted_at_br = datetime.now(timezone.utc).astimezone(ZoneInfo("America/Sao_Paulo"))
+    emitted_by = (user.full_name or "").strip() or (user.username or "—")
+    if user.username and user.username not in emitted_by and "@" in (user.username or ""):
+        emitted_by = f"{emitted_by} ({user.username})"
+
+    buf = _build_stock_analysis_excel_workbook(data, emitted_at_br, emitted_by)
+    stamp = emitted_at_br.strftime("%Y%m%d_%H%M%S")
+    filename = f"analise-contagem_{stamp}.xlsx"
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/changes")

@@ -14,7 +14,6 @@ DEFAULT_ADMIN_PASSWORD = "571232Ce!"
 DEFAULT_ADMIN_ALLOWED_PAGES = [
     "contagem",
     "count",
-    "recount",
     "pull",
     "return",
     "break",
@@ -22,7 +21,6 @@ DEFAULT_ADMIN_ALLOWED_PAGES = [
     "cadastro",
     "cadastro-produto",
     "produtos",
-    "preco-produtos",
     "parametros-produto",
     "acesso",
 ]

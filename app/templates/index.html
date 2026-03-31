@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=35" />
+    <link rel="stylesheet" href="/static/style.css?v=36" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -99,11 +99,6 @@
                 <small id="kpi-count-eta">Previsão de término: --:--</small>
               </article>
               <article class="card mini-kpi-card">
-                <h3>Recontagens pendentes</h3>
-                <strong>0</strong>
-                <small>Itens com divergência</small>
-              </article>
-              <article class="card mini-kpi-card">
                 <h3>Alertas de perda</h3>
                 <strong>0</strong>
                 <small>Quebra e devolução crítica</small>
@@ -115,11 +110,6 @@
                 <span class="module-card-icon">📋</span>
                 <span class="module-card-title">Contagem de Estoque</span>
                 <span class="module-card-desc">Registro físico com foco em velocidade e baixa digitação</span>
-              </button>
-              <button type="button" class="module-card" data-sub="recount">
-                <span class="module-card-icon">🔄</span>
-                <span class="module-card-title">Recontagem</span>
-                <span class="module-card-desc">Validação de divergências para auditoria</span>
               </button>
               <button type="button" class="module-card" data-sub="pull">
                 <span class="module-card-icon">📦</span>
@@ -217,47 +207,6 @@
                 <ul id="count-products-list-done" class="list count-list-flat count-list-done"></ul>
               </div>
             </div>
-          </div>
-
-          <!-- Sub: Recontagem -->
-          <div id="sub-recount" class="sub-section">
-            <section class="card">
-              <div class="card-head">
-                <h2>Recontagem</h2>
-                <span class="chip">Auditoria</span>
-              </div>
-              <p class="muted">Reconte itens divergentes para validar acuracidade antes de fechamento.</p>
-              <form id="recount-form" class="count-form" autocomplete="off">
-                <div class="field">
-                  <label for="recount-item">Item (codigo ou nome)</label>
-                  <input id="recount-item" name="recount-item" type="text" placeholder="Ex.: CX-AGUA-510" required />
-                </div>
-                <div class="field">
-                  <label for="recount-qty">Quantidade recontada</label>
-                  <input id="recount-qty" name="recount-qty" type="number" min="1" step="1" value="1" required />
-                </div>
-                <div class="field">
-                  <label for="recount-reason">Motivo da divergência</label>
-                  <select id="recount-reason" name="recount-reason">
-                    <option>Contagem inicial divergente</option>
-                    <option>Item em local incorreto</option>
-                    <option>Fracionamento não registrado</option>
-                    <option>Outro</option>
-                  </select>
-                </div>
-                <button type="submit" id="btn-recount">Registrar recontagem</button>
-              </form>
-              <div id="recount-feedback" class="field-feedback" aria-live="polite"></div>
-            </section>
-            <section class="card" style="margin-top:16px">
-              <div class="card-head">
-                <h3>Recontagens registradas</h3>
-                <span id="recount-total" class="chip">0 itens</span>
-              </div>
-              <ul id="recount-list" class="list">
-                <li><span>Nenhuma recontagem registrada ainda.</span><strong>0</strong></li>
-              </ul>
-            </section>
           </div>
 
           <!-- Sub: Puxada -->
@@ -520,6 +469,7 @@
                 </div>
                 <div class="count-audit-toolbar-actions">
                   <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark count-audit-btn-refresh">Atualizar análise</button>
+                  <button id="btn-count-audit-export-excel" type="button" class="btn-secondary btn-dark count-audit-btn-export" title="Baixar planilha com os mesmos filtros da análise">Exportar Excel</button>
                   <label class="status-switch count-audit-switch" for="count-audit-only-diff" title="Marcado: oculta linhas OK (iguais).">
                     <span class="status-switch-label">Listar todos</span>
                     <input id="count-audit-only-diff" type="checkbox" />
@@ -861,13 +811,38 @@
                 </form>
                 <div id="user-edit-feedback" class="field-feedback" aria-live="polite"></div>
               </section>
+
+              <section id="admin-purge-section" class="card admin-purge-card" style="display: none;" aria-labelledby="admin-purge-title">
+                <h3 id="admin-purge-title">Manutenção do servidor</h3>
+                <p class="muted">
+                  Remove do banco de dados produtos, histórico de produtos, importações TXT, saldos, registros de contagem (auditoria), clientes, veículos e dados auxiliares.
+                  Os <strong>usuários</strong> (e-mail, senha e permissões) são mantidos.
+                </p>
+                <p class="purge-warning"><strong>Atenção:</strong> operação irreversível.</p>
+                <div class="field">
+                  <label for="purge-confirm-input">Confirme digitando exatamente a frase abaixo</label>
+                  <input
+                    id="purge-confirm-input"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="APAGAR TUDO EXCETO USUARIOS"
+                    aria-describedby="purge-confirm-hint"
+                  />
+                  <p id="purge-confirm-hint" class="muted small-hint">Frase: APAGAR TUDO EXCETO USUARIOS (sem acento em usuarios)</p>
+                </div>
+                <button type="button" id="btn-purge-except-users" class="btn-danger">
+                  Limpar base de dados (exceto usuários)
+                </button>
+                <div id="purge-feedback" class="field-feedback" aria-live="polite"></div>
+              </section>
           </section>
         </section>
       </main>
     </div>
 
     <div id="install-feedback" class="install-feedback" aria-live="polite"></div>
-    <script src="/static/app.js?v=28"></script>
+    <script src="/static/app.js?v=29"></script>
     <script src="/static/pwa-install.js?v=6"></script>
   </body>
 </html>

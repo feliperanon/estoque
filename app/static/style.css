@@ -1447,7 +1447,7 @@ button[type="submit"]:disabled {
 
 .contagem-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -1577,6 +1577,44 @@ button[type="submit"]:disabled {
 
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-danger {
+  padding: 10px 18px;
+  background: var(--error);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 8px;
+}
+
+.btn-danger:hover {
+  filter: brightness(0.95);
+}
+
+.btn-danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-purge-card {
+  margin-top: 1.25rem;
+  border: 1px solid rgba(192, 57, 43, 0.35);
+  background: rgba(192, 57, 43, 0.04);
+}
+
+.purge-warning {
+  color: var(--error);
+  margin: 0.5rem 0 1rem;
+}
+
+.small-hint {
+  font-size: 0.8rem;
+  margin-top: 6px;
 }
 
 .topbar-link {
@@ -2232,6 +2270,15 @@ form#count-form.count-form {
 }
 
 .count-audit-btn-refresh {
+  min-height: 2.75rem;
+  padding: 0 1.1rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.count-audit-btn-export {
   min-height: 2.75rem;
   padding: 0 1.1rem;
   border-radius: 0.5rem;
@@ -3778,17 +3825,6 @@ form#count-form.count-form {
 
 .btn-danger-icon:hover {
   background: rgba(248, 113, 113, 0.15);
-}
-
-/* ── Inline Price Input ─────────────────────────────── */
-.price-inline-input {
-  width: 100px;
-  padding: 6px 10px;
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #fff;
-  font-size: 0.9rem;
 }
 
 /* ── Mobile (≤ 480px) ──────────────────────────────── */

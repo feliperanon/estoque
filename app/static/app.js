@@ -208,6 +208,7 @@ const API_LOGIN_LOCAL = '/auth/login';
 const API_REGISTER = '/auth/register';
 const API_SYNC_COUNTS = '/audit/count-events';
 const API_STOCK_ANALYSIS = '/audit/stock-analysis';
+const API_STOCK_ANALYSIS_EXPORT_XLSX = '/audit/stock-analysis/export.xlsx';
 const API_IMPORT_BALANCES = '/audit/import-balances';
 const API_COUNT_SERVER_TOTALS = '/audit/count-server-totals';
 const API_PRODUCTS = '/products';
@@ -273,6 +274,10 @@ function getProdutosStatusFilters() {
 async function apiFetchProductsList(searchQuery, statusFilters) {
   const token = getToken();
   if (!token) return null;
+  if (isAccessTokenExpired(token)) {
+    handleUnauthorizedResponse({ status: 401 });
+    return null;
+  }
 
   const buildUrl = (limit) => {
     const params = new URLSearchParams();
@@ -372,6 +377,7 @@ if (countAuditDate) {
   countAuditDate.value = today;
 }
 const btnCountAuditRefresh = document.getElementById('btn-count-audit-refresh');
+const btnCountAuditExportExcel = document.getElementById('btn-count-audit-export-excel');
 const countAuditOnlyDiff = document.getElementById('count-audit-only-diff');
 const countAuditFeedback = document.getElementById('count-audit-feedback');
 const countAuditSummary = document.getElementById('count-audit-summary');
@@ -413,7 +419,7 @@ let countKpiTicker = null;
 let countAuditPollingTimer = null;
 
 const PAGE_KEYS_BY_MODULE = {
-  contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'],
+  contagem: ['contagem', 'count', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'],
   cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'parametros-produto'],
   acesso: ['acesso'],
 };
@@ -431,7 +437,6 @@ const REGISTER_ACCESS_GROUPS = [
     container: () => registerAccessCount,
     items: [
       { key: 'count', label: 'Contagem de Estoque' },
-      { key: 'recount', label: 'Recontagem' },
       { key: 'pull', label: 'Puxada' },
       { key: 'return', label: 'Devolução' },
       { key: 'break', label: 'Quebra' },
@@ -458,7 +463,6 @@ const REGISTER_PROFILE_PRESETS = {
     'cadastro',
     'acesso',
     'count',
-    'recount',
     'pull',
     'return',
     'break',
@@ -473,7 +477,6 @@ const REGISTER_PROFILE_PRESETS = {
   conferente: [
     'contagem',
     'count',
-    'recount',
     'pull',
     'return',
     'break',
@@ -490,7 +493,7 @@ const MODULE_ACCESS = {
   acesso: ['administrativo', 'admin'],
 };
 
-const SUB_MODULES = ['count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'];
+const SUB_MODULES = ['count', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'];
 const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'parametros-produto'];
 const SUB_TO_PARENT = {};
 SUB_MODULES.forEach(s => { SUB_TO_PARENT[s] = 'contagem'; });
@@ -504,7 +507,6 @@ const PAGE_TITLES = {
   cadastro: 'Cadastro',
   acesso: 'Acesso',
   count: 'Contagem',
-  recount: 'Recontagem',
   pull: 'Puxada',
   return: 'Devolução',
   break: 'Quebra',
@@ -546,7 +548,6 @@ const ACCESS_CATEGORIES = [
     category: 'Operação',
     subcategories: [
       { module: 'Contagem de Estoque', roles: ['conferente', 'administrativo', 'admin'] },
-      { module: 'Recontagem', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Puxada', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Devolução', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Quebra', roles: ['conferente', 'administrativo', 'admin'] },
@@ -630,6 +631,24 @@ function showModuleHome(moduleKey) {
 }
 
 function setActiveModule(moduleKey, updateHistory = true) {
+  const normalized = String(moduleKey || '').trim().toLowerCase();
+  // Submódulo removido: links antigos (#preco-produtos) vão para Cadastro
+  if (normalized === 'preco-produtos') {
+    if (updateHistory) {
+      history.replaceState(null, '', `${APP_BASE_PATH}#cadastro`);
+    }
+    setActiveModule('cadastro', false);
+    return;
+  }
+  // Módulo Recontagem removido: hash antigo (#recount) volta à home de Contagem
+  if (normalized === 'recount') {
+    if (updateHistory) {
+      history.replaceState(null, '', `${APP_BASE_PATH}#contagem`);
+    }
+    setActiveModule('contagem', false);
+    return;
+  }
+
   const parentKey = SUB_TO_PARENT[moduleKey];
   const actualModule = parentKey || moduleKey;
   const subKey = parentKey ? moduleKey : null;
@@ -948,8 +967,33 @@ function closeUserEditPanel() {
 }
 
 // ── Sessão ─────────────────────────────────────────────────────
+/** Decodifica payload JWT (sem validar assinatura) para ler `exp`. */
+function decodeJwtPayload(token) {
+  try {
+    const raw = String(token || '').trim();
+    if (!raw) return null;
+    const parts = raw.split('.');
+    if (parts.length !== 3) return null;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(b64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+/** True se o token já passou do horário de expiração (margem 60s). */
+function isAccessTokenExpired(token) {
+  const p = decodeJwtPayload(token);
+  if (!p || typeof p.exp !== 'number') return false;
+  return Date.now() >= (p.exp - 60) * 1000;
+}
+
 function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  const raw = localStorage.getItem(TOKEN_KEY);
+  if (raw == null) return null;
+  const t = String(raw).trim();
+  return t.length ? t : null;
 }
 
 function getUser() {
@@ -1505,14 +1549,14 @@ function renderCountProducts(products) {
 
     const badgeCx = hasTxt && pair
       ? (dimCx === false
-        ? '<span class="count-row-badge count-row-badge--recount">Recontagem</span>'
+        ? '<span class="count-row-badge count-row-badge--recount">Divergência</span>'
         : dimCx === true
           ? '<span class="count-row-badge count-row-badge--ok">OK</span>'
           : '')
       : '';
     const badgeUn = hasTxt && pair
       ? (dimUn === false
-        ? '<span class="count-row-badge count-row-badge--recount">Recontagem</span>'
+        ? '<span class="count-row-badge count-row-badge--recount">Divergência</span>'
         : dimUn === true
           ? '<span class="count-row-badge count-row-badge--ok">OK</span>'
           : '')
@@ -2798,12 +2842,65 @@ async function loadCountAuditAnalysis() {
   }
 }
 
+async function exportCountAuditExcel() {
+  const token = getToken();
+  if (!token) return;
+  if (!countAuditImport) return;
+
+  const referenceDate = (countAuditImport.value || '').trim();
+  const onlyDiff = countAuditOnlyDiff ? countAuditOnlyDiff.checked : false;
+  const params = new URLSearchParams();
+  if (referenceDate) params.set('reference_date', referenceDate);
+  params.set('only_diff', onlyDiff ? 'true' : 'false');
+  params.set('only_active', 'true');
+  params.set('limit', '20000');
+
+  setCountAuditFeedback('Gerando Excel...', false);
+
+  try {
+    const response = await apiFetch(`${API_STOCK_ANALYSIS_EXPORT_XLSX}?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      setCountAuditFeedback(err.detail || 'Não foi possível gerar o Excel.', true);
+      return;
+    }
+    const blob = await response.blob();
+    let filename = 'analise-contagem.xlsx';
+    const cd = response.headers.get('Content-Disposition');
+    if (cd) {
+      const m = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd);
+      const raw = m ? decodeURIComponent(m[1] || m[2] || '') : '';
+      if (raw) filename = raw.trim();
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setCountAuditFeedback('Excel baixado com sucesso.');
+  } catch {
+    setCountAuditFeedback('Falha ao baixar o Excel. Verifique a conexão.', true);
+  }
+}
+
 function bindCountAuditEvents() {
-  if (!btnCountAuditRefresh && !countAuditImport && !countAuditOnlyDiff) return;
+  if (!countAuditImport) return;
 
   if (btnCountAuditRefresh) {
     btnCountAuditRefresh.addEventListener('click', () => {
       loadCountAuditAnalysis();
+    });
+  }
+
+  if (btnCountAuditExportExcel) {
+    btnCountAuditExportExcel.addEventListener('click', () => {
+      exportCountAuditExcel();
     });
   }
 
@@ -2833,6 +2930,14 @@ function getAuthHeaders() {
 async function validateSessionOrClear() {
   const token = getToken();
   if (!token) return false;
+  if (isAccessTokenExpired(token)) {
+    clearSession();
+    if (loginError) {
+      loginError.textContent = 'Sessão expirada. Faça login novamente.';
+    }
+    showLogin();
+    return false;
+  }
   try {
     const resp = await apiFetch(API_AUTH_ME, {
       headers: { Authorization: `Bearer ${token}` },
@@ -2868,6 +2973,15 @@ async function validateSessionOrClear() {
     }
     return true;
   } catch {
+    /* Rede indisponível: se o JWT já expirou localmente, não mantém sessão falsa. */
+    if (isAccessTokenExpired(token)) {
+      clearSession();
+      if (loginError) {
+        loginError.textContent = 'Sessão expirada. Faça login novamente.';
+      }
+      showLogin();
+      return false;
+    }
     return true;
   }
 }
@@ -3640,150 +3754,8 @@ function bindProdutosEvents() {
   }
 }
 
-// ── Sub-módulo: Preço de Produtos ──
-
-function setPrecoFeedback(msg, isError = false) {
-  const el = document.getElementById('preco-feedback');
-  if (!el) return;
-  el.textContent = msg;
-  el.style.color = isError ? 'var(--error)' : 'var(--accent)';
-}
-
-async function searchPrecoProducts() {
-  const q = document.getElementById('preco-search').value.trim();
-  const token = getToken();
-  if (!token) return;
-
-  try {
-    const resp = await apiFetchProductsList(q);
-    if (!resp) return;
-    if (handleUnauthorizedResponse(resp)) { return; }
-    if (!resp.ok) { setPrecoFeedback('Falha ao buscar.', true); return; }
-    const data = await resp.json();
-    renderPrecoTable(data);
-  } catch {
-    setPrecoFeedback('Sem conexão.', true);
-  }
-}
-
-function renderPrecoTable(products) {
-  const tbody = document.getElementById('preco-tbody');
-  tbody.innerHTML = '';
-
-  if (!products.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Nenhum produto encontrado.</td></tr>';
-    return;
-  }
-
-  for (const p of products) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${p.cod_grup_sku || '—'}</td>
-      <td>${p.cod_grup_descricao || '—'}</td>
-      <td>
-        <input type="number" step="0.01" min="0" class="price-inline-input" data-id="${p.id}" value="${p.price != null ? p.price : ''}" placeholder="0.00" />
-      </td>
-      <td class="actions-cell">
-        <button class="btn-icon" data-price-save="${p.id}" title="Salvar preço">💾</button>
-        <button class="btn-icon" data-price-history="${p.id}" data-label="${p.cod_grup_sku}" title="Histórico de preços">📜</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  }
-}
-
-async function saveInlinePrice(id, inputEl) {
-  const token = getToken();
-  if (!token) return;
-  const newPrice = parseFloat(inputEl.value);
-  if (isNaN(newPrice) || newPrice < 0) { setPrecoFeedback('Preço inválido.', true); return; }
-
-  try {
-    const resp = await apiFetch(`${API_PRODUCTS}/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ price: newPrice }),
-    });
-    if (handleUnauthorizedResponse(resp)) { return; }
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      setPrecoFeedback(err.detail || 'Falha ao salvar preço.', true);
-      return;
-    }
-    setPrecoFeedback('Preço atualizado com sucesso.');
-    await loadProducts();
-  } catch {
-    setPrecoFeedback('Sem conexão.', true);
-  }
-}
-
-async function showPriceHistory(id, label) {
-  const token = getToken();
-  if (!token) return;
-
-  try {
-    const resp = await apiFetch(`${API_PRODUCTS}/${id}/history`, { headers: { Authorization: `Bearer ${token}` } });
-    if (handleUnauthorizedResponse(resp)) { return; }
-    if (!resp.ok) { setPrecoFeedback('Falha ao carregar histórico.', true); return; }
-    const items = await resp.json();
-
-    const panel = document.getElementById('price-history-panel');
-    const list = document.getElementById('price-history-list');
-    document.getElementById('price-history-label').textContent = `Produto: ${label || id}`;
-
-    const priceItems = items.filter(h => h.field_name === 'price');
-    list.innerHTML = '';
-    if (!priceItems.length) {
-      list.innerHTML = '<li><span>Nenhuma alteração de preço registrada.</span></li>';
-    } else {
-      for (const h of priceItems) {
-        const li = document.createElement('li');
-        li.innerHTML = `<span>${formatPrice(h.old_value)} → ${formatPrice(h.new_value)} <small>(por ${h.changed_by || '?'} em ${formatDate(h.changed_at)})</small></span>`;
-        list.appendChild(li);
-      }
-    }
-    panel.style.display = 'block';
-    panel.scrollIntoView({ behavior: 'smooth' });
-  } catch {
-    setPrecoFeedback('Sem conexão.', true);
-  }
-}
-
-function bindPrecoEvents() {
-  const btnSearch = document.getElementById('btn-preco-search');
-  const searchInput = document.getElementById('preco-search');
-  const tbody = document.getElementById('preco-tbody');
-  const btnCloseHistory = document.getElementById('btn-close-price-history');
-
-  if (!btnSearch) return;
-
-  btnSearch.addEventListener('click', () => searchPrecoProducts());
-  searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchPrecoProducts(); } });
-
-  tbody.addEventListener('click', (e) => {
-    const saveBtn = e.target.closest('[data-price-save]');
-    if (saveBtn) {
-      const id = saveBtn.dataset.priceSave;
-      const input = tbody.querySelector(`input[data-id="${id}"]`);
-      if (input) saveInlinePrice(id, input);
-      return;
-    }
-    const histBtn = e.target.closest('[data-price-history]');
-    if (histBtn) {
-      showPriceHistory(histBtn.dataset.priceHistory, histBtn.dataset.label);
-    }
-  });
-
-  if (btnCloseHistory) {
-    btnCloseHistory.addEventListener('click', () => {
-      document.getElementById('price-history-panel').style.display = 'none';
-    });
-  }
-}
-
 // ── Modulos extras (offline-first local storage) ────────────────
 const EXTRA_MODULES = [
-  { key: 'recount',      storageKey: 'estoque_recount_v1',      label: 'Recontagem' },
   { key: 'pull',         storageKey: 'estoque_pull_v1',         label: 'Puxada' },
   { key: 'return',       storageKey: 'estoque_return_v1',       label: 'Devolucao' },
   { key: 'break',        storageKey: 'estoque_break_v1',        label: 'Quebra' },
@@ -3911,6 +3883,90 @@ function bindModuleEvents() {
 
   window.addEventListener('hashchange', () => {
     renderModuleNav();
+  });
+}
+
+/** Frase idêntica à API POST /system/purge-except-users */
+const PURGE_CONFIRM_PHRASE = 'APAGAR TUDO EXCETO USUARIOS';
+
+function clearLocalOperationalCaches() {
+  try {
+    localStorage.removeItem(COUNT_EVENTS_KEY);
+    localStorage.removeItem(COUNT_EVENTS_DAY_KEY);
+    localStorage.removeItem(PRODUCT_DEFAULTS_KEY);
+    for (const mod of EXTRA_MODULES) {
+      localStorage.removeItem(mod.storageKey);
+    }
+    const keys = Object.keys(localStorage);
+    for (const k of keys) {
+      if (k.startsWith('count_explicit_zero_')) localStorage.removeItem(k);
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+}
+
+function bindAdminPurge() {
+  const btn = document.getElementById('btn-purge-except-users');
+  const feedback = document.getElementById('purge-feedback');
+  const input = document.getElementById('purge-confirm-input');
+  if (!btn || !feedback) return;
+  btn.addEventListener('click', async () => {
+    if (currentRole !== 'admin') {
+      feedback.textContent = 'Apenas administrador pode executar.';
+      feedback.style.color = 'var(--error)';
+      return;
+    }
+    const typed = (input?.value || '').trim();
+    if (typed !== PURGE_CONFIRM_PHRASE) {
+      feedback.textContent = 'Digite a frase de confirmação exata (veja o texto de ajuda abaixo do campo).';
+      feedback.style.color = 'var(--error)';
+      return;
+    }
+    if (!window.confirm('Confirma apagar todos os dados do servidor, exceto usuários cadastrados?')) {
+      return;
+    }
+    const token = getToken();
+    if (!token) return;
+    feedback.textContent = 'Limpando servidor...';
+    feedback.style.color = 'var(--accent)';
+    btn.disabled = true;
+    try {
+      const resp = await apiFetch('/system/purge-except-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ confirm: PURGE_CONFIRM_PHRASE }),
+      });
+      if (handleUnauthorizedResponse(resp)) {
+        btn.disabled = false;
+        return;
+      }
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        const msg = typeof data.detail === 'string' ? data.detail : 'Falha ao limpar base.';
+        feedback.textContent = msg;
+        feedback.style.color = 'var(--error)';
+        btn.disabled = false;
+        return;
+      }
+      clearLocalOperationalCaches();
+      if (input) input.value = '';
+      feedback.textContent = 'Base limpa. Usuários preservados. Dados locais de contagem neste aparelho também foram limpos.';
+      feedback.style.color = 'var(--success, #1b8744)';
+      await loadProducts();
+      await loadCountProducts();
+      await loadUsersAdminList();
+      searchProdutos();
+      renderCounts();
+    } catch {
+      feedback.textContent = 'Erro de conexão.';
+      feedback.style.color = 'var(--error)';
+    } finally {
+      btn.disabled = false;
+    }
   });
 }
 
@@ -4235,6 +4291,10 @@ function initDashboard(user) {
   loadProducts();
   loadUsersAdminList();
   startCountKpiTicker();
+  const adminPurgeSection = document.getElementById('admin-purge-section');
+  if (adminPurgeSection) {
+    adminPurgeSection.style.display = currentRole === 'admin' ? 'block' : 'none';
+  }
   showDashboard();
 }
 
@@ -4290,6 +4350,7 @@ if (moduleNav) {
   bindProdutosEvents();
   bindModuleEvents();
   bindExtraModules();
+  bindAdminPurge();
   const token = getToken();
   const user = getUser();
 
