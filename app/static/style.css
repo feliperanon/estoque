@@ -1,3 +1,27 @@
+/* Chip de grupo selecionado na contagem */
+.count-group-chip {
+  background: #e8f0eb;
+  color: #176d8c;
+  font-weight: 600;
+  padding: 2px 10px 2px 10px;
+  border-radius: 16px;
+  margin-right: 6px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 1rem;
+  border: none;
+}
+.count-group-chip button {
+  background: none;
+  border: none;
+  color: #176d8c;
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-left: 6px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
 /* Ajuste responsivo para mobile na lista de contagem */
 @media (max-width: 600px) {
   .card .card-head h3 {
