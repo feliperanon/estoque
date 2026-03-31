@@ -29,11 +29,11 @@ def _dialect_name(bind: Any) -> str:
 
 
 def _drop_sqlite_unique_indexes_on_cod_grup_sku_only(bind: Any) -> None:
-    """Remove qualquer índice UNIQUE que cubra somente cod_grup_sku (nome variável no SQLite).
+    """Remove índices UNIQUE nomeados que cubram somente cod_grup_sku.
 
-    Índices ``sqlite_autoindex_*`` pertencem a UNIQUE/PK implícitos: o SQLite **não** permite
-    ``DROP INDEX`` neles; é preciso recriar a tabela. Aqui só removemos índices nomeados
-    (ex.: ``uq_product_sku``) e ignoramos os auto com aviso.
+    Índices ``sqlite_autoindex_*`` vêm de UNIQUE na definição da tabela; não podem ser
+    removidos com ``DROP INDEX`` — nesse caso :func:`_rebuild_sqlite_products_without_sku_unique`
+    recria a tabela sem esse UNIQUE.
     """
     bind.execute(text("DROP INDEX IF EXISTS uq_product_sku"))
 
@@ -45,19 +45,91 @@ def _drop_sqlite_unique_indexes_on_cod_grup_sku_only(bind: Any) -> None:
             continue
         name_str = str(idx_name)
         if name_str.startswith("sqlite_autoindex_"):
-            info_rows = bind.execute(text(f'PRAGMA index_info("{idx_name}")')).fetchall()
-            col_names = [r[2] for r in info_rows if r[2] is not None]
-            if col_names == ["cod_grup_sku"]:
-                logger.warning(
-                    "SQLite: UNIQUE em cod_grup_sku via %s nao pode ser removido com "
-                    "DROP INDEX; unicidade legada pode permanecer ate recriar a tabela.",
-                    name_str,
-                )
             continue
         info_rows = bind.execute(text(f'PRAGMA index_info("{idx_name}")')).fetchall()
         col_names = [r[2] for r in info_rows if r[2] is not None]
         if col_names == ["cod_grup_sku"]:
             bind.execute(text(f'DROP INDEX IF EXISTS "{idx_name}"'))
+
+
+def _sqlite_unique_index_is_only_cod_grup_sku(bind: Any, idx_name: str) -> bool:
+    info_rows = bind.execute(text(f'PRAGMA index_info("{idx_name}")')).fetchall()
+    col_names = [r[2] for r in info_rows if r[2] is not None]
+    return col_names == ["cod_grup_sku"]
+
+
+def _needs_rebuild_sqlite_products_for_sku_unique(bind: Any) -> bool:
+    """True se ainda existe unicidade apenas em cod_grup_sku (incl. sqlite_autoindex_*)."""
+    rows = bind.execute(text("PRAGMA index_list('products')")).fetchall()
+    for row in rows:
+        is_unique = row[2]
+        if not is_unique:
+            continue
+        idx_name = str(row[1])
+        if _sqlite_unique_index_is_only_cod_grup_sku(bind, idx_name):
+            return True
+    return False
+
+
+def _build_create_products_table_sql_from_pragma(bind: Any, new_name: str) -> str:
+    """CREATE TABLE sem UNIQUE em cod_grup_sku; PK em id preservada."""
+    rows = bind.execute(text("PRAGMA table_info(products)")).fetchall()
+    col_defs: list[str] = []
+    for _cid, name, col_type, notnull, dflt, pk in rows:
+        ctype = (col_type or "TEXT").strip() or "TEXT"
+        qn = f'"{name}"'
+        if pk:
+            if str(name).lower() == "id":
+                col_defs.append(f"{qn} INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT")
+            else:
+                nn = " NOT NULL" if notnull else ""
+                col_defs.append(f"{qn} {ctype}{nn} PRIMARY KEY")
+            continue
+        parts = [qn, ctype]
+        if notnull:
+            parts.append("NOT NULL")
+        if dflt is not None:
+            parts.append(f"DEFAULT {dflt}")
+        col_defs.append(" ".join(parts))
+    return f'CREATE TABLE "{new_name}" ({", ".join(col_defs)})'
+
+
+def _recreate_sqlite_product_secondary_indexes(bind: Any) -> None:
+    """Índices não únicos esperados pelo modelo (unicidade de cod_produto vem depois)."""
+    rows = bind.execute(text("PRAGMA table_info(products)")).fetchall()
+    cols = {str(r[1]) for r in rows}
+    for idx_name, col in (
+        ("ix_products_legacy_id", "legacy_id"),
+        ("ix_products_cod_grup_sp", "cod_grup_sp"),
+        ("ix_products_cod_grup_cia", "cod_grup_cia"),
+        ("ix_products_cod_produto", "cod_produto"),
+        ("ix_products_cod_grup_sku", "cod_grup_sku"),
+    ):
+        if col not in cols:
+            continue
+        bind.execute(
+            text(f'CREATE INDEX IF NOT EXISTS "{idx_name}" ON products("{col}")'),
+        )
+
+
+def _rebuild_sqlite_products_without_sku_unique(bind: Any) -> None:
+    """Recria ``products`` copiando linhas, sem UNIQUE legado em cod_grup_sku (FK product_history preserva ids)."""
+    tmp = "products__rebuild_no_sku_uq"
+    create_sql = _build_create_products_table_sql_from_pragma(bind, tmp)
+    bind.execute(text("PRAGMA foreign_keys=OFF"))
+    try:
+        bind.execute(text(f"DROP TABLE IF EXISTS {tmp}"))
+        bind.execute(text(create_sql))
+        bind.execute(text(f"INSERT INTO {tmp} SELECT * FROM products"))
+        bind.execute(text("DROP TABLE products"))
+        bind.execute(text(f'ALTER TABLE "{tmp}" RENAME TO products'))
+    finally:
+        bind.execute(text("PRAGMA foreign_keys=ON"))
+    _recreate_sqlite_product_secondary_indexes(bind)
+    logger.info(
+        "SQLite: tabela products recriada sem UNIQUE em cod_grup_sku; "
+        "indices secundarios e FKs (product_history) preservados por id."
+    )
 
 
 def apply_sqlite_product_unique_constraints(bind: Any) -> None:
@@ -69,6 +141,9 @@ def apply_sqlite_product_unique_constraints(bind: Any) -> None:
         return
 
     _drop_sqlite_unique_indexes_on_cod_grup_sku_only(bind)
+
+    if _needs_rebuild_sqlite_products_for_sku_unique(bind):
+        _rebuild_sqlite_products_without_sku_unique(bind)
 
     bind.execute(
         text(

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=20" />
+    <link rel="stylesheet" href="/static/style.css?v=22" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -587,16 +587,18 @@
 
           <!-- Sub: Cadastro de Produto (manual + excel) -->
           <div id="sub-cadastro-produto" class="sub-section">
-            <section class="card">
-              <div class="card-head">
-                <h3>Cadastro de Produto</h3>
+            <section class="card card--cadastro-produto">
+              <div class="cadastro-produto-head">
+                <div class="card-head cadastro-produto-title">
+                  <h3>Cadastro de Produto</h3>
+                </div>
+                <div class="actions-row cadastro-produto-import-row">
+                  <label class="btn-secondary btn-dark file-btn" for="product-excel-file">Selecionar Excel</label>
+                  <input id="product-excel-file" type="file" accept=".xlsx,.xlsm" hidden />
+                  <button id="btn-product-upload" class="btn-secondary btn-dark" type="button">Importar arquivo</button>
+                </div>
               </div>
-              <div class="actions-row">
-                <label class="btn-secondary btn-dark file-btn" for="product-excel-file">Selecionar Excel</label>
-                <input id="product-excel-file" type="file" accept=".xlsx,.xlsm" hidden />
-                <button id="btn-product-upload" class="btn-secondary btn-dark" type="button">Importar arquivo</button>
-              </div>
-              <form id="product-form" class="product-form" autocomplete="off">
+              <form id="product-form" class="product-form product-form--cadastro" autocomplete="off">
                   <div class="field"><div class="field-label-row"><label for="prod-cod-sp">Cod Grup SP</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-sp">+ Novo</button></div><select id="prod-cod-sp"></select></div>
                   <div class="field"><div class="field-label-row"><label for="prod-cod-cia">Cod Grup Cia</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-cia">+ Novo</button></div><select id="prod-cod-cia"></select></div>
                   <div class="field"><div class="field-label-row"><label for="prod-cod-tipo">Cod Grup Tipo</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-tipo">+ Novo</button></div><select id="prod-cod-tipo"></select></div>
@@ -672,7 +674,7 @@
                   <button id="btn-cancel-edit" type="button" class="btn-secondary btn-dark">Fechar</button>
                 </div>
               </div>
-              <form id="product-edit-form" class="product-form" autocomplete="off">
+              <form id="product-edit-form" class="product-form product-form--cadastro" autocomplete="off">
                 <input type="hidden" id="edit-product-id" />
                 <div class="field"><div class="field-label-row"><label for="edit-cod-sp">Cod Grup SP</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-sp">+ Novo</button></div><select id="edit-cod-sp"></select></div>
                 <div class="field"><div class="field-label-row"><label for="edit-cod-cia">Cod Grup Cia</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-cia">+ Novo</button></div><select id="edit-cod-cia"></select></div>

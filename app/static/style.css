@@ -67,7 +67,7 @@
 #sub-count .count-main-card-inner.count-op-header {
   position: sticky;
   top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app));
-  z-index: 42;
+  z-index: 45;
   background: var(--white);
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
   border: 1px solid var(--border-soft, #e2e8f0);
@@ -75,6 +75,7 @@
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   margin-bottom: 0;
+  padding: 10px 12px 10px;
 }
 #sub-count .count-main-card-inner.count-op-header .count-last-launch {
   margin-top: 10px;
@@ -335,11 +336,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-@media (max-width: 900px) {
+/* Empilha filtros só em telas estreitas; tablet paisagem/desktop = uma linha 50/30/20 */
+@media (max-width: 767px) {
   .count-main-filters-row {
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-    row-gap: 14px;
+    gap: 10px;
+    row-gap: 12px;
   }
   .count-main-filter-col--produto,
   .count-main-filter-col--grupo,
@@ -347,7 +349,7 @@
     grid-column: 1 / -1;
   }
   .count-main-filter-col {
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
 }
 @media (max-width: 600px) {
@@ -1099,10 +1101,15 @@ button[type="submit"]:disabled {
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-/* FAB do menu: fica abaixo do conteúdo sticky (contagem) para não cobrir filtros/cards */
+/* FAB do menu: sempre fixo no viewport, acima do header sticky e do painel de contagem */
 .dashboard-menu-fab-wrap {
-  position: relative;
-  z-index: 55;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  z-index: 60;
   pointer-events: none;
 }
 
@@ -1112,9 +1119,9 @@ button[type="submit"]:disabled {
 
 .menu-fab {
   position: fixed;
-  top: 12px;
-  left: 16px;
-  z-index: 55;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: max(12px, env(safe-area-inset-left, 0px));
+  z-index: 60;
 }
 
 .btn-menu-close {
@@ -1911,6 +1918,97 @@ form#count-form.count-form {
   grid-column: 1 / -1;
 }
 
+/* Cadastro de produto: menos rolagem — grade 3 col em telas largas, cabeçalho compacto */
+.card--cadastro-produto {
+  padding: 16px 18px;
+}
+
+.cadastro-produto-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.cadastro-produto-head .cadastro-produto-title {
+  margin-bottom: 0;
+  flex: 1 1 auto;
+  min-width: min(100%, 200px);
+}
+
+.cadastro-produto-import-row {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.product-form--cadastro {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 12px;
+  align-items: start;
+}
+
+.product-form--cadastro .field {
+  margin-bottom: 0;
+  gap: 4px;
+}
+
+.product-form--cadastro .field-label-row {
+  gap: 6px;
+}
+
+.product-form--cadastro .field label {
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.product-form--cadastro .field input,
+.product-form--cadastro .field select {
+  padding: 10px 12px;
+  font-size: 0.9375rem;
+  min-height: 42px;
+}
+
+#sub-cadastro-produto #product-import-feedback,
+#sub-cadastro-produto #product-feedback {
+  font-size: 0.85rem;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+@media (max-width: 1200px) {
+  .product-form--cadastro {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .product-form--cadastro {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .cadastro-produto-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cadastro-produto-import-row {
+    justify-content: stretch;
+  }
+
+  .cadastro-produto-import-row .file-btn,
+  .cadastro-produto-import-row .btn-secondary {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+}
+
 .field-feedback {
   min-height: 20px;
   margin-top: 8px;
@@ -2641,23 +2739,23 @@ form#count-form.count-form {
   outline-offset: 2px;
 }
 
-/* ── Contagem: item operacional (mobile-first, hierarquia clara) ── */
+/* ── Contagem: item operacional (densidade alta, leitura rápida) ── */
 .count-product-item {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 8px 10px;
   cursor: pointer;
-  border-radius: 6px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: #f8faf8;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: #fff;
+  transition: background 0.1s ease;
 }
 
 .count-product-item:hover {
-  background: #f1f5f2;
-  border-color: rgba(47, 111, 69, 0.14);
+  background: #f8faf9;
 }
 
 .count-product-label {
@@ -2666,7 +2764,7 @@ form#count-form.count-form {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   overflow: hidden;
 }
 
@@ -2675,7 +2773,7 @@ form#count-form.count-form {
   flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   min-width: 0;
 }
@@ -2683,60 +2781,62 @@ form#count-form.count-form {
 .count-product-readout {
   margin-left: auto;
   flex-shrink: 0;
-  max-width: min(100%, 11.5rem);
+  max-width: 9rem;
 }
 
+/* Resumo contado: apoio discreto (não compete com a descrição) */
 .count-product-readout-inner {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: rgba(241, 245, 249, 0.95);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  font-size: 0.6875rem;
+  gap: 3px;
+  padding: 0 0 0 4px;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  font-size: 0.625rem;
   font-weight: 500;
-  color: #64748b;
-  line-height: 1.35;
+  color: #94a3b8;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
 }
 
 .count-product-readout-cx strong,
 .count-product-readout-un strong {
   font-variant-numeric: tabular-nums;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  color: #475569;
+  color: #94a3b8;
 }
 
 .count-product-readout-sep {
-  opacity: 0.5;
+  opacity: 0.55;
   font-weight: 400;
   padding: 0 1px;
+  color: #cbd5e1;
 }
 
 @media (max-width: 600px) {
   .count-product-readout {
-    max-width: 11rem;
+    max-width: 7.5rem;
   }
 
   .count-product-readout-inner {
-    justify-content: center;
-    padding: 3px 7px;
+    justify-content: flex-end;
   }
 }
 
 .count-product-code {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: #64748b;
-  letter-spacing: 0.02em;
+  color: #94a3b8;
+  letter-spacing: 0.03em;
   background: transparent;
   border: none;
   padding: 0;
   display: inline-block;
-  max-width: 42%;
+  max-width: 38%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2774,14 +2874,18 @@ form#count-form.count-form {
 }
 
 .count-product-desc {
-  font-size: 1.02rem;
+  font-size: 0.9375rem;
   color: #0f172a;
-  white-space: normal;
-  line-height: 1.38;
+  line-height: 1.28;
   letter-spacing: -0.02em;
+  font-weight: 600;
   word-break: break-word;
   overflow-wrap: anywhere;
-  font-weight: 600;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 
 /* Remove setas do input numérico */
@@ -2800,31 +2904,30 @@ form#count-form.count-form {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
+  gap: 5px;
   flex-shrink: 0;
-  width: min(100%, 19rem);
-  min-width: min(100%, 15rem);
+  width: min(100%, 17rem);
+  min-width: min(100%, 13.5rem);
 }
 
-/* Linha operacional: sigla | − | valor | + */
+/* Linha operacional compacta: sigla | − | valor | + */
 .count-control-row {
   display: grid;
-  grid-template-columns: 2.75rem 44px minmax(3.25rem, 1fr) 44px;
-  align-items: stretch;
-  gap: 8px;
+  grid-template-columns: 2.25rem 40px minmax(2.75rem, 1fr) 40px;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 
 .count-control-type {
-  width: 2.75rem;
-  min-width: 2.75rem;
-  max-width: 2.75rem;
-  align-self: center;
+  width: 2.25rem;
+  min-width: 2.25rem;
+  max-width: 2.25rem;
   text-align: center;
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #3d5248;
+  letter-spacing: 0.1em;
+  color: #64748b;
   text-transform: uppercase;
 }
 
@@ -2832,40 +2935,41 @@ form#count-form.count-form {
   width: 100%;
   min-width: 0;
   max-width: none;
-  min-height: 44px;
-  padding: 6px 8px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 8px;
+  min-height: 40px;
+  height: 40px;
+  padding: 4px 6px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 6px;
   text-align: center;
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: #0f172a;
   background: #fff;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.04);
 }
 
 .count-product-qty:focus {
   outline: none;
   border-color: var(--primary-blue, #2563eb);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
 }
 
 .btn-count-adjust {
   flex-shrink: 0;
-  min-width: 44px;
-  width: 44px;
-  min-height: 44px;
-  height: 44px;
+  min-width: 40px;
+  width: 40px;
+  min-height: 40px;
+  height: 40px;
   padding: 0;
-  border-radius: 8px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   background: #fff;
   color: var(--ink);
   cursor: pointer;
   font-weight: 700;
   line-height: 1;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
 .btn-count-adjust:active:not(:disabled) {
@@ -2895,15 +2999,15 @@ form#count-form.count-form {
 }
 
 /* ── Data Table ─────────────────────────────────────── */
-/* Lista de contagem dentro do shell (cartão único) */
+/* Lista de contagem dentro do shell (bloco único, sombra leve) */
 .count-products-shell {
   background: var(--white);
   border: 1px solid var(--border-soft);
-  border-radius: 14px;
-  box-shadow: var(--shadow-card);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   overflow: hidden;
   max-width: 100%;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .count-list-flat {
   gap: 0;
@@ -2914,33 +3018,31 @@ form#count-form.count-form {
 
 .count-list-flat .count-product-item {
   border-radius: 0;
-  border: none;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  background: #fff;
-  padding: 14px clamp(12px, 3.5vw, 18px);
+  padding: 8px clamp(10px, 2.5vw, 14px);
   align-items: flex-start;
 }
 
 .count-list-flat .count-product-item:hover {
-  background: #fafcfb;
+  background: #f9fafb;
 }
 
 @media (max-width: 600px) {
   .count-product-desc {
-    font-size: 1.05rem;
-    line-height: 1.4;
+    font-size: 0.9375rem;
+    line-height: 1.3;
   }
 
   .count-product-qty {
-    font-size: 1.125rem;
-    min-height: 46px;
+    font-size: 1rem;
+    min-height: 42px;
+    height: 42px;
   }
 
   .count-product-item {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
-    padding: 14px 12px;
+    gap: 8px;
+    padding: 8px 10px;
   }
 
   .count-product-controls {
@@ -2948,19 +3050,19 @@ form#count-form.count-form {
     min-width: 0;
     max-width: none;
     align-self: stretch;
-    gap: 10px;
+    gap: 6px;
   }
 
   .count-control-row {
-    grid-template-columns: 2.75rem 46px minmax(3rem, 1fr) 46px;
-    gap: 10px;
+    grid-template-columns: 2.25rem 42px minmax(2.5rem, 1fr) 42px;
+    gap: 8px;
   }
 
   .btn-count-adjust {
-    min-width: 46px;
-    width: 46px;
-    min-height: 46px;
-    height: 46px;
+    min-width: 42px;
+    width: 42px;
+    min-height: 42px;
+    height: 42px;
   }
 }
 
@@ -3374,10 +3476,10 @@ form#count-form.count-form {
   }
 }
 
-/* Hambúrguer: integrado ao painel (superfície clara, sombra suave) */
+/* Hambúrguer: integrado ao painel (superfície clara, sombra suave) — z-index alinhado ao wrap */
 .btn-menu-toggle.menu-fab {
-  top: 14px;
-  left: 14px;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: max(12px, env(safe-area-inset-left, 0px));
   width: 44px;
   height: 44px;
   padding: 0;
@@ -3386,6 +3488,7 @@ form#count-form.count-form {
   border: 1px solid var(--border-soft);
   color: #334155;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.08);
+  z-index: 60;
 }
 
 .btn-menu-toggle.menu-fab:hover {
@@ -3397,10 +3500,6 @@ form#count-form.count-form {
 .btn-menu-toggle.menu-fab:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring-blue), 0 1px 2px rgba(15, 23, 42, 0.06);
-}
-
-.dashboard-menu-fab-wrap {
-  z-index: 1120;
 }
 
 /* Desktop: sidebar fixa, sem FAB, conteúdo ao lado */
