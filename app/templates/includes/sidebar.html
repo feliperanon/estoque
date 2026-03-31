@@ -1,0 +1,74 @@
+{# Sidebar única: mesmo markup para landing e /app (TailAdmin-like). sidebar_landing=true na página inicial. #}
+{% if sidebar_landing is not defined %}{% set sidebar_landing = false %}{% endif %}
+<aside id="sidebar-menu" class="sidebar-menu" aria-label="Navegação principal">
+  <div class="sidebar-inner">
+    <div class="sidebar-brand-block">
+      <div class="sidebar-logo-mark" aria-hidden="true">📦</div>
+      <div class="sidebar-brand-text">
+        <span class="sidebar-brand-name">{{ app_name }}</span>
+        <span class="sidebar-brand-sub">Sistema de gestão</span>
+      </div>
+    </div>
+
+    <button id="btn-menu-close" class="btn-menu-close sidebar-close-btn" aria-label="Fechar menu" type="button">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+
+    <div class="sidebar-user-info">
+      <span class="sidebar-user-label">Conta</span>
+      <span id="user-display" class="user-badge">{% if sidebar_landing %}Visitante{% endif %}</span>
+    </div>
+
+    <p class="sidebar-nav-heading">Menu</p>
+
+    <nav id="module-nav" class="sidebar-nav" aria-label="Modulos do sistema">
+      {% if sidebar_landing %}
+      <a href="/" class="sidebar-module-btn module-btn sidebar-nav-item active" data-module="inicio">
+        <span class="sidebar-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+        <span class="sidebar-nav-text">Página inicial</span>
+      </a>
+      <a href="/app#contagem" class="sidebar-module-btn module-btn sidebar-nav-item">
+        <span class="sidebar-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></span>
+        <span class="sidebar-nav-text">Contagem</span>
+      </a>
+      <a href="/app#cadastro" class="sidebar-module-btn module-btn sidebar-nav-item">
+        <span class="sidebar-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+        <span class="sidebar-nav-text">Cadastro</span>
+      </a>
+      <a href="/app#acesso" class="sidebar-module-btn module-btn sidebar-nav-item">
+        <span class="sidebar-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <span class="sidebar-nav-text">Acesso</span>
+      </a>
+      {% else %}
+      <a href="/" class="sidebar-module-btn module-btn sidebar-nav-item" data-module="inicio">
+        <span class="sidebar-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+        <span class="sidebar-nav-text">Página inicial</span>
+      </a>
+      <button type="button" class="sidebar-module-btn module-btn sidebar-nav-item" data-module="contagem">
+        <span class="sidebar-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></span>
+        <span class="sidebar-nav-text">Contagem</span>
+      </button>
+      <button type="button" class="sidebar-module-btn module-btn sidebar-nav-item" data-module="cadastro">
+        <span class="sidebar-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+        <span class="sidebar-nav-text">Cadastro</span>
+      </button>
+      <button type="button" class="sidebar-module-btn module-btn sidebar-nav-item" data-module="acesso">
+        <span class="sidebar-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <span class="sidebar-nav-text">Acesso</span>
+      </button>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-actions">
+      <img src="/static/logo-souza-pinto.png" alt="Souza Pinto Distribuidora" class="sidebar-brand-logo" />
+      <div class="sidebar-status-row">
+        <span class="net-status net-status-sidebar">ONLINE</span>
+      </div>
+      {% if sidebar_landing %}
+      <button type="button" id="btn-logout" class="btn-secondary sidebar-btn-logout">Entrar no sistema</button>
+      {% else %}
+      <button type="button" id="btn-logout" class="btn-secondary sidebar-btn-logout">Sair</button>
+      {% endif %}
+    </div>
+  </div>
+</aside>

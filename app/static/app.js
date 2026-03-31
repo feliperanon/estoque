@@ -346,8 +346,7 @@ const countAuditTotal = document.getElementById('count-audit-total');
 const countAuditImport = countAuditDate;
 const roleDisplay = document.getElementById('role-display');
 const moduleNav = document.getElementById('module-nav');
-const topbarPageTitle = document.querySelector('.topbar .topbar-title');
-const sidebarPageTitle = document.getElementById('sidebar-page-title');
+const pageTitleEl = document.getElementById('sidebar-page-title');
 const sidebarMenu = document.getElementById('sidebar-menu');
 const sidebarOverlay = document.getElementById('sidebar-overlay');
 const btnMenuToggle = document.getElementById('btn-menu-toggle');
@@ -553,6 +552,7 @@ function normalizeRole(role) {
 }
 
 function canAccessModule(moduleKey) {
+  if (moduleKey === 'inicio') return true;
   if (currentRole === 'admin') return true;
   if (currentAllowedPages.length) {
     const allowedKeys = PAGE_KEYS_BY_MODULE[moduleKey] || [moduleKey];
@@ -963,14 +963,18 @@ function computeItemNetTotals(events) {
   return totals;
 }
 
-function computeCountProgressStats(products = countProductsCache, events = loadCountEvents()) {
+function computeCountProgressStats(products = countProductsCache) {
   const validProducts = (Array.isArray(products) ? products : [])
     .map((p) => normalizeItemCode(p.cod_produto || p.cod_grup_descricao || ''))
     .filter(Boolean);
   const uniqueProducts = Array.from(new Set(validProducts));
   const total = uniqueProducts.length;
-  const netByItem = computeItemNetTotals(events);
-  const counted = uniqueProducts.filter((code) => (netByItem.get(code) || 0) > 0).length;
+  /* Contado = há saldo > 0 em CX ou UN (alinhado aos lançamentos por tipo) */
+  const counted = uniqueProducts.filter((code) => {
+    const cx = getNetByProductAndType(code, 'caixa');
+    const un = getNetByProductAndType(code, 'unidade');
+    return Number(cx) > 0 || Number(un) > 0;
+  }).length;
   const percent = total > 0 ? Math.min(100, Math.round((counted / total) * 100)) : 0;
   return { total, counted, percent };
 }
@@ -1070,10 +1074,11 @@ function startCountKpiTicker() {
 }
 
 function updateCountProgress(products = countProductsCache) {
-  if (!countProgressFill) return;
-  const { total, counted, percent } = computeCountProgressStats(products, loadCountEvents());
+  const fill = document.getElementById('count-progress-fill') || countProgressFill;
+  if (!fill) return;
+  const { total, counted, percent } = computeCountProgressStats(products);
   if (!total) {
-    countProgressFill.style.width = '0%';
+    fill.style.width = '0%';
     const percentSpan = document.getElementById('count-progress-percent');
     if (percentSpan) percentSpan.textContent = '0%';
     const labelSpan = document.getElementById('count-progress-label');
@@ -1082,7 +1087,7 @@ function updateCountProgress(products = countProductsCache) {
     if (detailSpan) detailSpan.textContent = '0 de 0 produtos contados';
     return;
   }
-  countProgressFill.style.width = `${percent}%`;
+  fill.style.width = `${percent}%`;
   const percentSpan = document.getElementById('count-progress-percent');
   if (percentSpan) percentSpan.textContent = `${percent}%`;
   const labelSpan = document.getElementById('count-progress-label');
@@ -1265,6 +1270,7 @@ function renderCountProducts(products) {
 
   if (!ativos.length) {
     countProductsList.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
+    updateCountProgress([]);
     // Garante que o menu de módulos e dashboard continuam visíveis
     const moduleNav = document.getElementById('module-nav');
     if (moduleNav) moduleNav.style.display = '';
@@ -1319,6 +1325,7 @@ function renderCountProducts(products) {
     `;
     countProductsList.appendChild(li);
   }
+  updateCountProgress(ativos);
   // Garante que o menu de módulos e dashboard continuam visíveis
   const moduleNav = document.getElementById('module-nav');
   if (moduleNav) moduleNav.style.display = '';

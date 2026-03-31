@@ -17,6 +17,7 @@ from app.schemas.products import ProductCreate, ProductHistoryRead, ProductImpor
 from app.services.audit import log_change
 from app.services.bootstrap import ensure_database_ready
 from app.services.imports import apply_common_source_fields
+from app.services.sqlite_product_constraints import apply_sqlite_product_unique_constraints
 
 router = APIRouter(prefix="/products", tags=["products"])
 logger = logging.getLogger(__name__)
@@ -100,8 +101,13 @@ def _serialize_products(products: list[Product]) -> list[ProductRead]:
 
 
 def _drop_legacy_sku_unique_constraint(session: Session) -> None:
-    """Remove qualquer unique constraint legada em cod_grup_sku no Postgres."""
+    """Remove unique legada em cod_grup_sku (Postgres) ou SQLite; alinha com unicidade por cod_produto."""
     bind = session.get_bind()
+    if bind.dialect.name == "sqlite":
+        apply_sqlite_product_unique_constraints(session.connection())
+        session.flush()
+        return
+
     if bind.dialect.name != "postgresql":
         return
 

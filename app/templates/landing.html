@@ -5,119 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=14" />
+    <link rel="stylesheet" href="/static/style.css?v=16" />
     <title>{{ app_name }}</title>
   </head>
-  <body class="landing-body">
-    <!-- Mesmo padrao do app (index.html): botao flutuante + sidebar unificada -->
-    <button id="btn-menu-toggle" class="btn-menu-toggle menu-fab" aria-label="Abrir menu" type="button">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-    </button>
-
-    <!-- Sidebar Menu Overlay -->
-    <div id="sidebar-overlay" class="sidebar-overlay"></div>
-    <aside id="sidebar-menu" class="sidebar-menu">
-      <button id="btn-menu-close" class="btn-menu-close sidebar-close-btn" aria-label="Fechar menu" type="button">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
-
-      <div class="sidebar-user-info">
-        <span id="user-display" class="user-badge">Visitante</span>
+  <body class="app-body app-body--shell">
+    <div class="app-layout app-layout--public">
+      <div class="dashboard-menu-fab-wrap">
+        <button id="btn-menu-toggle" class="btn-menu-toggle menu-fab" aria-label="Abrir menu" type="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
       </div>
 
-      <nav id="module-nav" class="sidebar-nav" aria-label="Modulos do sistema">
-        <a href="/" class="sidebar-module-btn module-btn" style="text-decoration: none; display: flex;">Pagina inicial</a>
-        <a href="/app#contagem" class="sidebar-module-btn module-btn" style="text-decoration: none; display: flex;">Contagem</a>
-        <a href="/app#cadastro" class="sidebar-module-btn module-btn" style="text-decoration: none; display: flex;">Cadastro</a>
-        <a href="/app#acesso" class="sidebar-module-btn module-btn" style="text-decoration: none; display: flex;">Acesso</a>
-      </nav>
+      <div id="sidebar-overlay" class="sidebar-overlay"></div>
+      {% set sidebar_landing = true %}
+      {% include "includes/sidebar.html" %}
 
-      <div class="sidebar-actions">
-        <img src="/static/logo-souza-pinto.png" alt="Souza Pinto Distribuidora" class="sidebar-brand-logo" />
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; padding: 0 4px;">
-          <span class="net-status net-status-sidebar">ONLINE</span>
-        </div>
-        <button type="button" id="btn-logout" class="btn-secondary">Entrar no sistema</button>
-      </div>
-    </aside>
-
-    <main class="landing-page">
-      <section class="hero-card">
-        <div class="hero-copy">
-          <span class="hero-kicker">Operacao e controle</span>
-          <h1>{{ app_name }}</h1>
-          <p class="hero-text">
-            Plataforma interna para contagem, cadastro e governanca de acessos.
-            Use esta pagina como ponto de entrada e direcionamento dos usuarios.
-          </p>
-          <div class="hero-actions">
-            <a class="hero-button" href="/app">Entrar no sistema</a>
-            <a class="hero-link" href="/app#count">Ir direto para contagem</a>
-            <button class="hero-link install-app-btn" type="button">
-              Baixar aplicativo
-            </button>
+      <main class="dashboard-content">
+        <header class="app-header" role="banner">
+          <div class="app-header-inner">
+            <h1 class="app-header-title topbar-title" id="sidebar-page-title">Página inicial</h1>
           </div>
-          <p id="install-feedback" class="install-feedback" aria-live="polite"></p>
+        </header>
+
+        <div class="landing-inner">
+          <section class="card landing-hero-card">
+            <div class="landing-hero-grid">
+              <div class="landing-hero-main">
+                <span class="landing-kicker">Operação e controle</span>
+                <h2 class="landing-title">{{ app_name }}</h2>
+                <p class="landing-lead">
+                  Plataforma interna para contagem, cadastro e governança de acessos.
+                  Use esta página como ponto de entrada e direcionamento dos usuários.
+                </p>
+                <div class="landing-actions">
+                  <a class="landing-btn-primary" href="/app">Entrar no sistema</a>
+                  <a class="landing-btn-secondary" href="/app#count">Ir direto para contagem</a>
+                  <button class="landing-btn-secondary install-app-btn" type="button">
+                    Baixar aplicativo
+                  </button>
+                </div>
+                <p id="install-feedback" class="install-feedback" aria-live="polite"></p>
+              </div>
+              <aside class="landing-side-panel" aria-label="Módulos disponíveis">
+                <h3 class="landing-side-title">Módulos disponíveis</h3>
+                <ul class="landing-modules">
+                  <li>
+                    <strong>Contagem</strong>
+                    <span>Registro offline-first de inventário com sincronização posterior.</span>
+                  </li>
+                  <li>
+                    <strong>Cadastro</strong>
+                    <span>Inclusão manual e importação em lote de produtos por planilha.</span>
+                  </li>
+                  <li>
+                    <strong>Acesso</strong>
+                    <span>Visualização dos perfis liberados por categoria operacional.</span>
+                  </li>
+                </ul>
+              </aside>
+            </div>
+          </section>
+
+          <section class="landing-strip">
+            <article class="card landing-strip-card">
+              <h3>Informativo rápido</h3>
+              <p>
+                Centralize aqui comunicados curtos da empresa, orientações de uso e o caminho
+                correto para cada perfil acessar seu módulo.
+              </p>
+            </article>
+            <article class="card landing-strip-card">
+              <h3>Perfis</h3>
+              <p>
+                Conferentes operam contagem. Perfis administrativos acessam cadastro e matriz de acessos.
+              </p>
+            </article>
+          </section>
         </div>
+      </main>
+    </div>
 
-        <aside class="hero-panel">
-          <h2>Modulos disponiveis</h2>
-          <ul class="landing-modules">
-            <li>
-              <strong>Contagem</strong>
-              <span>Registro offline-first de inventario com sincronizacao posterior.</span>
-            </li>
-            <li>
-              <strong>Cadastro</strong>
-              <span>Inclusao manual e importacao em lote de produtos por planilha.</span>
-            </li>
-            <li>
-              <strong>Acesso</strong>
-              <span>Visualizacao dos perfis liberados por categoria operacional.</span>
-            </li>
-          </ul>
-        </aside>
-      </section>
-
-      <section class="company-strip">
-        <article class="info-card">
-          <h2>Informativo rapido</h2>
-          <p>
-            Centralize aqui comunicados curtos da empresa, orientacoes de uso e o caminho
-            correto para cada perfil acessar seu modulo.
-          </p>
-        </article>
-        <article class="info-card">
-          <h2>Perfis</h2>
-          <p>
-            Conferentes operam contagem. Perfis administrativos acessam cadastro e matriz de acessos.
-          </p>
-        </article>
-      </section>
-    </main>
-    <script src="/static/pwa-install.js"></script>
-    <script>
-      const btnMenuToggle = document.getElementById('btn-menu-toggle');
-      const btnMenuClose = document.getElementById('btn-menu-close');
-      const sidebarOverlay = document.getElementById('sidebar-overlay');
-      const sidebarMenu = document.getElementById('sidebar-menu');
-      function closeSidebar() {
-        sidebarMenu.classList.remove('open');
-        sidebarOverlay.classList.remove('open');
-      }
-      btnMenuToggle.addEventListener('click', () => {
-        sidebarMenu.classList.add('open');
-        sidebarOverlay.classList.add('open');
-      });
-      btnMenuClose.addEventListener('click', closeSidebar);
-      sidebarOverlay.addEventListener('click', closeSidebar);
-
-      const btnLogout = document.getElementById('btn-logout');
-      if (btnLogout) {
-        btnLogout.addEventListener('click', () => {
-          window.location.href = '/app';
-        });
-      }
-    </script>
+    <script src="/static/pwa-install.js?v=6"></script>
+    <script src="/static/sidebar-shell.js?v=1"></script>
   </body>
 </html>

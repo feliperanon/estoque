@@ -5,6 +5,7 @@ from sqlmodel import SQLModel, Session, select
 from app.core.config import get_settings
 from app.core.security import get_password_hash
 from app.db.session import engine, get_engine
+from app.services.sqlite_product_constraints import apply_sqlite_product_unique_constraints
 from app.models import *  # noqa: F401,F403
 from app.models import ChangeLog, Employee, Product, ProductHistory, User
 
@@ -206,6 +207,7 @@ def _ensure_products_compat_columns(*, is_sqlite: bool) -> None:
                 )
         if is_sqlite:
             connection.execute(text("UPDATE products SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
+            apply_sqlite_product_unique_constraints(connection)
         else:
             connection.execute(text("UPDATE app_core.products SET updated_at = NOW() WHERE updated_at IS NULL"))
 
