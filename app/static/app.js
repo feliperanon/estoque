@@ -614,11 +614,8 @@ function setActiveModule(moduleKey, updateHistory = true) {
   });
 
   const pageTitle = PAGE_TITLES[moduleKey] || PAGE_TITLES[actualModule] || 'Estoque';
-  if (topbarPageTitle) {
-    topbarPageTitle.textContent = pageTitle;
-  }
-  if (sidebarPageTitle) {
-    sidebarPageTitle.textContent = pageTitle;
+  if (pageTitleEl) {
+    pageTitleEl.textContent = pageTitle;
   }
 
   if (subKey) {
