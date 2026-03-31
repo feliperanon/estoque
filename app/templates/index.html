@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=36" />
+    <link rel="stylesheet" href="/static/style.css?v=37" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -580,6 +580,12 @@
                   <input id="product-excel-file" type="file" accept=".xlsx,.xlsm" hidden />
                   <button id="btn-product-upload" class="btn-secondary btn-dark" type="button">Importar arquivo</button>
                 </div>
+                <p class="muted cadastro-produto-import-hint">
+                  Planilha padrão: primeira linha com colunas
+                  <strong>Cia</strong>, <strong>Tipo</strong>, <strong>Segmento</strong>, <strong>Marca</strong>,
+                  <strong>Produto</strong>, <strong>Codigo</strong>, <strong>SKU</strong>, <strong>Custo</strong>
+                  (custo numérico ou texto tipo R$ 0,00).
+                </p>
               </div>
               <form id="product-form" class="product-form product-form--cadastro" autocomplete="off">
                   <div class="field"><div class="field-label-row"><label for="prod-cod-cia">Cia</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-cia">+ Novo</button></div><select id="prod-cod-cia"></select></div>

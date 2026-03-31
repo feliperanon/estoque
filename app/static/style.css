@@ -1989,6 +1989,14 @@ form#count-form.count-form {
   justify-content: flex-end;
 }
 
+.cadastro-produto-import-hint {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin: 0 0 10px;
+  width: 100%;
+  flex-basis: 100%;
+}
+
 .product-form--cadastro {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px 12px;
