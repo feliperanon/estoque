@@ -501,11 +501,12 @@
           </div>
 
           <!-- Sub: Análise de Contagem (somente produtos ativos no catálogo) -->
-          <div id="sub-count-audit" class="sub-section">
-            <section class="card count-audit-hero">
+          <div id="sub-count-audit" class="sub-section count-audit-page">
+            <section class="card count-audit-hero" aria-labelledby="count-audit-title">
               <div class="count-audit-hero-head">
-                <div>
-                  <h2 class="count-audit-hero-title">Análise de estoque</h2>
+                <div class="count-audit-hero-head-text">
+                  <p class="count-audit-eyebrow">Auditoria · inventário</p>
+                  <h2 id="count-audit-title" class="count-audit-hero-title">Análise de Contagem</h2>
                   <p class="muted count-audit-hero-lead">
                     Compara saldo (TXT ou saldo zero) com a contagem registrada. Lista apenas <strong>produtos ativos</strong>.
                   </p>
@@ -517,23 +518,28 @@
                   <label class="count-audit-label" for="count-audit-date">Data da importação TXT (opcional)</label>
                   <input id="count-audit-date" class="search-input count-audit-date-input" type="date" />
                 </div>
-                <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark count-audit-btn-refresh">Atualizar análise</button>
-                <label class="status-switch count-audit-switch" for="count-audit-only-diff" title="Marcado: oculta linhas OK (iguais).">
-                  <span class="status-switch-label">Listar todos</span>
-                  <input id="count-audit-only-diff" type="checkbox" />
-                  <span class="status-switch-slider" aria-hidden="true"></span>
-                  <span class="status-switch-label">Só divergências</span>
-                </label>
+                <div class="count-audit-toolbar-actions">
+                  <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark count-audit-btn-refresh">Atualizar análise</button>
+                  <label class="status-switch count-audit-switch" for="count-audit-only-diff" title="Marcado: oculta linhas OK (iguais).">
+                    <span class="status-switch-label">Listar todos</span>
+                    <input id="count-audit-only-diff" type="checkbox" />
+                    <span class="status-switch-slider" aria-hidden="true"></span>
+                    <span class="status-switch-label">Só divergências</span>
+                  </label>
+                </div>
               </div>
               <div id="count-audit-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite"></div>
             </section>
 
             <div class="count-audit-top-row">
               <section class="card count-audit-summary-card">
-                <div class="card-head">
-                  <h3>Resumo</h3>
+                <div class="card-head count-audit-card-head">
+                  <div>
+                    <h3>Resumo</h3>
+                    <p class="count-audit-card-sub muted">Indicadores consolidados (clique para filtrar a lista)</p>
+                  </div>
                 </div>
-                <ul id="count-audit-summary" class="list">
+                <ul id="count-audit-summary" class="list count-audit-kpi-list">
                   <li><span>Itens com saldo (base)</span><strong>0</strong></li>
                   <li><span>Itens com contagem</span><strong>0</strong></li>
                   <li><span>Conferidos</span><strong>0</strong></li>
@@ -546,13 +552,16 @@
 
             <section class="card count-audit-list-card">
               <div class="card-head count-audit-list-head">
-                <h3>Produtos ativos</h3>
-                <span id="count-audit-total" class="chip" aria-live="polite">0</span>
+                <div>
+                  <h3>Produtos ativos</h3>
+                  <p class="count-audit-card-sub muted">Saldo importado × contagem registrada</p>
+                </div>
+                <span id="count-audit-total" class="chip count-audit-total-chip" aria-live="polite">0</span>
               </div>
               <div class="count-audit-filters">
                 <div class="count-audit-search-row">
                   <input id="count-audit-search" class="search-input count-audit-search-input" type="text" placeholder="Código, descrição ou grupo..." autocomplete="off" aria-label="Filtrar lista" />
-                  <button id="count-audit-clear-search" type="button" class="btn-secondary btn-small" title="Limpar pesquisa" style="display:none;">Limpar</button>
+                  <button id="count-audit-clear-search" type="button" class="btn-secondary btn-small count-audit-btn-clear" title="Limpar pesquisa" style="display:none;">Limpar</button>
                 </div>
                 <div class="count-audit-sort-row">
                   <label class="count-audit-sort-label" for="count-audit-sort">Ordenar por</label>
