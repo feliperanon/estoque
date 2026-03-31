@@ -414,7 +414,7 @@ let countAuditPollingTimer = null;
 
 const PAGE_KEYS_BY_MODULE = {
   contagem: ['contagem', 'count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'],
-  cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'],
+  cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'parametros-produto'],
   acesso: ['acesso'],
 };
 
@@ -446,7 +446,6 @@ const REGISTER_ACCESS_GROUPS = [
     items: [
       { key: 'cadastro-produto', label: 'Cadastro de Produto' },
       { key: 'produtos', label: 'Produtos' },
-      { key: 'preco-produtos', label: 'Preço de Produtos' },
       { key: 'parametros-produto', label: 'Parâmetros de Produto' },
     ],
   },
@@ -469,7 +468,6 @@ const REGISTER_PROFILE_PRESETS = {
     'count-audit',
     'cadastro-produto',
     'produtos',
-    'preco-produtos',
     'parametros-produto',
   ],
   conferente: [
@@ -493,7 +491,7 @@ const MODULE_ACCESS = {
 };
 
 const SUB_MODULES = ['count', 'recount', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'];
-const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'preco-produtos', 'parametros-produto'];
+const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'parametros-produto'];
 const SUB_TO_PARENT = {};
 SUB_MODULES.forEach(s => { SUB_TO_PARENT[s] = 'contagem'; });
 CADASTRO_SUBS.forEach(s => { SUB_TO_PARENT[s] = 'cadastro'; });
@@ -516,7 +514,6 @@ const PAGE_TITLES = {
   'count-audit': 'Análise de Contagem',
   'cadastro-produto': 'Cadastro de Produto',
   produtos: 'Produtos',
-  'preco-produtos': 'Preço de Produtos',
   'parametros-produto': 'Parâmetros',
 };
 
@@ -617,8 +614,6 @@ function setActiveSub(subKey) {
 
   if (subKey === 'produtos') {
     searchProdutos();
-  } else if (subKey === 'preco-produtos') {
-    searchPrecoProducts();
   } else if (subKey === 'count') {
     loadCountProducts();
   } else if (subKey === 'count-audit') {
@@ -2654,11 +2649,6 @@ function renderCountAuditRows(rows) {
   }
   sortCountAuditRowsForDisplay(list);
 
-  const sortElAudit = document.getElementById('count-audit-sort');
-  const sortModeAudit = (sortElAudit && sortElAudit.value) || 'status';
-  const showAuditGroupHeaders =
-    sortModeAudit === 'grupo_asc' || sortModeAudit === 'grupo_desc' || sortModeAudit === 'status';
-
   countAuditList.innerHTML = '';
   if (countAuditTotal) countAuditTotal.textContent = String(list.length);
   if (!list.length) {
@@ -2671,16 +2661,7 @@ function renderCountAuditRows(rows) {
     countAuditList.innerHTML = `<li class="count-audit-empty"><span>${msg}</span><strong>—</strong></li>`;
     return;
   }
-  let lastGrupo = null;
   for (const row of list) {
-    const g = String(row.grupo || 'Sem grupo').trim() || 'Sem grupo';
-    if (showAuditGroupHeaders && g !== lastGrupo) {
-      lastGrupo = g;
-      const gh = document.createElement('li');
-      gh.className = 'count-audit-group-header';
-      gh.innerHTML = `<span class="count-audit-group-title">${escapeHtml(g)}</span>`;
-      countAuditList.appendChild(gh);
-    }
     const li = document.createElement('li');
     let statusClass = 'is-ok';
     let statusLabel = 'OK';
@@ -2933,16 +2914,14 @@ function appendOptionAndSelect(selectId, value) {
 }
 
 function updateDefaultsFromFormSelections() {
+  const defaults = loadProductDefaults();
   const nextDefaults = {
-    cod_grup_sp: [document.getElementById('prod-cod-sp')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_sp[0]],
-    cod_grup_cia: [document.getElementById('prod-cod-cia')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_cia[0]],
-    cod_grup_tipo: [document.getElementById('prod-cod-tipo')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_tipo[0]],
-    cod_grup_familia: [document.getElementById('prod-cod-familia')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_familia[0]],
-    cod_grup_segmento: [document.getElementById('prod-cod-segmento')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_segmento[0]],
-    cod_grup_marca: [document.getElementById('prod-cod-marca')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_marca[0]],
-    cod_grup_sku: [document.getElementById('prod-sku')?.value || DEFAULT_PRODUCT_PARAMS.cod_grup_sku[0]],
-    status: [document.getElementById('prod-status')?.value || 'ativo', 'inativo'].filter((v, i, arr) => arr.indexOf(v) === i),
-    grup_prioridade: [document.getElementById('prod-prioridade')?.value || DEFAULT_PRODUCT_PARAMS.grup_prioridade[0]],
+    ...defaults,
+    cod_grup_cia: [document.getElementById('prod-cod-cia')?.value || defaults.cod_grup_cia[0]],
+    cod_grup_tipo: [document.getElementById('prod-cod-tipo')?.value || defaults.cod_grup_tipo[0]],
+    cod_grup_segmento: [document.getElementById('prod-cod-segmento')?.value || defaults.cod_grup_segmento[0]],
+    cod_grup_marca: [document.getElementById('prod-cod-marca')?.value || defaults.cod_grup_marca[0]],
+    cod_grup_sku: [document.getElementById('prod-sku')?.value || defaults.cod_grup_sku[0]],
   };
   saveProductDefaults(nextDefaults);
 }
@@ -2995,15 +2974,11 @@ function mergeUnique(baseValues, newValues) {
 function applyProductDefaultsToForms() {
   const defaults = loadProductDefaults();
   const pairs = [
-    ['cod_grup_sp', 'prod-cod-sp', 'edit-cod-sp'],
     ['cod_grup_cia', 'prod-cod-cia', 'edit-cod-cia'],
     ['cod_grup_tipo', 'prod-cod-tipo', 'edit-cod-tipo'],
-    ['cod_grup_familia', 'prod-cod-familia', 'edit-cod-familia'],
     ['cod_grup_segmento', 'prod-cod-segmento', 'edit-cod-segmento'],
     ['cod_grup_marca', 'prod-cod-marca', 'edit-cod-marca'],
     ['cod_grup_sku', 'prod-sku', 'edit-sku'],
-    ['status', 'prod-status', 'edit-status'],
-    ['grup_prioridade', 'prod-prioridade', 'edit-prioridade'],
   ];
   for (const [key, createId, editId] of pairs) {
     fillSelect(createId, defaults[key]);
@@ -3040,18 +3015,18 @@ function renderParamRemoveValues(defaults = null) {
 
 function readProductPayloadFromForm() {
   return {
-    cod_grup_sp: document.getElementById('prod-cod-sp').value.trim() || null,
+    cod_grup_sp: null,
     cod_grup_cia: document.getElementById('prod-cod-cia').value.trim() || null,
     cod_grup_tipo: document.getElementById('prod-cod-tipo').value.trim() || null,
-    cod_grup_familia: document.getElementById('prod-cod-familia').value.trim() || null,
+    cod_grup_familia: null,
     cod_grup_segmento: document.getElementById('prod-cod-segmento').value.trim() || null,
     cod_grup_marca: document.getElementById('prod-cod-marca').value.trim() || null,
     cod_produto: document.getElementById('prod-codigo').value.trim(),
-    cod_grup_descricao: document.getElementById('prod-descricao').value.trim(),
+    cod_grup_descricao: document.getElementById('prod-produto').value.trim(),
     cod_grup_sku: document.getElementById('prod-sku').value.trim(),
-    status: document.getElementById('prod-status').value.trim() || null,
-    grup_prioridade: document.getElementById('prod-prioridade').value.trim() || null,
-    price: parseFloat(document.getElementById('prod-price').value) || null,
+    status: null,
+    grup_prioridade: null,
+    price: parseFloat(document.getElementById('prod-custo').value) || null,
     source_system: 'manual',
   };
 }
@@ -3115,7 +3090,7 @@ async function loadProducts() {
 async function saveProductManual() {
   const payload = readProductPayloadFromForm();
   if (!payload.cod_produto || !payload.cod_grup_descricao || !payload.cod_grup_sku) {
-    setProductFeedback('Codigo, descricao e SKU sao obrigatorios.', true);
+    setProductFeedback('Código, produto e SKU são obrigatórios.', true);
     return;
   }
 
@@ -3276,7 +3251,7 @@ async function uploadProductsExcel() {
 
     if (ignored > 0) {
       msg +=
-        ' Linhas ignoradas: confira codigo do produto e nome/descricao (cabecalhos reconhecidos e celulas vazias). SKU e opcional.';
+        ' Linhas ignoradas: confira código do produto e nome do produto (cabeçalhos reconhecidos e células vazias). SKU e custo são opcionais.';
     }
 
     if (failed > 0) {
@@ -3483,18 +3458,14 @@ async function openEditProduct(id) {
 
     document.getElementById('edit-product-id').value = p.id;
     const defaults = loadProductDefaults();
-    fillSelect('edit-cod-sp', defaults.cod_grup_sp, p.cod_grup_sp || '');
     fillSelect('edit-cod-cia', defaults.cod_grup_cia, p.cod_grup_cia || '');
     fillSelect('edit-cod-tipo', defaults.cod_grup_tipo, p.cod_grup_tipo || '');
-    fillSelect('edit-cod-familia', defaults.cod_grup_familia, p.cod_grup_familia || '');
     fillSelect('edit-cod-segmento', defaults.cod_grup_segmento, p.cod_grup_segmento || '');
     fillSelect('edit-cod-marca', defaults.cod_grup_marca, p.cod_grup_marca || '');
     document.getElementById('edit-codigo').value = p.cod_produto || '';
-    document.getElementById('edit-descricao').value = p.cod_grup_descricao || '';
+    document.getElementById('edit-produto').value = p.cod_grup_descricao || '';
     fillSelect('edit-sku', defaults.cod_grup_sku, p.cod_grup_sku || '');
-    fillSelect('edit-status', defaults.status, (p.status || 'ativo').toLowerCase());
-    fillSelect('edit-prioridade', defaults.grup_prioridade, p.grup_prioridade || '');
-    document.getElementById('edit-price').value = p.price != null ? p.price : '';
+    document.getElementById('edit-custo').value = p.price != null ? p.price : '';
 
     openProductEditPanel();
     document.getElementById('product-history-inline').style.display = 'none';
@@ -3510,22 +3481,18 @@ async function updateProduct() {
   if (!token || !id) return;
 
   const payload = {
-    cod_grup_sp: document.getElementById('edit-cod-sp').value.trim() || null,
     cod_grup_cia: document.getElementById('edit-cod-cia').value.trim() || null,
     cod_grup_tipo: document.getElementById('edit-cod-tipo').value.trim() || null,
-    cod_grup_familia: document.getElementById('edit-cod-familia').value.trim() || null,
     cod_grup_segmento: document.getElementById('edit-cod-segmento').value.trim() || null,
     cod_grup_marca: document.getElementById('edit-cod-marca').value.trim() || null,
     cod_produto: document.getElementById('edit-codigo').value.trim(),
-    cod_grup_descricao: document.getElementById('edit-descricao').value.trim(),
+    cod_grup_descricao: document.getElementById('edit-produto').value.trim(),
     cod_grup_sku: document.getElementById('edit-sku').value.trim(),
-    status: document.getElementById('edit-status').value.trim() || null,
-    grup_prioridade: document.getElementById('edit-prioridade').value.trim() || null,
-    price: parseFloat(document.getElementById('edit-price').value) || null,
+    price: parseFloat(document.getElementById('edit-custo').value) || null,
   };
 
   if (!payload.cod_produto || !payload.cod_grup_descricao || !payload.cod_grup_sku) {
-    setEditFeedback('Codigo, descrição e SKU são obrigatórios.', true);
+    setEditFeedback('Código, produto e SKU são obrigatórios.', true);
     return;
   }
 
@@ -4321,7 +4288,6 @@ if (moduleNav) {
   bindProductEvents();
   bindProductParamsEvents();
   bindProdutosEvents();
-  bindPrecoEvents();
   bindModuleEvents();
   bindExtraModules();
   const token = getToken();

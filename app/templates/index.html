@@ -610,11 +610,6 @@
                 <span class="module-card-title">Produtos</span>
                 <span class="module-card-desc">Consultar, editar, inativar e histórico</span>
               </button>
-              <button type="button" class="module-card" data-sub="preco-produtos">
-                <span class="module-card-icon">💲</span>
-                <span class="module-card-title">Preço de Produtos</span>
-                <span class="module-card-desc">Gestão e histórico de preços</span>
-              </button>
               <button type="button" class="module-card" data-sub="parametros-produto">
                 <span class="module-card-icon">⚙️</span>
                 <span class="module-card-title">Parâmetros de Produto</span>
@@ -637,18 +632,14 @@
                 </div>
               </div>
               <form id="product-form" class="product-form product-form--cadastro" autocomplete="off">
-                  <div class="field"><div class="field-label-row"><label for="prod-cod-sp">Cod Grup SP</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-sp">+ Novo</button></div><select id="prod-cod-sp"></select></div>
-                  <div class="field"><div class="field-label-row"><label for="prod-cod-cia">Cod Grup Cia</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-cia">+ Novo</button></div><select id="prod-cod-cia"></select></div>
-                  <div class="field"><div class="field-label-row"><label for="prod-cod-tipo">Cod Grup Tipo</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-tipo">+ Novo</button></div><select id="prod-cod-tipo"></select></div>
-                  <div class="field"><div class="field-label-row"><label for="prod-cod-familia">Cod Grup Familia</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-familia">+ Novo</button></div><select id="prod-cod-familia"></select></div>
-                  <div class="field"><div class="field-label-row"><label for="prod-cod-segmento">Cod Grup Segmento</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-segmento">+ Novo</button></div><select id="prod-cod-segmento"></select></div>
-                  <div class="field"><div class="field-label-row"><label for="prod-cod-marca">Cod Grup Marca</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-marca">+ Novo</button></div><select id="prod-cod-marca"></select></div>
-                  <div class="field"><label for="prod-codigo">Codigo do Produto</label><input id="prod-codigo" type="text" required /></div>
-                  <div class="field"><label for="prod-descricao">Descrição</label><input id="prod-descricao" type="text" required /></div>
-                  <div class="field"><div class="field-label-row"><label for="prod-sku">Cod Grup SKU</label><button type="button" class="btn-link-mini" data-new-option-target="prod-sku">+ Novo</button></div><select id="prod-sku"></select></div>
-                  <div class="field"><div class="field-label-row"><label for="prod-status">Status</label><button type="button" class="btn-link-mini" data-new-option-target="prod-status">+ Novo</button></div><select id="prod-status"></select></div>
-                  <div class="field"><div class="field-label-row"><label for="prod-prioridade">Grup Prioridade</label><button type="button" class="btn-link-mini" data-new-option-target="prod-prioridade">+ Novo</button></div><select id="prod-prioridade"></select></div>
-                  <div class="field"><label for="prod-price">Preço (R$)</label><input id="prod-price" type="number" step="0.01" min="0" /></div>
+                  <div class="field"><div class="field-label-row"><label for="prod-cod-cia">Cia</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-cia">+ Novo</button></div><select id="prod-cod-cia"></select></div>
+                  <div class="field"><div class="field-label-row"><label for="prod-cod-tipo">Tipo</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-tipo">+ Novo</button></div><select id="prod-cod-tipo"></select></div>
+                  <div class="field"><div class="field-label-row"><label for="prod-cod-segmento">Segmento</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-segmento">+ Novo</button></div><select id="prod-cod-segmento"></select></div>
+                  <div class="field"><div class="field-label-row"><label for="prod-cod-marca">Marca</label><button type="button" class="btn-link-mini" data-new-option-target="prod-cod-marca">+ Novo</button></div><select id="prod-cod-marca"></select></div>
+                  <div class="field"><label for="prod-produto">Produto</label><input id="prod-produto" type="text" required autocomplete="off" /></div>
+                  <div class="field"><label for="prod-codigo">Código</label><input id="prod-codigo" type="text" required autocomplete="off" /></div>
+                  <div class="field"><div class="field-label-row"><label for="prod-sku">SKU</label><button type="button" class="btn-link-mini" data-new-option-target="prod-sku">+ Novo</button></div><select id="prod-sku"></select></div>
+                  <div class="field"><label for="prod-custo">Custo (R$)</label><input id="prod-custo" type="number" step="0.01" min="0" inputmode="decimal" /></div>
                   <button type="submit" id="btn-product-save">Salvar produto</button>
               </form>
               <div id="product-import-feedback" class="field-feedback" aria-live="polite"></div>
@@ -691,8 +682,8 @@
                     <tr>
                       <th>Código</th>
                       <th>SKU</th>
-                      <th>Descrição</th>
-                      <th>Preço</th>
+                      <th>Produto</th>
+                      <th>Custo</th>
                       <th>Status</th>
                       <th>Criado em</th>
                       <th>Ações</th>
@@ -714,18 +705,14 @@
               </div>
               <form id="product-edit-form" class="product-form product-form--cadastro" autocomplete="off">
                 <input type="hidden" id="edit-product-id" />
-                <div class="field"><div class="field-label-row"><label for="edit-cod-sp">Cod Grup SP</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-sp">+ Novo</button></div><select id="edit-cod-sp"></select></div>
-                <div class="field"><div class="field-label-row"><label for="edit-cod-cia">Cod Grup Cia</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-cia">+ Novo</button></div><select id="edit-cod-cia"></select></div>
-                <div class="field"><div class="field-label-row"><label for="edit-cod-tipo">Cod Grup Tipo</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-tipo">+ Novo</button></div><select id="edit-cod-tipo"></select></div>
-                <div class="field"><div class="field-label-row"><label for="edit-cod-familia">Cod Grup Familia</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-familia">+ Novo</button></div><select id="edit-cod-familia"></select></div>
-                <div class="field"><div class="field-label-row"><label for="edit-cod-segmento">Cod Grup Segmento</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-segmento">+ Novo</button></div><select id="edit-cod-segmento"></select></div>
-                <div class="field"><div class="field-label-row"><label for="edit-cod-marca">Cod Grup Marca</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-marca">+ Novo</button></div><select id="edit-cod-marca"></select></div>
-                <div class="field"><label for="edit-codigo">Codigo do Produto</label><input id="edit-codigo" type="text" required /></div>
-                <div class="field"><label for="edit-descricao">Descrição</label><input id="edit-descricao" type="text" required /></div>
+                <div class="field"><div class="field-label-row"><label for="edit-cod-cia">Cia</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-cia">+ Novo</button></div><select id="edit-cod-cia"></select></div>
+                <div class="field"><div class="field-label-row"><label for="edit-cod-tipo">Tipo</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-tipo">+ Novo</button></div><select id="edit-cod-tipo"></select></div>
+                <div class="field"><div class="field-label-row"><label for="edit-cod-segmento">Segmento</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-segmento">+ Novo</button></div><select id="edit-cod-segmento"></select></div>
+                <div class="field"><div class="field-label-row"><label for="edit-cod-marca">Marca</label><button type="button" class="btn-link-mini" data-new-option-target="edit-cod-marca">+ Novo</button></div><select id="edit-cod-marca"></select></div>
+                <div class="field"><label for="edit-produto">Produto</label><input id="edit-produto" type="text" required autocomplete="off" /></div>
+                <div class="field"><label for="edit-codigo">Código</label><input id="edit-codigo" type="text" required autocomplete="off" /></div>
                 <div class="field"><div class="field-label-row"><label for="edit-sku">SKU</label><button type="button" class="btn-link-mini" data-new-option-target="edit-sku">+ Novo</button></div><select id="edit-sku"></select></div>
-                <div class="field"><div class="field-label-row"><label for="edit-status">Status</label><button type="button" class="btn-link-mini" data-new-option-target="edit-status">+ Novo</button></div><select id="edit-status"></select></div>
-                <div class="field"><div class="field-label-row"><label for="edit-prioridade">Prioridade</label><button type="button" class="btn-link-mini" data-new-option-target="edit-prioridade">+ Novo</button></div><select id="edit-prioridade"></select></div>
-                <div class="field"><label for="edit-price">Preço (R$)</label><input id="edit-price" type="number" step="0.01" min="0" /></div>
+                <div class="field"><label for="edit-custo">Custo (R$)</label><input id="edit-custo" type="number" step="0.01" min="0" inputmode="decimal" /></div>
                 <button type="submit" id="btn-product-update">Salvar alterações</button>
               </form>
               <div id="product-edit-feedback" class="field-feedback" aria-live="polite"></div>
@@ -737,42 +724,6 @@
                 <p class="muted" id="history-product-label"></p>
                 <ul id="product-history-list" class="list"></ul>
               </div>
-            </section>
-          </div>
-
-          <!-- Sub: Preço de Produtos -->
-          <div id="sub-preco-produtos" class="sub-section">
-            <section class="card">
-              <h2>Preço de Produtos</h2>
-              <p class="muted">Pesquise um produto para ver e alterar o preço. O histórico de preços é registrado automaticamente.</p>
-              <div class="search-row">
-                <input id="preco-search" type="text" placeholder="Buscar por SKU ou descrição..." class="search-input" />
-                <button id="btn-preco-search" type="button" class="btn-secondary btn-dark">Buscar</button>
-              </div>
-              <div id="preco-feedback" class="field-feedback" aria-live="polite"></div>
-              <div id="preco-table-wrap" class="table-wrap" style="margin-top:12px">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>SKU</th>
-                      <th>Descrição</th>
-                      <th>Preço Atual (R$)</th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody id="preco-tbody"></tbody>
-                </table>
-              </div>
-            </section>
-
-            <!-- Histórico de preço -->
-            <section id="price-history-panel" class="card" style="margin-top:16px; display:none;">
-              <div class="card-head">
-                <h3>Histórico de Preços</h3>
-                <button id="btn-close-price-history" type="button" class="btn-secondary btn-dark">Fechar</button>
-              </div>
-              <p class="muted" id="price-history-label"></p>
-              <ul id="price-history-list" class="list"></ul>
             </section>
           </div>
 

@@ -206,6 +206,18 @@ HEADER_ALIASES = {
     "status": "status",
     "grup_prioridade": "grup_prioridade",
     "prioridade": "grup_prioridade",
+    # Cabeçalhos curtos (planilhas operacionais)
+    "cia": "cod_grup_cia",
+    "tipo": "cod_grup_tipo",
+    "segmento": "cod_grup_segmento",
+    "marca": "cod_grup_marca",
+    # Custo/preço no cadastro (campo price no modelo)
+    "price": "price",
+    "preco": "price",
+    "preco_rs": "price",
+    "custo": "price",
+    "valor": "price",
+    "valor_rs": "price",
 }
 
 # Importação por planilha: obrigatório código do produto + nome/descrição. SKU é opcional (espelha o código se vazio).
@@ -327,6 +339,19 @@ def _normalize_list_status_tokens(raw: list[str] | None) -> set[str]:
         ):
             out.add("pre-cadastro")
     return out
+
+
+def _coerce_price_in_row(row_data: dict[str, str | float | None]) -> None:
+    """Converte coluna de custo/preço da planilha para float."""
+    raw = row_data.get("price")
+    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+        row_data.pop("price", None)
+        return
+    try:
+        s = str(raw).strip().replace(",", ".")
+        row_data["price"] = float(s) if s else None
+    except ValueError:
+        row_data.pop("price", None)
 
 
 def _fill_import_row_defaults(row_data: dict[str, str | None]) -> None:
@@ -570,6 +595,7 @@ async def import_products_excel(
             if not any(row_data.values()):
                 continue
 
+            _coerce_price_in_row(row_data)
             _fill_import_row_defaults(row_data)
             if "status" in row_data and row_data.get("status") is not None:
                 row_data["status"] = _normalize_import_status(row_data["status"])

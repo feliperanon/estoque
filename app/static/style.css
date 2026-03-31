@@ -39,12 +39,18 @@
   min-width: 0;
   --count-sticky-under-app: 52px;
   /* Padrão de espaçamento — linhas CX/UN (controles + total + selo) */
-  --cc-gap: 8px;
-  --cc-gap-tail: 8px;
+  --cc-gap: 6px;
+  --cc-gap-tail: 6px;
   --cc-stack: 8px;
   --cc-pad-x: 8px;
   --cc-pad-y: 6px;
   --cc-radius: 8px;
+  /* Régua fixa da linha operacional (CX/UN): colunas previsíveis */
+  --cc-type-w: 2.125rem;
+  --cc-btn-w: 32px;
+  --cc-input-w: 3.75rem;
+  --cc-readout-w: 3.75rem;
+  --cc-badge-min-w: 4.75rem;
 }
 .count-main-card {
   padding: 0;
@@ -2570,35 +2576,6 @@ form#count-form.count-form {
   border-left: none;
 }
 
-#sub-count-audit #count-audit-list li.count-audit-group-header {
-  display: block;
-  padding: 0;
-  margin: 0;
-  border: none;
-  border-bottom: 1px solid var(--audit-border, #e2e8f0);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-#sub-count-audit #count-audit-list .count-audit-group-title {
-  display: block;
-  padding: 0.55rem 1rem;
-  margin: 0;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--audit-muted, #64748b);
-  background: #eef2f6;
-  border: none;
-  border-radius: 0;
-}
-
-#sub-count-audit #count-audit-list li.count-audit-group-header:first-child .count-audit-group-title {
-  margin-top: 0;
-}
-
 #sub-count-audit ul.count-audit-list-main > li.count-audit-item {
   display: flex;
   flex-direction: column;
@@ -3226,30 +3203,32 @@ form#count-form.count-form {
   max-width: 7rem;
 }
 
-/* Total à direita do +: alinhamento só com grid gap — sem margin arbitrária */
-.count-control-row .count-product-readout.count-product-readout--by-control {
+/* Total no tail: largura fixa, centrado (régua com badge ao lado) */
+.count-control-tail .count-product-readout.count-product-readout--by-control {
   margin: 0;
-  max-width: none;
+  flex: 0 0 var(--cc-readout-w, 3.75rem);
+  width: var(--cc-readout-w, 3.75rem);
+  max-width: var(--cc-readout-w, 3.75rem);
   min-width: 0;
-  justify-self: end;
-  text-align: right;
-  font-size: 0.875rem;
+  text-align: center;
+  font-size: 0.8125rem;
   line-height: 1.2;
   align-self: center;
 }
 
-.count-control-row .count-product-readout--by-control .count-product-readout-inner {
+.count-control-tail .count-product-readout--by-control .count-product-readout-inner {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   box-sizing: border-box;
   margin: 0;
-  padding: 4px 10px;
-  min-width: 2.75ch;
+  padding: 4px 6px;
+  width: 100%;
+  min-width: 0;
   border-radius: 6px;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.2;
   color: #0f172a;
 }
@@ -3258,7 +3237,7 @@ form#count-form.count-form {
   margin-left: 20px;
 }
 
-.count-control-row .count-product-readout--by-control .count-product-readout-value {
+.count-control-tail .count-product-readout--by-control .count-product-readout-value {
   margin: 0;
   font-size: inherit;
   font-weight: 700;
@@ -3372,46 +3351,60 @@ form#count-form.count-form {
   align-items: stretch;
   gap: var(--cc-stack, 8px);
   flex-shrink: 0;
-  width: min(100%, 17.5rem);
-  min-width: min(100%, 13rem);
+  width: 100%;
+  max-width: min(100%, 22rem);
+  min-width: 0;
   box-sizing: border-box;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Linha operacional: sigla | − | valor | + | total + selo (à direita) */
+/* Linha operacional: tipo | − | input | + | [total + badge] — grid com colunas fixas + cauda flexível */
 .count-control-row {
   display: grid;
-  grid-template-columns: 2.25rem 32px minmax(0, 1fr) 32px minmax(0, auto);
+  grid-template-columns:
+    var(--cc-type-w, 2.125rem)
+    var(--cc-btn-w, 32px)
+    var(--cc-input-w, 3.75rem)
+    var(--cc-btn-w, 32px)
+    minmax(calc(var(--cc-readout-w, 3.75rem) + var(--cc-gap-tail, 6px) + var(--cc-badge-min-w, 4.75rem)), 1fr);
   align-items: center;
-  gap: var(--cc-gap, 8px);
-  min-width: 0;
+  column-gap: var(--cc-gap, 6px);
+  row-gap: 0;
+  min-width: max-content;
+  width: 100%;
   box-sizing: border-box;
   margin: 0;
   padding: var(--cc-pad-y, 6px) var(--cc-pad-x, 8px);
   border-radius: var(--cc-radius, 8px);
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .count-control-tail {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--cc-gap-tail, 8px);
+  gap: var(--cc-gap-tail, 6px);
   min-width: 0;
   margin: 0;
   padding: 0;
-}
-
-.count-control-tail .count-product-readout.count-product-readout--by-control {
-  margin: 0;
+  box-sizing: border-box;
 }
 
 .count-row-badge {
-  flex-shrink: 0;
+  flex: 0 0 auto;
   margin: 0;
+  min-width: var(--cc-badge-min-w, 4.75rem);
+  max-width: 100%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 6px;
   line-height: 1.2;
   white-space: nowrap;
@@ -3477,15 +3470,30 @@ form#count-form.count-form {
 }
 
 .count-control-type {
-  width: 2.25rem;
-  min-width: 2.25rem;
-  max-width: 2.25rem;
+  box-sizing: border-box;
+  width: var(--cc-type-w, 2.125rem);
+  min-width: var(--cc-type-w, 2.125rem);
+  max-width: var(--cc-type-w, 2.125rem);
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
   text-align: center;
   font-size: 0.625rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: #64748b;
   text-transform: uppercase;
+}
+
+.count-control-row .count-product-qty {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  justify-self: stretch;
+  box-sizing: border-box;
 }
 
 .count-product-qty {
@@ -3513,8 +3521,9 @@ form#count-form.count-form {
 
 .btn-count-adjust {
   flex-shrink: 0;
-  min-width: 32px;
-  width: 32px;
+  box-sizing: border-box;
+  min-width: var(--cc-btn-w, 32px);
+  width: var(--cc-btn-w, 32px);
   min-height: 34px;
   height: 34px;
   padding: 0;
@@ -3526,6 +3535,7 @@ form#count-form.count-form {
   font-weight: 700;
   line-height: 1;
   font-size: 1rem;
+  justify-self: center;
 }
 
 .btn-count-adjust:active:not(:disabled) {
@@ -3607,6 +3617,12 @@ form#count-form.count-form {
     gap: 4px;
   }
 
+  #sub-count {
+    --cc-btn-w: 36px;
+    --cc-gap: 6px;
+    --cc-gap-tail: 6px;
+  }
+
   .count-product-controls {
     width: 100%;
     min-width: 0;
@@ -3616,14 +3632,23 @@ form#count-form.count-form {
   }
 
   .count-control-row {
-    grid-template-columns: 2.25rem 36px minmax(0, 1fr) 36px auto;
-    gap: var(--cc-gap, 8px);
+    grid-template-columns:
+      var(--cc-type-w, 2.125rem)
+      var(--cc-btn-w, 36px)
+      var(--cc-input-w, 3.75rem)
+      var(--cc-btn-w, 36px)
+      minmax(calc(var(--cc-readout-w, 3.75rem) + var(--cc-gap-tail, 6px) + var(--cc-badge-min-w, 4.75rem)), 1fr);
+    column-gap: var(--cc-gap, 6px);
   }
 
   .btn-count-adjust {
-    min-width: 36px;
-    width: 36px;
+    min-width: var(--cc-btn-w, 36px);
+    width: var(--cc-btn-w, 36px);
     min-height: 36px;
+    height: 36px;
+  }
+
+  .count-control-type {
     height: 36px;
   }
 }
@@ -3924,10 +3949,21 @@ form#count-form.count-form {
     min-width: 100%;
   }
 
-  /* Controles de contagem: grid flexível (evita width fixo que quebra a linha CX/UN) */
+  /* Contagem: régua compacta em telas estreitas (evita estourar a linha) */
+  #sub-count {
+    --cc-type-w: 1.875rem;
+    --cc-input-w: 3.25rem;
+    --cc-readout-w: 3.25rem;
+    --cc-badge-min-w: 4.25rem;
+    --cc-gap: 4px;
+    --cc-gap-tail: 4px;
+  }
+
+  /* Input preenche só a célula do grid */
   #sub-count .count-control-row .count-product-qty {
     width: 100%;
     min-width: 0;
+    max-width: 100%;
   }
 
   /* Modal: tela quase cheia */
