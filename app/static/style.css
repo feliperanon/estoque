@@ -1436,6 +1436,11 @@ button[type="submit"]:disabled {
   min-height: 180px;
   align-items: flex-start;
   text-align: left;
+  min-width: 0;
+}
+
+#contagem-home {
+  overflow: visible;
 }
 
 /* Botão Voltar */
@@ -1462,7 +1467,13 @@ button[type="submit"]:disabled {
 
 /* ── Tablet (≤ 768px) ──────────────────────────────── */
 @media (max-width: 768px) {
-  .module-grid {
+  /* Contagem: 1 coluna para todos os módulos aparecerem ao rolar (sem grade 2 col) */
+  .module-grid.module-grid-contagem {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .module-grid:not(.module-grid-contagem) {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
@@ -3015,7 +3026,7 @@ form#count-form.count-form {
 
   /* Conteúdo principal (sem barra inferior: navegação só na sidebar / drawer) */
   .dashboard-content {
-    padding: 16px 12px 40px;
+    padding: 16px 12px calc(40px + env(safe-area-inset-bottom, 0px));
   }
 
   /* KPI grid */
@@ -3023,10 +3034,15 @@ form#count-form.count-form {
     grid-template-columns: 1fr;
   }
 
-  /* Module cards: 2 colunas no mobile */
-  .module-grid {
+  /* Module cards: cadastro em 2 col; contagem já é 1 col (768px) */
+  .module-grid:not(.module-grid-contagem) {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+  }
+
+  .module-grid-contagem .module-card {
+    min-height: 0;
+    min-width: 0;
   }
 
   .module-card {
@@ -3162,7 +3178,7 @@ form#count-form.count-form {
 
 /* ── Celulares muito pequenos (≤ 360px) ─────────────── */
 @media (max-width: 360px) {
-  .module-grid {
+  .module-grid:not(.module-grid-contagem) {
     grid-template-columns: 1fr;
   }
 

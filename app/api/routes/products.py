@@ -104,7 +104,7 @@ def _drop_legacy_sku_unique_constraint(session: Session) -> None:
     """Remove unique legada em cod_grup_sku (Postgres) ou SQLite; alinha com unicidade por cod_produto."""
     bind = session.get_bind()
     if bind.dialect.name == "sqlite":
-        apply_sqlite_product_unique_constraints(session.connection())
+        apply_sqlite_product_unique_constraints(session)
         session.flush()
         return
 
