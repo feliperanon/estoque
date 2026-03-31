@@ -740,8 +740,13 @@ async def import_products_excel(
             )
 
         row_ops = created + updated
-        total_row = session.exec(select(func.count()).select_from(Product)).first()
-        total_in_db = int(total_row[0]) if total_row is not None else 0
+        total_raw = session.exec(select(func.count()).select_from(Product)).first()
+        if total_raw is None:
+            total_in_db = 0
+        elif isinstance(total_raw, int):
+            total_in_db = total_raw
+        else:
+            total_in_db = int(total_raw[0])
 
         return {
             "created": created,
