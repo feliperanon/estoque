@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=8" />
+    <link rel="stylesheet" href="/static/style.css?v=9" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -187,14 +187,14 @@
                   <span id="count-products-total" class="count-main-chip" aria-live="polite"></span>
                 </div>
                 <div class="count-main-filters-row">
-                  <div class="count-main-filter-col">
+                  <div class="count-main-filter-col count-main-filter-col--produto">
                     <label class="count-filter-label count-filter-label--bold" for="item-code">Produto</label>
                     <div class="count-filter-input-wrapper">
                       <span class="count-filter-icon"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="#176d8c" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="#176d8c" stroke-width="2"/></svg></span>
                       <input id="item-code" name="item-code" type="text" class="count-filter-input" placeholder="Buscar produto..." autocomplete="off" aria-label="Produto" />
                     </div>
                   </div>
-                  <div class="count-main-filter-col">
+                  <div class="count-main-filter-col count-main-filter-col--grupo">
                     <label class="count-filter-label count-filter-label--bold" for="count-group">Grupo</label>
                     <div class="count-filter-input-wrapper">
                       <span class="count-filter-icon"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="#176d8c" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="#176d8c" stroke-width="2"/></svg></span>
@@ -202,7 +202,7 @@
                         <div id="count-group-chip-container" style="margin-top:4px;"></div>
                     </div>
                   </div>
-                  <div class="count-main-filter-col count-main-filter-date">
+                  <div class="count-main-filter-col count-main-filter-col--data count-main-filter-date">
                     <label class="count-filter-label count-filter-label--bold" for="count-date">Data da Contagem</label>
                     <div class="count-filter-input-wrapper">
                       <span class="count-filter-icon"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="#176d8c" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="#176d8c" stroke-width="2"/></svg></span>
@@ -224,7 +224,9 @@
               <div id="count-feedback" class="field-feedback" aria-live="polite"></div>
               </form>
             </div>
-            <ul id="count-products-list" class="list count-list-flat"></ul>
+            <div class="count-products-shell">
+              <ul id="count-products-list" class="list count-list-flat"></ul>
+            </div>
           </div>
 
           <!-- Sub: Recontagem -->
@@ -874,7 +876,7 @@
     </div>
 
     <div id="install-feedback" class="install-feedback" aria-live="polite"></div>
-    <script src="/static/app.js?v=11"></script>
+    <script src="/static/app.js?v=12"></script>
     <script src="/static/pwa-install.js?v=6"></script>
   </body>
 </html>

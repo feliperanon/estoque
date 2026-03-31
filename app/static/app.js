@@ -1252,7 +1252,7 @@ function renderCountProducts(products) {
   countProductsList.innerHTML = '';
   if (countProductsTotal) countProductsTotal.textContent = `${ativos.length}`;
   const feedback = document.getElementById('count-feedback');
-  if (feedback) feedback.textContent = `Renderizando ${ativos.length} produtos ativos.`;
+  if (feedback) feedback.textContent = '';
 
   if (!ativos.length) {
     countProductsList.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
@@ -1275,6 +1275,8 @@ function renderCountProducts(products) {
     const netUn = getNetByProductAndType(codRaw, 'unidade');
     const li = document.createElement('li');
     li.className = 'count-product-item';
+    const vCx = Math.max(0, Math.round(Number(netCx) || 0));
+    const vUn = Math.max(0, Math.round(Number(netUn) || 0));
     li.innerHTML = `
       <div class="count-product-label">
         <span class="count-product-code">${cod}</span>
@@ -1284,13 +1286,15 @@ function renderCountProducts(products) {
         <div class="count-control-row">
           <span class="count-control-type">CX</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
-          <span class="count-product-total" aria-live="polite">${formatIntegerBR(netCx)}</span>
+          <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+            data-coderef="${codRef}" data-count-type="caixa" value="${vCx}" aria-label="Quantidade em caixas" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
         </div>
         <div class="count-control-row">
           <span class="count-control-type">UN</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
-          <span class="count-product-total" aria-live="polite">${formatIntegerBR(netUn)}</span>
+          <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+            data-coderef="${codRef}" data-count-type="unidade" value="${vUn}" aria-label="Quantidade em unidades" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
         </div>
       </div>
@@ -1531,6 +1535,22 @@ function registerCount(itemCodeInput) {
   registerCountDelta(itemCodeInput, 1, 'caixa');
 }
 
+/** Aplica quantidade absoluta digitada (delta em relação ao saldo já contado na sessão). */
+function applyCountQtyFromInput(codRefEnc, countTypeRaw, rawValue) {
+  const codRaw = decodeURIComponent(String(codRefEnc || ''));
+  const itemCode = normalizeItemCode(codRaw);
+  const countType = normalizeCountType(countTypeRaw || 'caixa');
+  if (!itemCode) return;
+  const current = getNetByProductAndType(itemCode, countType);
+  const digitsOnly = String(rawValue ?? '').replace(/\D/g, '');
+  let next = digitsOnly === '' ? 0 : parseInt(digitsOnly, 10);
+  if (!Number.isFinite(next)) next = 0;
+  if (next < 0) next = 0;
+  const delta = next - current;
+  if (delta === 0) return;
+  registerCountDelta(itemCode, delta, countType);
+}
+
 function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa') {
   const itemCode = normalizeItemCode(itemCodeInput);
   const quantity = Number(qtyDeltaInput);
@@ -1672,20 +1692,58 @@ function bindCountEvents() {
   const countListEl = document.getElementById('count-products-list');
   if (countListEl && countListEl.dataset.countDelegates !== '1') {
     countListEl.dataset.countDelegates = '1';
+    const refreshCountListAfterEdit = () => {
+      const input = document.getElementById('item-code');
+      const term = (input && input.value || '').trim();
+      const toShow = term ? filterCountProductsByTerm(term) : countProductsCache;
+      renderCountProducts(toShow);
+    };
     countListEl.addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-count-adjust');
       if (!btn || !countListEl.contains(btn)) return;
       e.preventDefault();
+      const row = btn.closest('.count-control-row');
+      const qtyInput = row ? row.querySelector('.count-product-qty') : null;
+      if (qtyInput) {
+        applyCountQtyFromInput(qtyInput.getAttribute('data-coderef') || '', qtyInput.getAttribute('data-count-type') || 'caixa', qtyInput.value);
+      }
       const ref = decodeURIComponent(btn.getAttribute('data-coderef') || '');
       const delta = Number(btn.dataset.delta);
       const countType = btn.dataset.countType || 'caixa';
       if (!ref || !Number.isFinite(delta)) return;
       registerCountDelta(ref, delta, countType);
-      const input = document.getElementById('item-code');
-      const term = (input && input.value || '').trim();
-      const toShow = term ? filterCountProductsByTerm(term) : countProductsCache;
-      renderCountProducts(toShow);
+      refreshCountListAfterEdit();
     });
+    countListEl.addEventListener('focusout', (e) => {
+      const inp = e.target;
+      if (!inp || !inp.classList || !inp.classList.contains('count-product-qty')) return;
+      if (!countListEl.contains(inp)) return;
+      const next = e.relatedTarget;
+      // Evita re-render antes do clique em +/− (o botão aplicaria depois e perderia o alvo)
+      if (next && typeof next.closest === 'function' && next.closest('.btn-count-adjust') && countListEl.contains(next)) {
+        return;
+      }
+      const ref = inp.getAttribute('data-coderef') || '';
+      const ct = inp.getAttribute('data-count-type') || 'caixa';
+      applyCountQtyFromInput(ref, ct, inp.value);
+      refreshCountListAfterEdit();
+    });
+    countListEl.addEventListener('keydown', (e) => {
+      const inp = e.target;
+      if (!inp.classList?.contains('count-product-qty')) return;
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      inp.blur();
+    });
+    countListEl.addEventListener(
+      'wheel',
+      (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('count-product-qty')) {
+          e.preventDefault();
+        }
+      },
+      { passive: false },
+    );
   }
 
   window.addEventListener('online', () => {
