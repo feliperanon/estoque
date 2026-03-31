@@ -1228,133 +1228,20 @@ function renderCountProducts(products) {
   if (!countProductsList || !countProductsTotal) return;
   countProductsList.innerHTML = '';
   countProductsTotal.textContent = `${products.length}`;
-  updateCountProgress(products);
-  updateCountKpi(products);
-  const totalsByItemAndType = new Map(
-    computeTotals(loadCountEvents()).map((row) => [makeCountTotalKey(row.itemCode, row.countType), row.qty]),
-  );
+  // DEBUG: Exibir na tela o total de produtos recebidos
+  const feedback = document.getElementById('count-feedback');
+  if (feedback) feedback.textContent = `Renderizando ${products.length} produtos.`;
 
   if (!products.length) {
     countProductsList.innerHTML = '<li><span>Nenhum produto encontrado para o filtro atual.</span><strong>0</strong></li>';
     return;
   }
 
+  // FORÇAR EXIBIÇÃO DE TODOS OS PRODUTOS, ignorando filtros e lógica antiga
   for (const product of products) {
     const li = document.createElement('li');
     li.className = 'count-product-item';
-    
-    const isInactive = (product.status || '').toLowerCase() === 'inativo';
-    if (isInactive) {
-      li.classList.add('is-inactive');
-    }
-
-    const itemCode = normalizeItemCode(product.cod_produto || product.cod_grup_descricao || '');
-    const codeText = (product.cod_produto || '—').trim() || '—';
-    const descText = (product.cod_grup_descricao || 'Sem descricao').trim() || 'Sem descricao';
-    const brandText = (product.cod_grup_marca || '').trim();
-    const label = document.createElement('span');
-    label.className = 'count-product-label';
-
-    const codeEl = document.createElement('span');
-    codeEl.className = 'count-product-code';
-    codeEl.textContent = codeText;
-    label.appendChild(codeEl);
-
-    const descEl = document.createElement('span');
-    descEl.className = 'count-product-desc';
-    descEl.textContent = isInactive ? `${descText} (INATIVO)` : descText;
-    label.appendChild(descEl);
-
-    const controls = document.createElement('div');
-    controls.className = 'count-product-controls';
-
-    const hasCode = Boolean(itemCode);
-
-    const buildControlRow = (countType, focusByDefault = false) => {
-      const row = document.createElement('div');
-      row.className = 'count-control-row';
-
-      const typeLabel = document.createElement('span');
-      typeLabel.className = 'count-control-type';
-      typeLabel.textContent = countType === 'caixa' ? 'Caixa' : 'Unidade';
-
-      const minusBtn = document.createElement('button');
-      minusBtn.type = 'button';
-      minusBtn.className = 'btn-count-adjust btn-minus';
-      minusBtn.textContent = '-';
-      minusBtn.setAttribute('aria-label', `Diminuir ${countType} de ${itemCode || 'item'}`);
-
-      const qtyInput = document.createElement('input');
-      qtyInput.type = 'number';
-      qtyInput.inputMode = 'numeric';
-      qtyInput.min = '0';
-      qtyInput.step = '1';
-      qtyInput.value = '0';
-      qtyInput.className = 'count-product-qty';
-      qtyInput.setAttribute('aria-label', `Quantidade de ${countType} para ${itemCode || 'item sem codigo'}`);
-      qtyInput.setAttribute('pattern', '[0-9]*');
-
-      const plusBtn = document.createElement('button');
-      plusBtn.type = 'button';
-      plusBtn.className = 'btn-count-adjust btn-plus';
-      plusBtn.textContent = '+';
-      plusBtn.setAttribute('aria-label', `Aumentar ${countType} de ${itemCode || 'item'}`);
-
-      const totalEl = document.createElement('strong');
-      totalEl.className = 'count-product-total';
-      totalEl.textContent = `${totalsByItemAndType.get(makeCountTotalKey(itemCode, countType)) || 0}`;
-
-      if (!hasCode) {
-        qtyInput.disabled = true;
-        minusBtn.disabled = true;
-        plusBtn.disabled = true;
-      }
-
-      const applyDelta = (deltaSign) => {
-        if (!hasCode) return;
-        const rawVal = Number(qtyInput.value);
-        const qtyBase = Number.isInteger(rawVal) && rawVal > 0 ? rawVal : 1;
-        const delta = deltaSign * qtyBase;
-        registerCountDelta(itemCode, delta, countType);
-        const updatedTotals = new Map(
-          computeTotals(loadCountEvents()).map((entry) => [makeCountTotalKey(entry.itemCode, entry.countType), entry.qty]),
-        );
-        totalEl.textContent = `${updatedTotals.get(makeCountTotalKey(itemCode, countType)) || 0}`;
-        qtyInput.value = '0';
-      };
-
-      plusBtn.addEventListener('click', () => applyDelta(1));
-      minusBtn.addEventListener('click', () => applyDelta(-1));
-
-      row.appendChild(typeLabel);
-      row.appendChild(minusBtn);
-      row.appendChild(qtyInput);
-      row.appendChild(plusBtn);
-      row.appendChild(totalEl);
-
-      return { row, qtyInput, focusByDefault };
-    };
-
-    const caixaControl = buildControlRow('caixa', true);
-    const unidadeControl = buildControlRow('unidade');
-    controls.appendChild(caixaControl.row);
-    controls.appendChild(unidadeControl.row);
-
-    // Clicar no card sempre prioriza o campo de caixa.
-    const focusQty = () => {
-      if (!hasCode) return;
-      caixaControl.qtyInput.focus();
-      caixaControl.qtyInput.select();
-    };
-    li.addEventListener('click', (e) => {
-      const interactive = e.target instanceof HTMLElement && (
-        e.target.closest('.btn-count-adjust') || e.target.closest('.count-product-qty')
-      );
-      if (interactive) return;
-      focusQty();
-    });
-    li.appendChild(label);
-    li.appendChild(controls);
+    li.innerHTML = `<span>${product.cod_produto || ''} - ${product.cod_grup_descricao || ''}</span><strong>${product.status || ''}</strong>`;
     countProductsList.appendChild(li);
   }
 }
