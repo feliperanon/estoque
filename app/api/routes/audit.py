@@ -679,6 +679,94 @@ def _compute_stock_analysis(
     }
 
 
+def _safe_int(value: object) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return 0
+
+
+def _timeline_count_events_for_code(
+    session: Session,
+    item_code: str,
+    count_on_date: date | None = None,
+) -> list[dict]:
+    code = _normalize_item_code(item_code)
+    if not code:
+        return []
+
+    count_logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_count",
+                ChangeLog.action == "count_event",
+            )
+        ).all()
+    )
+
+    events: list[dict] = []
+    for log in count_logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        raw_item_code = str(payload.get("item_code") or "")
+        if _normalize_item_code(raw_item_code) != code:
+            continue
+
+        observed_at = str(payload.get("observed_at") or "").strip() or None
+        if count_on_date is not None:
+            br_d = _brazil_date_from_observed_at(observed_at)
+            if br_d is None or br_d != count_on_date:
+                continue
+
+        changed_at = _validity_observed_at_iso(log.changed_at)
+        events.append(
+            {
+                "log_id": log.id,
+                "actor": (log.actor or "").strip() or None,
+                "observed_at": observed_at,
+                "changed_at": changed_at,
+                "device_name": (payload.get("device_name") or "") or None,
+                "count_type": _extract_count_type(raw_item_code),
+                "quantity_delta": _safe_int(payload.get("quantity", 0)),
+                "_sort_observed": observed_at or "",
+                "_sort_changed": changed_at or "",
+            }
+        )
+
+    events.sort(key=lambda e: (e["_sort_observed"], e["_sort_changed"], int(e.get("log_id") or 0)))
+
+    total_caixa = 0
+    total_unidade = 0
+    history: list[dict] = []
+    for event in events:
+        prev_caixa = total_caixa
+        prev_unidade = total_unidade
+        qty = int(event["quantity_delta"])
+        if event["count_type"] == "unidade":
+            total_unidade += qty
+        else:
+            total_caixa += qty
+
+        history.append(
+            {
+                "log_id": event["log_id"],
+                "actor": event["actor"],
+                "observed_at": event["observed_at"],
+                "changed_at": event["changed_at"],
+                "device_name": event["device_name"],
+                "count_type": event["count_type"],
+                "quantity_delta": qty,
+                "previous_value": prev_unidade if event["count_type"] == "unidade" else prev_caixa,
+                "current_value": total_unidade if event["count_type"] == "unidade" else total_caixa,
+                "previous_caixa": prev_caixa,
+                "current_caixa": total_caixa,
+                "previous_unidade": prev_unidade,
+                "current_unidade": total_unidade,
+            }
+        )
+
+    return history
+
+
 def _audit_status_label_pt(status: str) -> str:
     return {
         "ok": "OK",
@@ -839,6 +927,69 @@ def stock_analysis(
         only_active_products=only_active_products,
         limit=limit,
     )
+
+
+@router.get("/stock-analysis/detail")
+def stock_analysis_detail(
+    item_code: str = Query(..., min_length=1, max_length=120),
+    import_id: int | None = Query(default=None, ge=1),
+    reference_date: str | None = Query(default=None),
+    only_active_products: bool = Query(default=True, alias="only_active"),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_stock_analysis_access),
+) -> dict:
+    normalized = _normalize_item_code(item_code)
+    if not normalized:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Codigo do produto invalido para detalhamento.",
+        )
+
+    data = _compute_stock_analysis(
+        session,
+        import_id=import_id,
+        reference_date=reference_date,
+        only_diff=False,
+        only_active_products=only_active_products,
+        limit=50_000,
+    )
+
+    row = next(
+        (
+            item
+            for item in data.get("rows", [])
+            if _normalize_item_code(str(item.get("cod_produto") or "")) == normalized
+        ),
+        None,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Produto nao encontrado na analise.")
+
+    import_meta = data.get("import") or {}
+    count_day = _parse_iso_date_arg(str(import_meta.get("reference_date") or reference_date or ""))
+    if count_day is None:
+        count_day = datetime.now(timezone.utc).astimezone(_BR).date()
+
+    history = _timeline_count_events_for_code(session, normalized, count_on_date=count_day)
+    actors = sorted({str(h.get("actor") or "").strip() for h in history if str(h.get("actor") or "").strip()})
+    devices = sorted(
+        {str(h.get("device_name") or "").strip() for h in history if str(h.get("device_name") or "").strip()}
+    )
+
+    return {
+        "item_code": normalized,
+        "count_date": count_day.isoformat(),
+        "analysis": row,
+        "import": import_meta,
+        "history": history,
+        "summary": {
+            "launches": len(history),
+            "actors": actors,
+            "devices": devices,
+            "last_observed_at": history[-1]["observed_at"] if history else None,
+            "last_actor": history[-1]["actor"] if history else None,
+        },
+    }
 
 
 @router.get("/stock-analysis/export.xlsx")

@@ -552,6 +552,7 @@ CADASTRO_SUBS.forEach(s => { SUB_TO_PARENT[s] = 'cadastro'; });
 const SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED = new Set(['count-audit']);
 
 const PAGE_TITLES = {
+  inicio: 'Página inicial',
   contagem: 'Contagem',
   cadastro: 'Cadastro',
   acesso: 'Acesso',
@@ -700,9 +701,11 @@ function setActiveModule(moduleKey, updateHistory = true) {
     return;
   }
 
-  const parentKey = SUB_TO_PARENT[moduleKey];
-  const actualModule = parentKey || moduleKey;
-  const subKey = parentKey ? moduleKey : null;
+  // Página inicial: não existe #module-inicio no DOM; home operacional é a de Contagem
+  const lookupKey = normalized === 'inicio' ? 'contagem' : normalized;
+  const parentKey = SUB_TO_PARENT[lookupKey];
+  const actualModule = parentKey || lookupKey;
+  const subKey = parentKey ? lookupKey : null;
 
   document.querySelectorAll('.module-section').forEach((section) => {
     section.classList.remove('active');
@@ -712,10 +715,15 @@ function setActiveModule(moduleKey, updateHistory = true) {
   if (target) target.classList.add('active');
 
   document.querySelectorAll('.module-btn').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.module === actualModule);
+    const btnMod = (btn.dataset.module || '').trim().toLowerCase();
+    const isActive =
+      normalized === 'inicio'
+        ? btnMod === 'inicio'
+        : btnMod === actualModule;
+    btn.classList.toggle('active', isActive);
   });
 
-  const pageTitle = PAGE_TITLES[moduleKey] || PAGE_TITLES[actualModule] || 'Estoque';
+  const pageTitle = PAGE_TITLES[normalized] || PAGE_TITLES[actualModule] || 'Estoque';
   if (pageTitleEl) {
     pageTitleEl.textContent = pageTitle;
   }
@@ -736,6 +744,10 @@ function canAccessHash(hashKey) {
   if (currentRole === 'admin') return true;
   const k = String(hashKey || '').trim().toLowerCase();
   if (!k) return false;
+
+  if (k === 'inicio') {
+    return canAccessModule('contagem');
+  }
 
   if (SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED.has(k)) {
     if (currentAllowedPages.length) {
@@ -788,7 +800,8 @@ function renderModuleNav() {
     } else {
       setActiveModule(firstVisible, false);
       if (hashModule && hashModule !== firstVisible) {
-        history.replaceState(null, '', `${APP_BASE_PATH}#${firstVisible}`);
+        const hashForUrl = firstVisible === 'inicio' ? 'contagem' : firstVisible;
+        history.replaceState(null, '', `${APP_BASE_PATH}#${hashForUrl}`);
       }
     }
   }
@@ -2542,6 +2555,16 @@ function sortValidityRows(rows, sortMode, todayBr) {
   return out;
 }
 
+/**
+ * Compatibilidade: versões antigas de renderValidityProductList chamavam esta função.
+ * Retorna linhas filtradas e ordenadas (equivalente a filterValidityRows + sortValidityRows).
+ */
+function filterValidityProductsForView(products) {
+  const todayBr = getBrazilDateKey();
+  const rows = (products || []).map(buildValidityRowForProduct);
+  const sortMode = (document.getElementById('validity-sort')?.value || 'priority').trim();
+  return sortValidityRows(filterValidityRows(rows), sortMode, todayBr);
+}
 
 function renderValidityProductList() {
   const ul = document.getElementById('validity-products-list');
