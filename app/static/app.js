@@ -257,6 +257,13 @@ const API_PRODUCTS_CATALOG = '/products/catalog';
 const API_AUTH_ME = '/auth/me';
 const API_PRODUCTS_IMPORT_EXCEL = '/products/import-excel';
 const APP_BASE_PATH = '/app';
+if ('scrollRestoration' in history) {
+  try {
+    history.scrollRestoration = 'manual';
+  } catch {
+    /* ignore */
+  }
+}
 const TOKEN_KEY  = 'estoque_token';
 const USER_KEY   = 'estoque_user';
 const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
@@ -2763,8 +2770,16 @@ function renderValidityProductList() {
   updateValidityReadonlyState();
 }
 
+/** Evita rolagem indesejada ao abrir /app#validity (fragmento, restauração ou reflow da lista). */
+function scrollDashboardToTop() {
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
+
 async function loadValidityModule() {
   showDashboard();
+  scrollDashboardToTop();
   const opEl = document.getElementById('validity-op-date');
   if (opEl) opEl.value = getBrazilDateKey();
   await loadLastCountPerProduct();
@@ -2777,6 +2792,11 @@ async function loadValidityModule() {
     badge.hidden = pending === 0;
     badge.textContent = `${pending} pendentes`;
   }
+  scrollDashboardToTop();
+  requestAnimationFrame(() => {
+    scrollDashboardToTop();
+    requestAnimationFrame(scrollDashboardToTop);
+  });
 }
 
 function registerValidityLineLocal(codRaw, expirationDateStr) {
