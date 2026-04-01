@@ -2336,7 +2336,11 @@ function bindCountEvents() {
       if (!inp.classList?.contains('count-product-qty')) return;
       if (e.key !== 'Enter') return;
       e.preventDefault();
-      inp.blur();
+      e.stopPropagation();
+      const row = inp.closest('.count-control-row');
+      const plusBtn = row?.querySelector('.btn-count-adjust.btn-plus');
+      if (!plusBtn || plusBtn.disabled) return;
+      plusBtn.click();
     });
     countShell.addEventListener(
       'wheel',
