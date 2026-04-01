@@ -1392,8 +1392,11 @@ function getServerNetForProductAndType(productCode, countType) {
 }
 
 /**
- * Total exibido na contagem: servidor (todos os conferentes) + lançamentos locais ainda não enviados.
- * Offline ou falha na API: volta ao comportamento anterior (só soma local).
+ * Fonte de verdade do readout (.count-product-readout-value), para a data ativa (#count-date):
+ * - Com API ok: total da equipe no servidor (GET count-server-totals, dia SP) + apenas eventos
+ *   locais desta data ainda não sincronizados (evita duplicar o que já entrou no servidor).
+ * - Sem API (offline/erro): soma de todos os eventos locais dessa data (inclui já sincronizados no bucket).
+ * Gravação em registerCountDelta usa o mesmo dayKey que loadCountEvents() (getActiveCountDateKey).
  */
 function getNetByProductAndType(productCode, countType) {
   const base = normalizeItemCode(productCode);
@@ -2091,6 +2094,15 @@ function parseOperationQtyFromInputEl(inp) {
   return n;
 }
 
+/** Mesmo fluxo do clique no botão + da linha (delegação existente em .count-products-shell). */
+function dispatchCountRowPlusClick(inp) {
+  if (!inp || !inp.classList?.contains('count-product-qty')) return;
+  const row = inp.closest('.count-control-row');
+  const plusBtn = row?.querySelector('.btn-count-adjust.btn-plus');
+  if (!plusBtn || plusBtn.disabled) return;
+  plusBtn.click();
+}
+
 /**
  * + soma o valor digitado ao total; − subtrai (mínimo 0). Input = quantidade da operação, não total absoluto.
  */
@@ -2138,7 +2150,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
     return;
   }
 
-  const dayKey = getBrazilDateKey();
+  const dayKey = getActiveCountDateKey();
   const events = loadCountEventsForDate(dayKey);
   const event = {
     client_event_id: makeEventId(),
@@ -2329,18 +2341,19 @@ function bindCountEvents() {
       const ref = inp.getAttribute('data-coderef') || '';
       const ct = inp.getAttribute('data-count-type') || 'caixa';
       tryConfirmExplicitZeroOnBlur(ref, ct);
+      if (parseOperationQtyFromInputEl(inp) != null) {
+        dispatchCountRowPlusClick(inp);
+      }
       refreshCountListAfterEdit();
     });
     countShell.addEventListener('keydown', (e) => {
       const inp = e.target;
       if (!inp.classList?.contains('count-product-qty')) return;
-      if (e.key !== 'Enter') return;
+      const isEnter = e.key === 'Enter' || e.key === 'NumpadEnter' || e.keyCode === 13;
+      if (!isEnter) return;
       e.preventDefault();
       e.stopPropagation();
-      const row = inp.closest('.count-control-row');
-      const plusBtn = row?.querySelector('.btn-count-adjust.btn-plus');
-      if (!plusBtn || plusBtn.disabled) return;
-      plusBtn.click();
+      dispatchCountRowPlusClick(inp);
     });
     countShell.addEventListener(
       'wheel',
@@ -2362,6 +2375,13 @@ function bindCountEvents() {
   window.addEventListener('offline', () => {
     updateNetworkStatus();
     setFeedback('Modo offline ativo. Continue contando normalmente.');
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (!navigator.onLine) return;
+    if (!getToken()) return;
+    loadServerCountTotals().then(() => refreshCountProductListView());
   });
 }
 
