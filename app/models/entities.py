@@ -274,6 +274,25 @@ class InventoryImportItem(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class ValidityLine(SQLModel, table=True):
+    """Lançamento de validade por produto (múltiplas linhas por item; dia operacional em SP)."""
+
+    __tablename__ = "validity_lines"
+    __table_args__ = ({"schema": "app_core"},)
+
+    id: int | None = Field(default=None, primary_key=True)
+    client_event_id: str = Field(max_length=100, index=True, unique=True)
+    cod_produto: str = Field(max_length=120, index=True)
+    expiration_date: date
+    quantity_un: int = Field(ge=0)
+    lot_code: str | None = Field(default=None, max_length=80)
+    note: str | None = Field(default=None, max_length=500)
+    operational_date: date = Field(index=True)
+    observed_at: datetime = Field(default_factory=utcnow)
+    device_name: str | None = Field(default=None, max_length=120)
+    actor_username: str | None = Field(default=None, max_length=120)
+
+
 class ChangeLog(SQLModel, table=True):
     __tablename__ = "change_log"
     __table_args__ = ({"schema": "audit"},)

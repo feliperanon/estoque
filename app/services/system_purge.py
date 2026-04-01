@@ -26,6 +26,7 @@ from app.models import (
     ImportJob,
     InventoryImport,
     InventoryImportItem,
+    ValidityLine,
     Product,
     ProductHistory,
     SourceMap,
@@ -51,6 +52,7 @@ _PURGE_MODELS: tuple[type, ...] = (
     ProductHistory,
     InventoryImport,
     InventoryImportItem,
+    ValidityLine,
     ImportJob,
     SourceMap,
     EmployeeSnapshot,
@@ -102,9 +104,10 @@ def purge_all_except_users(session: Session) -> dict[str, Any]:
     run_delete(DeliverySession, "delivery_sessions")
     run_delete(DriverVehicleAssignment, "driver_vehicle_assignments")
 
-    # 2) Importações de estoque TXT
+    # 2) Importações de estoque TXT e validades lançadas
     run_delete(InventoryImportItem, "inventory_import_items")
     run_delete(InventoryImport, "inventory_imports")
+    run_delete(ValidityLine, "validity_lines")
 
     # 3) Produtos
     run_delete(ProductHistory, "product_history")

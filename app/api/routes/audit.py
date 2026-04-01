@@ -15,7 +15,7 @@ from sqlmodel import Session, select
 
 from app.api.deps import require_roles, require_stock_analysis_access
 from app.db.session import get_session
-from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, User
+from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, User, ValidityLine
 from app.services.inventory_txt_parse import (
     extract_caixa_unidade_from_numeric_tail,
     extract_caixa_unidade_from_txt_tokens,
@@ -91,6 +91,58 @@ class CountEventInput(BaseModel):
 
 class CountEventsPayload(BaseModel):
     events: list[CountEventInput]
+
+
+class ValidityEventInput(BaseModel):
+    client_event_id: str = Field(min_length=8, max_length=100)
+    cod_produto: str = Field(min_length=1, max_length=120)
+    expiration_date: date
+    quantity_un: int = Field(ge=0, le=500_000)
+    lot_code: str | None = Field(default=None, max_length=80)
+    note: str | None = Field(default=None, max_length=500)
+    observed_at: str
+    device_name: str | None = Field(default=None, max_length=120)
+
+
+class ValidityEventsPayload(BaseModel):
+    events: list[ValidityEventInput]
+    reference_date: str | None = Field(
+        default=None,
+        description="YYYY-MM-DD da importação TXT usada para teto de UN (mesmo filtro da contagem).",
+    )
+
+
+def _un_balance_map_for_validity(session: Session, reference_date: date | None) -> dict[str, int]:
+    """Saldo UN agregado por código (última importação para a data informada)."""
+    current_import = None
+    if reference_date is not None:
+        current_import = session.exec(
+            select(InventoryImport)
+            .where(InventoryImport.reference_date == reference_date)
+            .order_by(InventoryImport.imported_at.desc())
+            .limit(1)
+        ).first()
+    else:
+        current_import = session.exec(
+            select(InventoryImport).order_by(InventoryImport.imported_at.desc()).limit(1)
+        ).first()
+
+    out: dict[str, int] = {}
+    if not current_import:
+        return out
+
+    import_items = list(
+        session.exec(
+            select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == current_import.id)
+        ).all()
+    )
+    for item in import_items:
+        code = _normalize_item_code(item.cod_produto)
+        if not code:
+            continue
+        _cx, un = _extract_import_quantities(item.metrics if isinstance(item.metrics, dict) else None)
+        out[code] = out.get(code, 0) + int(un)
+    return out
 
 
 def _normalize_item_code(value: str | None) -> str:
@@ -805,3 +857,169 @@ def ingest_count_events(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Falha ao sincronizar contagem: {exc}",
         )
+
+
+@router.get("/validity-lines")
+def list_validity_lines(
+    operational_date: str | None = Query(
+        default=None,
+        description="YYYY-MM-DD do dia operacional (America/Sao_Paulo). Padrão: hoje.",
+    ),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    d = _parse_iso_date_arg(operational_date) if operational_date else br_today
+    if d is None:
+        d = br_today
+    rows = list(
+        session.exec(
+            select(ValidityLine)
+            .where(ValidityLine.operational_date == d)
+            .order_by(ValidityLine.cod_produto, ValidityLine.expiration_date, ValidityLine.id)
+        ).all()
+    )
+    lines = []
+    for r in rows:
+        lines.append(
+            {
+                "id": r.id,
+                "client_event_id": r.client_event_id,
+                "cod_produto": r.cod_produto,
+                "expiration_date": r.expiration_date.isoformat(),
+                "quantity_un": int(r.quantity_un),
+                "lot_code": r.lot_code,
+                "note": r.note,
+                "operational_date": r.operational_date.isoformat(),
+                "observed_at": r.observed_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+                if r.observed_at
+                else None,
+                "device_name": r.device_name,
+                "actor_username": r.actor_username,
+            }
+        )
+    return {"operational_date": d.isoformat(), "lines": lines}
+
+
+@router.delete("/validity-lines/{line_id}", status_code=204)
+def delete_validity_line(
+    line_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> None:
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    row = session.get(ValidityLine, line_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Linha de validade nao encontrada")
+    if row.operational_date != br_today:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="So e permitido excluir lancamentos do dia corrente (America/Sao_Paulo).",
+        )
+    session.delete(row)
+    session.commit()
+
+
+@router.post("/validity-events")
+def ingest_validity_events(
+    payload: ValidityEventsPayload,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Sincroniza lançamentos de validade (idempotente por client_event_id)."""
+    synced_ids: list[str] = []
+    now_br = datetime.now(timezone.utc).astimezone(_BR)
+    br_today = now_br.date()
+
+    ref_d = _parse_iso_date_arg(payload.reference_date) if payload.reference_date else None
+    un_map = _un_balance_map_for_validity(session, ref_d)
+
+    # Quantidades já gravadas hoje por código (excluindo duplicatas de idempotência)
+    existing_by_code: dict[str, int] = {}
+    existing_rows = list(
+        session.exec(select(ValidityLine).where(ValidityLine.operational_date == br_today)).all()
+    )
+    for er in existing_rows:
+        c = _normalize_item_code(er.cod_produto)
+        if not c:
+            continue
+        existing_by_code[c] = existing_by_code.get(c, 0) + int(er.quantity_un)
+
+    # Novas quantidades por código neste batch (apenas eventos que virarão insert)
+    new_by_code: dict[str, int] = {}
+    events_to_insert: list[ValidityEventInput] = []
+
+    try:
+        for event in payload.events:
+            if event.quantity_un <= 0:
+                continue
+            dt_utc, br_date = _parse_and_validate_observed_at(event.observed_at)
+            if br_date != br_today:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Lancamento de validade apenas para o dia corrente (America/Sao_Paulo).",
+                )
+            code = _normalize_item_code(event.cod_produto)
+            if not code:
+                continue
+
+            dup = session.exec(
+                select(ValidityLine).where(ValidityLine.client_event_id == event.client_event_id)
+            ).first()
+            if dup:
+                synced_ids.append(event.client_event_id)
+                continue
+
+            events_to_insert.append(event)
+            new_by_code[code] = new_by_code.get(code, 0) + int(event.quantity_un)
+
+        # Valida teto UN quando há saldo importado para o código
+        for code, add_qty in new_by_code.items():
+            cap = un_map.get(code)
+            if cap is None:
+                continue
+            if cap <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Produto {code}: saldo UN zero na importacao; ajuste quantidades de validade.",
+                )
+            total_after = existing_by_code.get(code, 0) + add_qty
+            if total_after > cap:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Produto {code}: soma das quantidades por validade ({total_after} UN) "
+                        f"excede o saldo importado ({cap} UN)."
+                    ),
+                )
+
+        for event in events_to_insert:
+            dt_utc, br_date = _parse_and_validate_observed_at(event.observed_at)
+            code = _normalize_item_code(event.cod_produto)
+            row = ValidityLine(
+                client_event_id=event.client_event_id,
+                cod_produto=code,
+                expiration_date=event.expiration_date,
+                quantity_un=int(event.quantity_un),
+                lot_code=(event.lot_code or "").strip() or None,
+                note=(event.note or "").strip() or None,
+                operational_date=br_date,
+                observed_at=dt_utc.replace(tzinfo=timezone.utc),
+                device_name=event.device_name,
+                actor_username=user.username,
+            )
+            session.add(row)
+            synced_ids.append(event.client_event_id)
+
+        session.commit()
+        return {"received": len(payload.events), "synced": len(synced_ids), "synced_ids": synced_ids}
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Falha ao sincronizar validade")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Falha ao sincronizar validade: {exc}",
+        ) from exc

@@ -11,6 +11,7 @@ from app.models import (
     Product,
     ProductHistory,
     User,
+    ValidityLine,
 )
 from app.services.bootstrap import ensure_admin_user, ensure_database_ready
 
@@ -64,6 +65,7 @@ def _ensure_inventory_tables() -> None:
     for table in [
         InventoryImport.__table__,
         InventoryImportItem.__table__,
+        ValidityLine.__table__,
     ]:
         try:
             SQLModel.metadata.create_all(engine, tables=[table], checkfirst=True)
