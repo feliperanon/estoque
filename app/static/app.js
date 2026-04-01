@@ -2348,10 +2348,10 @@ function filterValidityProductsForView(products) {
   const rows = (products || []).map((p) => {
     const cod = normalizeItemCode(p.cod_produto || '');
     const lines = getMergedValidityLinesForProduct(cod);
-    const saldo = getValiditySaldoUn(cod);
+    const baseUn = getValidityBaseUn(cod);
     const classified = lines.reduce((s, l) => s + Math.max(0, Number(l.quantity_un) || 0), 0);
-    const over = saldo > 0 && classified > saldo;
-    return { product: p, cod, lines, saldo, classified, over };
+    const over = baseUn > 0 && classified > baseUn;
+    return { product: p, cod, lines, baseUn, classified, over };
   });
 
   return rows.filter((row) => {
@@ -2432,20 +2432,26 @@ function renderValidityProductList() {
     const cod = row.cod;
     const desc = escapeHtml((p.cod_grup_descricao || cod).trim());
     const lines = row.lines;
-    const saldo = row.saldo;
+    const baseUn = row.baseUn;
     const classified = row.classified;
-    const pend = Math.max(0, saldo - classified);
+    const pend = Math.max(0, baseUn - classified);
     const over = row.over;
+
+    const countCxUn = getValidityCountCxUn(cod);
+    const impCxUn = getValidityImportCxUn(cod);
+    const sourceChip = countCxUn
+      ? `<span class="validity-chip validity-chip--muted">Contagem: ${formatIntegerBR(countCxUn.cx)} CX · ${formatIntegerBR(countCxUn.un)} UN</span>`
+      : `<span class="validity-chip validity-chip--muted">Saldo TXT: ${formatIntegerBR(impCxUn.cx)} CX · ${formatIntegerBR(impCxUn.un)} UN</span>`;
 
     let statusChip = '<span class="validity-chip validity-chip--muted">Sem classificação</span>';
     if (lines.length) {
       statusChip = '<span class="validity-chip validity-chip--ok">Classificado parcial/total</span>';
     }
     if (over) {
-      statusChip = '<span class="validity-chip validity-chip--over">Soma &gt; saldo</span>';
+      statusChip = '<span class="validity-chip validity-chip--over">Soma &gt; base</span>';
     }
     if (lines.length && pend > 0) {
-      statusChip += ` <span class="validity-chip validity-chip--warn">${pend} UN sem lote/validade</span>`;
+      statusChip += ` <span class="validity-chip validity-chip--warn">${pend} UN sem classificar</span>`;
     }
 
     const linesHtml = lines.length
@@ -2466,13 +2472,12 @@ function renderValidityProductList() {
             return `<tr>
               <td>${escapeHtml(String(ln.expiration_date || '').slice(0, 10))}</td>
               <td>${formatIntegerBR(Math.max(0, Number(ln.quantity_un) || 0))}</td>
-              <td>${escapeHtml((ln.lot_code || '—').toString())}</td>
               <td>${rkLabel}</td>
               <td>${delBtn}</td>
             </tr>`;
           })
           .join('')
-      : '<tr><td colspan="5" class="muted">Nenhuma linha neste dia.</td></tr>';
+      : '<tr><td colspan="4" class="muted">Nenhuma linha neste dia.</td></tr>';
 
     const codRefEnc = enc(cod);
     const editable = isValidityOperationalEditable();
@@ -2480,10 +2485,6 @@ function renderValidityProductList() {
       ? `<div class="validity-add-row">
           <div class="validity-add-exp"><label class="sr-only" for="validity-exp-${codRefEnc}">Vencimento</label>
           <input type="date" class="count-filter-input validity-inp-exp" id="validity-exp-${codRefEnc}" data-coderef="${codRefEnc}" /></div>
-          <div><label class="sr-only" for="validity-qty-${codRefEnc}">Qtd UN</label>
-          <input type="number" min="1" step="1" class="count-filter-input validity-inp-qty" id="validity-qty-${codRefEnc}" data-coderef="${codRefEnc}" placeholder="UN" /></div>
-          <div><label class="sr-only" for="validity-lot-${codRefEnc}">Lote</label>
-          <input type="text" class="count-filter-input validity-inp-lot" id="validity-lot-${codRefEnc}" data-coderef="${codRefEnc}" placeholder="Lote (opc.)" /></div>
           <div><label class="sr-only" for="validity-note-${codRefEnc}">Obs.</label>
           <input type="text" class="count-filter-input validity-inp-note" id="validity-note-${codRefEnc}" data-coderef="${codRefEnc}" placeholder="Obs. (opc.)" /></div>
           <div class="validity-add-actions"><button type="button" class="btn btn-primary validity-btn-add" data-coderef="${codRefEnc}">Adicionar</button></div>
@@ -2499,13 +2500,13 @@ function renderValidityProductList() {
           <span class="validity-product-meta">
             <span class="validity-chip validity-chip--muted">Cód. ${escapeHtml(cod)}</span>
             ${statusChip}
-            <span class="validity-chip validity-chip--muted">Saldo ${formatIntegerBR(saldo)} UN</span>
+            ${sourceChip}
             <span class="validity-chip validity-chip--muted">Classif. ${formatIntegerBR(classified)} UN</span>
           </span>
         </summary>
         <div class="validity-product-body">
           <table class="validity-lines-table">
-            <thead><tr><th>Vencimento</th><th>Qtd UN</th><th>Lote</th><th>Faixa</th><th></th></tr></thead>
+            <thead><tr><th>Vencimento</th><th>Qtd UN</th><th>Faixa</th><th></th></tr></thead>
             <tbody>${linesHtml}</tbody>
           </table>
           ${addBlock}
@@ -2520,6 +2521,7 @@ function renderValidityProductList() {
 async function loadValidityModule() {
   showDashboard();
   await loadImportBalancesForValidity();
+  await loadServerCountTotalsForValidityDate();
   await loadValidityLinesFromServer();
   await loadValidityProductsCatalog();
   renderValidityProductList();
@@ -2531,21 +2533,30 @@ async function loadValidityModule() {
   }
 }
 
-function registerValidityLineLocal(codRaw, expirationDateStr, qty, lotStr, noteStr) {
+function registerValidityLineLocal(codRaw, expirationDateStr, noteStr) {
   if (!isValidityOperationalEditable()) {
     setValidityFeedback('Lancamento apenas na data de hoje (America/Sao_Paulo).', true);
     return;
   }
   const cod = normalizeItemCode(codRaw);
   if (!cod) return;
-  const q = Math.max(0, Math.round(Number(qty) || 0));
-  if (q <= 0) {
-    setValidityFeedback('Informe quantidade UN maior que zero.', true);
-    return;
-  }
   if (!expirationDateStr || String(expirationDateStr).trim().length < 8) {
     setValidityFeedback('Informe a data de vencimento.', true);
     return;
+  }
+  const baseUn = getValidityBaseUn(cod);
+  const remaining = computeRemainingUnForValidity(cod);
+  let q = remaining;
+  if (q <= 0) {
+    if (baseUn <= 0) {
+      q = 0;
+    } else {
+      setValidityFeedback(
+        'Sem UN restantes para nova linha (base da contagem/TXT). Remova ou ajuste linhas existentes.',
+        true,
+      );
+      return;
+    }
   }
   const dayKey = getActiveValidityOpDateKey();
   const events = loadValidityEventsForDate(dayKey);
@@ -2554,7 +2565,7 @@ function registerValidityLineLocal(codRaw, expirationDateStr, qty, lotStr, noteS
     cod_produto: cod,
     expiration_date: String(expirationDateStr).slice(0, 10),
     quantity_un: q,
-    lot_code: (lotStr || '').trim() || null,
+    lot_code: null,
     note: (noteStr || '').trim() || null,
     observed_at: new Date().toISOString(),
     synced: false,
@@ -2563,7 +2574,8 @@ function registerValidityLineLocal(codRaw, expirationDateStr, qty, lotStr, noteS
   };
   events.push(ev);
   saveValidityEventsForDate(dayKey, events);
-  setValidityFeedback(`Validade ${ev.expiration_date} · ${q} UN gravada localmente. Sincronize quando estiver online.`, false);
+  const qMsg = q > 0 ? `${q} UN` : 'apenas data (sem UN na base)';
+  setValidityFeedback(`Validade ${ev.expiration_date} · ${qMsg} gravada localmente. Sincronize quando estiver online.`, false);
   renderValidityProductList();
   const pending = flattenValidityPendingAll().filter((e) => !e.synced).length;
   const badge = document.getElementById('validity-pending-badge');
@@ -2704,6 +2716,7 @@ function bindValidityEvents() {
   if (opDate) {
     opDate.addEventListener('change', async () => {
       await loadImportBalancesForValidity();
+      await loadServerCountTotalsForValidityDate();
       await loadValidityLinesFromServer();
       renderValidityProductList();
     });
@@ -2720,13 +2733,9 @@ function bindValidityEvents() {
         const codRefEnc = addBtn.getAttribute('data-coderef') || '';
         const cod = normalizeItemCode(decodeURIComponent(codRefEnc));
         const expEl = document.getElementById(`validity-exp-${codRefEnc}`);
-        const qtyEl = document.getElementById(`validity-qty-${codRefEnc}`);
-        const lotEl = document.getElementById(`validity-lot-${codRefEnc}`);
         const noteEl = document.getElementById(`validity-note-${codRefEnc}`);
-        registerValidityLineLocal(cod, expEl && expEl.value, qtyEl && qtyEl.value, lotEl && lotEl.value, noteEl && noteEl.value);
+        registerValidityLineLocal(cod, expEl && expEl.value, noteEl && noteEl.value);
         if (expEl) expEl.value = '';
-        if (qtyEl) qtyEl.value = '';
-        if (lotEl) lotEl.value = '';
         if (noteEl) noteEl.value = '';
         return;
       }

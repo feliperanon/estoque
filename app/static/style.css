@@ -4831,17 +4831,14 @@ body.sidebar-drawer-open {
 }
 .validity-add-row {
   display: grid;
-  grid-template-columns: 1fr 88px 1fr 1fr auto;
+  grid-template-columns: minmax(140px, 1fr) 1fr auto;
   gap: 8px;
   align-items: end;
   margin-top: 8px;
 }
 @media (max-width: 720px) {
   .validity-add-row {
-    grid-template-columns: 1fr 1fr;
-  }
-  .validity-add-row .validity-add-exp {
-    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
   }
   .validity-add-row .validity-add-actions {
     grid-column: 1 / -1;

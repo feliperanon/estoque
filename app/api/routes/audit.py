@@ -968,6 +968,16 @@ def ingest_validity_events(
 
     ref_d = _parse_iso_date_arg(payload.reference_date) if payload.reference_date else None
     un_map = _un_balance_map_for_validity(session, ref_d)
+    count_day = ref_d if ref_d is not None else br_today
+    counted_by_code = _aggregate_count_events_by_code(session, count_on_date=count_day)
+
+    def _validity_un_cap(code: str) -> int:
+        c = _normalize_item_code(code)
+        if not c:
+            return 0
+        if c in counted_by_code:
+            return int(counted_by_code[c].get("unidade", 0))
+        return int(un_map.get(c, 0))
 
     # Quantidades já gravadas hoje por código (excluindo duplicatas de idempotência)
     existing_by_code: dict[str, int] = {}
@@ -1008,25 +1018,23 @@ def ingest_validity_events(
             events_to_insert.append(event)
             new_by_code[code] = new_by_code.get(code, 0) + int(event.quantity_un)
 
-        # Teto UN apenas para códigos presentes na importação usada como referência
+        # Teto UN: contagem do dia (se existir evento para o código) senão saldo UN do TXT da referência
         for code, add_qty in new_by_code.items():
             if add_qty <= 0:
                 continue
-            if code not in un_map:
-                continue
-            cap = un_map[code]
+            cap = _validity_un_cap(code)
             total_after = existing_by_code.get(code, 0) + add_qty
             if cap <= 0 and total_after > 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Produto {code}: saldo UN zero na importacao; nao e possivel classificar quantidade.",
+                    detail=f"Produto {code}: base UN zero (contagem/TXT); nao e possivel classificar quantidade.",
                 )
             if cap > 0 and total_after > cap:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=(
                         f"Produto {code}: soma das quantidades por validade ({total_after} UN) "
-                        f"excede o saldo importado ({cap} UN)."
+                        f"excede a base ({cap} UN) da contagem ou do TXT."
                     ),
                 )
 
