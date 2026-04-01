@@ -4679,9 +4679,176 @@ function syncCountAuditListSelection() {
   });
 }
 
+function buildCountAuditHistoryHtml(history) {
+  return history.length
+    ? history.map((entry) => (
+      `<li class="count-audit-history-item">` +
+        `<div class="count-audit-history-topline">` +
+          `<strong>${escapeHtml(entry.actor || 'Equipe')}</strong>` +
+          `<span>${escapeHtml(formatAuditRelativeTime(entry.observed_at || entry.changed_at || ''))}</span>` +
+        `</div>` +
+        `<div class="count-audit-history-values">` +
+          `${entry.count_type === 'unidade' ? 'UN' : 'CX'} ${formatSignedIntegerBR(entry.quantity_delta)} · ${formatIntegerBR(entry.previous_value)} → ${formatIntegerBR(entry.current_value)}` +
+        `</div>` +
+        `<div class="count-audit-history-note">` +
+          `CX ${formatIntegerBR(entry.previous_caixa)} → ${formatIntegerBR(entry.current_caixa)} · UN ${formatIntegerBR(entry.previous_unidade)} → ${formatIntegerBR(entry.current_unidade)}${entry.device_name ? ` · ${escapeHtml(entry.device_name)}` : ''}` +
+        `</div>` +
+      `</li>`
+    )).join('')
+    : '<li class="count-audit-history-item"><div class="count-audit-history-note">Nenhum lançamento sincronizado para este item na data operacional da análise.</div></li>';
+}
+
+function buildCountAuditTrailHtml(row, meta, importInfo, actors, devices) {
+  return [
+    ['Base de comparação', importInfo.id == null ? 'Saldo sintético / fallback sem TXT' : `${formatDateBR(importInfo.reference_date || '')} · ${importInfo.file_name || 'TXT'}`],
+    ['Divergência calculada', `CX ${formatSignedIntegerBR(row.difference_caixa)} · UN ${formatSignedIntegerBR(row.difference_unidade)} · |Dif| ${formatIntegerBR(meta.diffAbs || 0)}`],
+    ['Observação automática', meta.insight || 'Sem observação automática.'],
+    ['Quem lançou', actors.length ? actors.join(', ') : 'Sem ator identificado'],
+    ['Dispositivos', devices.length ? devices.join(', ') : 'Sem dispositivo identificado'],
+  ].map(([label, value]) => (
+    `<li class="count-audit-trail-item">` +
+      `<div class="count-audit-trail-topline"><strong>${label}</strong></div>` +
+      `<div class="count-audit-trail-note">${escapeHtml(value)}</div>` +
+    `</li>`
+  )).join('');
+}
+
+function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = false) {
+  const meta = row._auditMeta || {};
+  const importInfo = detail?.import || countAuditState.importInfo || {};
+  const history = Array.isArray(detail?.history) ? detail.history : [];
+  const actors = Array.isArray(detail?.summary?.actors) ? detail.summary.actors : [];
+  const devices = Array.isArray(detail?.summary?.devices) ? detail.summary.devices : [];
+  const launches = detail?.summary?.launches || 0;
+  const code = String(row.cod_produto || '');
+  const shellClass = compact ? 'count-audit-detail-shell count-audit-detail-shell--compact' : 'count-audit-detail-shell';
+  const historyTitle = compact ? 'Histórico' : 'Histórico de lançamentos';
+  const trailTitle = compact ? 'Trilha' : 'Trilha de auditoria';
+  const trailSubtitle = compact ? 'Contexto do item' : 'Contexto para validação e decisão';
+  const recountLabel = compact ? 'Recontagem' : 'Abrir recontagem';
+  const refreshLabel = compact ? 'Atualizar' : 'Atualizar detalhe';
+
+  return (
+    `<div class="${shellClass}">` +
+      `<section class="count-audit-detail-hero">` +
+        `<div class="count-audit-detail-hero-top">` +
+          `<div>` +
+            `<h4 class="count-audit-detail-title">${escapeHtml(row.descricao || 'Sem descrição')}</h4>` +
+            `<div class="count-audit-detail-subtitle">Código ${escapeHtml(code || '-')} · Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</div>` +
+          `</div>` +
+          `<div class="count-audit-detail-pill-row">` +
+            `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
+            `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
+          `</div>` +
+        `</div>` +
+        `<div class="count-audit-detail-grid">` +
+          `<article class="count-audit-detail-metric"><span>Base / TXT</span><strong>${formatIntegerBR(Number(row.import_caixa) || 0)} CX / ${formatIntegerBR(Number(row.import_unidade) || 0)} UN</strong><small>${importInfo.id == null ? 'Fallback sem TXT' : (importInfo.file_name || 'Base importada')}</small></article>` +
+          `<article class="count-audit-detail-metric"><span>Contagem atual</span><strong>${formatIntegerBR(Number(row.counted_caixa) || 0)} CX / ${formatIntegerBR(Number(row.counted_unidade) || 0)} UN</strong><small>${launches} lançamento(s) sincronizado(s)</small></article>` +
+          `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
+          `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
+        `</div>` +
+      `</section>` +
+      `${isLoading ? '<div class="count-audit-detail-loading">Carregando trilha detalhada deste item...</div>' : ''}` +
+      `<section class="count-audit-detail-section">` +
+        `<div class="count-audit-detail-section-head"><h4>${historyTitle}</h4><span>${launches} registro(s) no dia operacional</span></div>` +
+        `<ul class="count-audit-history-list">${buildCountAuditHistoryHtml(history)}</ul>` +
+      `</section>` +
+      `<section class="count-audit-detail-section">` +
+        `<div class="count-audit-detail-section-head"><h4>${trailTitle}</h4><span>${trailSubtitle}</span></div>` +
+        `<ul class="count-audit-trail-list">${buildCountAuditTrailHtml(row, meta, importInfo, actors, devices)}</ul>` +
+      `</section>` +
+      `<div class="count-audit-detail-actions">` +
+        `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-audit-recount="${encodeURIComponent(code)}">${recountLabel}</button>` +
+        `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-audit-refresh-detail="${encodeURIComponent(code)}">${refreshLabel}</button>` +
+        `${compact ? `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-action="collapse" data-code="${encodeURIComponent(code)}">Fechar</button>` : ''}` +
+      `</div>` +
+    `</div>`
+  );
+}
+
+function renderCountAuditDesktopRowMarkup(row) {
+  const meta = row._auditMeta || {};
+  const code = String(row.cod_produto || '');
+  return (
+    `<li class="count-audit-item" data-state="${meta.stateKey}" data-code="${escapeHtml(code)}">` +
+      `<div class="count-audit-row">` +
+        `<div class="count-audit-cell count-audit-cell--product">` +
+          `<button type="button" class="count-audit-row-select" data-action="select" data-code="${encodeURIComponent(code)}">` +
+            `<div class="count-audit-row-topline">` +
+              `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
+              `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
+              `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
+            `</div>` +
+            `<strong class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</strong>` +
+            `<div class="count-audit-row-meta">` +
+              `<span>Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</span>` +
+              `<span>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</span>` +
+            `</div>` +
+          `</button>` +
+        `</div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><strong class="count-audit-cell-value">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><span class="count-audit-cell-note">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</span></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span><strong class="count-audit-cell-value">CX ${formatIntegerBR(Number(row.counted_caixa) || 0)}</strong><span class="count-audit-cell-note">UN ${formatIntegerBR(Number(row.counted_unidade) || 0)}</span></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><strong class="count-audit-diff-total">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong><div class="count-audit-diff-breakdown"><span>CX ${formatSignedIntegerBR(meta.diffCx || 0)}</span><span>UN ${formatSignedIntegerBR(meta.diffUn || 0)}</span></div></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
+        `<div class="count-audit-cell count-audit-cell--detail"><button type="button" class="btn-secondary btn-small count-audit-detail-btn" data-action="detail" data-code="${encodeURIComponent(code)}">Detalhe</button></div>` +
+      `</div>` +
+    `</li>`
+  );
+}
+
+function renderCountAuditMobileMissingBucketMarkup(hiddenMissingCount, totalMissingCount) {
+  const showingAll = !!countAuditState.showAllMissingMobile;
+  const label = showingAll ? 'Resumir lista' : 'Mostrar todos';
+  const action = showingAll ? 'hide-missing' : 'show-missing';
+  const headline = showingAll
+    ? `Todos os ${formatIntegerBR(totalMissingCount)} itens sem contagem estão visíveis.`
+    : `${formatIntegerBR(hiddenMissingCount)} itens sem contagem foram resumidos.`;
+  const note = showingAll
+    ? 'Use a lista completa para varrer todo o bloco pendente.'
+    : 'A fila prioriza primeiro os itens com mais contexto e deixa a massa repetitiva sob demanda.';
+  return (
+    `<li class="count-audit-mobile-missing-bucket">` +
+      `<strong>${headline}</strong>` +
+      `<span>${note}</span>` +
+      `<button type="button" class="btn-secondary count-audit-mobile-missing-toggle" data-action="${action}" data-code="__missing__">${label}</button>` +
+    `</li>`
+  );
+}
+
+function renderCountAuditMobileRowMarkup(row) {
+  const meta = row._auditMeta || {};
+  const code = String(row.cod_produto || '');
+  const isExpanded = String(countAuditState.selectedCode || '') === code;
+  const detail = getCountAuditCachedDetail(code);
+  const isLoading = isExpanded && String(countAuditState.loadingDetailCode || '') === code && !detail;
+
+  return (
+    `<li class="count-audit-item" data-state="${meta.stateKey}" data-code="${escapeHtml(code)}">` +
+      `<div class="count-audit-mobile-row">` +
+        `<button type="button" class="count-audit-mobile-select" data-action="select" data-code="${encodeURIComponent(code)}">` +
+          `<div class="count-audit-mobile-topline">` +
+            `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
+            `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
+            `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
+          `</div>` +
+          `<strong class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</strong>` +
+          `<div class="count-audit-mobile-summary">` +
+            `<strong class="count-audit-mobile-diff">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong>` +
+            `<span class="count-audit-mobile-action">${escapeHtml(getCountAuditCompactActionLabel(meta))}</span>` +
+          `</div>` +
+        `</button>` +
+        `<button type="button" class="btn-secondary count-audit-mobile-detail-toggle" data-action="toggle" data-code="${encodeURIComponent(code)}">${isExpanded ? 'Ocultar detalhe' : 'Ver detalhe'}</button>` +
+      `</div>` +
+      `${isExpanded ? `<div class="count-audit-mobile-inline-detail">${buildCountAuditDetailMarkup(row, detail, isLoading, true)}</div>` : ''}` +
+    `</li>`
+  );
+}
+
 function renderCountAuditRows(rows) {
   if (!countAuditList) return;
   const previousSelectedCode = String(countAuditState.selectedCode || '');
+  const isMobile = isCountAuditMobileViewport();
   let list = Array.isArray(rows) ? rows.slice() : [];
   if (countAuditSummaryFilterKey) {
     list = list.filter((row) => matchesCountAuditSummaryFilter(row, countAuditSummaryFilterKey));
@@ -4711,15 +4878,21 @@ function renderCountAuditRows(rows) {
   if (filters.onlyDiff) list = list.filter((row) => row._auditMeta?.isDivergent);
 
   sortCountAuditRowsForDisplay(list);
+  const filteredCount = list.length;
+  const mobileCompaction = compactMissingRowsForMobile(list, filters);
+  const displayList = mobileCompaction.rows;
 
-  if (countAuditTotal) countAuditTotal.textContent = formatIntegerBR(list.length);
+  if (countAuditTotal) countAuditTotal.textContent = formatIntegerBR(filteredCount);
   if (countAuditRangeInfo) {
     const loaded = getCountAuditRowsFromState().length;
     const limited = loaded >= 5000 ? ' Top 5.000 priorizados carregados.' : '';
-    countAuditRangeInfo.textContent = `Exibindo ${formatIntegerBR(list.length)} de ${formatIntegerBR(loaded)} itens carregados.${limited}`;
+    const compactedNote = mobileCompaction.hiddenMissingCount > 0
+      ? ` ${formatIntegerBR(mobileCompaction.hiddenMissingCount)} sem contagem foram resumidos.`
+      : '';
+    countAuditRangeInfo.textContent = `Exibindo ${formatIntegerBR(displayList.length)} de ${formatIntegerBR(loaded)} itens carregados.${compactedNote}${limited}`;
   }
 
-  if (!list.length) {
+  if (!displayList.length) {
     countAuditList.innerHTML = '<li class="count-audit-empty"><span>Nenhum item corresponde aos filtros atuais.</span><strong>—</strong></li>';
     countAuditState.selectedCode = null;
     syncCountAuditListSelection();
@@ -4727,44 +4900,37 @@ function renderCountAuditRows(rows) {
     return;
   }
 
-  if (!countAuditState.selectedCode || !list.some((row) => String(row.cod_produto || '') === String(countAuditState.selectedCode))) {
-    countAuditState.selectedCode = String(list[0].cod_produto || '');
+  if (isMobile) {
+    if (!displayList.some((row) => String(row.cod_produto || '') === String(countAuditState.selectedCode || ''))) {
+      countAuditState.selectedCode = null;
+    }
+  } else if (!countAuditState.selectedCode || !displayList.some((row) => String(row.cod_produto || '') === String(countAuditState.selectedCode))) {
+    countAuditState.selectedCode = String(displayList[0].cod_produto || '');
   }
 
-  countAuditList.innerHTML = list.map((row) => {
-    const meta = row._auditMeta || {};
-    const code = String(row.cod_produto || '');
-    return (
-      `<li class="count-audit-item" data-state="${meta.stateKey}" data-code="${escapeHtml(code)}">` +
-        `<div class="count-audit-row">` +
-          `<div class="count-audit-cell count-audit-cell--product">` +
-            `<button type="button" class="count-audit-row-select" data-action="select" data-code="${encodeURIComponent(code)}">` +
-              `<div class="count-audit-row-topline">` +
-                `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
-                `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
-                `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
-              `</div>` +
-              `<strong class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</strong>` +
-              `<div class="count-audit-row-meta">` +
-                `<span>Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</span>` +
-                `<span>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</span>` +
-              `</div>` +
-            `</button>` +
-          `</div>` +
-          `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><strong class="count-audit-cell-value">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><span class="count-audit-cell-note">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</span></div>` +
-          `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span><strong class="count-audit-cell-value">CX ${formatIntegerBR(Number(row.counted_caixa) || 0)}</strong><span class="count-audit-cell-note">UN ${formatIntegerBR(Number(row.counted_unidade) || 0)}</span></div>` +
-          `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><strong class="count-audit-diff-total">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong><div class="count-audit-diff-breakdown"><span>CX ${formatSignedIntegerBR(meta.diffCx || 0)}</span><span>UN ${formatSignedIntegerBR(meta.diffUn || 0)}</span></div></div>` +
-          `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
-          `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
-          `<div class="count-audit-cell count-audit-cell--detail"><button type="button" class="btn-secondary btn-small count-audit-detail-btn" data-action="detail" data-code="${encodeURIComponent(code)}">Detalhe</button></div>` +
-        `</div>` +
-      `</li>`
-    );
-  }).join('');
+  const html = [];
+  displayList.forEach((row, index) => {
+    if (
+      isMobile
+      && mobileCompaction.compacted
+      && mobileCompaction.totalMissingCount > 8
+      && index === mobileCompaction.nonMissingCount
+    ) {
+      html.push(renderCountAuditMobileMissingBucketMarkup(
+        mobileCompaction.hiddenMissingCount,
+        mobileCompaction.totalMissingCount,
+      ));
+    }
+    html.push(isMobile ? renderCountAuditMobileRowMarkup(row) : renderCountAuditDesktopRowMarkup(row));
+  });
+
+  countAuditList.innerHTML = html.join('');
 
   syncCountAuditListSelection();
-  if (String(countAuditState.selectedCode || '') !== previousSelectedCode) {
+  if (countAuditState.selectedCode && String(countAuditState.selectedCode || '') !== previousSelectedCode) {
     selectCountAuditRow(String(countAuditState.selectedCode || ''));
+  } else if (!countAuditState.selectedCode) {
+    renderCountAuditDetailEmpty();
   }
 }
 
@@ -4781,79 +4947,11 @@ function renderCountAuditDetailEmpty(message = 'Selecione um item da fila para a
 function renderCountAuditDetailShell(row, detail, isLoading = false) {
   if (!countAuditDetailPanel || !row) return;
   const meta = row._auditMeta || {};
-  const importInfo = detail?.import || countAuditState.importInfo || {};
-  const history = Array.isArray(detail?.history) ? detail.history : [];
-  const actors = Array.isArray(detail?.summary?.actors) ? detail.summary.actors : [];
-  const devices = Array.isArray(detail?.summary?.devices) ? detail.summary.devices : [];
 
   if (countAuditDetailStatus) {
     countAuditDetailStatus.textContent = meta.stateLabel || 'Detalhe';
   }
-
-  const historyHtml = history.length
-    ? history.map((entry) => (
-      `<li class="count-audit-history-item">` +
-        `<div class="count-audit-history-topline">` +
-          `<strong>${escapeHtml(entry.actor || 'Equipe')}</strong>` +
-          `<span>${escapeHtml(formatAuditRelativeTime(entry.observed_at || entry.changed_at || ''))}</span>` +
-        `</div>` +
-        `<div class="count-audit-history-values">` +
-          `${entry.count_type === 'unidade' ? 'UN' : 'CX'} ${formatSignedIntegerBR(entry.quantity_delta)} · ${formatIntegerBR(entry.previous_value)} → ${formatIntegerBR(entry.current_value)}` +
-        `</div>` +
-        `<div class="count-audit-history-note">` +
-          `CX ${formatIntegerBR(entry.previous_caixa)} → ${formatIntegerBR(entry.current_caixa)} · UN ${formatIntegerBR(entry.previous_unidade)} → ${formatIntegerBR(entry.current_unidade)}${entry.device_name ? ` · ${escapeHtml(entry.device_name)}` : ''}` +
-        `</div>` +
-      `</li>`
-    )).join('')
-    : '<li class="count-audit-history-item"><div class="count-audit-history-note">Nenhum lançamento sincronizado para este item na data operacional da análise.</div></li>';
-
-  const trailHtml = [
-    ['Base de comparação', importInfo.id == null ? 'Saldo sintético / fallback sem TXT' : `${formatDateBR(importInfo.reference_date || '')} · ${importInfo.file_name || 'TXT'}`],
-    ['Divergência calculada', `CX ${formatSignedIntegerBR(row.difference_caixa)} · UN ${formatSignedIntegerBR(row.difference_unidade)} · |Dif| ${formatIntegerBR(meta.diffAbs || 0)}`],
-    ['Observação automática', meta.insight || 'Sem observação automática.'],
-    ['Quem lançou', actors.length ? actors.join(', ') : 'Sem ator identificado'],
-    ['Dispositivos', devices.length ? devices.join(', ') : 'Sem dispositivo identificado'],
-  ].map(([label, value]) => (
-    `<li class="count-audit-trail-item">` +
-      `<div class="count-audit-trail-topline"><strong>${label}</strong></div>` +
-      `<div class="count-audit-trail-note">${escapeHtml(value)}</div>` +
-    `</li>`
-  )).join('');
-
-  countAuditDetailPanel.innerHTML =
-    `<div class="count-audit-detail-shell">` +
-      `<section class="count-audit-detail-hero">` +
-        `<div class="count-audit-detail-hero-top">` +
-          `<div>` +
-            `<h4 class="count-audit-detail-title">${escapeHtml(row.descricao || 'Sem descrição')}</h4>` +
-            `<div class="count-audit-detail-subtitle">Código ${escapeHtml(String(row.cod_produto || '-'))} · Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</div>` +
-          `</div>` +
-          `<div class="count-audit-detail-pill-row">` +
-            `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
-            `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
-          `</div>` +
-        `</div>` +
-        `<div class="count-audit-detail-grid">` +
-          `<article class="count-audit-detail-metric"><span>Base / TXT</span><strong>${formatIntegerBR(Number(row.import_caixa) || 0)} CX / ${formatIntegerBR(Number(row.import_unidade) || 0)} UN</strong><small>${importInfo.id == null ? 'Fallback sem TXT' : (importInfo.file_name || 'Base importada')}</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Contagem atual</span><strong>${formatIntegerBR(Number(row.counted_caixa) || 0)} CX / ${formatIntegerBR(Number(row.counted_unidade) || 0)} UN</strong><small>${detail?.summary?.launches || 0} lançamento(s) sincronizado(s)</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
-        `</div>` +
-      `</section>` +
-      `${isLoading ? '<div class="count-audit-detail-loading">Carregando trilha detalhada deste item...</div>' : ''}` +
-      `<section class="count-audit-detail-section">` +
-        `<div class="count-audit-detail-section-head"><h4>Histórico de lançamentos</h4><span>${detail?.summary?.launches || 0} registro(s) no dia operacional</span></div>` +
-        `<ul class="count-audit-history-list">${historyHtml}</ul>` +
-      `</section>` +
-      `<section class="count-audit-detail-section">` +
-        `<div class="count-audit-detail-section-head"><h4>Trilha de auditoria</h4><span>Contexto para validação e decisão</span></div>` +
-        `<ul class="count-audit-trail-list">${trailHtml}</ul>` +
-      `</section>` +
-      `<div class="count-audit-detail-actions">` +
-        `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-audit-recount="${encodeURIComponent(String(row.cod_produto || ''))}">Abrir recontagem</button>` +
-        `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-audit-refresh-detail="${encodeURIComponent(String(row.cod_produto || ''))}">Atualizar detalhe</button>` +
-      `</div>` +
-    `</div>`;
+  countAuditDetailPanel.innerHTML = buildCountAuditDetailMarkup(row, detail, isLoading, false);
 }
 
 async function loadCountAuditDetail(code, forceReload = false) {
