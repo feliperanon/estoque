@@ -247,6 +247,9 @@ const API_LAST_COUNT_PER_PRODUCT = '/audit/last-count-per-product';
 const API_VALIDITY_EVENTS = '/audit/validity-events';
 const API_VALIDITY_LINES = '/audit/validity-lines';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
+const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
+/** Dias sem nova contagem para considerar a base "antiga" (painel analítico). */
+const VALIDITY_OLD_BASE_DAYS = 14;
 const API_PRODUCTS = '/products';
 /** Alinhado ao `le` em GET /products e /products/catalog (products.py). */
 const PRODUCTS_LIST_LIMIT = 20000;
@@ -2110,6 +2113,8 @@ function getMergedValidityLinesForProduct(codRaw) {
     note: e.note || null,
     operational_date: e.operational_day || op,
     observed_at: e.observed_at,
+    device_name: e.device_name || null,
+    actor_username: null,
     _local: true,
   }));
   return [...server, ...localNorm];
@@ -2160,6 +2165,179 @@ function validityRiskChipClass(cat) {
   if (cat === 'd60' || cat === 'd90') return 'validity-chip validity-chip--warn';
   if (cat === 'd120' || cat === 'd150' || cat === 'd180') return 'validity-chip validity-chip--soft';
   return 'validity-chip validity-chip--muted';
+}
+
+function formatDateTimeBr(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(String(iso).trim());
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Sao_Paulo',
+    });
+  } catch {
+    return '—';
+  }
+}
+
+function countBaseAgeDays(countDateIso, todayBr) {
+  if (!countDateIso || !todayBr) return null;
+  const c = String(countDateIso).slice(0, 10);
+  const a = new Date(`${c}T12:00:00`);
+  const b = new Date(`${todayBr}T12:00:00`);
+  return Math.round((b - a) / 86400000);
+}
+
+function formatCountBaseAgeLabel(ageDays) {
+  if (ageDays === null || ageDays < 0) return '—';
+  if (ageDays === 0) return 'Hoje';
+  if (ageDays === 1) return 'Ontem';
+  if (ageDays < 30) return `${ageDays} dias`;
+  if (ageDays < 60) return `${ageDays} dias`;
+  return `${ageDays} dias`;
+}
+
+function isValidityCountBaseOld(countDateIso, todayBr) {
+  const d = countBaseAgeDays(countDateIso, todayBr);
+  return d !== null && d > VALIDITY_OLD_BASE_DAYS;
+}
+
+const VALIDITY_RISK_ORDER = {
+  expired: 0,
+  d30: 1,
+  d60: 2,
+  d90: 3,
+  d120: 4,
+  d150: 5,
+  d180: 6,
+  ok: 7,
+  none: 8,
+  unknown: 9,
+};
+
+function worstValidityRiskAmongLines(lines, todayBr) {
+  if (!lines || !lines.length) return 'none';
+  let worst = 'ok';
+  let wo = VALIDITY_RISK_ORDER.ok;
+  for (const ln of lines) {
+    const c = validityRiskCategory(ln.expiration_date, todayBr);
+    if (c === 'unknown') continue;
+    const o = VALIDITY_RISK_ORDER[c] ?? 99;
+    if (o < wo) {
+      wo = o;
+      worst = c;
+    }
+  }
+  return worst;
+}
+
+function earliestExpirationLine(lines) {
+  if (!lines || !lines.length) return null;
+  const sorted = [...lines].sort((a, b) =>
+    String(a.expiration_date || '').localeCompare(String(b.expiration_date || '')),
+  );
+  return sorted[0];
+}
+
+function validityStatusMainShort(worst, hasLines, hasSnap) {
+  if (!hasLines) return { key: 'no_validity', label: 'Sem validade' };
+  if (!hasSnap) return { key: 'no_count', label: 'Sem contagem' };
+  const m = {
+    expired: 'Vencido',
+    d30: 'Crítico',
+    d60: 'Muito alto',
+    d90: 'Alto',
+    d120: 'Atenção',
+    d150: 'Monitorar',
+    d180: 'Controle próximo',
+    ok: 'Confortável',
+    none: '—',
+  };
+  return { key: worst, label: m[worst] || worst };
+}
+
+function validityRecommendedAction(row, todayBr) {
+  const { lines, cod } = row;
+  const snap = getValidityLastCountSnapshot(cod);
+  if (!lines.length) {
+    return { key: 'launch', tone: 'neutral', label: 'Lançar datas de validade' };
+  }
+  if (!snap) {
+    return { key: 'no_count', tone: 'warn', label: 'Conferir estoque (sem contagem)' };
+  }
+  if (isValidityCountBaseOld(snap.countDate, todayBr)) {
+    return { key: 'old_base', tone: 'warn', label: 'Revisar base de contagem' };
+  }
+  const w = worstValidityRiskAmongLines(lines, todayBr);
+  if (w === 'expired' || w === 'd30') {
+    return { key: 'act_today', tone: 'danger', label: 'Agir hoje' };
+  }
+  if (w === 'd60' || w === 'd90') {
+    return { key: 'rotate', tone: 'warn', label: 'Priorizar giro' };
+  }
+  if (w === 'd120' || w === 'd150' || w === 'd180') {
+    return { key: 'monitor', tone: 'soft', label: 'Monitorar' };
+  }
+  return { key: 'calm', tone: 'muted', label: 'Sem urgência' };
+}
+
+function validityCardTone(worst, hasLines, hasSnap, baseOld) {
+  if (!hasLines) return 'novalidity';
+  if (!hasSnap) return 'nocount';
+  if (baseOld) return 'oldbase';
+  if (worst === 'expired' || worst === 'd30') return 'danger';
+  if (worst === 'd60' || worst === 'd90') return 'warn';
+  if (worst === 'd120' || worst === 'd150' || worst === 'd180') return 'soft';
+  return 'calm';
+}
+
+function validityPriorityScore(row, todayBr) {
+  const snap = getValidityLastCountSnapshot(row.cod);
+  const lines = row.lines;
+  if (!lines.length) return 45;
+  if (!snap) return 5;
+  if (isValidityCountBaseOld(snap.countDate, todayBr)) return 12;
+  const w = worstValidityRiskAmongLines(lines, todayBr);
+  const map = {
+    expired: 0,
+    d30: 1,
+    d60: 2,
+    d90: 3,
+    d120: 4,
+    d150: 5,
+    d180: 6,
+    ok: 50,
+  };
+  return map[w] ?? 30;
+}
+
+function touchValidityLastSync() {
+  try {
+    localStorage.setItem(VALIDITY_LAST_SYNC_KEY, new Date().toISOString());
+  } catch {
+    /* ignore */
+  }
+}
+
+function formatValidityLastSyncDisplay() {
+  try {
+    const raw = localStorage.getItem(VALIDITY_LAST_SYNC_KEY);
+    if (!raw) return 'Nunca';
+    return formatDateTimeBr(raw);
+  } catch {
+    return '—';
+  }
+}
+
+function buildValidityRowForProduct(p) {
+  const cod = normalizeItemCode(p.cod_produto || '');
+  const lines = getMergedValidityLinesForProduct(cod);
+  return { product: p, cod, lines };
 }
 
 async function loadValidityLinesFromServer() {
@@ -2243,8 +2421,7 @@ function updateValidityReadonlyState() {
   }
 }
 
-function updateValidityKpis(productRows) {
-  const todayBr = getBrazilDateKey();
+function updateValidityKpis(allRows, todayBr) {
   let withLine = 0;
   let without = 0;
   let expired = 0;
@@ -2254,11 +2431,16 @@ function updateValidityKpis(productRows) {
   let c120 = 0;
   let c150 = 0;
   let c180 = 0;
+  let productsOldBase = 0;
+  let productsNoCount = 0;
 
-  for (const row of productRows) {
+  for (const row of allRows) {
     const lines = row.lines || [];
     if (lines.length) withLine += 1;
     else without += 1;
+    const snap = getValidityLastCountSnapshot(row.cod);
+    if (!snap) productsNoCount += 1;
+    else if (isValidityCountBaseOld(snap.countDate, todayBr)) productsOldBase += 1;
     for (const ln of lines) {
       const d = validityExpiryDiffDays(ln.expiration_date, todayBr);
       if (d === null) continue;
@@ -2288,8 +2470,13 @@ function updateValidityKpis(productRows) {
   set('validity-kpi-d120', c120);
   set('validity-kpi-d150', c150);
   set('validity-kpi-d180', c180);
+  set('validity-kpi-oldbase', productsOldBase);
+  set('validity-kpi-nocount', productsNoCount);
 
-  const total = productRows.length;
+  const ls = document.getElementById('validity-last-sync');
+  if (ls) ls.textContent = formatValidityLastSyncDisplay();
+
+  const total = allRows.length;
   const pct = total > 0 ? Math.min(100, Math.round((withLine / total) * 100)) : 0;
   const fill = document.getElementById('validity-progress-fill');
   const pp = document.getElementById('validity-progress-percent');
@@ -2299,17 +2486,11 @@ function updateValidityKpis(productRows) {
   if (pd) pd.textContent = `${withLine} de ${total} produtos com validade lançada`;
 }
 
-function filterValidityProductsForView(products) {
+function filterValidityRows(rows) {
   const term = (document.getElementById('validity-item-code')?.value || '').trim().toLowerCase();
   const grupo = (document.getElementById('validity-group')?.value || '').trim().toLowerCase();
   const risk = (document.getElementById('validity-risk-filter')?.value || 'all').trim();
   const todayBr = getBrazilDateKey();
-
-  const rows = (products || []).map((p) => {
-    const cod = normalizeItemCode(p.cod_produto || '');
-    const lines = getMergedValidityLinesForProduct(cod);
-    return { product: p, cod, lines };
-  });
 
   return rows.filter((row) => {
     const p = row.product;
@@ -2318,8 +2499,16 @@ function filterValidityProductsForView(products) {
     if (term && !codigo.includes(term) && !desc.includes(term)) return false;
     if (grupo && !desc.includes(grupo)) return false;
 
+    const snap = getValidityLastCountSnapshot(row.cod);
+
     if (risk === 'all') return true;
     if (risk === 'none') return row.lines.length === 0;
+    if (risk === 'nocount') return !snap;
+    if (risk === 'oldbase') return !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
+    if (risk === 'critical') {
+      const w = worstValidityRiskAmongLines(row.lines, todayBr);
+      return w === 'expired' || w === 'd30';
+    }
     if (risk === 'near') {
       return row.lines.some((l) => {
         const d = validityExpiryDiffDays(l.expiration_date, todayBr);
@@ -2336,6 +2525,23 @@ function filterValidityProductsForView(products) {
     return true;
   });
 }
+
+function sortValidityRows(rows, sortMode, todayBr) {
+  const out = [...rows];
+  if (sortMode === 'name') {
+    out.sort((a, b) =>
+      String(a.product.cod_grup_descricao || '').localeCompare(String(b.product.cod_grup_descricao || ''), 'pt', {
+        sensitivity: 'base',
+      }),
+    );
+  } else if (sortMode === 'code') {
+    out.sort((a, b) => String(a.cod).localeCompare(String(b.cod)));
+  } else {
+    out.sort((a, b) => validityPriorityScore(a, todayBr) - validityPriorityScore(b, todayBr));
+  }
+  return out;
+}
+
 
 function renderValidityProductList() {
   const ul = document.getElementById('validity-products-list');
