@@ -3708,6 +3708,23 @@ form#count-form.count-form {
 
 /* ── Data Table ─────────────────────────────────────── */
 /* Lista de contagem: bloco leve, sem “cardzão” */
+.count-readonly-banner {
+  display: none;
+  margin: 0.5rem 0 0;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--text, #0f172a);
+  background: rgba(251, 191, 36, 0.18);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: 4px;
+}
+.count-readonly-banner:not([hidden]) {
+  display: block;
+}
+.count-products-shell--readonly {
+  opacity: 0.96;
+}
 .count-products-shell {
   background: var(--white);
   border: 1px solid rgba(15, 23, 42, 0.07);

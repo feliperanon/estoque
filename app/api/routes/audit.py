@@ -1,7 +1,7 @@
 import hashlib
 import re
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from io import BytesIO
 from zoneinfo import ZoneInfo
 
@@ -23,6 +23,62 @@ from app.services.inventory_txt_parse import (
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 logger = logging.getLogger(__name__)
+_BR = ZoneInfo("America/Sao_Paulo")
+
+
+def _parse_iso_date_arg(value: str | None) -> date | None:
+    if not value or not str(value).strip():
+        return None
+    try:
+        return date.fromisoformat(str(value).strip()[:10])
+    except ValueError:
+        return None
+
+
+def _brazil_date_from_observed_at(observed_at: str | None) -> date | None:
+    if not observed_at:
+        return None
+    try:
+        s = str(observed_at).strip()
+        if s.endswith("Z"):
+            s = s.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(_BR).date()
+    except Exception:
+        return None
+
+
+def _parse_and_validate_observed_at(observed_at: str) -> tuple[datetime, date]:
+    """Valida ISO8601; retorna instante UTC-normalizado e data em America/Sao_Paulo."""
+    try:
+        s = str(observed_at).strip()
+        if s.endswith("Z"):
+            s = s.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        br_date = dt.astimezone(_BR).date()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"observed_at invalido: {exc}",
+        ) from exc
+    now_br = datetime.now(timezone.utc).astimezone(_BR)
+    if br_date > now_br.date():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Data da operacao (America/Sao_Paulo) nao pode ser futura.",
+        )
+    if dt > datetime.now(timezone.utc) + timedelta(hours=2):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="observed_at muito no futuro em relacao ao servidor.",
+        )
+    return dt, br_date
 
 
 class CountEventInput(BaseModel):
@@ -51,8 +107,11 @@ def _extract_count_type(value: str | None) -> str:
     return "caixa"
 
 
-def _aggregate_count_events_by_code(session: Session) -> dict[str, dict[str, int]]:
-    """Soma CX/UN por produto a partir do ChangeLog (todos os usuários / aparelhos sincronizados)."""
+def _aggregate_count_events_by_code(
+    session: Session,
+    count_on_date: date | None = None,
+) -> dict[str, dict[str, int]]:
+    """Soma CX/UN por produto (ChangeLog). Se count_on_date, filtra pela data observada em America/Sao_Paulo."""
     count_logs = list(
         session.exec(
             select(ChangeLog).where(
@@ -64,6 +123,11 @@ def _aggregate_count_events_by_code(session: Session) -> dict[str, dict[str, int
     counted_by_code: dict[str, dict[str, int]] = {}
     for log in count_logs:
         payload = log.payload if isinstance(log.payload, dict) else {}
+        if count_on_date is not None:
+            od = payload.get("observed_at")
+            br_d = _brazil_date_from_observed_at(str(od) if od is not None else "")
+            if br_d is None or br_d != count_on_date:
+                continue
         item_code = str(payload.get("item_code") or "")
         code = _normalize_item_code(item_code)
         if not code:
@@ -224,12 +288,20 @@ def import_balances(
 def count_server_totals(
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+    count_date: str | None = Query(
+        default=None,
+        description="YYYY-MM-DD: soma apenas eventos cuja data observada (America/Sao_Paulo) é esse dia. Padrão: hoje em SP.",
+    ),
 ) -> dict:
     """
-    Totais CX/UN já sincronizados no servidor (ChangeLog), somando todos os conferentes.
-    Usado na tela de contagem para exibir o mesmo total operacional em qualquer aparelho.
+    Totais CX/UN já sincronizados no servidor (ChangeLog), somando conferentes.
+    Filtrado por dia operacional (America/Sao_Paulo) para não misturar contagens de dias anteriores.
     """
-    counted_by_code = _aggregate_count_events_by_code(session)
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    d = _parse_iso_date_arg(count_date) if count_date else br_today
+    if d is None:
+        d = br_today
+    counted_by_code = _aggregate_count_events_by_code(session, count_on_date=d)
     balances: dict[str, dict[str, int]] = {}
     for code, rec in counted_by_code.items():
         balances[code] = {
@@ -357,8 +429,16 @@ def _compute_stock_analysis(
             active_rows = session.exec(select(Product.cod_produto).where(_catalog_status_is_ativo_clause())).all()
             active_set = {_normalize_item_code(c) for c in active_rows if c}
 
-    # Busca todos os eventos de contagem sem filtro de data (mesma agregação que /count-server-totals).
-    counted_by_code = _aggregate_count_events_by_code(session)
+    # Contagem comparada ao saldo: apenas eventos do mesmo dia de referência (America/Sao_Paulo).
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    if current_import:
+        rd = current_import.reference_date
+        count_day = rd if isinstance(rd, date) else _parse_iso_date_arg(str(rd))
+        if count_day is None:
+            count_day = br_today
+    else:
+        count_day = _parse_iso_date_arg(reference_date) or br_today
+    counted_by_code = _aggregate_count_events_by_code(session, count_on_date=count_day)
 
     all_codes = set(imported_by_code.keys()) | set(counted_by_code.keys())
     rows: list[dict] = []
@@ -678,6 +758,9 @@ def ingest_count_events(
             if event.quantity == 0:
                 # Ignora eventos neutros para evitar ruido e validacao desnecessaria.
                 continue
+            dt_utc, _br_date = _parse_and_validate_observed_at(event.observed_at)
+            obs_stored = dt_utc.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
             event_hash = hashlib.sha256(event.client_event_id.encode("utf-8")).hexdigest()
             # Mantem entity_id dentro do limite do INTEGER do PostgreSQL.
             entity_id = (int(event_hash[:16], 16) % max_pg_int) + 1
@@ -703,7 +786,7 @@ def ingest_count_events(
                     "client_event_id": event.client_event_id,
                     "item_code": event.item_code,
                     "quantity": event.quantity,
-                    "observed_at": event.observed_at,
+                    "observed_at": obs_stored,
                     "device_name": event.device_name,
                 },
             )
@@ -712,6 +795,9 @@ def ingest_count_events(
 
         session.commit()
         return {"received": len(payload.events), "synced": len(synced_ids), "synced_ids": synced_ids}
+    except HTTPException:
+        session.rollback()
+        raise
     except Exception as exc:
         session.rollback()
         logger.exception("Falha ao sincronizar eventos de contagem")

@@ -14,3 +14,5 @@ python-jose[cryptography]==3.4.0
 email-validator==2.2.0
 httpx==0.28.1
 openpyxl==3.1.5
+# IANA time zones for zoneinfo (Windows não inclui tzdata no sistema; Linux/macOS costumam ter)
+tzdata>=2024.1

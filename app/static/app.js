@@ -1,3 +1,22 @@
+/** Data civil em America/Sao_Paulo (YYYY-MM-DD). */
+function getBrazilDateKey(d = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
+function getActiveCountDateKey() {
+  const el = document.getElementById('count-date');
+  const v = (el && el.value || '').trim();
+  return v || getBrazilDateKey();
+}
+
+function isCountOperationalEditable() {
+  return getActiveCountDateKey() === getBrazilDateKey();
+}
 
 // Autocomplete para Grupo + filtro funcional
 document.addEventListener('DOMContentLoaded', () => {
@@ -89,12 +108,11 @@ function filtrarProdutos() {
   }
 }
 
-// Data da contagem predefinida hoje
+// Data da contagem predefinida: hoje em America/Sao_Paulo (não UTC)
 document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('count-date');
   if (dateInput && !dateInput.value) {
-    const today = new Date();
-    dateInput.value = today.toISOString().slice(0, 10);
+    dateInput.value = getBrazilDateKey();
   }
 });
 
@@ -226,6 +244,8 @@ let countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
 /** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
 let countServerCountState = { ok: false, balances: {} };
 const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
+/** Mapa por dia (YYYY-MM-DD): { "2026-04-01": [ eventos... ] } */
+const COUNT_EVENTS_BUCKET_KEY = 'estoque_count_events_by_day_v2';
 const DEVICE_NAME_KEY = 'estoque_device_name_v1';
 let activeApiBasePrimary = API_BASE_URL_PRIMARY;
 let activeApiBaseFallback = API_BASE_URL_FALLBACK;
@@ -829,18 +849,87 @@ function getLocalDateKey() {
   return `${y}-${m}-${d}`;
 }
 
-function ensureDailyCountReset() {
-  const today = getLocalDateKey();
-  const lastReset = localStorage.getItem(COUNT_EVENTS_DAY_KEY);
-  if (lastReset === today) return false;
-  /* Sem chave de dia (primeira execução ou migração): não apagar lançamentos; só ancorar o dia. */
-  if (lastReset === null || lastReset === '') {
-    localStorage.setItem(COUNT_EVENTS_DAY_KEY, today);
-    return false;
+function migrateLegacyCountEventsIfNeeded() {
+  try {
+    if (localStorage.getItem(COUNT_EVENTS_BUCKET_KEY)) return;
+    const legacy = localStorage.getItem(COUNT_EVENTS_KEY);
+    if (!legacy) return;
+    const oldDay = localStorage.getItem(COUNT_EVENTS_DAY_KEY) || getBrazilDateKey();
+    let arr = [];
+    try {
+      arr = JSON.parse(legacy);
+    } catch {
+      return;
+    }
+    if (!Array.isArray(arr) || arr.length === 0) return;
+    const bucket = {};
+    bucket[oldDay] = arr.map((e) => ({ ...e, count_date: e.count_date || oldDay }));
+    localStorage.setItem(COUNT_EVENTS_BUCKET_KEY, JSON.stringify(bucket));
+  } catch {
+    /* ignore */
   }
-  localStorage.removeItem(COUNT_EVENTS_KEY);
-  localStorage.setItem(COUNT_EVENTS_DAY_KEY, today);
-  return true;
+}
+
+function loadCountEventsBucketRaw() {
+  migrateLegacyCountEventsIfNeeded();
+  try {
+    const raw = localStorage.getItem(COUNT_EVENTS_BUCKET_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCountEventsBucketRaw(bucket) {
+  try {
+    localStorage.setItem(COUNT_EVENTS_BUCKET_KEY, JSON.stringify(bucket));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadCountEventsForDate(dateKey) {
+  const bucket = loadCountEventsBucketRaw();
+  const arr = bucket[dateKey];
+  return Array.isArray(arr) ? arr : [];
+}
+
+function saveCountEventsForDate(dateKey, events) {
+  const bucket = loadCountEventsBucketRaw();
+  bucket[dateKey] = events;
+  saveCountEventsBucketRaw(bucket);
+}
+
+function flattenAllCountEventsFromBucket() {
+  const bucket = loadCountEventsBucketRaw();
+  return Object.keys(bucket).flatMap((k) => (Array.isArray(bucket[k]) ? bucket[k] : []));
+}
+
+function markEventsSyncedInBucket(syncedIds) {
+  const ids = syncedIds instanceof Set ? syncedIds : new Set(syncedIds);
+  if (!ids.size) return;
+  const bucket = loadCountEventsBucketRaw();
+  let changed = false;
+  for (const k of Object.keys(bucket)) {
+    const arr = bucket[k];
+    if (!Array.isArray(arr)) continue;
+    for (let i = 0; i < arr.length; i++) {
+      const e = arr[i];
+      if (e && ids.has(e.client_event_id)) {
+        bucket[k][i] = { ...e, synced: true, synced_at: new Date().toISOString() };
+        changed = true;
+      }
+    }
+  }
+  if (changed) saveCountEventsBucketRaw(bucket);
+}
+
+function ensureDailyCountReset() {
+  /* Migracao; eventos ficam por dia no bucket (sem apagar na virada). */
+  migrateLegacyCountEventsIfNeeded();
+  return false;
 }
 
 function syncRegisterAllToggle() {
@@ -1026,19 +1115,16 @@ function handleUnauthorizedResponse(response) {
 
 function loadCountEvents() {
   ensureDailyCountReset();
-  try {
-    const raw = localStorage.getItem(COUNT_EVENTS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return loadCountEventsForDate(getActiveCountDateKey());
 }
 
 function saveCountEvents(events) {
-  localStorage.setItem(COUNT_EVENTS_DAY_KEY, getLocalDateKey());
-  localStorage.setItem(COUNT_EVENTS_KEY, JSON.stringify(events));
+  saveCountEventsForDate(getActiveCountDateKey(), events);
+  try {
+    localStorage.setItem(COUNT_EVENTS_DAY_KEY, getBrazilDateKey());
+  } catch {
+    /* ignore */
+  }
 }
 
 function computeItemNetTotals(events) {
@@ -1332,7 +1418,9 @@ async function loadServerCountTotals() {
     return;
   }
   try {
-    const response = await apiFetch(API_COUNT_SERVER_TOTALS, {
+    const params = new URLSearchParams();
+    params.set('count_date', getActiveCountDateKey());
+    const response = await apiFetch(`${API_COUNT_SERVER_TOTALS}?${params.toString()}`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -1466,7 +1554,7 @@ function hasAnyCountEventsForType(codRaw, countType) {
 }
 
 function countExplicitZeroKey(codRaw, countType) {
-  return `count_explicit_zero_${normalizeItemCode(codRaw)}_${normalizeCountType(countType)}`;
+  return `count_explicit_zero_${getActiveCountDateKey()}_${normalizeItemCode(codRaw)}_${normalizeCountType(countType)}`;
 }
 
 function countExplicitZeroStored(codRaw, countType) {
@@ -1709,6 +1797,7 @@ function renderCountProducts(products) {
   }
 
   updateCountProgress(ativos);
+  updateCountReadOnlyState();
   // Garante que o menu de módulos e dashboard continuam visíveis
   const moduleNav = document.getElementById('module-nav');
   if (moduleNav) moduleNav.style.display = '';
@@ -1716,6 +1805,29 @@ function renderCountProducts(products) {
   if (sidebarMenu) sidebarMenu.style.display = '';
   const dashboardContent = document.querySelector('.dashboard-content');
   if (dashboardContent) dashboardContent.style.display = '';
+}
+
+function updateCountReadOnlyState() {
+  const shell = document.querySelector('.count-products-shell');
+  const editable = isCountOperationalEditable();
+  if (shell) {
+    shell.classList.toggle('count-products-shell--readonly', !editable);
+    shell.querySelectorAll('input.count-product-qty').forEach((el) => {
+      el.readOnly = !editable;
+      el.title = editable ? '' : 'Somente consulta: selecione a data de hoje para lançar.';
+    });
+    shell.querySelectorAll('.btn-count-adjust').forEach((el) => {
+      el.disabled = !editable;
+    });
+  }
+  const banner = document.getElementById('count-readonly-banner');
+  if (banner) {
+    const show = !editable;
+    banner.hidden = !show;
+    banner.textContent = show
+      ? `Modo consulta (${getActiveCountDateKey()}). Para lançar, use a data de hoje (${getBrazilDateKey()}).`
+      : '';
+  }
 }
 
 function filterCountProductsByTerm(term) {
@@ -1847,7 +1959,8 @@ function renderCounts() {
   if (!totalsList || !pendingList || !totalItems || !pendingCount) return;
   const events = loadCountEvents();
   const totals = computeTotals(events);
-  const pending = events.filter((event) => !event.synced);
+  const allEv = flattenAllCountEventsFromBucket();
+  const pending = allEv.filter((event) => !event.synced);
 
   totalsList.innerHTML = '';
   pendingList.innerHTML = '';
@@ -1889,8 +2002,8 @@ async function syncPendingEvents() {
   if (!token) return;
   if (!navigator.onLine) return;
 
-  const events = loadCountEvents();
-  const pending = events.filter((event) => !event.synced);
+  const allEv = flattenAllCountEventsFromBucket();
+  const pending = allEv.filter((event) => !event.synced);
   if (pending.length === 0) return;
 
   syncInProgress = true;
@@ -1927,14 +2040,7 @@ async function syncPendingEvents() {
 
     const data = await response.json();
     const syncedIds = new Set(data.synced_ids || []);
-    const updated = events.map((event) => {
-      if (syncedIds.has(event.client_event_id)) {
-        return { ...event, synced: true, synced_at: new Date().toISOString() };
-      }
-      return event;
-    });
-
-    saveCountEvents(updated);
+    markEventsSyncedInBucket(syncedIds);
     renderCounts();
     setFeedback(`Sincronizacao concluida: ${syncedIds.size} evento(s) enviado(s).`);
     await loadServerCountTotals();
@@ -1953,43 +2059,71 @@ async function syncPendingEvents() {
 }
 
 function registerCount(itemCodeInput) {
+  if (!isCountOperationalEditable()) {
+    setFeedback('Só é possível lançar contagem na data de hoje (America/Sao_Paulo).', true);
+    return;
+  }
   registerCountDelta(itemCodeInput, 1, 'caixa');
 }
 
-/** Aplica quantidade absoluta digitada (delta em relação ao saldo já contado na sessão). */
-function applyCountQtyFromInput(codRefEnc, countTypeRaw, rawValue) {
+/** Confirma saldo zero com TXT quando total e saldo são 0 (sem substituir total pelo input). */
+function tryConfirmExplicitZeroOnBlur(codRefEnc, countTypeRaw) {
   const codRaw = decodeURIComponent(String(codRefEnc || ''));
   const itemCode = normalizeItemCode(codRaw);
   const countType = normalizeCountType(countTypeRaw || 'caixa');
-  if (!itemCode) return;
+  if (!itemCode || !isCountOperationalEditable()) return;
   const current = getNetByProductAndType(itemCode, countType);
-  const digitsOnly = String(rawValue ?? '').replace(/\D/g, '');
-  /* Campo limpo: não tratar como 0 (evita lançar delta negativo sem intenção / contagem em duplicidade). */
-  if (digitsOnly === '') {
-    refreshCountProductListView();
+  if (current !== 0) return;
+  if (!countImportBalancesState.hasTxt) return;
+  const pair = getCountSaldoPair(itemCode);
+  if (!pair) return;
+  const s = countType === 'caixa' ? pair.import_caixa : pair.import_unidade;
+  if (Math.max(0, Math.round(Number(s) || 0)) !== 0) return;
+  setCountExplicitZero(itemCode, countType, true);
+}
+
+function parseOperationQtyFromInputEl(inp) {
+  if (!inp) return null;
+  const digitsOnly = String(inp.value ?? '').replace(/\D/g, '');
+  if (digitsOnly === '') return null;
+  const n = parseInt(digitsOnly, 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+/**
+ * + soma o valor digitado ao total; − subtrai (mínimo 0). Input = quantidade da operação, não total absoluto.
+ */
+function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
+  const opQty = parseOperationQtyFromInputEl(inp);
+  if (opQty == null) {
+    setFeedback('Digite uma quantidade maior que zero para aplicar com + ou −.', true);
     return;
   }
-  let next = parseInt(digitsOnly, 10);
-  if (!Number.isFinite(next)) next = 0;
-  if (next < 0) next = 0;
-  const delta = next - current;
+  const refDecoded = decodeURIComponent(String(codRefEnc || ''));
+  const itemCode = normalizeItemCode(refDecoded);
+  const ct = normalizeCountType(countTypeRaw || 'caixa');
+  const current = getNetByProductAndType(itemCode, ct);
+  let delta;
+  if (direction > 0) {
+    delta = opQty;
+  } else {
+    delta = -Math.min(opQty, Math.max(0, current));
+  }
   if (delta === 0) {
-    if (next === 0 && current === 0 && countImportBalancesState.hasTxt) {
-      const pair = getCountSaldoPair(itemCode);
-      if (pair) {
-        const s = countType === 'caixa' ? pair.import_caixa : pair.import_unidade;
-        if (Math.max(0, Math.round(Number(s) || 0)) === 0) {
-          setCountExplicitZero(itemCode, countType, true);
-        }
-      }
-    }
+    if (inp) inp.value = '';
     refreshCountProductListView();
     return;
   }
-  registerCountDelta(itemCode, delta, countType);
+  registerCountDelta(itemCode, delta, ct);
+  if (inp) inp.value = '';
 }
 
 function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa') {
+  if (!isCountOperationalEditable()) {
+    setFeedback('Só é possível lançar contagem na data de hoje (America/Sao_Paulo).', true);
+    return;
+  }
   const itemCode = normalizeItemCode(itemCodeInput);
   const quantity = Number(qtyDeltaInput);
   const countType = normalizeCountType(countTypeInput);
@@ -2004,7 +2138,8 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
     return;
   }
 
-  const events = loadCountEvents();
+  const dayKey = getBrazilDateKey();
+  const events = loadCountEventsForDate(dayKey);
   const event = {
     client_event_id: makeEventId(),
     item_code: itemCode,
@@ -2013,10 +2148,11 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
     observed_at: new Date().toISOString(),
     synced: false,
     device_name: getDeviceName(),
+    count_date: dayKey,
   };
 
   events.push(event);
-  saveCountEvents(events);
+  saveCountEventsForDate(dayKey, events);
   const netAfterType = getNetByProductAndType(itemCode, countType);
   if (netAfterType !== 0) setCountExplicitZero(itemCode, countType, false);
   renderCounts();
@@ -2059,11 +2195,13 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
 }
 
 function exportBackup() {
-  const events = loadCountEvents();
+  migrateLegacyCountEventsIfNeeded();
+  const bucket = loadCountEventsBucketRaw();
   const payload = {
     exported_at: new Date().toISOString(),
     device_name: getDeviceName(),
-    events,
+    events_by_day: bucket,
+    events: flattenAllCountEventsFromBucket(),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -2078,16 +2216,18 @@ async function importBackup(file) {
   try {
     const text = await file.text();
     const data = JSON.parse(text);
+    migrateLegacyCountEventsIfNeeded();
+    const bucket = loadCountEventsBucketRaw();
+    const knownIds = new Set(flattenAllCountEventsFromBucket().map((e) => e.client_event_id));
     const incoming = Array.isArray(data.events) ? data.events : [];
-    const current = loadCountEvents();
-    const knownIds = new Set(current.map((event) => event.client_event_id));
-    const merged = [...current];
 
     for (const event of incoming) {
       if (!event || typeof event !== 'object') continue;
       if (!event.client_event_id || knownIds.has(event.client_event_id)) continue;
       if (!event.item_code || !Number.isInteger(event.quantity) || event.quantity === 0) continue;
-      merged.push({
+      const day = event.count_date || getBrazilDateKey();
+      if (!bucket[day]) bucket[day] = [];
+      bucket[day].push({
         client_event_id: String(event.client_event_id),
         item_code: normalizeItemCode(String(event.item_code)),
         count_type: normalizeCountType(event.count_type),
@@ -2096,11 +2236,12 @@ async function importBackup(file) {
         synced: Boolean(event.synced),
         device_name: event.device_name || getDeviceName(),
         synced_at: event.synced_at || null,
+        count_date: day,
       });
       knownIds.add(event.client_event_id);
     }
 
-    saveCountEvents(merged);
+    saveCountEventsBucketRaw(bucket);
     renderCounts();
     setFeedback('Backup importado com sucesso.');
   } catch {
@@ -2153,6 +2294,7 @@ function bindCountEvents() {
     countDateEl.addEventListener('change', async () => {
       await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
       refreshCountProductListView();
+      updateCountReadOnlyState();
     });
   }
 
@@ -2170,24 +2312,10 @@ function bindCountEvents() {
       const deltaBtn = Number(btn.dataset.delta);
       const countType = btn.dataset.countType || 'caixa';
       if (!codRefEnc || !Number.isFinite(deltaBtn)) return;
+      if (deltaBtn !== 1 && deltaBtn !== -1) return;
       const row = btn.closest('.count-control-row');
       const inp = row ? row.querySelector('input.count-product-qty') : null;
-      const digitsOnly = String(inp?.value ?? '').replace(/\D/g, '');
-      const refDecoded = decodeURIComponent(codRefEnc);
-      /* Com número no campo: ajusta o alvo e aplica como total absoluto (mesmo fluxo do blur). */
-      if (digitsOnly !== '') {
-        let n = parseInt(digitsOnly, 10);
-        if (!Number.isFinite(n)) n = 0;
-        if (n < 0) n = 0;
-        let next = n + deltaBtn;
-        if (next < 0) next = 0;
-        if (inp) inp.value = String(next);
-        applyCountQtyFromInput(codRefEnc, countType, String(next));
-        refreshCountListAfterEdit();
-        return;
-      }
-      /* Campo vazio: mantém o fluxo operacional (±1 por toque), como antes. */
-      registerCountDelta(refDecoded, deltaBtn, countType);
+      applyCountRowOperation(codRefEnc, countType, inp, deltaBtn);
       refreshCountListAfterEdit();
     });
     countShell.addEventListener('focusout', (e) => {
@@ -2195,13 +2323,12 @@ function bindCountEvents() {
       if (!inp || !inp.classList || !inp.classList.contains('count-product-qty')) return;
       if (!countShell.contains(inp)) return;
       const next = e.relatedTarget;
-      // Evita re-render antes do clique em +/− (o botão aplicaria depois e perderia o alvo)
       if (next && typeof next.closest === 'function' && next.closest('.btn-count-adjust') && countShell.contains(next)) {
         return;
       }
       const ref = inp.getAttribute('data-coderef') || '';
       const ct = inp.getAttribute('data-count-type') || 'caixa';
-      applyCountQtyFromInput(ref, ct, inp.value);
+      tryConfirmExplicitZeroOnBlur(ref, ct);
       refreshCountListAfterEdit();
     });
     countShell.addEventListener('keydown', (e) => {
@@ -2497,8 +2624,8 @@ async function syncPendingEventsForAudit() {
   if (syncInProgress) return;
   const token = getToken();
   if (!token) return;
-  const events = loadCountEvents();
-  const pending = events.filter((e) => !e.synced);
+  const allEv = flattenAllCountEventsFromBucket();
+  const pending = allEv.filter((e) => !e.synced);
   if (!pending.length) return;
 
   try {
@@ -2520,10 +2647,7 @@ async function syncPendingEventsForAudit() {
     if (!response.ok) return;
     const data = await response.json();
     const syncedIds = new Set(data.synced_ids || []);
-    const updated = events.map((ev) =>
-      syncedIds.has(ev.client_event_id) ? { ...ev, synced: true, synced_at: new Date().toISOString() } : ev
-    );
-    saveCountEvents(updated);
+    markEventsSyncedInBucket(syncedIds);
   } catch {
     // silencioso — falha de rede não interrompe a análise
   }
@@ -3961,6 +4085,7 @@ const PURGE_CONFIRM_PHRASE = 'APAGAR TUDO EXCETO USUARIOS';
 function clearLocalOperationalCaches() {
   try {
     localStorage.removeItem(COUNT_EVENTS_KEY);
+    localStorage.removeItem(COUNT_EVENTS_BUCKET_KEY);
     localStorage.removeItem(COUNT_EVENTS_DAY_KEY);
     localStorage.removeItem(PRODUCT_DEFAULTS_KEY);
     for (const mod of EXTRA_MODULES) {
