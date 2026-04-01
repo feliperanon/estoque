@@ -2474,7 +2474,7 @@ function updateValidityKpis(allRows, todayBr) {
   set('validity-kpi-nocount', productsNoCount);
 
   const ls = document.getElementById('validity-last-sync');
-  if (ls) ls.textContent = formatValidityLastSyncDisplay();
+  if (ls) ls.textContent = `Última sincronização: ${formatValidityLastSyncDisplay()}`;
 
   const total = allRows.length;
   const pct = total > 0 ? Math.min(100, Math.round((withLine / total) * 100)) : 0;
