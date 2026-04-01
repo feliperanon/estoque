@@ -262,6 +262,8 @@ let countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
 let validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
 let validityProductsCache = [];
 let validityServerLines = [];
+/** Totais CX/UN da contagem (servidor) para a mesma data da operação de validade (#validity-op-date). */
+let validityCountServerState = { ok: false, balances: {} };
 /** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
 let countServerCountState = { ok: false, balances: {} };
 const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
@@ -1750,6 +1752,83 @@ function getValiditySaldoUn(codRaw) {
   const b = validityImportBalancesState.balances[k];
   if (!b) return 0;
   return Math.max(0, Math.round(Number(b.import_unidade) || 0));
+}
+
+/** UN base para classificar: contagem do dia (se existir no servidor) senão saldo UN do TXT. */
+function getValidityBaseUn(codRaw) {
+  const base = normalizeItemCode(codRaw);
+  if (validityCountServerState.ok && validityCountServerState.balances[base] !== undefined) {
+    const b = validityCountServerState.balances[base];
+    return Math.max(0, Math.round(Number(b.unidade) || 0));
+  }
+  return getValiditySaldoUn(base);
+}
+
+function getValidityImportCxUn(codRaw) {
+  const k = normalizeItemCode(codRaw);
+  const b = validityImportBalancesState.balances[k];
+  if (!b) return { cx: 0, un: 0 };
+  return {
+    cx: Math.max(0, Math.round(Number(b.import_caixa) || 0)),
+    un: Math.max(0, Math.round(Number(b.import_unidade) || 0)),
+  };
+}
+
+function getValidityCountCxUn(codRaw) {
+  const base = normalizeItemCode(codRaw);
+  if (!validityCountServerState.ok || validityCountServerState.balances[base] === undefined) {
+    return null;
+  }
+  const b = validityCountServerState.balances[base];
+  return {
+    cx: Math.max(0, Math.round(Number(b.caixa) || 0)),
+    un: Math.max(0, Math.round(Number(b.unidade) || 0)),
+  };
+}
+
+/** UN ainda disponível para distribuir em novas linhas de validade (contagem/TXT − já classificado). */
+function computeRemainingUnForValidity(codRaw) {
+  const cod = normalizeItemCode(codRaw);
+  const lines = getMergedValidityLinesForProduct(cod);
+  const classified = lines.reduce((s, l) => s + Math.max(0, Number(l.quantity_un) || 0), 0);
+  const baseUn = getValidityBaseUn(cod);
+  return Math.max(0, baseUn - classified);
+}
+
+async function loadServerCountTotalsForValidityDate() {
+  const token = getToken();
+  if (!token) {
+    validityCountServerState = { ok: false, balances: {} };
+    return;
+  }
+  if (unauthorizedRedirectInProgress) {
+    validityCountServerState = { ok: false, balances: {} };
+    return;
+  }
+  if (isAccessTokenExpired(token)) {
+    validityCountServerState = { ok: false, balances: {} };
+    handleUnauthorizedResponse({ status: 401 });
+    return;
+  }
+  try {
+    const params = new URLSearchParams();
+    params.set('count_date', getActiveValidityOpDateKey());
+    const response = await apiFetch(`${API_COUNT_SERVER_TOTALS}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (handleUnauthorizedResponse(response)) {
+      validityCountServerState = { ok: false, balances: {} };
+      return;
+    }
+    if (!response.ok) {
+      validityCountServerState = { ok: false, balances: {} };
+      return;
+    }
+    const data = await response.json();
+    validityCountServerState = { ok: true, balances: data.balances || {} };
+  } catch {
+    validityCountServerState = { ok: false, balances: {} };
+  }
 }
 
 function loadValidityBucketRaw() {

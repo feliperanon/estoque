@@ -11,10 +11,11 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from pydantic import BaseModel, Field
-from sqlmodel import Session, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import Session, SQLModel, select
 
 from app.api.deps import require_roles, require_stock_analysis_access
-from app.db.session import get_session
+from app.db.session import engine, get_session
 from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, User, ValidityLine
 from app.services.inventory_txt_parse import (
     extract_caixa_unidade_from_numeric_tail,
@@ -24,6 +25,32 @@ from app.services.inventory_txt_parse import (
 router = APIRouter(prefix="/audit", tags=["audit"])
 logger = logging.getLogger(__name__)
 _BR = ZoneInfo("America/Sao_Paulo")
+
+
+def _ensure_validity_lines_table() -> None:
+    """Garante DDL (Railway/deploy sem alembic ou migração pendente). Idempotente."""
+    try:
+        SQLModel.metadata.create_all(
+            engine,
+            tables=[ValidityLine.__table__],
+            checkfirst=True,
+        )
+    except SQLAlchemyError:
+        logger.exception("Falha ao garantir tabela validity_lines")
+        raise
+
+
+def _validity_observed_at_iso(dt: datetime | None) -> str | None:
+    if dt is None:
+        return None
+    try:
+        if dt.tzinfo is None:
+            u = dt.replace(tzinfo=timezone.utc)
+        else:
+            u = dt.astimezone(timezone.utc)
+        return u.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    except Exception:
+        return None
 
 
 def _parse_iso_date_arg(value: str | None) -> date | None:
@@ -868,17 +895,25 @@ def list_validity_lines(
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> dict:
+    _ensure_validity_lines_table()
     br_today = datetime.now(timezone.utc).astimezone(_BR).date()
     d = _parse_iso_date_arg(operational_date) if operational_date else br_today
     if d is None:
         d = br_today
-    rows = list(
-        session.exec(
-            select(ValidityLine)
-            .where(ValidityLine.operational_date == d)
-            .order_by(ValidityLine.cod_produto, ValidityLine.expiration_date, ValidityLine.id)
-        ).all()
-    )
+    try:
+        rows = list(
+            session.exec(
+                select(ValidityLine)
+                .where(ValidityLine.operational_date == d)
+                .order_by(ValidityLine.cod_produto, ValidityLine.expiration_date, ValidityLine.id)
+            ).all()
+        )
+    except SQLAlchemyError as exc:
+        logger.exception("Erro ao listar validity_lines")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao consultar validades: {exc}",
+        ) from exc
     lines = []
     for r in rows:
         lines.append(
@@ -891,9 +926,7 @@ def list_validity_lines(
                 "lot_code": r.lot_code,
                 "note": r.note,
                 "operational_date": r.operational_date.isoformat(),
-                "observed_at": r.observed_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
-                if r.observed_at
-                else None,
+                "observed_at": _validity_observed_at_iso(r.observed_at),
                 "device_name": r.device_name,
                 "actor_username": r.actor_username,
             }
@@ -907,6 +940,7 @@ def delete_validity_line(
     session: Session = Depends(get_session),
     user: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> None:
+    _ensure_validity_lines_table()
     br_today = datetime.now(timezone.utc).astimezone(_BR).date()
     row = session.get(ValidityLine, line_id)
     if not row:
@@ -927,6 +961,7 @@ def ingest_validity_events(
     user: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> dict:
     """Sincroniza lançamentos de validade (idempotente por client_event_id)."""
+    _ensure_validity_lines_table()
     synced_ids: list[str] = []
     now_br = datetime.now(timezone.utc).astimezone(_BR)
     br_today = now_br.date()
@@ -951,7 +986,7 @@ def ingest_validity_events(
 
     try:
         for event in payload.events:
-            if event.quantity_un <= 0:
+            if event.quantity_un < 0:
                 continue
             dt_utc, br_date = _parse_and_validate_observed_at(event.observed_at)
             if br_date != br_today:
