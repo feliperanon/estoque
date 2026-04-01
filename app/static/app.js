@@ -2650,6 +2650,132 @@ function filterValidityProductsForView(products) {
   return sortValidityRows(filterValidityRows(rows), sortMode, todayBr);
 }
 
+function getLatestValidityLineByObserved(lines) {
+  if (!lines?.length) return null;
+  const withObs = lines.filter((l) => l.observed_at);
+  if (withObs.length) {
+    return [...withObs].sort((a, b) => String(b.observed_at).localeCompare(String(a.observed_at)))[0];
+  }
+  return [...lines].sort((a, b) => String(a.expiration_date || '').localeCompare(String(b.expiration_date || '')))[0];
+}
+
+function buildValidityHintLine(lines, todayBr) {
+  if (!lines?.length) return 'Nenhuma data lançada ainda.';
+  const latest = getLatestValidityLineByObserved(lines);
+  const exp = latest?.expiration_date ? formatDateBrFromIso(String(latest.expiration_date).slice(0, 10)) : '—';
+  return `Última lançada: ${exp}`;
+}
+
+function buildValidityDetailBodyHtml(row, todayBr) {
+  const p = row.product;
+  const cod = row.cod;
+  const lines = row.lines || [];
+  const enc = encodeURIComponent;
+  const snap = getValidityLastCountSnapshot(cod);
+  const baseOld = !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
+  const ageDays = snap ? countBaseAgeDays(snap.countDate, todayBr) : null;
+  const ageLabel = snap ? formatCountBaseAgeLabel(ageDays) : '—';
+  const ageClass = baseOld ? ' validity-metric-v--alert' : '';
+  const anchorLn = operationalAnchorLine(lines, todayBr);
+  const nextBr = anchorLn
+    ? formatDateBrFromIso(String(anchorLn.expiration_date || '').slice(0, 10))
+    : lines.length > 0
+      ? 'Vencidos'
+      : '—';
+
+  const refMetrics = snap
+    ? `<div class="validity-analytic-metrics validity-analytic-metrics--expanded">
+        <div class="validity-metric"><span class="validity-metric-k">Última contagem</span><span class="validity-metric-v">${formatIntegerBR(snap.cx)} CX <span class="validity-meta-sep">|</span> ${formatIntegerBR(snap.un)} UN</span></div>
+        <div class="validity-metric"><span class="validity-metric-k">Data base</span><span class="validity-metric-v">${formatDateBrFromIso(snap.countDate)}</span></div>
+        <div class="validity-metric"><span class="validity-metric-k">Idade da base</span><span class="validity-metric-v${ageClass}">${ageLabel}${baseOld ? ' · base antiga' : ''}</span></div>
+        <div class="validity-metric"><span class="validity-metric-k">Próximo venc.</span><span class="validity-metric-v">${nextBr}</span></div>
+      </div>`
+    : `<div class="validity-analytic-metrics validity-analytic-metrics--expanded validity-analytic-metrics--nocount">
+        <div class="validity-metric validity-metric--full"><span class="validity-metric-k">Referência</span><span class="validity-metric-v">Sem contagem anterior no sistema</span></div>
+      </div>`;
+
+  const linesHtml = lines.length
+    ? lines
+        .map((ln) => {
+          const rk = validityRiskCategory(ln.expiration_date, todayBr);
+          const rkLabel = validityRiskLabel(rk);
+          const rkChip = validityRiskChipClass(rk);
+          const expBr = formatDateBrFromIso(String(ln.expiration_date || '').slice(0, 10));
+          const canDel = isValidityOperationalEditable() && (ln.id || ln._local);
+          const delBtn = canDel
+            ? `<button type="button" class="btn btn-text btn-sm btn-validity-remove" data-line-id="${ln.id != null ? ln.id : ''}" data-client-id="${escapeHtml(String(ln.client_event_id || ''))}" data-coderef="${enc(cod)}">Remover</button>`
+            : '—';
+          const who = ln._local
+            ? escapeHtml(ln.device_name || 'Este aparelho')
+            : escapeHtml(ln.actor_username || '—');
+          const when = formatDateTimeBr(ln.observed_at);
+          return `<tr>
+            <td>${expBr}</td>
+            <td><span class="${rkChip}">${rkLabel}</span></td>
+            <td class="muted">${who}</td>
+            <td class="muted">${when}</td>
+            <td>${delBtn}</td>
+          </tr>`;
+        })
+        .join('')
+    : '<tr><td colspan="5" class="muted">Nenhuma data neste dia operacional.</td></tr>';
+
+  const codRefEnc = enc(cod);
+  const editable = isValidityOperationalEditable();
+  const addBlock = editable
+    ? `<div class="validity-add-row">
+        <div class="validity-add-exp"><label class="sr-only" for="validity-exp-panel-${codRefEnc}">Nova validade</label>
+        <input type="date" class="count-filter-input validity-inp-exp" id="validity-exp-panel-${codRefEnc}" data-coderef="${codRefEnc}" /></div>
+        <div class="validity-add-actions"><button type="button" class="btn btn-primary validity-btn-add" data-coderef="${codRefEnc}">Adicionar</button></div>
+      </div>`
+    : '';
+
+  return `${refMetrics}<p class="validity-detail-hint muted">Datas neste dia operacional</p><div class="validity-lines-table-wrap"><table class="validity-lines-table"><thead><tr><th>Vencimento</th><th>Faixa</th><th>Quem</th><th>Quando</th><th></th></tr></thead><tbody>${linesHtml}</tbody></table></div>${addBlock}`;
+}
+
+function renderValidityDetailPanel(row) {
+  const panel = document.getElementById('validity-launch-detail-panel');
+  const inner = document.getElementById('validity-launch-detail-inner');
+  const lead = document.getElementById('validity-launch-detail-lead');
+  if (!panel || !inner) return;
+  if (!row) {
+    inner.innerHTML =
+      '<p class="muted validity-launch-detail-placeholder">Selecione um produto na lista para ver contagem de referência e histórico de validades.</p>';
+    if (lead) lead.textContent = '';
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  const name = escapeHtml((row.product?.cod_grup_descricao || row.cod || '').trim());
+  if (lead) {
+    lead.innerHTML = `<strong>${name}</strong> · <span class="validity-launch-detail-code">${escapeHtml(row.cod)}</span>`;
+  }
+  inner.innerHTML = buildValidityDetailBodyHtml(row, getBrazilDateKey());
+}
+
+function openValidityHistoryDialog(row) {
+  const dlg = document.getElementById('validity-history-dialog');
+  const body = document.getElementById('validity-history-dialog-body');
+  const title = document.getElementById('validity-history-dialog-title');
+  if (!dlg || !body) return;
+  const name = (row.product?.cod_grup_descricao || row.cod || '').trim();
+  if (title) title.textContent = `Histórico — ${name}`;
+  body.innerHTML = buildValidityDetailBodyHtml(row, getBrazilDateKey());
+  dlg.showModal();
+}
+
+function setValidityLaunchSelection(cod) {
+  validityLaunchSelectedCod = cod ? normalizeItemCode(cod) : null;
+  document.querySelectorAll('.validity-launch-row').forEach((li) => {
+    const c = li.dataset.code || '';
+    li.classList.toggle('is-selected', !!validityLaunchSelectedCod && c === validityLaunchSelectedCod);
+  });
+  const row = window._validityRowsByCod?.get(validityLaunchSelectedCod);
+  if (window.matchMedia('(min-width: 900px)').matches) {
+    renderValidityDetailPanel(row || null);
+  }
+}
+
 function renderValidityProductList() {
   const ul = document.getElementById('validity-products-list');
   const totalEl = document.getElementById('validity-products-total');
@@ -2669,11 +2795,25 @@ function renderValidityProductList() {
   const sortMode = (document.getElementById('validity-sort')?.value || 'priority').trim();
   const rows = sortValidityRows(filterValidityRows(allRows), sortMode, todayBr);
 
+  if (validityLaunchSelectedCod && !rows.some((r) => String(r.cod) === String(validityLaunchSelectedCod))) {
+    validityLaunchSelectedCod = null;
+  }
+
+  window._validityRowsByCod = new Map(rows.map((r) => [r.cod, r]));
+
+  const statsEl = document.getElementById('validity-launch-stats');
+  if (statsEl) {
+    const noline = rows.filter((r) => !r.lines.length).length;
+    const withl = rows.length - noline;
+    statsEl.textContent = `Neste filtro: ${withl} com validade lançada · ${noline} sem lançamento`;
+  }
+
   ul.innerHTML = '';
   if (!rows.length) {
     ul.innerHTML = '<li class="validity-empty"><span>Nenhum produto no filtro atual.</span></li>';
     syncValidityKpiChipStyles();
     updateValidityReadonlyState();
+    renderValidityDetailPanel(null);
     return;
   }
 
@@ -2688,110 +2828,51 @@ function renderValidityProductList() {
     const opCat = operationalValidityPrimaryCategory(lines, todayBr);
     const hasSnap = !!snap;
     const baseOld = !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
-    const ageDays = snap ? countBaseAgeDays(snap.countDate, todayBr) : null;
-    const ageLabel = snap ? formatCountBaseAgeLabel(ageDays) : '—';
-    const ageClass = baseOld ? ' validity-metric-v--alert' : '';
-    const anchorLn = operationalAnchorLine(lines, todayBr);
-    const nextBr = anchorLn
-      ? formatDateBrFromIso(String(anchorLn.expiration_date || '').slice(0, 10))
-      : lines.length > 0
-        ? 'Vencidos'
-        : '—';
-    const statusMain = validityStatusMainShort(opCat, lines.length > 0, hasSnap);
-    const action = validityRecommendedAction(row, todayBr);
     const tone = validityCardTone(opCat, lines.length > 0, hasSnap, baseOld);
+    const hint = buildValidityHintLine(lines, todayBr);
+    const codRefEnc = enc(cod);
+    const editable = isValidityOperationalEditable();
+    const hasLines = lines.length > 0;
+    const isSel = validityLaunchSelectedCod && String(validityLaunchSelectedCod) === String(cod);
 
     const countCompact = snap
       ? `${formatIntegerBR(snap.cx)} CX · ${formatIntegerBR(snap.un)} UN`
       : 'Sem contagem';
 
-    const refMetrics = snap
-      ? `<div class="validity-analytic-metrics validity-analytic-metrics--expanded">
-          <div class="validity-metric"><span class="validity-metric-k">Última contagem</span><span class="validity-metric-v">${formatIntegerBR(snap.cx)} CX <span class="validity-meta-sep">|</span> ${formatIntegerBR(snap.un)} UN</span></div>
-          <div class="validity-metric"><span class="validity-metric-k">Data base</span><span class="validity-metric-v">${formatDateBrFromIso(snap.countDate)}</span></div>
-          <div class="validity-metric"><span class="validity-metric-k">Idade da base</span><span class="validity-metric-v${ageClass}">${ageLabel}${baseOld ? ' · base antiga' : ''}</span></div>
-          <div class="validity-metric"><span class="validity-metric-k">Próximo venc.</span><span class="validity-metric-v">${nextBr}</span></div>
-        </div>`
-      : `<div class="validity-analytic-metrics validity-analytic-metrics--expanded validity-analytic-metrics--nocount">
-          <div class="validity-metric validity-metric--full"><span class="validity-metric-k">Referência</span><span class="validity-metric-v">Sem contagem anterior no sistema</span></div>
-        </div>`;
-
-    const linesHtml = lines.length
-      ? lines
-          .map((ln) => {
-            const rk = validityRiskCategory(ln.expiration_date, todayBr);
-            const rkLabel = validityRiskLabel(rk);
-            const rkChip = validityRiskChipClass(rk);
-            const expBr = formatDateBrFromIso(String(ln.expiration_date || '').slice(0, 10));
-            const canDel = isValidityOperationalEditable() && (ln.id || ln._local);
-            const delBtn = canDel
-              ? `<button type="button" class="btn btn-text btn-sm btn-validity-remove" data-line-id="${ln.id != null ? ln.id : ''}" data-client-id="${escapeHtml(String(ln.client_event_id || ''))}" data-coderef="${enc(cod)}">Remover</button>`
-              : '—';
-            const who = ln._local
-              ? escapeHtml(ln.device_name || 'Este aparelho')
-              : escapeHtml(ln.actor_username || '—');
-            const when = formatDateTimeBr(ln.observed_at);
-            return `<tr>
-              <td>${expBr}</td>
-              <td><span class="${rkChip}">${rkLabel}</span></td>
-              <td class="muted">${who}</td>
-              <td class="muted">${when}</td>
-              <td>${delBtn}</td>
-            </tr>`;
-          })
-          .join('')
-      : '<tr><td colspan="5" class="muted">Nenhuma data neste dia operacional.</td></tr>';
-
-    const codRefEnc = enc(cod);
-    const editable = isValidityOperationalEditable();
-    const addBlock = editable
-      ? `<div class="validity-add-row">
-          <div class="validity-add-exp"><label class="sr-only" for="validity-exp-${codRefEnc}">Vencimento</label>
-          <input type="date" class="count-filter-input validity-inp-exp" id="validity-exp-${codRefEnc}" data-coderef="${codRefEnc}" /></div>
-          <div class="validity-add-actions"><button type="button" class="btn btn-primary validity-btn-add" data-coderef="${codRefEnc}">Adicionar</button></div>
-        </div>`
-      : '';
-
-    const defaultOpen = window.matchMedia('(min-width: 769px)').matches;
-    const openAttr = defaultOpen ? 'open' : '';
-
     const li = document.createElement('li');
-    li.className = 'validity-product-item';
+    li.className = `validity-product-item validity-launch-row${isSel ? ' is-selected' : ''}`;
+    li.dataset.code = cod;
     li.innerHTML = `
-      <details class="validity-analytic-card validity-analytic-card--${tone}" ${openAttr}>
-        <summary class="validity-analytic-summary">
-          <div class="validity-summary-compact validity-summary-compact--dense">
-            <div class="validity-sum-r1">
-              <span class="validity-analytic-name">${desc}</span>
-            </div>
-            <div class="validity-sum-r2">
-              <span class="validity-analytic-code">${escapeHtml(cod)}</span>
-              <span class="validity-pill validity-pill--status" data-v-st="${escapeHtml(statusMain.key)}">${escapeHtml(statusMain.label)}</span>
-              <span class="validity-pill validity-pill--action" data-v-act="${escapeHtml(action.key)}">${escapeHtml(action.label)}</span>
-            </div>
-            <div class="validity-sum-r3" aria-label="Resumo">
-              <span class="validity-sum-stat"><span class="validity-stat-lbl">Cont.</span> ${escapeHtml(countCompact)}</span>
-              <span class="validity-sum-stat"><span class="validity-stat-lbl">Próx.</span> ${escapeHtml(nextBr)}</span>
-            </div>
+      <article class="validity-launch-card validity-launch-card--${tone} ${hasLines ? 'validity-launch-card--has' : 'validity-launch-card--pending'}" data-code="${escapeHtml(cod)}">
+        <div class="validity-launch-card-head">
+          <div class="validity-launch-identity">
+            <h3 class="validity-launch-product-name">${desc}</h3>
+            <span class="validity-launch-product-code">${escapeHtml(cod)}</span>
           </div>
-        </summary>
-        <div class="validity-product-body">
-          ${refMetrics}
-          <p class="validity-detail-hint muted">Datas neste dia operacional</p>
-          <div class="validity-lines-table-wrap">
-          <table class="validity-lines-table">
-            <thead><tr><th>Vencimento</th><th>Faixa</th><th>Quem</th><th>Quando</th><th></th></tr></thead>
-            <tbody>${linesHtml}</tbody>
-          </table>
-          </div>
-          ${addBlock}
+          <span class="validity-launch-badge ${hasLines ? 'validity-launch-badge--ok' : 'validity-launch-badge--pending'}">${hasLines ? 'Com validade' : 'Pendente'}</span>
         </div>
-      </details>`;
+        <p class="validity-launch-meta muted" aria-label="Referência de contagem">Cont.: ${escapeHtml(countCompact)}</p>
+        <p class="validity-launch-hint muted">${escapeHtml(hint)}</p>
+        <div class="validity-launch-controls">
+          <label class="sr-only" for="validity-exp-${codRefEnc}">Data de validade</label>
+          <input type="date" class="count-filter-input validity-launch-date validity-inp-exp" id="validity-exp-${codRefEnc}" data-coderef="${codRefEnc}" ${editable ? '' : 'disabled'} />
+          <button type="button" class="btn btn-primary validity-btn-add validity-launch-save" data-coderef="${codRefEnc}" ${editable ? '' : 'disabled'}>Salvar</button>
+          <button type="button" class="btn btn-secondary validity-btn-history validity-launch-history-btn" data-coderef="${codRefEnc}">Ver histórico</button>
+        </div>
+      </article>`;
     ul.appendChild(li);
   }
 
   syncValidityKpiChipStyles();
   updateValidityReadonlyState();
+
+  const sel = validityLaunchSelectedCod ? window._validityRowsByCod?.get(validityLaunchSelectedCod) : null;
+  if (window.matchMedia('(min-width: 900px)').matches) {
+    renderValidityDetailPanel(sel);
+  } else {
+    const pnl = document.getElementById('validity-launch-detail-panel');
+    if (pnl) pnl.hidden = true;
+  }
 }
 
 /** Evita rolagem indesejada ao abrir /app#validity (fragmento, restauração ou reflow da lista). */
@@ -2851,7 +2932,20 @@ function registerValidityLineLocal(codRaw, expirationDateStr) {
   events.push(ev);
   saveValidityEventsForDate(dayKey, events);
   setValidityFeedback(`Validade ${ev.expiration_date} gravada localmente. Sincronize quando estiver online.`, false);
+  const savedCod = cod;
   renderValidityProductList();
+  requestAnimationFrame(() => {
+    const list = document.querySelectorAll('#validity-products-list .validity-launch-row');
+    const ix = [...list].findIndex((li) => li.dataset.code === savedCod);
+    const next = list[ix + 1];
+    const target = next?.querySelector('.validity-launch-date') || list[ix]?.querySelector('.validity-launch-date');
+    if (target && !target.disabled) target.focus();
+    const card = list[ix]?.querySelector('.validity-launch-card');
+    if (card) {
+      card.classList.add('validity-launch-card--flash');
+      setTimeout(() => card.classList.remove('validity-launch-card--flash'), 1200);
+    }
+  });
   const pending = flattenValidityPendingAll().filter((e) => !e.synced).length;
   const badge = document.getElementById('validity-pending-badge');
   if (badge) {
@@ -2978,6 +3072,7 @@ function bindValidityEvents() {
   const itemCode = document.getElementById('validity-item-code');
   const grp = document.getElementById('validity-group');
   const risk = document.getElementById('validity-risk-filter');
+  const launchFilter = document.getElementById('validity-launch-filter');
   const btnSync = document.getElementById('btn-validity-sync');
 
   if (itemCode) {
@@ -2988,6 +3083,12 @@ function bindValidityEvents() {
   }
   if (risk) {
     risk.addEventListener('change', () => renderValidityProductList());
+  }
+  if (launchFilter) {
+    launchFilter.addEventListener('change', () => {
+      validityLaunchSelectedCod = null;
+      renderValidityProductList();
+    });
   }
   const sortEl = document.getElementById('validity-sort');
   if (sortEl) {
@@ -3015,14 +3116,34 @@ function bindValidityEvents() {
     btnSync.addEventListener('click', () => syncValidityPending());
   }
 
+  const histDlg = document.getElementById('validity-history-dialog');
+  if (histDlg && histDlg.dataset.bound !== '1') {
+    histDlg.dataset.bound = '1';
+    histDlg.querySelector('.validity-history-dialog-close')?.addEventListener('click', () => histDlg.close());
+    histDlg.addEventListener('click', (ev) => {
+      if (ev.target === histDlg) histDlg.close();
+    });
+  }
+
   if (shell && shell.dataset.validityBound !== '1') {
     shell.dataset.validityBound = '1';
     shell.addEventListener('click', (e) => {
+      const histBtn = e.target.closest('.validity-btn-history');
+      if (histBtn) {
+        e.stopPropagation();
+        const cref = histBtn.getAttribute('data-coderef') || '';
+        const cod = normalizeItemCode(decodeURIComponent(cref));
+        const row = window._validityRowsByCod?.get(cod);
+        if (row) openValidityHistoryDialog(row);
+        return;
+      }
       const addBtn = e.target.closest('.validity-btn-add');
       if (addBtn) {
         const codRefEnc = addBtn.getAttribute('data-coderef') || '';
         const cod = normalizeItemCode(decodeURIComponent(codRefEnc));
-        const expEl = document.getElementById(`validity-exp-${codRefEnc}`);
+        const expEl =
+          document.getElementById(`validity-exp-${codRefEnc}`) ||
+          document.getElementById(`validity-exp-panel-${codRefEnc}`);
         registerValidityLineLocal(cod, expEl && expEl.value);
         if (expEl) expEl.value = '';
         return;
@@ -3034,6 +3155,16 @@ function bindValidityEvents() {
         const cref = rem.getAttribute('data-coderef') || '';
         const cod = normalizeItemCode(decodeURIComponent(cref));
         removeValidityLine(lid ? Number(lid) : null, cid || null, cod);
+        return;
+      }
+      const launchRow = e.target.closest('.validity-launch-row');
+      if (launchRow && !e.target.closest('input, button, textarea, select, a, label')) {
+        const cod = launchRow.dataset.code;
+        if (cod) setValidityLaunchSelection(cod);
+        const inp = launchRow.querySelector('.validity-launch-date');
+        if (inp && !inp.disabled) {
+          requestAnimationFrame(() => inp.focus());
+        }
       }
     });
   }
@@ -4520,6 +4651,7 @@ function getCountAuditRowByCode(code, rows = getCountAuditRowsFromState()) {
 function setCountAuditFeedback(message, isError = false) {
   if (!countAuditFeedback) return;
   countAuditFeedback.textContent = message || '';
+  countAuditFeedback.style.display = message ? '' : 'none';
   countAuditFeedback.style.color = isError ? '#fee2e2' : '#e2e8f0';
   countAuditFeedback.style.borderColor = isError ? 'rgba(248, 113, 113, 0.32)' : 'rgba(255, 255, 255, 0.12)';
   countAuditFeedback.style.background = isError ? 'rgba(127, 29, 29, 0.18)' : 'rgba(255, 255, 255, 0.08)';

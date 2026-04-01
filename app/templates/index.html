@@ -487,14 +487,14 @@
                   </div>
                 </aside>
               </div>
+              <dialog id="validity-history-dialog" class="validity-history-dialog" aria-labelledby="validity-history-dialog-title">
+                <div class="validity-history-dialog-head">
+                  <h2 id="validity-history-dialog-title" class="validity-history-dialog-title">Histórico de validades</h2>
+                  <button type="button" class="btn-text validity-history-dialog-close" aria-label="Fechar">Fechar</button>
+                </div>
+                <div id="validity-history-dialog-body" class="validity-history-dialog-body"></div>
+              </dialog>
             </div>
-            <dialog id="validity-history-dialog" class="validity-history-dialog" aria-labelledby="validity-history-dialog-title">
-              <div class="validity-history-dialog-head">
-                <h2 id="validity-history-dialog-title" class="validity-history-dialog-title">Histórico de validades</h2>
-                <button type="button" class="btn-text validity-history-dialog-close" aria-label="Fechar">Fechar</button>
-              </div>
-              <div id="validity-history-dialog-body" class="validity-history-dialog-body"></div>
-            </dialog>
           </div>
 
           <!-- Sub: Importar Estoque -->
@@ -600,7 +600,7 @@
                     </p>
                   </aside>
                 </div>
-                <div id="count-audit-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite"></div>
+                <div id="count-audit-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
               </section>
 
               <section class="card count-audit-summary-card">
@@ -653,7 +653,7 @@
                     <p class="count-audit-card-sub muted">Refine a análise por contexto, urgência e padrão de divergência</p>
                   </div>
                   <div class="count-audit-filters-actions">
-                    <button id="count-audit-toggle-filters" type="button" class="btn-secondary btn-small count-audit-btn-mobile-filters" aria-controls="count-audit-filters-panel" aria-expanded="false">Mais filtros</button>
+                    <button id="count-audit-toggle-filters" type="button" class="btn-secondary btn-small count-audit-btn-mobile-filters" aria-controls="count-audit-filters-panel" aria-expanded="false" hidden>Mais filtros</button>
                     <button id="count-audit-clear-filters" type="button" class="btn-secondary btn-small count-audit-btn-clear-all">Limpar filtros</button>
                   </div>
                 </div>
