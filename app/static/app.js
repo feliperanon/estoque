@@ -247,6 +247,10 @@ const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
 /** Mapa por dia (YYYY-MM-DD): { "2026-04-01": [ eventos... ] } */
 const COUNT_EVENTS_BUCKET_KEY = 'estoque_count_events_by_day_v2';
 const DEVICE_NAME_KEY = 'estoque_device_name_v1';
+/** Evita múltiplos clearSession/showLogin quando várias respostas 401 chegam ao mesmo tempo. */
+let unauthorizedRedirectInProgress = false;
+let loadServerCountTotalsInFlight = null;
+let countTotalsVisibilityRefreshTimer = null;
 let activeApiBasePrimary = API_BASE_URL_PRIMARY;
 let activeApiBaseFallback = API_BASE_URL_FALLBACK;
 
@@ -1094,6 +1098,7 @@ function getUser() {
 }
 
 function saveSession(token, user) {
+  unauthorizedRedirectInProgress = false;
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
@@ -1105,6 +1110,8 @@ function clearSession() {
 
 function handleUnauthorizedResponse(response) {
   if (response.status !== 401) return false;
+  if (unauthorizedRedirectInProgress) return true;
+  unauthorizedRedirectInProgress = true;
   clearSession();
   loginForm.reset();
   history.replaceState(null, '', APP_BASE_PATH);
@@ -1415,34 +1422,48 @@ function getNetByProductAndType(productCode, countType) {
 }
 
 async function loadServerCountTotals() {
-  const token = getToken();
-  if (!token) {
-    countServerCountState = { ok: false, balances: {} };
-    return;
+  if (loadServerCountTotalsInFlight) {
+    return loadServerCountTotalsInFlight;
   }
-  if (isAccessTokenExpired(token)) {
-    countServerCountState = { ok: false, balances: {} };
-    handleUnauthorizedResponse({ status: 401 });
-    return;
-  }
+  loadServerCountTotalsInFlight = (async () => {
+    const token = getToken();
+    if (!token) {
+      countServerCountState = { ok: false, balances: {} };
+      return;
+    }
+    if (unauthorizedRedirectInProgress) {
+      countServerCountState = { ok: false, balances: {} };
+      return;
+    }
+    if (isAccessTokenExpired(token)) {
+      countServerCountState = { ok: false, balances: {} };
+      handleUnauthorizedResponse({ status: 401 });
+      return;
+    }
+    try {
+      const params = new URLSearchParams();
+      params.set('count_date', getActiveCountDateKey());
+      const response = await apiFetch(`${API_COUNT_SERVER_TOTALS}?${params.toString()}`, {
+        headers: getAuthHeaders(),
+      });
+      if (handleUnauthorizedResponse(response)) {
+        countServerCountState = { ok: false, balances: {} };
+        return;
+      }
+      if (!response.ok) {
+        countServerCountState = { ok: false, balances: {} };
+        return;
+      }
+      const data = await response.json();
+      countServerCountState = { ok: true, balances: data.balances || {} };
+    } catch {
+      countServerCountState = { ok: false, balances: {} };
+    }
+  })();
   try {
-    const params = new URLSearchParams();
-    params.set('count_date', getActiveCountDateKey());
-    const response = await apiFetch(`${API_COUNT_SERVER_TOTALS}?${params.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (handleUnauthorizedResponse(response)) {
-      countServerCountState = { ok: false, balances: {} };
-      return;
-    }
-    if (!response.ok) {
-      countServerCountState = { ok: false, balances: {} };
-      return;
-    }
-    const data = await response.json();
-    countServerCountState = { ok: true, balances: data.balances || {} };
-  } catch {
-    countServerCountState = { ok: false, balances: {} };
+    await loadServerCountTotalsInFlight;
+  } finally {
+    loadServerCountTotalsInFlight = null;
   }
 }
 
@@ -1621,6 +1642,15 @@ async function loadImportBalancesForCount() {
     countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
     return;
   }
+  if (unauthorizedRedirectInProgress) {
+    countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    return;
+  }
+  if (isAccessTokenExpired(token)) {
+    countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    handleUnauthorizedResponse({ status: 401 });
+    return;
+  }
   const dateEl = document.getElementById('count-date');
   const referenceDate = (dateEl && dateEl.value || '').trim();
   const params = new URLSearchParams();
@@ -1630,6 +1660,10 @@ async function loadImportBalancesForCount() {
     const response = await apiFetch(`${API_IMPORT_BALANCES}?${params.toString()}`, {
       headers: getAuthHeaders(),
     });
+    if (handleUnauthorizedResponse(response)) {
+      countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+      return;
+    }
     if (!response.ok) {
       countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
       return;
@@ -1869,6 +1903,10 @@ async function loadCountProducts() {
   if (!countProductsList) return;
   const token = getToken();
   if (!token) return;
+  if (isAccessTokenExpired(token)) {
+    handleUnauthorizedResponse({ status: 401 });
+    return;
+  }
 
   const q = '';
   /* Contagem operacional: sempre catálogo ativo no backend; sem toggle no front */
@@ -1902,7 +1940,9 @@ async function loadCountProducts() {
   try {
     let products = await fetchCatalog(statusValue);
     if (products === null) {
-      await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
+      if (getToken()) {
+        await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
+      }
       renderCountProducts([]);
       setFeedback('Nao foi possivel carregar a lista de produtos para contagem.', true);
       return;
@@ -2390,7 +2430,15 @@ function bindCountEvents() {
     if (document.visibilityState !== 'visible') return;
     if (!navigator.onLine) return;
     if (!getToken()) return;
-    loadServerCountTotals().then(() => refreshCountProductListView());
+    if (unauthorizedRedirectInProgress) return;
+    if (countTotalsVisibilityRefreshTimer) {
+      clearTimeout(countTotalsVisibilityRefreshTimer);
+    }
+    countTotalsVisibilityRefreshTimer = setTimeout(() => {
+      countTotalsVisibilityRefreshTimer = null;
+      if (!getToken() || unauthorizedRedirectInProgress) return;
+      loadServerCountTotals().then(() => refreshCountProductListView());
+    }, 200);
   });
 }
 
