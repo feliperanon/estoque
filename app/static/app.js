@@ -266,6 +266,8 @@ let validityProductsCache = [];
 let validityServerLines = [];
 /** Última contagem global por produto: CX/UN + count_date (ChangeLog, servidor). */
 let validityLastCountState = { ok: false, balances: {} };
+/** KPI clicável ativo (filtro rápido); null = nenhum. */
+let validityActiveKpiKey = null;
 /** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
 let countServerCountState = { ok: false, balances: {} };
 const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
@@ -2094,6 +2096,14 @@ async function loadCountProducts() {
     countProductsCache = products;
     await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
     renderCountProducts(countProductsCache);
+    if (countPrefillProductCode) {
+      const itemCodeInput = document.getElementById('item-code');
+      if (itemCodeInput) {
+        itemCodeInput.value = countPrefillProductCode;
+        itemCodeInput.dispatchEvent(new Event('input'));
+      }
+      countPrefillProductCode = null;
+    }
   } catch (e) {
     console.error('Erro ao carregar produtos:', e);
     Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]).then(() => renderCountProducts([]));
@@ -2499,6 +2509,50 @@ function updateValidityKpis(allRows, todayBr) {
   if (pd) pd.textContent = `${withLine} de ${total} produtos com validade lançada`;
 }
 
+function rowMatchesValidityKpi(row, kpi, todayBr) {
+  if (!kpi) return true;
+  const lines = row.lines || [];
+  const snap = getValidityLastCountSnapshot(row.cod);
+  switch (kpi) {
+    case 'with':
+      return lines.length > 0;
+    case 'without':
+      return lines.length === 0;
+    case 'nocount':
+      return !snap;
+    case 'oldbase':
+      return !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
+    case 'expired':
+      return lines.some((l) => {
+        const d = validityExpiryDiffDays(l.expiration_date, todayBr);
+        return d !== null && d < 0;
+      });
+    case 'd30':
+    case 'd60':
+    case 'd90':
+    case 'd120':
+    case 'd150':
+    case 'd180': {
+      const max = parseInt(kpi.slice(1), 10);
+      return lines.some((l) => {
+        const d = validityExpiryDiffDays(l.expiration_date, todayBr);
+        return d !== null && d >= 0 && d <= max;
+      });
+    }
+    default:
+      return true;
+  }
+}
+
+function syncValidityKpiChipStyles() {
+  document.querySelectorAll('#validity-kpi-strip [data-validity-kpi]').forEach((btn) => {
+    const k = btn.getAttribute('data-validity-kpi');
+    const on = validityActiveKpiKey === k;
+    btn.classList.toggle('validity-kpi--active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
 function filterValidityRows(rows) {
   const term = (document.getElementById('validity-item-code')?.value || '').trim().toLowerCase();
   const grupo = (document.getElementById('validity-group')?.value || '').trim().toLowerCase();
@@ -2511,6 +2565,7 @@ function filterValidityRows(rows) {
     const codigo = (p.cod_produto || '').toLowerCase();
     if (term && !codigo.includes(term) && !desc.includes(term)) return false;
     if (grupo && !desc.includes(grupo)) return false;
+    if (!rowMatchesValidityKpi(row, validityActiveKpiKey, todayBr)) return false;
 
     const snap = getValidityLastCountSnapshot(row.cod);
 
@@ -2612,14 +2667,18 @@ function renderValidityProductList() {
     const action = validityRecommendedAction(row, todayBr);
     const tone = validityCardTone(worst, lines.length > 0, hasSnap, baseOld);
 
+    const countCompact = snap
+      ? `${formatIntegerBR(snap.cx)} CX · ${formatIntegerBR(snap.un)} UN`
+      : 'Sem contagem';
+
     const refMetrics = snap
-      ? `<div class="validity-analytic-metrics">
+      ? `<div class="validity-analytic-metrics validity-analytic-metrics--expanded">
           <div class="validity-metric"><span class="validity-metric-k">Última contagem</span><span class="validity-metric-v">${formatIntegerBR(snap.cx)} CX <span class="validity-meta-sep">|</span> ${formatIntegerBR(snap.un)} UN</span></div>
           <div class="validity-metric"><span class="validity-metric-k">Data base</span><span class="validity-metric-v">${formatDateBrFromIso(snap.countDate)}</span></div>
           <div class="validity-metric"><span class="validity-metric-k">Idade da base</span><span class="validity-metric-v${ageClass}">${ageLabel}${baseOld ? ' · base antiga' : ''}</span></div>
           <div class="validity-metric"><span class="validity-metric-k">Próximo venc.</span><span class="validity-metric-v">${nextBr}</span></div>
         </div>`
-      : `<div class="validity-analytic-metrics validity-analytic-metrics--nocount">
+      : `<div class="validity-analytic-metrics validity-analytic-metrics--expanded validity-analytic-metrics--nocount">
           <div class="validity-metric validity-metric--full"><span class="validity-metric-k">Referência</span><span class="validity-metric-v">Sem contagem anterior no sistema</span></div>
         </div>`;
 
@@ -2659,25 +2718,34 @@ function renderValidityProductList() {
         </div>`
       : '';
 
+    const defaultOpen = window.matchMedia('(min-width: 769px)').matches;
+    const openAttr = defaultOpen ? 'open' : '';
+
     const li = document.createElement('li');
     li.className = 'validity-product-item';
     li.innerHTML = `
-      <details class="validity-analytic-card validity-analytic-card--${tone}" open>
+      <details class="validity-analytic-card validity-analytic-card--${tone}" ${openAttr}>
         <summary class="validity-analytic-summary">
-          <div class="validity-analytic-head">
-            <div class="validity-analytic-titlebox">
-              <span class="validity-analytic-name">${desc}</span>
-              <span class="validity-analytic-code">${escapeHtml(cod)}</span>
+          <div class="validity-summary-compact">
+            <div class="validity-summary-compact-top">
+              <div class="validity-summary-titles">
+                <span class="validity-analytic-name">${desc}</span>
+                <span class="validity-analytic-code">${escapeHtml(cod)}</span>
+              </div>
+              <div class="validity-analytic-badges">
+                <span class="validity-pill validity-pill--status" data-v-st="${escapeHtml(statusMain.key)}">${escapeHtml(statusMain.label)}</span>
+                <span class="validity-pill validity-pill--action" data-v-act="${escapeHtml(action.key)}">${escapeHtml(action.label)}</span>
+              </div>
             </div>
-            <div class="validity-analytic-badges">
-              <span class="validity-pill validity-pill--status" data-v-st="${escapeHtml(statusMain.key)}">${escapeHtml(statusMain.label)}</span>
-              <span class="validity-pill validity-pill--action" data-v-act="${escapeHtml(action.key)}">${escapeHtml(action.label)}</span>
+            <div class="validity-summary-compact-stats" aria-label="Resumo">
+              <span class="validity-stat-pill"><span class="validity-stat-lbl">Cont.</span> ${escapeHtml(countCompact)}</span>
+              <span class="validity-stat-pill"><span class="validity-stat-lbl">Próx.</span> ${escapeHtml(nextBr)}</span>
             </div>
           </div>
-          ${refMetrics}
         </summary>
         <div class="validity-product-body">
-          <p class="validity-detail-hint muted">Detalhe das datas lançadas neste dia operacional</p>
+          ${refMetrics}
+          <p class="validity-detail-hint muted">Datas neste dia operacional</p>
           <div class="validity-lines-table-wrap">
           <table class="validity-lines-table">
             <thead><tr><th>Vencimento</th><th>Faixa</th><th>Quem</th><th>Quando</th><th></th></tr></thead>
@@ -2690,11 +2758,14 @@ function renderValidityProductList() {
     ul.appendChild(li);
   }
 
+  syncValidityKpiChipStyles();
   updateValidityReadonlyState();
 }
 
 async function loadValidityModule() {
   showDashboard();
+  const opEl = document.getElementById('validity-op-date');
+  if (opEl) opEl.value = getBrazilDateKey();
   await loadLastCountPerProduct();
   await loadValidityLinesFromServer();
   await loadValidityProductsCatalog();
@@ -2876,6 +2947,18 @@ function bindValidityEvents() {
   const sortEl = document.getElementById('validity-sort');
   if (sortEl) {
     sortEl.addEventListener('change', () => renderValidityProductList());
+  }
+  const kpiStrip = document.getElementById('validity-kpi-strip');
+  if (kpiStrip && kpiStrip.dataset.kpiBound !== '1') {
+    kpiStrip.dataset.kpiBound = '1';
+    kpiStrip.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-validity-kpi]');
+      if (!btn) return;
+      const k = btn.getAttribute('data-validity-kpi');
+      if (!k) return;
+      validityActiveKpiKey = validityActiveKpiKey === k ? null : k;
+      renderValidityProductList();
+    });
   }
   if (opDate) {
     opDate.addEventListener('change', async () => {
@@ -4135,6 +4218,813 @@ function bindCountAuditEvents() {
   if (countAuditOnlyDiff) {
     countAuditOnlyDiff.addEventListener('change', () => {
       loadCountAuditAnalysis();
+    });
+  }
+}
+
+const API_STOCK_ANALYSIS_DETAIL = '/audit/stock-analysis/detail';
+const countAuditGroupFilter = document.getElementById('count-audit-group');
+const countAuditStatusFilter = document.getElementById('count-audit-status');
+const countAuditPriorityFilter = document.getElementById('count-audit-priority');
+const countAuditDivergenceFilter = document.getElementById('count-audit-divergence');
+const countAuditOnlyPending = document.getElementById('count-audit-only-pending');
+const countAuditOnlyCritical = document.getElementById('count-audit-only-critical');
+const countAuditOnlyMissing = document.getElementById('count-audit-only-missing');
+const countAuditClearFilters = document.getElementById('count-audit-clear-filters');
+const countAuditRangeInfo = document.getElementById('count-audit-range-info');
+const countAuditDetailStatus = document.getElementById('count-audit-detail-status');
+const countAuditDetailPanel = document.getElementById('count-audit-detail');
+const countAuditOperationalDate = document.getElementById('count-audit-operational-date');
+const countAuditAnalysisStatus = document.getElementById('count-audit-analysis-status');
+const countAuditLastSync = document.getElementById('count-audit-last-sync');
+const countAuditBaseSource = document.getElementById('count-audit-base-source');
+const countAuditBaseSourceNote = document.getElementById('count-audit-base-source-note');
+const countAuditModeIndicator = document.getElementById('count-audit-mode-indicator');
+
+const countAuditState = {
+  rows: [],
+  summary: {},
+  importInfo: null,
+  loadedAt: null,
+  selectedCode: null,
+  detailCache: new Map(),
+};
+let countAuditDetailRequestSeq = 0;
+let countPrefillProductCode = null;
+
+function formatSignedIntegerBR(value) {
+  const n = Number(value) || 0;
+  return n > 0 ? `+${formatIntegerBR(n)}` : formatIntegerBR(n);
+}
+
+function formatAuditRelativeTime(isoValue) {
+  if (!isoValue) return '--';
+  const date = new Date(isoValue);
+  if (Number.isNaN(date.getTime())) return formatDateTime(isoValue);
+  const diffMs = date.getTime() - Date.now();
+  const diffMinutes = Math.round(diffMs / 60000);
+  if (Math.abs(diffMinutes) < 60) {
+    return `${formatDateTime(isoValue)} (${diffMinutes === 0 ? 'agora' : `${Math.abs(diffMinutes)} min`})`;
+  }
+  return formatDateTime(isoValue);
+}
+
+function getCountAuditFiltersSnapshot() {
+  return {
+    search: (countAuditSearch?.value || '').trim().toLowerCase(),
+    group: (countAuditGroupFilter?.value || '').trim(),
+    status: (countAuditStatusFilter?.value || '').trim(),
+    priority: (countAuditPriorityFilter?.value || '').trim(),
+    divergence: (countAuditDivergenceFilter?.value || '').trim(),
+    onlyPending: !!countAuditOnlyPending?.checked,
+    onlyCritical: !!countAuditOnlyCritical?.checked,
+    onlyMissing: !!countAuditOnlyMissing?.checked,
+    onlyDiff: !!countAuditOnlyDiff?.checked,
+  };
+}
+
+function enrichCountAuditRow(row) {
+  if (!row || row._auditMeta) return row;
+  const importCx = Number(row.import_caixa) || 0;
+  const importUn = Number(row.import_unidade) || 0;
+  const countedCx = Number(row.counted_caixa) || 0;
+  const countedUn = Number(row.counted_unidade) || 0;
+  const diffCx = Number(row.difference_caixa) || 0;
+  const diffUn = Number(row.difference_unidade) || 0;
+  const diffAbs = Number(row.difference_abs) || (Math.abs(diffCx) + Math.abs(diffUn));
+  const hasCount = countedCx !== 0 || countedUn !== 0;
+  const diffDims = (diffCx !== 0 ? 1 : 0) + (diffUn !== 0 ? 1 : 0);
+
+  let stateKey = 'ok';
+  let stateLabel = 'Conferido';
+  let priorityLabel = 'Baixa';
+  let priorityRank = 4;
+  let divergenceType = 'none';
+  let divergenceLabel = 'Sem divergência';
+  let recommendedAction = 'Somente monitorar';
+  let insight = 'Saldo TXT e contagem atual estão alinhados.';
+
+  if (row.status === 'missing_in_count') {
+    stateKey = 'missing';
+    stateLabel = 'Sem lançamento';
+    priorityLabel = 'Imediata';
+    priorityRank = 0;
+    divergenceType = 'missing';
+    divergenceLabel = 'Sem contagem';
+    recommendedAction = 'Acionar contagem imediata';
+    insight = 'O item existe na base, mas não recebeu lançamento no dia operacional.';
+  } else if (row.status === 'extra_in_count') {
+    stateKey = 'critical';
+    stateLabel = 'Crítico';
+    priorityLabel = 'Imediata';
+    priorityRank = 0;
+    divergenceType = 'extra';
+    divergenceLabel = 'Sem base TXT';
+    recommendedAction = 'Validar cadastro ou base importada';
+    insight = 'Há contagem sem correspondência direta na base comparativa.';
+  } else if (row.status === 'divergent') {
+    divergenceType = diffDims === 2 ? 'both' : (diffCx !== 0 ? 'caixa' : 'unidade');
+    divergenceLabel = divergenceType === 'both'
+      ? 'Caixa e unidade'
+      : divergenceType === 'caixa'
+        ? 'Diferença em caixa'
+        : 'Diferença em unidade';
+
+    if (diffAbs >= 10 || (diffDims === 2 && diffAbs >= 6)) {
+      stateKey = 'critical';
+      stateLabel = 'Crítico';
+      priorityLabel = 'Imediata';
+      priorityRank = 0;
+      recommendedAction = 'Abrir recontagem prioritária';
+      insight = 'A diferença é alta e pede revisão completa antes da validação.';
+    } else if (diffAbs >= 4 || diffDims === 2) {
+      stateKey = 'high';
+      stateLabel = 'Divergência alta';
+      priorityLabel = 'Alta';
+      priorityRank = 1;
+      recommendedAction = 'Revisar lançamentos e conferir base';
+      insight = 'Há impacto relevante no fechamento e o item deve subir na fila.';
+    } else {
+      stateKey = 'light';
+      stateLabel = 'Divergência leve';
+      priorityLabel = 'Média';
+      priorityRank = 2;
+      recommendedAction = 'Validar ajuste pontual';
+      insight = 'Parece um desvio localizado, com baixa amplitude relativa.';
+    }
+  }
+
+  return {
+    ...row,
+    _auditMeta: {
+      stateKey,
+      stateLabel,
+      priorityLabel,
+      priorityRank,
+      divergenceType,
+      divergenceLabel,
+      recommendedAction,
+      insight,
+      diffAbs,
+      diffCx,
+      diffUn,
+      hasCount,
+      isPending: stateKey !== 'ok',
+      isCritical: stateKey === 'critical' || stateKey === 'missing',
+      isDivergent: row.status === 'divergent' || row.status === 'extra_in_count',
+      totalBase: importCx + importUn,
+      totalCount: countedCx + countedUn,
+    },
+  };
+}
+
+function getCountAuditRowsFromState() {
+  return Array.isArray(countAuditState.rows) ? countAuditState.rows : [];
+}
+
+function getCountAuditDashboard(summary = countAuditState.summary, rows = getCountAuditRowsFromState()) {
+  const total = (Number(summary.equal_items) || 0)
+    + (Number(summary.divergent_items) || 0)
+    + (Number(summary.missing_in_count) || 0)
+    + (Number(summary.extra_in_count) || 0);
+  const analyzed = Number(summary.counted_items) || rows.filter((row) => row._auditMeta?.hasCount).length;
+  const pending = Math.max(0, total - (Number(summary.equal_items) || 0));
+  const divergent = rows.filter((row) => row._auditMeta?.isDivergent).length;
+  const critical = rows.filter((row) => row._auditMeta?.stateKey === 'critical').length;
+  const missing = Number(summary.missing_in_count) || rows.filter((row) => row._auditMeta?.stateKey === 'missing').length;
+  const completedPercent = total > 0 ? Math.round((analyzed / total) * 100) : 0;
+  const biggestGap = rows.reduce((max, row) => Math.max(max, Number(row._auditMeta?.diffAbs) || 0), 0);
+  return { total, analyzed, pending, divergent, critical, missing, completedPercent, biggestGap };
+}
+
+function updateCountAuditHeaderContext() {
+  const dashboard = getCountAuditDashboard();
+  const info = countAuditState.importInfo || {};
+  const referenceDate = (countAuditImport?.value || '').trim() || countAuditState.importInfo?.reference_date || '';
+
+  if (countAuditOperationalDate) {
+    countAuditOperationalDate.textContent = referenceDate ? formatDateBR(referenceDate) : formatDateBR(getBrazilDateKey());
+  }
+  if (countAuditLastSync) {
+    countAuditLastSync.textContent = countAuditState.loadedAt ? formatDateTime(countAuditState.loadedAt) : '--';
+  }
+  if (countAuditModeIndicator) {
+    countAuditModeIndicator.textContent = 'Modo leitura';
+  }
+  if (countAuditAnalysisStatus) {
+    let label = 'Aguardando carga';
+    if (dashboard.total > 0) {
+      if (dashboard.critical > 0 || dashboard.missing > 0) label = 'Ação imediata';
+      else if (dashboard.pending > 0) label = 'Em validação';
+      else label = 'Conferido';
+    }
+    countAuditAnalysisStatus.textContent = label;
+  }
+  if (countAuditBaseSource) {
+    countAuditBaseSource.textContent = info.id == null
+      ? 'Saldo sintético'
+      : `TXT ${formatDateBR(info.reference_date || referenceDate || '')}`;
+  }
+  if (countAuditBaseSourceNote) {
+    countAuditBaseSourceNote.textContent = info.id == null
+      ? (info.file_name || 'Sem importação TXT para a data.')
+      : (info.file_name || 'Base TXT carregada');
+  }
+}
+
+function populateCountAuditGroups(rows) {
+  if (!countAuditGroupFilter) return;
+  const current = countAuditGroupFilter.value;
+  const groups = Array.from(new Set(rows.map((row) => String(row.grupo || 'Sem grupo').trim() || 'Sem grupo'))).sort(
+    (a, b) => a.localeCompare(b, 'pt-BR'),
+  );
+  countAuditGroupFilter.innerHTML = '<option value="">Todos os grupos</option>'
+    + groups.map((group) => `<option value="${escapeHtml(group)}">${escapeHtml(group)}</option>`).join('');
+  if (groups.includes(current)) countAuditGroupFilter.value = current;
+}
+
+function getCountAuditRowByCode(code, rows = getCountAuditRowsFromState()) {
+  return rows.find((row) => String(row.cod_produto || '') === String(code || '')) || null;
+}
+
+function setCountAuditFeedback(message, isError = false) {
+  if (!countAuditFeedback) return;
+  countAuditFeedback.textContent = message || '';
+  countAuditFeedback.style.color = isError ? '#fee2e2' : '#e2e8f0';
+  countAuditFeedback.style.borderColor = isError ? 'rgba(248, 113, 113, 0.32)' : 'rgba(255, 255, 255, 0.12)';
+  countAuditFeedback.style.background = isError ? 'rgba(127, 29, 29, 0.18)' : 'rgba(255, 255, 255, 0.08)';
+}
+
+function updateCountAuditSummarySelection() {
+  if (!countAuditSummary) return;
+  countAuditSummary.querySelectorAll('.count-audit-summary-item[data-count-audit-filter]').forEach((el) => {
+    const active = el.dataset.countAuditFilter === countAuditSummaryFilterKey;
+    el.classList.toggle('is-selected', active);
+    el.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+function renderCountAuditSummary(summary) {
+  if (!countAuditSummary) return;
+  const rows = getCountAuditRowsFromState();
+  const dashboard = getCountAuditDashboard(summary, rows);
+  const cards = [
+    ['Total de produtos', formatIntegerBR(dashboard.total), 'is-neutral', 'all', 'Escopo ativo carregado'],
+    ['Produtos analisados', formatIntegerBR(dashboard.analyzed), 'is-info', 'analyzed', 'Itens com contagem registrada'],
+    ['Produtos pendentes', formatIntegerBR(dashboard.pending), 'is-warn', 'pending', 'Itens ainda fora do fechamento'],
+    ['Produtos com divergência', formatIntegerBR(dashboard.divergent), 'is-warn', 'divergent', 'Diferença entre base e contagem'],
+    ['Divergências críticas', formatIntegerBR(dashboard.critical), 'is-danger', 'critical', 'Itens que exigem ação imediata'],
+    ['Produtos sem contagem', formatIntegerBR(dashboard.missing), 'is-danger', 'missing', 'Base prevista sem lançamento'],
+    ['Percentual concluído', `${dashboard.completedPercent}%`, 'is-ok', 'completed', `${formatIntegerBR(Number(summary.equal_items) || 0)} conferidos`],
+    ['Maior divergência do dia', formatIntegerBR(dashboard.biggestGap), 'is-highlight', '', 'Maior impacto absoluto carregado'],
+  ];
+
+  countAuditSummary.innerHTML = cards.map(([label, value, tone, filterKey, trend]) => {
+    const attrs = filterKey
+      ? ` data-count-audit-filter="${filterKey}" role="button" tabindex="0" aria-pressed="false"`
+      : '';
+    const clickableClass = filterKey ? ' count-audit-summary-item--clickable' : '';
+    return (
+      `<article class="count-audit-summary-item ${tone}${clickableClass}"${attrs}>` +
+        `<span class="count-audit-summary-label">${label}</span>` +
+        `<strong class="count-audit-summary-value">${value}</strong>` +
+        `<span class="count-audit-summary-trend">${trend}</span>` +
+      `</article>`
+    );
+  }).join('');
+
+  updateCountAuditSummarySelection();
+
+  if (!countAuditSummary.dataset.filterBound) {
+    countAuditSummary.dataset.filterBound = '1';
+    countAuditSummary.addEventListener('click', (e) => {
+      const card = e.target.closest('.count-audit-summary-item[data-count-audit-filter]');
+      if (!card) return;
+      const key = card.dataset.countAuditFilter;
+      countAuditSummaryFilterKey = countAuditSummaryFilterKey === key || key === 'all' ? null : key;
+      updateCountAuditSummarySelection();
+      renderCountAuditRows(getCountAuditRowsFromState());
+    });
+    countAuditSummary.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const card = e.target.closest('.count-audit-summary-item[data-count-audit-filter]');
+      if (!card) return;
+      e.preventDefault();
+      card.click();
+    });
+  }
+}
+
+function getAuditStatusRank(row) {
+  const stateKey = row?._auditMeta?.stateKey || 'ok';
+  return { missing: 0, critical: 1, high: 2, light: 3, ok: 4 }[stateKey] ?? 9;
+}
+
+function compareAuditCodProduto(a, b) {
+  return String(a.cod_produto || '').localeCompare(String(b.cod_produto || ''), 'pt-BR', { numeric: true });
+}
+
+function sortCountAuditRowsForDisplay(list) {
+  const mode = (countAuditSort && countAuditSort.value) || 'relevance';
+  const tieCod = (a, b, primary) => {
+    const r = primary(a, b);
+    return r !== 0 ? r : compareAuditCodProduto(a, b);
+  };
+
+  switch (mode) {
+    case 'criticality':
+    case 'relevance':
+      list.sort((a, b) => {
+        const pa = Number(a._auditMeta?.priorityRank) || 0;
+        const pb = Number(b._auditMeta?.priorityRank) || 0;
+        if (pa !== pb) return pa - pb;
+        const ra = getAuditStatusRank(a);
+        const rb = getAuditStatusRank(b);
+        if (ra !== rb) return ra - rb;
+        const da = Number(a._auditMeta?.diffAbs) || 0;
+        const db = Number(b._auditMeta?.diffAbs) || 0;
+        if (da !== db) return db - da;
+        return compareAuditCodProduto(a, b);
+      });
+      break;
+    case 'diff_desc':
+      list.sort((a, b) => tieCod(a, b, (x, y) => (Number(y._auditMeta?.diffAbs) || 0) - (Number(x._auditMeta?.diffAbs) || 0)));
+      break;
+    case 'diff_asc':
+      list.sort((a, b) => tieCod(a, b, (x, y) => (Number(x._auditMeta?.diffAbs) || 0) - (Number(y._auditMeta?.diffAbs) || 0)));
+      break;
+    case 'cod_asc':
+      list.sort(compareAuditCodProduto);
+      break;
+    case 'cod_desc':
+      list.sort((a, b) => compareAuditCodProduto(b, a));
+      break;
+    case 'nome_asc':
+      list.sort((a, b) => tieCod(a, b, (x, y) => String(x.descricao || '').localeCompare(String(y.descricao || ''), 'pt-BR')));
+      break;
+    case 'nome_desc':
+      list.sort((a, b) => tieCod(a, b, (x, y) => String(y.descricao || '').localeCompare(String(x.descricao || ''), 'pt-BR')));
+      break;
+    case 'grupo_asc':
+      list.sort((a, b) => tieCod(a, b, (x, y) => String(x.grupo || 'Sem grupo').localeCompare(String(y.grupo || 'Sem grupo'), 'pt-BR')));
+      break;
+    case 'grupo_desc':
+      list.sort((a, b) => tieCod(a, b, (x, y) => String(y.grupo || 'Sem grupo').localeCompare(String(x.grupo || 'Sem grupo'), 'pt-BR')));
+      break;
+    case 'saldo_cx_desc':
+      list.sort((a, b) => tieCod(a, b, (x, y) => (Number(y.import_caixa) || 0) - (Number(x.import_caixa) || 0)));
+      break;
+    case 'saldo_un_desc':
+      list.sort((a, b) => tieCod(a, b, (x, y) => (Number(y.import_unidade) || 0) - (Number(x.import_unidade) || 0)));
+      break;
+    case 'count_desc':
+      list.sort((a, b) => tieCod(a, b, (x, y) => (Number(y._auditMeta?.totalCount) || 0) - (Number(x._auditMeta?.totalCount) || 0)));
+      break;
+    default:
+      break;
+  }
+}
+
+function matchesCountAuditSummaryFilter(row, key) {
+  if (!key || key === 'all') return true;
+  switch (key) {
+    case 'analyzed':
+      return !!row._auditMeta?.hasCount;
+    case 'pending':
+      return !!row._auditMeta?.isPending;
+    case 'divergent':
+      return !!row._auditMeta?.isDivergent;
+    case 'critical':
+      return row._auditMeta?.stateKey === 'critical';
+    case 'missing':
+      return row._auditMeta?.stateKey === 'missing';
+    case 'completed':
+      return row._auditMeta?.stateKey === 'ok';
+    default:
+      return true;
+  }
+}
+
+function syncCountAuditListSelection() {
+  if (!countAuditList) return;
+  countAuditList.querySelectorAll('.count-audit-item[data-code]').forEach((item) => {
+    item.classList.toggle('is-selected', item.dataset.code === String(countAuditState.selectedCode || ''));
+  });
+}
+
+function renderCountAuditRows(rows) {
+  if (!countAuditList) return;
+  let list = Array.isArray(rows) ? rows.slice() : [];
+  if (countAuditSummaryFilterKey) {
+    list = list.filter((row) => matchesCountAuditSummaryFilter(row, countAuditSummaryFilterKey));
+  }
+
+  const filters = getCountAuditFiltersSnapshot();
+  if (filters.search) {
+    list = list.filter((row) => {
+      const meta = row._auditMeta || {};
+      const haystack = [
+        row.cod_produto,
+        row.descricao,
+        row.grupo,
+        meta.recommendedAction,
+        meta.divergenceLabel,
+      ].map((value) => String(value || '').toLowerCase());
+      return haystack.some((value) => value.includes(filters.search));
+    });
+  }
+  if (filters.group) list = list.filter((row) => String(row.grupo || 'Sem grupo') === filters.group);
+  if (filters.status) list = list.filter((row) => row._auditMeta?.stateKey === filters.status);
+  if (filters.priority) list = list.filter((row) => String(row._auditMeta?.priorityLabel || '').toLowerCase() === filters.priority);
+  if (filters.divergence) list = list.filter((row) => row._auditMeta?.divergenceType === filters.divergence);
+  if (filters.onlyPending) list = list.filter((row) => row._auditMeta?.isPending);
+  if (filters.onlyCritical) list = list.filter((row) => row._auditMeta?.isCritical);
+  if (filters.onlyMissing) list = list.filter((row) => row._auditMeta?.stateKey === 'missing');
+  if (filters.onlyDiff) list = list.filter((row) => row._auditMeta?.isDivergent);
+
+  sortCountAuditRowsForDisplay(list);
+
+  if (countAuditTotal) countAuditTotal.textContent = formatIntegerBR(list.length);
+  if (countAuditRangeInfo) {
+    const loaded = getCountAuditRowsFromState().length;
+    const limited = loaded >= 5000 ? ' Top 5.000 priorizados carregados.' : '';
+    countAuditRangeInfo.textContent = `Exibindo ${formatIntegerBR(list.length)} de ${formatIntegerBR(loaded)} itens carregados.${limited}`;
+  }
+
+  if (!list.length) {
+    countAuditList.innerHTML = '<li class="count-audit-empty"><span>Nenhum item corresponde aos filtros atuais.</span><strong>—</strong></li>';
+    countAuditState.selectedCode = null;
+    syncCountAuditListSelection();
+    return;
+  }
+
+  if (!countAuditState.selectedCode || !list.some((row) => String(row.cod_produto || '') === String(countAuditState.selectedCode))) {
+    countAuditState.selectedCode = String(list[0].cod_produto || '');
+  }
+
+  countAuditList.innerHTML = list.map((row) => {
+    const meta = row._auditMeta || {};
+    const code = String(row.cod_produto || '');
+    return (
+      `<li class="count-audit-item" data-state="${meta.stateKey}" data-code="${escapeHtml(code)}">` +
+        `<div class="count-audit-row">` +
+          `<div class="count-audit-cell count-audit-cell--product">` +
+            `<button type="button" class="count-audit-row-select" data-action="select" data-code="${encodeURIComponent(code)}">` +
+              `<div class="count-audit-row-topline">` +
+                `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
+                `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
+                `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
+              `</div>` +
+              `<strong class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</strong>` +
+              `<div class="count-audit-row-meta">` +
+                `<span>Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</span>` +
+                `<span>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</span>` +
+              `</div>` +
+            `</button>` +
+          `</div>` +
+          `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><strong class="count-audit-cell-value">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><span class="count-audit-cell-note">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</span></div>` +
+          `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span><strong class="count-audit-cell-value">CX ${formatIntegerBR(Number(row.counted_caixa) || 0)}</strong><span class="count-audit-cell-note">UN ${formatIntegerBR(Number(row.counted_unidade) || 0)}</span></div>` +
+          `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><strong class="count-audit-diff-total">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong><div class="count-audit-diff-breakdown"><span>CX ${formatSignedIntegerBR(meta.diffCx || 0)}</span><span>UN ${formatSignedIntegerBR(meta.diffUn || 0)}</span></div></div>` +
+          `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
+          `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
+          `<div class="count-audit-cell count-audit-cell--detail"><button type="button" class="btn-secondary btn-small count-audit-detail-btn" data-action="detail" data-code="${encodeURIComponent(code)}">Detalhe</button></div>` +
+        `</div>` +
+      `</li>`
+    );
+  }).join('');
+
+  syncCountAuditListSelection();
+}
+
+function renderCountAuditDetailEmpty(message = 'Selecione um item da fila para abrir o painel lateral.') {
+  if (!countAuditDetailPanel) return;
+  if (countAuditDetailStatus) countAuditDetailStatus.textContent = 'Sem seleção';
+  countAuditDetailPanel.innerHTML =
+    `<div class="count-audit-detail-empty">` +
+      `<strong>${escapeHtml(message)}</strong>` +
+      `<p class="muted">Histórico de lançamentos, responsáveis, observações automáticas e trilha de auditoria aparecem aqui.</p>` +
+    `</div>`;
+}
+
+function renderCountAuditDetailShell(row, detail, isLoading = false) {
+  if (!countAuditDetailPanel || !row) return;
+  const meta = row._auditMeta || {};
+  const importInfo = detail?.import || countAuditState.importInfo || {};
+  const history = Array.isArray(detail?.history) ? detail.history : [];
+  const actors = Array.isArray(detail?.summary?.actors) ? detail.summary.actors : [];
+  const devices = Array.isArray(detail?.summary?.devices) ? detail.summary.devices : [];
+
+  if (countAuditDetailStatus) {
+    countAuditDetailStatus.textContent = meta.stateLabel || 'Detalhe';
+  }
+
+  const historyHtml = history.length
+    ? history.map((entry) => (
+      `<li class="count-audit-history-item">` +
+        `<div class="count-audit-history-topline">` +
+          `<strong>${escapeHtml(entry.actor || 'Equipe')}</strong>` +
+          `<span>${escapeHtml(formatAuditRelativeTime(entry.observed_at || entry.changed_at || ''))}</span>` +
+        `</div>` +
+        `<div class="count-audit-history-values">` +
+          `${entry.count_type === 'unidade' ? 'UN' : 'CX'} ${formatSignedIntegerBR(entry.quantity_delta)} · ${formatIntegerBR(entry.previous_value)} → ${formatIntegerBR(entry.current_value)}` +
+        `</div>` +
+        `<div class="count-audit-history-note">` +
+          `CX ${formatIntegerBR(entry.previous_caixa)} → ${formatIntegerBR(entry.current_caixa)} · UN ${formatIntegerBR(entry.previous_unidade)} → ${formatIntegerBR(entry.current_unidade)}${entry.device_name ? ` · ${escapeHtml(entry.device_name)}` : ''}` +
+        `</div>` +
+      `</li>`
+    )).join('')
+    : '<li class="count-audit-history-item"><div class="count-audit-history-note">Nenhum lançamento sincronizado para este item na data operacional da análise.</div></li>';
+
+  const trailHtml = [
+    ['Base de comparação', importInfo.id == null ? 'Saldo sintético / fallback sem TXT' : `${formatDateBR(importInfo.reference_date || '')} · ${importInfo.file_name || 'TXT'}`],
+    ['Divergência calculada', `CX ${formatSignedIntegerBR(row.difference_caixa)} · UN ${formatSignedIntegerBR(row.difference_unidade)} · |Dif| ${formatIntegerBR(meta.diffAbs || 0)}`],
+    ['Observação automática', meta.insight || 'Sem observação automática.'],
+    ['Quem lançou', actors.length ? actors.join(', ') : 'Sem ator identificado'],
+    ['Dispositivos', devices.length ? devices.join(', ') : 'Sem dispositivo identificado'],
+  ].map(([label, value]) => (
+    `<li class="count-audit-trail-item">` +
+      `<div class="count-audit-trail-topline"><strong>${label}</strong></div>` +
+      `<div class="count-audit-trail-note">${escapeHtml(value)}</div>` +
+    `</li>`
+  )).join('');
+
+  countAuditDetailPanel.innerHTML =
+    `<div class="count-audit-detail-shell">` +
+      `<section class="count-audit-detail-hero">` +
+        `<div class="count-audit-detail-hero-top">` +
+          `<div>` +
+            `<h4 class="count-audit-detail-title">${escapeHtml(row.descricao || 'Sem descrição')}</h4>` +
+            `<div class="count-audit-detail-subtitle">Código ${escapeHtml(String(row.cod_produto || '-'))} · Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</div>` +
+          `</div>` +
+          `<div class="count-audit-detail-pill-row">` +
+            `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
+            `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
+          `</div>` +
+        `</div>` +
+        `<div class="count-audit-detail-grid">` +
+          `<article class="count-audit-detail-metric"><span>Base / TXT</span><strong>${formatIntegerBR(Number(row.import_caixa) || 0)} CX / ${formatIntegerBR(Number(row.import_unidade) || 0)} UN</strong><small>${importInfo.id == null ? 'Fallback sem TXT' : (importInfo.file_name || 'Base importada')}</small></article>` +
+          `<article class="count-audit-detail-metric"><span>Contagem atual</span><strong>${formatIntegerBR(Number(row.counted_caixa) || 0)} CX / ${formatIntegerBR(Number(row.counted_unidade) || 0)} UN</strong><small>${detail?.summary?.launches || 0} lançamento(s) sincronizado(s)</small></article>` +
+          `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
+          `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
+        `</div>` +
+      `</section>` +
+      `${isLoading ? '<div class="count-audit-detail-loading">Carregando trilha detalhada deste item...</div>' : ''}` +
+      `<section class="count-audit-detail-section">` +
+        `<div class="count-audit-detail-section-head"><h4>Histórico de lançamentos</h4><span>${detail?.summary?.launches || 0} registro(s) no dia operacional</span></div>` +
+        `<ul class="count-audit-history-list">${historyHtml}</ul>` +
+      `</section>` +
+      `<section class="count-audit-detail-section">` +
+        `<div class="count-audit-detail-section-head"><h4>Trilha de auditoria</h4><span>Contexto para validação e decisão</span></div>` +
+        `<ul class="count-audit-trail-list">${trailHtml}</ul>` +
+      `</section>` +
+      `<div class="count-audit-detail-actions">` +
+        `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-audit-recount="${encodeURIComponent(String(row.cod_produto || ''))}">Abrir recontagem</button>` +
+        `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-audit-refresh-detail="${encodeURIComponent(String(row.cod_produto || ''))}">Atualizar detalhe</button>` +
+      `</div>` +
+    `</div>`;
+}
+
+async function loadCountAuditDetail(code, forceReload = false) {
+  const row = getCountAuditRowByCode(code);
+  if (!row || !countAuditDetailPanel) return;
+  const referenceDate = (countAuditImport?.value || '').trim();
+  const cacheKey = `${referenceDate || '-'}::${code}`;
+  if (!forceReload && countAuditState.detailCache.has(cacheKey)) {
+    renderCountAuditDetailShell(row, countAuditState.detailCache.get(cacheKey), false);
+    return;
+  }
+
+  renderCountAuditDetailShell(row, null, true);
+  const requestId = ++countAuditDetailRequestSeq;
+  try {
+    const params = new URLSearchParams();
+    params.set('item_code', code);
+    params.set('only_active', 'true');
+    if (referenceDate) params.set('reference_date', referenceDate);
+    const response = await apiFetch(`${API_STOCK_ANALYSIS_DETAIL}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Não foi possível carregar o detalhe.');
+    }
+    const detail = await response.json();
+    countAuditState.detailCache.set(cacheKey, detail);
+    if (requestId === countAuditDetailRequestSeq && String(countAuditState.selectedCode || '') === String(code)) {
+      renderCountAuditDetailShell(row, detail, false);
+    }
+  } catch (error) {
+    if (requestId !== countAuditDetailRequestSeq) return;
+    renderCountAuditDetailShell(row, null, false);
+    setCountAuditFeedback(error?.message || 'Falha ao carregar o detalhe do item.', true);
+  }
+}
+
+function selectCountAuditRow(code, forceReload = false) {
+  const row = getCountAuditRowByCode(code);
+  if (!row) return;
+  countAuditState.selectedCode = code;
+  syncCountAuditListSelection();
+  loadCountAuditDetail(code, forceReload);
+}
+
+function clearCountAuditFilters() {
+  if (countAuditSearch) countAuditSearch.value = '';
+  if (countAuditClearSearch) countAuditClearSearch.style.display = 'none';
+  if (countAuditGroupFilter) countAuditGroupFilter.value = '';
+  if (countAuditStatusFilter) countAuditStatusFilter.value = '';
+  if (countAuditPriorityFilter) countAuditPriorityFilter.value = '';
+  if (countAuditDivergenceFilter) countAuditDivergenceFilter.value = '';
+  if (countAuditOnlyPending) countAuditOnlyPending.checked = false;
+  if (countAuditOnlyCritical) countAuditOnlyCritical.checked = false;
+  if (countAuditOnlyMissing) countAuditOnlyMissing.checked = false;
+  if (countAuditOnlyDiff) countAuditOnlyDiff.checked = false;
+  if (countAuditSort) countAuditSort.value = 'relevance';
+  countAuditSummaryFilterKey = null;
+  updateCountAuditSummarySelection();
+  renderCountAuditRows(getCountAuditRowsFromState());
+}
+
+async function loadCountAuditAnalysis() {
+  if (!countAuditImport || !countAuditList) return;
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    if (btnCountAuditRefresh) btnCountAuditRefresh.disabled = true;
+    const referenceDate = (countAuditImport.value || '').trim();
+    const params = new URLSearchParams();
+    if (referenceDate) params.set('reference_date', referenceDate);
+    params.set('only_diff', 'false');
+    params.set('only_active', 'true');
+    params.set('limit', '5000');
+
+    const response = await apiFetch(`${API_STOCK_ANALYSIS}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
+      return;
+    }
+
+    const payload = await response.json();
+    const info = payload.import;
+    if (!info) {
+      countAuditState.rows = [];
+      countAuditState.summary = {};
+      countAuditState.importInfo = null;
+      countAuditState.loadedAt = null;
+      countAuditState.detailCache.clear();
+      renderCountAuditSummary({});
+      renderCountAuditRows([]);
+      renderCountAuditDetailEmpty('Não foi possível montar a análise.');
+      setCountAuditFeedback('Não foi possível montar a análise. Verifique permissões ou tente novamente.', true);
+      return;
+    }
+
+    countAuditSummaryFilterKey = null;
+    countAuditState.rows = (payload.rows || []).map(enrichCountAuditRow);
+    countAuditState.summary = payload.summary || {};
+    countAuditState.importInfo = info;
+    countAuditState.loadedAt = new Date().toISOString();
+    countAuditState.detailCache.clear();
+    window.lastCountAuditRows = countAuditState.rows;
+
+    populateCountAuditGroups(countAuditState.rows);
+    updateCountAuditHeaderContext();
+    renderCountAuditSummary(countAuditState.summary);
+    renderCountAuditRows(countAuditState.rows);
+
+    const selected = countAuditState.selectedCode || countAuditState.rows[0]?.cod_produto || null;
+    if (selected) selectCountAuditRow(String(selected));
+    else renderCountAuditDetailEmpty();
+
+    if (info.id == null) {
+      setCountAuditFeedback(info.file_name || 'Análise sem TXT: usando saldo zero para produtos ativos.', false);
+    } else {
+      setCountAuditFeedback(`Base TXT: ${formatDateBR(info.reference_date || '')} · ${info.file_name || 'arquivo'}`, false);
+    }
+  } catch {
+    setCountAuditFeedback('Erro de conexão ao carregar análise de contagem.', true);
+  } finally {
+    if (btnCountAuditRefresh) btnCountAuditRefresh.disabled = false;
+  }
+}
+
+async function exportCountAuditExcel() {
+  const token = getToken();
+  if (!token || !countAuditImport) return;
+  const referenceDate = (countAuditImport.value || '').trim();
+  const onlyDiff = !!countAuditOnlyDiff?.checked;
+  const params = new URLSearchParams();
+  if (referenceDate) params.set('reference_date', referenceDate);
+  params.set('only_diff', onlyDiff ? 'true' : 'false');
+  params.set('only_active', 'true');
+  params.set('limit', '20000');
+
+  setCountAuditFeedback('Gerando Excel da análise...', false);
+  try {
+    const response = await apiFetch(`${API_STOCK_ANALYSIS_EXPORT_XLSX}?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      setCountAuditFeedback(err.detail || 'Não foi possível gerar o Excel.', true);
+      return;
+    }
+    const blob = await response.blob();
+    let filename = 'analise-contagem.xlsx';
+    const cd = response.headers.get('Content-Disposition');
+    if (cd) {
+      const m = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd);
+      const raw = m ? decodeURIComponent(m[1] || m[2] || '') : '';
+      if (raw) filename = raw.trim();
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setCountAuditFeedback('Excel baixado com sucesso.', false);
+  } catch {
+    setCountAuditFeedback('Falha ao baixar o Excel. Verifique a conexão.', true);
+  }
+}
+
+function openCountAuditRecount(code) {
+  countPrefillProductCode = code;
+  setActiveModule('count');
+  const applySearch = () => {
+    const input = document.getElementById('item-code');
+    if (!input) return;
+    input.value = countPrefillProductCode || '';
+    input.dispatchEvent(new Event('input'));
+    input.focus();
+  };
+  applySearch();
+  window.setTimeout(applySearch, 350);
+}
+
+function bindCountAuditEvents() {
+  if (!countAuditImport) return;
+  if (btnCountAuditRefresh) {
+    btnCountAuditRefresh.addEventListener('click', () => loadCountAuditAnalysis());
+  }
+  if (btnCountAuditExportExcel) {
+    btnCountAuditExportExcel.addEventListener('click', () => exportCountAuditExcel());
+  }
+  if (countAuditImport) {
+    countAuditImport.addEventListener('change', () => loadCountAuditAnalysis());
+  }
+
+  [
+    countAuditGroupFilter,
+    countAuditStatusFilter,
+    countAuditPriorityFilter,
+    countAuditDivergenceFilter,
+    countAuditOnlyPending,
+    countAuditOnlyCritical,
+    countAuditOnlyMissing,
+    countAuditOnlyDiff,
+    countAuditSort,
+  ].filter(Boolean).forEach((el) => {
+    el.addEventListener('change', () => renderCountAuditRows(getCountAuditRowsFromState()));
+  });
+
+  if (countAuditClearFilters) {
+    countAuditClearFilters.addEventListener('click', () => clearCountAuditFilters());
+  }
+
+  if (countAuditList && !countAuditList.dataset.auditBound) {
+    countAuditList.dataset.auditBound = '1';
+    countAuditList.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-action][data-code]');
+      if (!target) return;
+      const code = decodeURIComponent(target.dataset.code || '');
+      if (!code) return;
+      selectCountAuditRow(code, target.dataset.action === 'detail');
+    });
+  }
+
+  if (countAuditDetailPanel && !countAuditDetailPanel.dataset.auditBound) {
+    countAuditDetailPanel.dataset.auditBound = '1';
+    countAuditDetailPanel.addEventListener('click', (e) => {
+      const recountBtn = e.target.closest('[data-audit-recount]');
+      if (recountBtn) {
+        openCountAuditRecount(decodeURIComponent(recountBtn.dataset.auditRecount || ''));
+        return;
+      }
+      const refreshBtn = e.target.closest('[data-audit-refresh-detail]');
+      if (refreshBtn) {
+        selectCountAuditRow(decodeURIComponent(refreshBtn.dataset.auditRefreshDetail || ''), true);
+      }
     });
   }
 }
