@@ -2534,7 +2534,14 @@ async function syncValidityPending() {
     if (handleUnauthorizedResponse(resp)) return;
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
-      setValidityFeedback(err.detail || 'Falha ao sincronizar validades.', true);
+      const d = err.detail;
+      const msg =
+        typeof d === 'string'
+          ? d
+          : Array.isArray(d)
+            ? d.map((x) => x.msg || x).join(' ')
+            : 'Falha ao sincronizar validades.';
+      setValidityFeedback(msg, true);
       return;
     }
     const data = await resp.json();
