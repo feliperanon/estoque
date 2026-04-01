@@ -5810,6 +5810,208 @@ details[open] > .validity-analytic-summary::after {
   display: block;
 }
 
+/* ── Lançamento operacional de validade (lista + painel + histórico em dialog) ── */
+.validity-launch-stats {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+}
+.validity-launch-filter-col {
+  min-width: 160px;
+}
+.validity-launch-workspace {
+  display: grid;
+  gap: 0;
+  align-items: start;
+}
+.validity-launch-list-col {
+  min-width: 0;
+}
+.validity-launch-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.validity-launch-row {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.validity-launch-card {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.validity-launch-row.is-selected .validity-launch-card {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+.validity-launch-card--flash {
+  animation: validity-launch-flash 1s ease;
+}
+@keyframes validity-launch-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+  }
+  100% {
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+}
+.validity-launch-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.validity-launch-identity {
+  min-width: 0;
+  flex: 1;
+}
+.validity-launch-product-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+}
+.validity-launch-product-code {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 2px;
+}
+.validity-launch-badge {
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+.validity-launch-badge--pending {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: rgba(234, 88, 12, 0.25);
+}
+.validity-launch-badge--ok {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.validity-launch-meta {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+}
+.validity-launch-hint {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+.validity-launch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+}
+.validity-launch-controls .validity-launch-date {
+  flex: 1 1 160px;
+  min-height: 44px;
+  font-size: 1rem;
+}
+.validity-launch-controls .validity-launch-save {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding-left: 18px;
+  padding-right: 18px;
+}
+.validity-launch-controls .validity-launch-history-btn {
+  flex: 1 1 100%;
+  min-height: 40px;
+}
+@media (min-width: 900px) {
+  .validity-launch-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
+    gap: 16px;
+  }
+  .validity-launch-detail {
+    display: block !important;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    background: #fafbfc;
+    padding: 0;
+    overflow: hidden;
+  }
+  .validity-launch-detail[hidden] {
+    display: none !important;
+  }
+  .validity-launch-detail-sticky {
+    position: sticky;
+    top: 8px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .validity-launch-detail-lead {
+    margin: 0 0 10px;
+    font-size: 0.88rem;
+    line-height: 1.35;
+  }
+  .validity-launch-detail-code {
+    font-weight: 600;
+    color: #64748b;
+  }
+  .validity-launch-controls .validity-launch-history-btn {
+    display: none;
+  }
+}
+@media (max-width: 899px) {
+  .validity-launch-detail {
+    display: none !important;
+  }
+}
+.validity-history-dialog {
+  width: min(100%, 520px);
+  max-width: calc(100vw - 24px);
+  max-height: min(85vh, 640px);
+  padding: 0;
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 22px 54px rgba(12, 37, 28, 0.35);
+}
+.validity-history-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+.validity-history-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.validity-history-dialog-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.validity-history-dialog-body {
+  padding: 12px 12px 16px;
+  overflow-y: auto;
+  max-height: calc(85vh - 80px);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

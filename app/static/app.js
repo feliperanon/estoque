@@ -2738,11 +2738,12 @@ function renderValidityDetailPanel(row) {
   const inner = document.getElementById('validity-launch-detail-inner');
   const lead = document.getElementById('validity-launch-detail-lead');
   if (!panel || !inner) return;
+  const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
   if (!row) {
     inner.innerHTML =
       '<p class="muted validity-launch-detail-placeholder">Selecione um produto na lista para ver contagem de referência e histórico de validades.</p>';
     if (lead) lead.textContent = '';
-    panel.hidden = true;
+    panel.hidden = !!narrow;
     return;
   }
   panel.hidden = false;
@@ -2754,6 +2755,7 @@ function renderValidityDetailPanel(row) {
 }
 
 function openValidityHistoryDialog(row) {
+  if (row?.cod) setValidityLaunchSelection(row.cod);
   const dlg = document.getElementById('validity-history-dialog');
   const body = document.getElementById('validity-history-dialog-body');
   const title = document.getElementById('validity-history-dialog-title');
