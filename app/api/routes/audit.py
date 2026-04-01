@@ -973,18 +973,20 @@ def ingest_validity_events(
             events_to_insert.append(event)
             new_by_code[code] = new_by_code.get(code, 0) + int(event.quantity_un)
 
-        # Valida teto UN quando há saldo importado para o código
+        # Teto UN apenas para códigos presentes na importação usada como referência
         for code, add_qty in new_by_code.items():
-            cap = un_map.get(code)
-            if cap is None:
+            if add_qty <= 0:
                 continue
-            if cap <= 0:
+            if code not in un_map:
+                continue
+            cap = un_map[code]
+            total_after = existing_by_code.get(code, 0) + add_qty
+            if cap <= 0 and total_after > 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Produto {code}: saldo UN zero na importacao; ajuste quantidades de validade.",
+                    detail=f"Produto {code}: saldo UN zero na importacao; nao e possivel classificar quantidade.",
                 )
-            total_after = existing_by_code.get(code, 0) + add_qty
-            if total_after > cap:
+            if cap > 0 and total_after > cap:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=(
