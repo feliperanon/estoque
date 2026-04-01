@@ -275,6 +275,8 @@ let validityServerLines = [];
 let validityLastCountState = { ok: false, balances: {} };
 /** KPI clicável ativo (filtro rápido); null = nenhum. */
 let validityActiveKpiKey = null;
+/** Produto selecionado na lista (painel de detalhe no desktop). */
+let validityLaunchSelectedCod = null;
 /** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
 let countServerCountState = { ok: false, balances: {} };
 const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
@@ -2589,6 +2591,9 @@ function filterValidityRows(rows) {
     const codigo = (p.cod_produto || '').toLowerCase();
     if (term && !codigo.includes(term) && !desc.includes(term)) return false;
     if (grupo && !desc.includes(grupo)) return false;
+    const launch = (document.getElementById('validity-launch-filter')?.value || 'all').trim();
+    if (launch === 'no_line' && row.lines.length > 0) return false;
+    if (launch === 'has_line' && row.lines.length === 0) return false;
     if (!rowMatchesValidityKpi(row, validityActiveKpiKey, todayBr)) return false;
 
     const snap = getValidityLastCountSnapshot(row.cod);
