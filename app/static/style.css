@@ -4715,7 +4715,7 @@ body.sidebar-drawer-open {
   letter-spacing: 0.02em;
 }
 .validity-filter-risk-col {
-  min-width: 160px;
+  min-width: 220px;
 }
 .validity-toolbar {
   display: flex;
@@ -4763,8 +4763,36 @@ body.sidebar-drawer-open {
   display: none;
 }
 .validity-product-title {
-  flex: 1 1 200px;
+  flex: 1 1 100%;
   min-width: 0;
+}
+.validity-ref-block {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted, #64748b);
+}
+.validity-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+.validity-meta-line--empty {
+  color: #94a3b8;
+  font-style: italic;
+}
+.validity-meta-k {
+  font-weight: 700;
+  color: #475569;
+  min-width: 7.5rem;
+}
+.validity-meta-sep {
+  opacity: 0.5;
+  padding: 0 2px;
 }
 .validity-product-meta {
   display: flex;
@@ -4807,6 +4835,11 @@ body.sidebar-drawer-open {
   color: #92400e;
   border-color: rgba(245, 158, 11, 0.5);
 }
+.validity-chip--soft {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: rgba(99, 102, 241, 0.35);
+}
 .validity-product-body {
   padding: 0 12px 12px;
   background: #fff;
@@ -4831,7 +4864,7 @@ body.sidebar-drawer-open {
 }
 .validity-add-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) 1fr auto;
+  grid-template-columns: minmax(160px, 1fr) auto;
   gap: 8px;
   align-items: end;
   margin-top: 8px;

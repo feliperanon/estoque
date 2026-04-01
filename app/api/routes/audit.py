@@ -223,6 +223,56 @@ def _aggregate_count_events_by_code(
     return counted_by_code
 
 
+def _last_count_snapshot_per_code(session: Session) -> dict[str, dict]:
+    """
+    Por produto: totais de CX/UN do dia da última contagem registrada no sistema
+    (maior data America/Sao_Paulo em observed_at entre eventos de contagem).
+    """
+    count_logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_count",
+                ChangeLog.action == "count_event",
+            )
+        ).all()
+    )
+    per_day: dict[tuple[str, date], dict[str, int]] = {}
+    for log in count_logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        od = payload.get("observed_at")
+        br_d = _brazil_date_from_observed_at(str(od) if od is not None else "")
+        if br_d is None:
+            continue
+        item_code = str(payload.get("item_code") or "")
+        code = _normalize_item_code(item_code)
+        if not code:
+            continue
+        count_type = _extract_count_type(item_code)
+        qty_raw = payload.get("quantity", 0)
+        try:
+            qty = int(qty_raw)
+        except Exception:
+            qty = 0
+        key = (code, br_d)
+        if key not in per_day:
+            per_day[key] = {"caixa": 0, "unidade": 0}
+        per_day[key][count_type] = per_day[key].get(count_type, 0) + qty
+
+    by_code: dict[str, tuple[date, dict[str, int]]] = {}
+    for (code, br_d), rec in per_day.items():
+        if code not in by_code or br_d > by_code[code][0]:
+            by_code[code] = (br_d, dict(rec))
+
+    out: dict[str, dict] = {}
+    for code, (best_d, rec) in by_code.items():
+        out[code] = {
+            "caixa": int(rec.get("caixa", 0)),
+            "unidade": int(rec.get("unidade", 0)),
+            "count_date": best_d.isoformat(),
+        }
+    return out
+
+
 def _extract_import_quantities(metrics: dict | list | None) -> tuple[int, int]:
     """CX/UN a partir do JSON do item (preferência: caixa/unidade gravados na importação)."""
     if metrics is None:
@@ -361,6 +411,19 @@ def import_balances(
         "import": import_meta,
         "balances": balances,
     }
+
+
+@router.get("/last-count-per-product")
+def last_count_per_product(
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """
+    Última contagem consolidada por produto (ChangeLog): CX/UN do dia mais recente
+    em que houve lançamento de contagem para aquele código.
+    """
+    balances = _last_count_snapshot_per_code(session)
+    return {"balances": balances}
 
 
 @router.get("/count-server-totals")

@@ -377,18 +377,20 @@
             <div class="info-card master-container validity-main-card validity-main-card--outer">
               <div class="count-main-card-inner count-main-card-extended validity-op-header">
                 <div class="count-main-title-row">
-                  <span class="count-main-title">Validade por produto</span>
+                  <span class="count-main-title">Data de vencimento</span>
                   <span id="validity-products-total" class="count-main-chip" aria-live="polite">0</span>
                 </div>
-                <p class="validity-op-lead muted">Classifique UN por data de vencimento (quantidade conforme contagem do dia ou saldo TXT). Vários vencimentos por produto. Operação ativa só no dia atual (America/Sao_Paulo).</p>
+                <p class="validity-op-lead muted">Lançamento de datas de vencimento por produto. Referência de estoque: última contagem registrada no sistema (CX/UN). Operação ativa só no dia atual (America/Sao_Paulo).</p>
                 <div class="validity-kpi-strip" id="validity-kpi-strip" aria-live="polite">
                   <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-with">0</span><span class="validity-kpi-label">com validade</span></div>
                   <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-without">0</span><span class="validity-kpi-label">sem validade</span></div>
                   <div class="validity-kpi validity-kpi--danger"><span class="validity-kpi-value" id="validity-kpi-expired">0</span><span class="validity-kpi-label">vencidos</span></div>
-                  <div class="validity-kpi validity-kpi--warn"><span class="validity-kpi-value" id="validity-kpi-today">0</span><span class="validity-kpi-label">vence hoje</span></div>
-                  <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-d3">0</span><span class="validity-kpi-label">≤ 3 dias</span></div>
-                  <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-d7">0</span><span class="validity-kpi-label">≤ 7 dias</span></div>
-                  <div class="validity-kpi validity-kpi--risk"><span class="validity-kpi-value" id="validity-kpi-riskvol">0</span><span class="validity-kpi-label">UN em risco</span></div>
+                  <div class="validity-kpi validity-kpi--danger"><span class="validity-kpi-value" id="validity-kpi-d30">0</span><span class="validity-kpi-label">até 30d</span></div>
+                  <div class="validity-kpi validity-kpi--warn"><span class="validity-kpi-value" id="validity-kpi-d60">0</span><span class="validity-kpi-label">até 60d</span></div>
+                  <div class="validity-kpi validity-kpi--warn"><span class="validity-kpi-value" id="validity-kpi-d90">0</span><span class="validity-kpi-label">até 90d</span></div>
+                  <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-d120">0</span><span class="validity-kpi-label">até 120d</span></div>
+                  <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-d150">0</span><span class="validity-kpi-label">até 150d</span></div>
+                  <div class="validity-kpi validity-kpi--risk"><span class="validity-kpi-value" id="validity-kpi-d180">0</span><span class="validity-kpi-label">até 180d</span></div>
                 </div>
                 <div class="count-main-filters-row">
                   <div class="count-main-filter-col count-main-filter-col--produto">
@@ -416,15 +418,16 @@
                     <label class="count-filter-label count-filter-label--bold" for="validity-risk-filter">Risco / status</label>
                     <select id="validity-risk-filter" class="count-filter-input" aria-label="Filtro de risco">
                       <option value="all">Todos</option>
-                      <option value="none">Sem validade lançada</option>
-                      <option value="expired">Vencido</option>
-                      <option value="today">Vence hoje</option>
-                      <option value="d3">Vence em até 3 dias</option>
-                      <option value="d7">Vence em até 7 dias</option>
-                      <option value="over">Soma &gt; saldo (inconsist.)</option>
-                      <option value="d30">Janela ≤ 30 dias</option>
-                      <option value="d60">Janela ≤ 60 dias</option>
-                      <option value="d90">Janela ≤ 90 dias</option>
+                      <option value="none">Sem data lançada</option>
+                      <option value="near">Somente validade próxima (≤180d)</option>
+                      <option value="expired">Vencidos</option>
+                      <option value="d30">Crítico (≤30d)</option>
+                      <option value="d60">Muito alto (≤60d)</option>
+                      <option value="d90">Alto (≤90d)</option>
+                      <option value="d120">Atenção (≤120d)</option>
+                      <option value="d150">Monitorar (≤150d)</option>
+                      <option value="d180">Controle próximo (≤180d)</option>
+                      <option value="ok">Confortável (&gt;180d)</option>
                     </select>
                   </div>
                 </div>
@@ -435,7 +438,7 @@
                   <div class="count-progress-info">
                     <span class="count-progress-summary">
                       <span id="validity-progress-percent" class="count-progress-percent">0%</span>
-                      <span class="count-progress-label">classificados</span>
+                      <span class="count-progress-label">com validade</span>
                     </span>
                     <span id="validity-progress-detail" class="count-progress-detail">0 de 0 produtos com linhas de validade</span>
                   </div>

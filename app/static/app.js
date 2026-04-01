@@ -243,6 +243,7 @@ const API_STOCK_ANALYSIS = '/audit/stock-analysis';
 const API_STOCK_ANALYSIS_EXPORT_XLSX = '/audit/stock-analysis/export.xlsx';
 const API_IMPORT_BALANCES = '/audit/import-balances';
 const API_COUNT_SERVER_TOTALS = '/audit/count-server-totals';
+const API_LAST_COUNT_PER_PRODUCT = '/audit/last-count-per-product';
 const API_VALIDITY_EVENTS = '/audit/validity-events';
 const API_VALIDITY_LINES = '/audit/validity-lines';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
@@ -258,12 +259,10 @@ const USER_KEY   = 'estoque_user';
 const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
 /** Saldo CX/UN do último TXT (ou data em #count-date), para comparar na contagem (sem exibir valores na UI). */
 let countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
-/** Saldo TXT alinhado à data da operação do módulo Validade (independe de #count-date). */
-let validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
 let validityProductsCache = [];
 let validityServerLines = [];
-/** Totais CX/UN da contagem (servidor) para a mesma data da operação de validade (#validity-op-date). */
-let validityCountServerState = { ok: false, balances: {} };
+/** Última contagem global por produto: CX/UN + count_date (ChangeLog, servidor). */
+let validityLastCountState = { ok: false, balances: {} };
 /** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
 let countServerCountState = { ok: false, balances: {} };
 const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
@@ -1704,131 +1703,59 @@ async function loadImportBalancesForCount() {
   }
 }
 
-async function loadImportBalancesForValidity() {
+async function loadLastCountPerProduct() {
   const token = getToken();
   if (!token) {
-    validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    validityLastCountState = { ok: false, balances: {} };
     return;
   }
   if (unauthorizedRedirectInProgress) {
-    validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    validityLastCountState = { ok: false, balances: {} };
     return;
   }
   if (isAccessTokenExpired(token)) {
-    validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    validityLastCountState = { ok: false, balances: {} };
     handleUnauthorizedResponse({ status: 401 });
     return;
   }
-  const dateEl = document.getElementById('validity-op-date');
-  const referenceDate = (dateEl && dateEl.value || '').trim();
-  const params = new URLSearchParams();
-  if (referenceDate) params.set('reference_date', referenceDate);
-  params.set('only_active', 'true');
   try {
-    const response = await apiFetch(`${API_IMPORT_BALANCES}?${params.toString()}`, {
+    const response = await apiFetch(API_LAST_COUNT_PER_PRODUCT, {
       headers: getAuthHeaders(),
     });
     if (handleUnauthorizedResponse(response)) {
-      validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+      validityLastCountState = { ok: false, balances: {} };
       return;
     }
     if (!response.ok) {
-      validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+      validityLastCountState = { ok: false, balances: {} };
       return;
     }
     const data = await response.json();
-    validityImportBalancesState = {
-      hasTxt: !!data.has_txt_import,
-      balances: data.balances || {},
-      importLabel: data.import && data.import.file_name ? String(data.import.file_name) : '',
-    };
+    validityLastCountState = { ok: true, balances: data.balances || {} };
   } catch {
-    validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    validityLastCountState = { ok: false, balances: {} };
   }
 }
 
-function getValiditySaldoUn(codRaw) {
-  const k = normalizeItemCode(codRaw);
-  const b = validityImportBalancesState.balances[k];
-  if (!b) return 0;
-  return Math.max(0, Math.round(Number(b.import_unidade) || 0));
-}
-
-/** UN base para classificar: contagem do dia (se existir no servidor) senão saldo UN do TXT. */
-function getValidityBaseUn(codRaw) {
+/** Última contagem do sistema para o produto, ou null. */
+function getValidityLastCountSnapshot(codRaw) {
   const base = normalizeItemCode(codRaw);
-  if (validityCountServerState.ok && validityCountServerState.balances[base] !== undefined) {
-    const b = validityCountServerState.balances[base];
-    return Math.max(0, Math.round(Number(b.unidade) || 0));
-  }
-  return getValiditySaldoUn(base);
-}
-
-function getValidityImportCxUn(codRaw) {
-  const k = normalizeItemCode(codRaw);
-  const b = validityImportBalancesState.balances[k];
-  if (!b) return { cx: 0, un: 0 };
-  return {
-    cx: Math.max(0, Math.round(Number(b.import_caixa) || 0)),
-    un: Math.max(0, Math.round(Number(b.import_unidade) || 0)),
-  };
-}
-
-function getValidityCountCxUn(codRaw) {
-  const base = normalizeItemCode(codRaw);
-  if (!validityCountServerState.ok || validityCountServerState.balances[base] === undefined) {
+  if (!validityLastCountState.ok || !validityLastCountState.balances[base]) {
     return null;
   }
-  const b = validityCountServerState.balances[base];
-  return {
-    cx: Math.max(0, Math.round(Number(b.caixa) || 0)),
-    un: Math.max(0, Math.round(Number(b.unidade) || 0)),
-  };
+  const b = validityLastCountState.balances[base];
+  const cx = Math.max(0, Math.round(Number(b.caixa) || 0));
+  const un = Math.max(0, Math.round(Number(b.unidade) || 0));
+  const countDate = (b.count_date && String(b.count_date).slice(0, 10)) || '';
+  return { cx, un, countDate };
 }
 
-/** UN ainda disponível para distribuir em novas linhas de validade (contagem/TXT − já classificado). */
-function computeRemainingUnForValidity(codRaw) {
-  const cod = normalizeItemCode(codRaw);
-  const lines = getMergedValidityLinesForProduct(cod);
-  const classified = lines.reduce((s, l) => s + Math.max(0, Number(l.quantity_un) || 0), 0);
-  const baseUn = getValidityBaseUn(cod);
-  return Math.max(0, baseUn - classified);
-}
-
-async function loadServerCountTotalsForValidityDate() {
-  const token = getToken();
-  if (!token) {
-    validityCountServerState = { ok: false, balances: {} };
-    return;
-  }
-  if (unauthorizedRedirectInProgress) {
-    validityCountServerState = { ok: false, balances: {} };
-    return;
-  }
-  if (isAccessTokenExpired(token)) {
-    validityCountServerState = { ok: false, balances: {} };
-    handleUnauthorizedResponse({ status: 401 });
-    return;
-  }
-  try {
-    const params = new URLSearchParams();
-    params.set('count_date', getActiveValidityOpDateKey());
-    const response = await apiFetch(`${API_COUNT_SERVER_TOTALS}?${params.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (handleUnauthorizedResponse(response)) {
-      validityCountServerState = { ok: false, balances: {} };
-      return;
-    }
-    if (!response.ok) {
-      validityCountServerState = { ok: false, balances: {} };
-      return;
-    }
-    const data = await response.json();
-    validityCountServerState = { ok: true, balances: data.balances || {} };
-  } catch {
-    validityCountServerState = { ok: false, balances: {} };
-  }
+function formatDateBrFromIso(iso) {
+  if (!iso || String(iso).length < 8) return '—';
+  const s = String(iso).slice(0, 10);
+  const [y, m, d] = s.split('-');
+  if (!y || !m || !d) return '—';
+  return `${d}/${m}/${y}`;
 }
 
 function loadValidityBucketRaw() {
@@ -2188,19 +2115,51 @@ function getMergedValidityLinesForProduct(codRaw) {
   return [...server, ...localNorm];
 }
 
-function validityRiskCategory(expDateStr, todayBr) {
-  if (!expDateStr || !todayBr) return 'unknown';
+/** Dias até o vencimento (negativo = já vencido). */
+function validityExpiryDiffDays(expDateStr, todayBr) {
+  if (!expDateStr || !todayBr) return null;
   const a = new Date(`${expDateStr}T12:00:00`);
   const b = new Date(`${todayBr}T12:00:00`);
-  const diff = Math.round((a - b) / 86400000);
+  return Math.round((a - b) / 86400000);
+}
+
+/**
+ * Faixas para bebidas (não sobrepostas): a mais restritiva aplica.
+ * expired | d30 … d180 | ok (>180d)
+ */
+function validityRiskCategory(expDateStr, todayBr) {
+  const diff = validityExpiryDiffDays(expDateStr, todayBr);
+  if (diff === null) return 'unknown';
   if (diff < 0) return 'expired';
-  if (diff === 0) return 'today';
-  if (diff <= 3) return 'd3';
-  if (diff <= 7) return 'd7';
   if (diff <= 30) return 'd30';
   if (diff <= 60) return 'd60';
   if (diff <= 90) return 'd90';
+  if (diff <= 120) return 'd120';
+  if (diff <= 150) return 'd150';
+  if (diff <= 180) return 'd180';
   return 'ok';
+}
+
+function validityRiskLabel(cat) {
+  const m = {
+    unknown: '—',
+    expired: 'Vencido',
+    d30: 'Crítico (≤30d)',
+    d60: 'Muito alto (≤60d)',
+    d90: 'Alto (≤90d)',
+    d120: 'Atenção (≤120d)',
+    d150: 'Monitorar (≤150d)',
+    d180: 'Controle próximo (≤180d)',
+    ok: 'Confortável',
+  };
+  return m[cat] || String(cat);
+}
+
+function validityRiskChipClass(cat) {
+  if (cat === 'expired' || cat === 'd30') return 'validity-chip validity-chip--danger';
+  if (cat === 'd60' || cat === 'd90') return 'validity-chip validity-chip--warn';
+  if (cat === 'd120' || cat === 'd150' || cat === 'd180') return 'validity-chip validity-chip--soft';
+  return 'validity-chip validity-chip--muted';
 }
 
 async function loadValidityLinesFromServer() {
@@ -2289,31 +2248,30 @@ function updateValidityKpis(productRows) {
   let withLine = 0;
   let without = 0;
   let expired = 0;
-  let todayN = 0;
-  let d3 = 0;
-  let d7 = 0;
-  let riskVol = 0;
+  let c30 = 0;
+  let c60 = 0;
+  let c90 = 0;
+  let c120 = 0;
+  let c150 = 0;
+  let c180 = 0;
 
   for (const row of productRows) {
     const lines = row.lines || [];
     if (lines.length) withLine += 1;
     else without += 1;
     for (const ln of lines) {
-      const cat = validityRiskCategory(ln.expiration_date, todayBr);
-      const q = Math.max(0, Number(ln.quantity_un) || 0);
-      if (cat === 'expired') {
+      const d = validityExpiryDiffDays(ln.expiration_date, todayBr);
+      if (d === null) continue;
+      if (d < 0) {
         expired += 1;
-        riskVol += q;
-      } else if (cat === 'today') {
-        todayN += 1;
-        riskVol += q;
-      } else if (cat === 'd3') {
-        d3 += 1;
-        riskVol += q;
-      } else if (cat === 'd7') {
-        d7 += 1;
-        riskVol += q;
+        continue;
       }
+      if (d <= 30) c30 += 1;
+      if (d <= 60) c60 += 1;
+      if (d <= 90) c90 += 1;
+      if (d <= 120) c120 += 1;
+      if (d <= 150) c150 += 1;
+      if (d <= 180) c180 += 1;
     }
   }
 
@@ -2324,10 +2282,12 @@ function updateValidityKpis(productRows) {
   set('validity-kpi-with', withLine);
   set('validity-kpi-without', without);
   set('validity-kpi-expired', expired);
-  set('validity-kpi-today', todayN);
-  set('validity-kpi-d3', d3);
-  set('validity-kpi-d7', d7);
-  set('validity-kpi-riskvol', riskVol);
+  set('validity-kpi-d30', c30);
+  set('validity-kpi-d60', c60);
+  set('validity-kpi-d90', c90);
+  set('validity-kpi-d120', c120);
+  set('validity-kpi-d150', c150);
+  set('validity-kpi-d180', c180);
 
   const total = productRows.length;
   const pct = total > 0 ? Math.min(100, Math.round((withLine / total) * 100)) : 0;
@@ -2336,7 +2296,7 @@ function updateValidityKpis(productRows) {
   const pd = document.getElementById('validity-progress-detail');
   if (fill) fill.style.width = `${pct}%`;
   if (pp) pp.textContent = `${pct}%`;
-  if (pd) pd.textContent = `${withLine} de ${total} produtos com linhas de validade`;
+  if (pd) pd.textContent = `${withLine} de ${total} produtos com validade lançada`;
 }
 
 function filterValidityProductsForView(products) {
@@ -2348,10 +2308,7 @@ function filterValidityProductsForView(products) {
   const rows = (products || []).map((p) => {
     const cod = normalizeItemCode(p.cod_produto || '');
     const lines = getMergedValidityLinesForProduct(cod);
-    const baseUn = getValidityBaseUn(cod);
-    const classified = lines.reduce((s, l) => s + Math.max(0, Number(l.quantity_un) || 0), 0);
-    const over = baseUn > 0 && classified > baseUn;
-    return { product: p, cod, lines, baseUn, classified, over };
+    return { product: p, cod, lines };
   });
 
   return rows.filter((row) => {
@@ -2363,39 +2320,18 @@ function filterValidityProductsForView(products) {
 
     if (risk === 'all') return true;
     if (risk === 'none') return row.lines.length === 0;
-    if (risk === 'over') return row.over;
+    if (risk === 'near') {
+      return row.lines.some((l) => {
+        const d = validityExpiryDiffDays(l.expiration_date, todayBr);
+        return d !== null && d >= 0 && d <= 180;
+      });
+    }
     if (risk === 'expired') {
       return row.lines.some((l) => validityRiskCategory(l.expiration_date, todayBr) === 'expired');
     }
-    if (risk === 'today') {
-      return row.lines.some((l) => validityRiskCategory(l.expiration_date, todayBr) === 'today');
-    }
-    if (risk === 'd3') {
-      return row.lines.some((l) => validityRiskCategory(l.expiration_date, todayBr) === 'd3');
-    }
-    if (risk === 'd7') {
-      return row.lines.some((l) => {
-        const c = validityRiskCategory(l.expiration_date, todayBr);
-        return c === 'd7' || c === 'd3' || c === 'today';
-      });
-    }
-    if (risk === 'd30') {
-      return row.lines.some((l) => {
-        const c = validityRiskCategory(l.expiration_date, todayBr);
-        return ['expired', 'today', 'd3', 'd7', 'd30'].includes(c);
-      });
-    }
-    if (risk === 'd60') {
-      return row.lines.some((l) => {
-        const c = validityRiskCategory(l.expiration_date, todayBr);
-        return ['expired', 'today', 'd3', 'd7', 'd30', 'd60'].includes(c);
-      });
-    }
-    if (risk === 'd90') {
-      return row.lines.some((l) => {
-        const c = validityRiskCategory(l.expiration_date, todayBr);
-        return ['expired', 'today', 'd3', 'd7', 'd30', 'd60', 'd90'].includes(c);
-      });
+    const bands = ['d30', 'd60', 'd90', 'd120', 'd150', 'd180', 'ok'];
+    if (bands.includes(risk)) {
+      return row.lines.some((l) => validityRiskCategory(l.expiration_date, todayBr) === risk);
     }
     return true;
   });
@@ -2432,52 +2368,37 @@ function renderValidityProductList() {
     const cod = row.cod;
     const desc = escapeHtml((p.cod_grup_descricao || cod).trim());
     const lines = row.lines;
-    const baseUn = row.baseUn;
-    const classified = row.classified;
-    const pend = Math.max(0, baseUn - classified);
-    const over = row.over;
-
-    const countCxUn = getValidityCountCxUn(cod);
-    const impCxUn = getValidityImportCxUn(cod);
-    const sourceChip = countCxUn
-      ? `<span class="validity-chip validity-chip--muted">Contagem: ${formatIntegerBR(countCxUn.cx)} CX · ${formatIntegerBR(countCxUn.un)} UN</span>`
-      : `<span class="validity-chip validity-chip--muted">Saldo TXT: ${formatIntegerBR(impCxUn.cx)} CX · ${formatIntegerBR(impCxUn.un)} UN</span>`;
-
-    let statusChip = '<span class="validity-chip validity-chip--muted">Sem classificação</span>';
-    if (lines.length) {
-      statusChip = '<span class="validity-chip validity-chip--ok">Classificado parcial/total</span>';
-    }
-    if (over) {
-      statusChip = '<span class="validity-chip validity-chip--over">Soma &gt; base</span>';
-    }
-    if (lines.length && pend > 0) {
-      statusChip += ` <span class="validity-chip validity-chip--warn">${pend} UN sem classificar</span>`;
-    }
+    const snap = getValidityLastCountSnapshot(cod);
+    const refBlock = snap
+      ? `<div class="validity-ref-block">
+          <span class="validity-meta-line"><span class="validity-meta-k">Cód.</span> ${escapeHtml(cod)}</span>
+          <span class="validity-meta-line"><span class="validity-meta-k">Última contagem</span> ${formatIntegerBR(snap.cx)} CX <span class="validity-meta-sep">|</span> ${formatIntegerBR(snap.un)} UN</span>
+          <span class="validity-meta-line"><span class="validity-meta-k">Base</span> ${formatDateBrFromIso(snap.countDate)}</span>
+        </div>`
+      : `<div class="validity-ref-block">
+          <span class="validity-meta-line"><span class="validity-meta-k">Cód.</span> ${escapeHtml(cod)}</span>
+          <span class="validity-meta-line validity-meta-line--empty">Sem contagem anterior</span>
+        </div>`;
 
     const linesHtml = lines.length
       ? lines
           .map((ln) => {
             const rk = validityRiskCategory(ln.expiration_date, todayBr);
-            let rkLabel = rk;
-            if (rk === 'expired') rkLabel = 'Vencido';
-            else if (rk === 'today') rkLabel = 'Hoje';
-            else if (rk === 'd3') rkLabel = '≤3d';
-            else if (rk === 'd7') rkLabel = '≤7d';
-            else if (rk === 'd30') rkLabel = '≤30d';
-            else rkLabel = 'Futuro';
+            const rkLabel = validityRiskLabel(rk);
+            const rkChip = validityRiskChipClass(rk);
+            const expBr = formatDateBrFromIso(String(ln.expiration_date || '').slice(0, 10));
             const canDel = isValidityOperationalEditable() && (ln.id || ln._local);
             const delBtn = canDel
               ? `<button type="button" class="btn btn-text btn-sm btn-validity-remove" data-line-id="${ln.id != null ? ln.id : ''}" data-client-id="${escapeHtml(String(ln.client_event_id || ''))}" data-coderef="${enc(cod)}">Remover</button>`
               : '—';
             return `<tr>
-              <td>${escapeHtml(String(ln.expiration_date || '').slice(0, 10))}</td>
-              <td>${formatIntegerBR(Math.max(0, Number(ln.quantity_un) || 0))}</td>
-              <td>${rkLabel}</td>
+              <td>${expBr}</td>
+              <td><span class="${rkChip}">${rkLabel}</span></td>
               <td>${delBtn}</td>
             </tr>`;
           })
           .join('')
-      : '<tr><td colspan="4" class="muted">Nenhuma linha neste dia.</td></tr>';
+      : '<tr><td colspan="3" class="muted">Nenhuma data neste dia.</td></tr>';
 
     const codRefEnc = enc(cod);
     const editable = isValidityOperationalEditable();
@@ -2485,8 +2406,6 @@ function renderValidityProductList() {
       ? `<div class="validity-add-row">
           <div class="validity-add-exp"><label class="sr-only" for="validity-exp-${codRefEnc}">Vencimento</label>
           <input type="date" class="count-filter-input validity-inp-exp" id="validity-exp-${codRefEnc}" data-coderef="${codRefEnc}" /></div>
-          <div><label class="sr-only" for="validity-note-${codRefEnc}">Obs.</label>
-          <input type="text" class="count-filter-input validity-inp-note" id="validity-note-${codRefEnc}" data-coderef="${codRefEnc}" placeholder="Obs. (opc.)" /></div>
           <div class="validity-add-actions"><button type="button" class="btn btn-primary validity-btn-add" data-coderef="${codRefEnc}">Adicionar</button></div>
         </div>`
       : '';
@@ -2497,16 +2416,11 @@ function renderValidityProductList() {
       <details class="validity-product-card" open>
         <summary>
           <span class="validity-product-title">${desc}</span>
-          <span class="validity-product-meta">
-            <span class="validity-chip validity-chip--muted">Cód. ${escapeHtml(cod)}</span>
-            ${statusChip}
-            ${sourceChip}
-            <span class="validity-chip validity-chip--muted">Classif. ${formatIntegerBR(classified)} UN</span>
-          </span>
+          ${refBlock}
         </summary>
         <div class="validity-product-body">
           <table class="validity-lines-table">
-            <thead><tr><th>Vencimento</th><th>Qtd UN</th><th>Faixa</th><th></th></tr></thead>
+            <thead><tr><th>Vencimento</th><th>Faixa</th><th></th></tr></thead>
             <tbody>${linesHtml}</tbody>
           </table>
           ${addBlock}
@@ -2520,8 +2434,7 @@ function renderValidityProductList() {
 
 async function loadValidityModule() {
   showDashboard();
-  await loadImportBalancesForValidity();
-  await loadServerCountTotalsForValidityDate();
+  await loadLastCountPerProduct();
   await loadValidityLinesFromServer();
   await loadValidityProductsCatalog();
   renderValidityProductList();
@@ -2533,7 +2446,7 @@ async function loadValidityModule() {
   }
 }
 
-function registerValidityLineLocal(codRaw, expirationDateStr, noteStr) {
+function registerValidityLineLocal(codRaw, expirationDateStr) {
   if (!isValidityOperationalEditable()) {
     setValidityFeedback('Lancamento apenas na data de hoje (America/Sao_Paulo).', true);
     return;
@@ -2544,29 +2457,15 @@ function registerValidityLineLocal(codRaw, expirationDateStr, noteStr) {
     setValidityFeedback('Informe a data de vencimento.', true);
     return;
   }
-  const baseUn = getValidityBaseUn(cod);
-  const remaining = computeRemainingUnForValidity(cod);
-  let q = remaining;
-  if (q <= 0) {
-    if (baseUn <= 0) {
-      q = 0;
-    } else {
-      setValidityFeedback(
-        'Sem UN restantes para nova linha (base da contagem/TXT). Remova ou ajuste linhas existentes.',
-        true,
-      );
-      return;
-    }
-  }
   const dayKey = getActiveValidityOpDateKey();
   const events = loadValidityEventsForDate(dayKey);
   const ev = {
     client_event_id: makeEventId(),
     cod_produto: cod,
     expiration_date: String(expirationDateStr).slice(0, 10),
-    quantity_un: q,
+    quantity_un: 0,
     lot_code: null,
-    note: (noteStr || '').trim() || null,
+    note: null,
     observed_at: new Date().toISOString(),
     synced: false,
     device_name: getDeviceName(),
@@ -2574,8 +2473,7 @@ function registerValidityLineLocal(codRaw, expirationDateStr, noteStr) {
   };
   events.push(ev);
   saveValidityEventsForDate(dayKey, events);
-  const qMsg = q > 0 ? `${q} UN` : 'apenas data (sem UN na base)';
-  setValidityFeedback(`Validade ${ev.expiration_date} · ${qMsg} gravada localmente. Sincronize quando estiver online.`, false);
+  setValidityFeedback(`Validade ${ev.expiration_date} gravada localmente. Sincronize quando estiver online.`, false);
   renderValidityProductList();
   const pending = flattenValidityPendingAll().filter((e) => !e.synced).length;
   const badge = document.getElementById('validity-pending-badge');
@@ -2715,8 +2613,6 @@ function bindValidityEvents() {
   }
   if (opDate) {
     opDate.addEventListener('change', async () => {
-      await loadImportBalancesForValidity();
-      await loadServerCountTotalsForValidityDate();
       await loadValidityLinesFromServer();
       renderValidityProductList();
     });
@@ -2733,10 +2629,8 @@ function bindValidityEvents() {
         const codRefEnc = addBtn.getAttribute('data-coderef') || '';
         const cod = normalizeItemCode(decodeURIComponent(codRefEnc));
         const expEl = document.getElementById(`validity-exp-${codRefEnc}`);
-        const noteEl = document.getElementById(`validity-note-${codRefEnc}`);
-        registerValidityLineLocal(cod, expEl && expEl.value, noteEl && noteEl.value);
+        registerValidityLineLocal(cod, expEl && expEl.value);
         if (expEl) expEl.value = '';
-        if (noteEl) noteEl.value = '';
         return;
       }
       const rem = e.target.closest('.btn-validity-remove');
