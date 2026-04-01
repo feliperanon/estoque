@@ -258,6 +258,10 @@ const USER_KEY   = 'estoque_user';
 const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
 /** Saldo CX/UN do último TXT (ou data em #count-date), para comparar na contagem (sem exibir valores na UI). */
 let countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+/** Saldo TXT alinhado à data da operação do módulo Validade (independe de #count-date). */
+let validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+let validityProductsCache = [];
+let validityServerLines = [];
 /** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
 let countServerCountState = { ok: false, balances: {} };
 const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
@@ -1696,6 +1700,99 @@ async function loadImportBalancesForCount() {
   } catch {
     countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
   }
+}
+
+async function loadImportBalancesForValidity() {
+  const token = getToken();
+  if (!token) {
+    validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    return;
+  }
+  if (unauthorizedRedirectInProgress) {
+    validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    return;
+  }
+  if (isAccessTokenExpired(token)) {
+    validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    handleUnauthorizedResponse({ status: 401 });
+    return;
+  }
+  const dateEl = document.getElementById('validity-op-date');
+  const referenceDate = (dateEl && dateEl.value || '').trim();
+  const params = new URLSearchParams();
+  if (referenceDate) params.set('reference_date', referenceDate);
+  params.set('only_active', 'true');
+  try {
+    const response = await apiFetch(`${API_IMPORT_BALANCES}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (handleUnauthorizedResponse(response)) {
+      validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+      return;
+    }
+    if (!response.ok) {
+      validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+      return;
+    }
+    const data = await response.json();
+    validityImportBalancesState = {
+      hasTxt: !!data.has_txt_import,
+      balances: data.balances || {},
+      importLabel: data.import && data.import.file_name ? String(data.import.file_name) : '',
+    };
+  } catch {
+    validityImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+  }
+}
+
+function getValiditySaldoUn(codRaw) {
+  const k = normalizeItemCode(codRaw);
+  const b = validityImportBalancesState.balances[k];
+  if (!b) return 0;
+  return Math.max(0, Math.round(Number(b.import_unidade) || 0));
+}
+
+function loadValidityBucketRaw() {
+  try {
+    const raw = localStorage.getItem(VALIDITY_BUCKET_KEY);
+    if (!raw) return {};
+    const p = JSON.parse(raw);
+    return p && typeof p === 'object' && !Array.isArray(p) ? p : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveValidityBucketRaw(bucket) {
+  try {
+    localStorage.setItem(VALIDITY_BUCKET_KEY, JSON.stringify(bucket));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadValidityEventsForDate(dayKey) {
+  const b = loadValidityBucketRaw();
+  const arr = b[dayKey];
+  return Array.isArray(arr) ? arr : [];
+}
+
+function saveValidityEventsForDate(dayKey, events) {
+  const b = loadValidityBucketRaw();
+  b[dayKey] = events;
+  saveValidityBucketRaw(b);
+}
+
+function flattenValidityPendingAll() {
+  const b = loadValidityBucketRaw();
+  return Object.keys(b).flatMap((k) => (Array.isArray(b[k]) ? b[k] : []));
+}
+
+function setValidityFeedback(msg, isError = false) {
+  const el = document.getElementById('validity-feedback');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = isError ? 'var(--error)' : 'var(--accent)';
 }
 
 function renderCountProducts(products) {
