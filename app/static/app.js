@@ -2079,6 +2079,583 @@ async function loadCountProducts() {
   }
 }
 
+function _validityLineKey(line) {
+  const id = line.id != null ? `s-${line.id}` : `l-${line.client_event_id || ''}`;
+  const exp = line.expiration_date || '';
+  return `${id}-${exp}`;
+}
+
+function getMergedValidityLinesForProduct(codRaw) {
+  const cod = normalizeItemCode(codRaw);
+  const op = getActiveValidityOpDateKey();
+  const server = (validityServerLines || []).filter(
+    (l) => normalizeItemCode(l.cod_produto) === cod,
+  );
+  const local = loadValidityEventsForDate(op).filter(
+    (e) => !e.synced && normalizeItemCode(e.cod_produto) === cod,
+  );
+  const localNorm = local.map((e) => ({
+    id: null,
+    client_event_id: e.client_event_id,
+    cod_produto: cod,
+    expiration_date: e.expiration_date,
+    quantity_un: e.quantity_un,
+    lot_code: e.lot_code || null,
+    note: e.note || null,
+    operational_date: e.operational_day || op,
+    observed_at: e.observed_at,
+    _local: true,
+  }));
+  return [...server, ...localNorm];
+}
+
+function validityRiskCategory(expDateStr, todayBr) {
+  if (!expDateStr || !todayBr) return 'unknown';
+  const a = new Date(`${expDateStr}T12:00:00`);
+  const b = new Date(`${todayBr}T12:00:00`);
+  const diff = Math.round((a - b) / 86400000);
+  if (diff < 0) return 'expired';
+  if (diff === 0) return 'today';
+  if (diff <= 3) return 'd3';
+  if (diff <= 7) return 'd7';
+  if (diff <= 30) return 'd30';
+  if (diff <= 60) return 'd60';
+  if (diff <= 90) return 'd90';
+  return 'ok';
+}
+
+async function loadValidityLinesFromServer() {
+  const token = getToken();
+  if (!token) {
+    validityServerLines = [];
+    return;
+  }
+  if (unauthorizedRedirectInProgress) {
+    validityServerLines = [];
+    return;
+  }
+  if (isAccessTokenExpired(token)) {
+    validityServerLines = [];
+    handleUnauthorizedResponse({ status: 401 });
+    return;
+  }
+  try {
+    const params = new URLSearchParams();
+    params.set('operational_date', getActiveValidityOpDateKey());
+    const response = await apiFetch(`${API_VALIDITY_LINES}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (handleUnauthorizedResponse(response)) {
+      validityServerLines = [];
+      return;
+    }
+    if (!response.ok) {
+      validityServerLines = [];
+      return;
+    }
+    const data = await response.json();
+    validityServerLines = Array.isArray(data.lines) ? data.lines : [];
+  } catch {
+    validityServerLines = [];
+  }
+}
+
+async function loadValidityProductsCatalog() {
+  const token = getToken();
+  if (!token) return;
+  if (isAccessTokenExpired(token)) {
+    handleUnauthorizedResponse({ status: 401 });
+    return;
+  }
+  const statusValue = 'ativo';
+  const buildUrl = (lim) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(lim));
+    params.set('status', statusValue);
+    return `${API_PRODUCTS_CATALOG}?${params.toString()}`;
+  };
+  let lim = catalogQueryLimitEffective;
+  let resp = await apiFetch(buildUrl(lim), { headers: { Authorization: `Bearer ${token}` } });
+  while (resp.status === 422 && lim > 1000) {
+    const next = downgradeLimitAfter422(lim);
+    if (next >= lim) break;
+    catalogQueryLimitEffective = next;
+    lim = next;
+    resp = await apiFetch(buildUrl(lim), { headers: { Authorization: `Bearer ${token}` } });
+  }
+  if (handleUnauthorizedResponse(resp)) return;
+  if (!resp.ok) return;
+  const products = await resp.json();
+  validityProductsCache = Array.isArray(products) ? products : [];
+}
+
+function updateValidityReadonlyState() {
+  const shell = document.getElementById('validity-products-shell');
+  const editable = isValidityOperationalEditable();
+  if (shell) {
+    shell.classList.toggle('validity-products-shell--readonly', !editable);
+  }
+  const banner = document.getElementById('validity-readonly-banner');
+  if (banner) {
+    const show = !editable;
+    banner.hidden = !show;
+    banner.textContent = show
+      ? `Modo consulta (${getActiveValidityOpDateKey()}). Lancamentos apenas na data de hoje (${getBrazilDateKey()}).`
+      : '';
+  }
+}
+
+function updateValidityKpis(productRows) {
+  const todayBr = getBrazilDateKey();
+  let withLine = 0;
+  let without = 0;
+  let expired = 0;
+  let todayN = 0;
+  let d3 = 0;
+  let d7 = 0;
+  let riskVol = 0;
+
+  for (const row of productRows) {
+    const lines = row.lines || [];
+    if (lines.length) withLine += 1;
+    else without += 1;
+    for (const ln of lines) {
+      const cat = validityRiskCategory(ln.expiration_date, todayBr);
+      const q = Math.max(0, Number(ln.quantity_un) || 0);
+      if (cat === 'expired') {
+        expired += 1;
+        riskVol += q;
+      } else if (cat === 'today') {
+        todayN += 1;
+        riskVol += q;
+      } else if (cat === 'd3') {
+        d3 += 1;
+        riskVol += q;
+      } else if (cat === 'd7') {
+        d7 += 1;
+        riskVol += q;
+      }
+    }
+  }
+
+  const set = (id, v) => {
+    const n = document.getElementById(id);
+    if (n) n.textContent = String(v);
+  };
+  set('validity-kpi-with', withLine);
+  set('validity-kpi-without', without);
+  set('validity-kpi-expired', expired);
+  set('validity-kpi-today', todayN);
+  set('validity-kpi-d3', d3);
+  set('validity-kpi-d7', d7);
+  set('validity-kpi-riskvol', riskVol);
+
+  const total = productRows.length;
+  const pct = total > 0 ? Math.min(100, Math.round((withLine / total) * 100)) : 0;
+  const fill = document.getElementById('validity-progress-fill');
+  const pp = document.getElementById('validity-progress-percent');
+  const pd = document.getElementById('validity-progress-detail');
+  if (fill) fill.style.width = `${pct}%`;
+  if (pp) pp.textContent = `${pct}%`;
+  if (pd) pd.textContent = `${withLine} de ${total} produtos com linhas de validade`;
+}
+
+function filterValidityProductsForView(products) {
+  const term = (document.getElementById('validity-item-code')?.value || '').trim().toLowerCase();
+  const grupo = (document.getElementById('validity-group')?.value || '').trim().toLowerCase();
+  const risk = (document.getElementById('validity-risk-filter')?.value || 'all').trim();
+  const todayBr = getBrazilDateKey();
+
+  const rows = (products || []).map((p) => {
+    const cod = normalizeItemCode(p.cod_produto || '');
+    const lines = getMergedValidityLinesForProduct(cod);
+    const saldo = getValiditySaldoUn(cod);
+    const classified = lines.reduce((s, l) => s + Math.max(0, Number(l.quantity_un) || 0), 0);
+    const over = saldo > 0 && classified > saldo;
+    return { product: p, cod, lines, saldo, classified, over };
+  });
+
+  return rows.filter((row) => {
+    const p = row.product;
+    const desc = (p.cod_grup_descricao || '').toLowerCase();
+    const codigo = (p.cod_produto || '').toLowerCase();
+    if (term && !codigo.includes(term) && !desc.includes(term)) return false;
+    if (grupo && !desc.includes(grupo)) return false;
+
+    if (risk === 'all') return true;
+    if (risk === 'none') return row.lines.length === 0;
+    if (risk === 'over') return row.over;
+    if (risk === 'expired') {
+      return row.lines.some((l) => validityRiskCategory(l.expiration_date, todayBr) === 'expired');
+    }
+    if (risk === 'today') {
+      return row.lines.some((l) => validityRiskCategory(l.expiration_date, todayBr) === 'today');
+    }
+    if (risk === 'd3') {
+      return row.lines.some((l) => validityRiskCategory(l.expiration_date, todayBr) === 'd3');
+    }
+    if (risk === 'd7') {
+      return row.lines.some((l) => {
+        const c = validityRiskCategory(l.expiration_date, todayBr);
+        return c === 'd7' || c === 'd3' || c === 'today';
+      });
+    }
+    if (risk === 'd30') {
+      return row.lines.some((l) => {
+        const c = validityRiskCategory(l.expiration_date, todayBr);
+        return ['expired', 'today', 'd3', 'd7', 'd30'].includes(c);
+      });
+    }
+    if (risk === 'd60') {
+      return row.lines.some((l) => {
+        const c = validityRiskCategory(l.expiration_date, todayBr);
+        return ['expired', 'today', 'd3', 'd7', 'd30', 'd60'].includes(c);
+      });
+    }
+    if (risk === 'd90') {
+      return row.lines.some((l) => {
+        const c = validityRiskCategory(l.expiration_date, todayBr);
+        return ['expired', 'today', 'd3', 'd7', 'd30', 'd60', 'd90'].includes(c);
+      });
+    }
+    return true;
+  });
+}
+
+function renderValidityProductList() {
+  const ul = document.getElementById('validity-products-list');
+  const totalEl = document.getElementById('validity-products-total');
+  if (!ul) return;
+
+  const isActive = (status) => {
+    const s = String(status || '').trim().toLowerCase();
+    if (!s || s === 'ativo' || s === 's' || s === 'sim' || s === '1' || s === 'true') return true;
+    return false;
+  };
+  const ativos = (validityProductsCache || []).filter((p) => isActive(p.status));
+  if (totalEl) totalEl.textContent = String(ativos.length);
+
+  const rows = filterValidityProductsForView(ativos);
+  updateValidityKpis(rows);
+
+  ul.innerHTML = '';
+  if (!rows.length) {
+    ul.innerHTML = '<li class="validity-empty"><span>Nenhum produto no filtro atual.</span></li>';
+    updateValidityReadonlyState();
+    return;
+  }
+
+  const todayBr = getBrazilDateKey();
+  const enc = encodeURIComponent;
+
+  for (const row of rows) {
+    const p = row.product;
+    const cod = row.cod;
+    const desc = escapeHtml((p.cod_grup_descricao || cod).trim());
+    const lines = row.lines;
+    const saldo = row.saldo;
+    const classified = row.classified;
+    const pend = Math.max(0, saldo - classified);
+    const over = row.over;
+
+    let statusChip = '<span class="validity-chip validity-chip--muted">Sem classificação</span>';
+    if (lines.length) {
+      statusChip = '<span class="validity-chip validity-chip--ok">Classificado parcial/total</span>';
+    }
+    if (over) {
+      statusChip = '<span class="validity-chip validity-chip--over">Soma &gt; saldo</span>';
+    }
+    if (lines.length && pend > 0) {
+      statusChip += ` <span class="validity-chip validity-chip--warn">${pend} UN sem lote/validade</span>`;
+    }
+
+    const linesHtml = lines.length
+      ? lines
+          .map((ln) => {
+            const rk = validityRiskCategory(ln.expiration_date, todayBr);
+            let rkLabel = rk;
+            if (rk === 'expired') rkLabel = 'Vencido';
+            else if (rk === 'today') rkLabel = 'Hoje';
+            else if (rk === 'd3') rkLabel = '≤3d';
+            else if (rk === 'd7') rkLabel = '≤7d';
+            else if (rk === 'd30') rkLabel = '≤30d';
+            else rkLabel = 'Futuro';
+            const canDel = isValidityOperationalEditable() && (ln.id || ln._local);
+            const delBtn = canDel
+              ? `<button type="button" class="btn btn-text btn-sm btn-validity-remove" data-line-id="${ln.id != null ? ln.id : ''}" data-client-id="${escapeHtml(String(ln.client_event_id || ''))}" data-coderef="${enc(cod)}">Remover</button>`
+              : '—';
+            return `<tr>
+              <td>${escapeHtml(String(ln.expiration_date || '').slice(0, 10))}</td>
+              <td>${formatIntegerBR(Math.max(0, Number(ln.quantity_un) || 0))}</td>
+              <td>${escapeHtml((ln.lot_code || '—').toString())}</td>
+              <td>${rkLabel}</td>
+              <td>${delBtn}</td>
+            </tr>`;
+          })
+          .join('')
+      : '<tr><td colspan="5" class="muted">Nenhuma linha neste dia.</td></tr>';
+
+    const codRefEnc = enc(cod);
+    const editable = isValidityOperationalEditable();
+    const addBlock = editable
+      ? `<div class="validity-add-row">
+          <div class="validity-add-exp"><label class="sr-only" for="validity-exp-${codRefEnc}">Vencimento</label>
+          <input type="date" class="count-filter-input validity-inp-exp" id="validity-exp-${codRefEnc}" data-coderef="${codRefEnc}" /></div>
+          <div><label class="sr-only" for="validity-qty-${codRefEnc}">Qtd UN</label>
+          <input type="number" min="1" step="1" class="count-filter-input validity-inp-qty" id="validity-qty-${codRefEnc}" data-coderef="${codRefEnc}" placeholder="UN" /></div>
+          <div><label class="sr-only" for="validity-lot-${codRefEnc}">Lote</label>
+          <input type="text" class="count-filter-input validity-inp-lot" id="validity-lot-${codRefEnc}" data-coderef="${codRefEnc}" placeholder="Lote (opc.)" /></div>
+          <div><label class="sr-only" for="validity-note-${codRefEnc}">Obs.</label>
+          <input type="text" class="count-filter-input validity-inp-note" id="validity-note-${codRefEnc}" data-coderef="${codRefEnc}" placeholder="Obs. (opc.)" /></div>
+          <div class="validity-add-actions"><button type="button" class="btn btn-primary validity-btn-add" data-coderef="${codRefEnc}">Adicionar</button></div>
+        </div>`
+      : '';
+
+    const li = document.createElement('li');
+    li.className = 'validity-product-item';
+    li.innerHTML = `
+      <details class="validity-product-card" open>
+        <summary>
+          <span class="validity-product-title">${desc}</span>
+          <span class="validity-product-meta">
+            <span class="validity-chip validity-chip--muted">Cód. ${escapeHtml(cod)}</span>
+            ${statusChip}
+            <span class="validity-chip validity-chip--muted">Saldo ${formatIntegerBR(saldo)} UN</span>
+            <span class="validity-chip validity-chip--muted">Classif. ${formatIntegerBR(classified)} UN</span>
+          </span>
+        </summary>
+        <div class="validity-product-body">
+          <table class="validity-lines-table">
+            <thead><tr><th>Vencimento</th><th>Qtd UN</th><th>Lote</th><th>Faixa</th><th></th></tr></thead>
+            <tbody>${linesHtml}</tbody>
+          </table>
+          ${addBlock}
+        </div>
+      </details>`;
+    ul.appendChild(li);
+  }
+
+  updateValidityReadonlyState();
+}
+
+async function loadValidityModule() {
+  showDashboard();
+  await loadImportBalancesForValidity();
+  await loadValidityLinesFromServer();
+  await loadValidityProductsCatalog();
+  renderValidityProductList();
+  const pending = flattenValidityPendingAll().filter((e) => !e.synced).length;
+  const badge = document.getElementById('validity-pending-badge');
+  if (badge) {
+    badge.hidden = pending === 0;
+    badge.textContent = `${pending} pendentes`;
+  }
+}
+
+function registerValidityLineLocal(codRaw, expirationDateStr, qty, lotStr, noteStr) {
+  if (!isValidityOperationalEditable()) {
+    setValidityFeedback('Lancamento apenas na data de hoje (America/Sao_Paulo).', true);
+    return;
+  }
+  const cod = normalizeItemCode(codRaw);
+  if (!cod) return;
+  const q = Math.max(0, Math.round(Number(qty) || 0));
+  if (q <= 0) {
+    setValidityFeedback('Informe quantidade UN maior que zero.', true);
+    return;
+  }
+  if (!expirationDateStr || String(expirationDateStr).trim().length < 8) {
+    setValidityFeedback('Informe a data de vencimento.', true);
+    return;
+  }
+  const dayKey = getActiveValidityOpDateKey();
+  const events = loadValidityEventsForDate(dayKey);
+  const ev = {
+    client_event_id: makeEventId(),
+    cod_produto: cod,
+    expiration_date: String(expirationDateStr).slice(0, 10),
+    quantity_un: q,
+    lot_code: (lotStr || '').trim() || null,
+    note: (noteStr || '').trim() || null,
+    observed_at: new Date().toISOString(),
+    synced: false,
+    device_name: getDeviceName(),
+    operational_day: dayKey,
+  };
+  events.push(ev);
+  saveValidityEventsForDate(dayKey, events);
+  setValidityFeedback(`Validade ${ev.expiration_date} · ${q} UN gravada localmente. Sincronize quando estiver online.`, false);
+  renderValidityProductList();
+  const pending = flattenValidityPendingAll().filter((e) => !e.synced).length;
+  const badge = document.getElementById('validity-pending-badge');
+  if (badge) {
+    badge.hidden = pending === 0;
+    badge.textContent = `${pending} pendentes`;
+  }
+  if (navigator.onLine) {
+    syncValidityPending();
+  }
+}
+
+async function syncValidityPending() {
+  const token = getToken();
+  if (!token) return;
+  if (!navigator.onLine) {
+    setValidityFeedback('Sem conexao. Tentaremos sincronizar depois.', true);
+    return;
+  }
+  const dayKey = getBrazilDateKey();
+  const bucket = loadValidityBucketRaw();
+  const allDays = Object.keys(bucket).flatMap((k) => (Array.isArray(bucket[k]) ? bucket[k] : []));
+  const pending = allDays.filter((e) => e && !e.synced);
+  if (!pending.length) {
+    setValidityFeedback('Nada pendente de sincronizacao.');
+    return;
+  }
+  const body = {
+    reference_date: getActiveValidityOpDateKey(),
+    events: pending.map((e) => ({
+      client_event_id: e.client_event_id,
+      cod_produto: normalizeItemCode(e.cod_produto),
+      expiration_date: e.expiration_date,
+      quantity_un: Math.max(0, Math.round(Number(e.quantity_un) || 0)),
+      lot_code: e.lot_code || null,
+      note: e.note || null,
+      observed_at: e.observed_at || new Date().toISOString(),
+      device_name: e.device_name || getDeviceName(),
+    })),
+  };
+  try {
+    const resp = await apiFetch(API_VALIDITY_EVENTS, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (handleUnauthorizedResponse(resp)) return;
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      setValidityFeedback(err.detail || 'Falha ao sincronizar validades.', true);
+      return;
+    }
+    const data = await resp.json();
+    const synced = new Set(data.synced_ids || []);
+    const b = loadValidityBucketRaw();
+    let changed = false;
+    for (const k of Object.keys(b)) {
+      const arr = b[k];
+      if (!Array.isArray(arr)) continue;
+      for (let i = 0; i < arr.length; i++) {
+        const ev = arr[i];
+        if (ev && synced.has(ev.client_event_id)) {
+          b[k][i] = { ...ev, synced: true };
+          changed = true;
+        }
+      }
+    }
+    if (changed) saveValidityBucketRaw(b);
+    setValidityFeedback(`Sincronizado: ${synced.size} lancamento(s).`);
+    await loadValidityLinesFromServer();
+    renderValidityProductList();
+    const badge = document.getElementById('validity-pending-badge');
+    const left = flattenValidityPendingAll().filter((e) => !e.synced).length;
+    if (badge) {
+      badge.hidden = left === 0;
+      badge.textContent = `${left} pendentes`;
+    }
+  } catch {
+    setValidityFeedback('Erro de rede ao sincronizar.', true);
+  }
+}
+
+async function removeValidityLine(lineId, clientId, codRaw) {
+  if (!isValidityOperationalEditable()) {
+    setValidityFeedback('Remocao apenas no dia corrente.', true);
+    return;
+  }
+  const cod = normalizeItemCode(codRaw);
+  const dayKey = getActiveValidityOpDateKey();
+  if (lineId) {
+    const resp = await apiFetch(`${API_VALIDITY_LINES}/${lineId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (handleUnauthorizedResponse(resp)) return;
+    if (!resp.ok) {
+      setValidityFeedback('Nao foi possivel remover no servidor.', true);
+      return;
+    }
+    await loadValidityLinesFromServer();
+    renderValidityProductList();
+    setValidityFeedback('Linha removida.');
+    return;
+  }
+  if (clientId) {
+    const events = loadValidityEventsForDate(dayKey);
+    const next = events.filter((e) => e.client_event_id !== clientId);
+    saveValidityEventsForDate(dayKey, next);
+    renderValidityProductList();
+    setValidityFeedback('Lancamento local removido.');
+  }
+}
+
+function bindValidityEvents() {
+  const shell = document.getElementById('validity-products-shell');
+  const opDate = document.getElementById('validity-op-date');
+  const itemCode = document.getElementById('validity-item-code');
+  const grp = document.getElementById('validity-group');
+  const risk = document.getElementById('validity-risk-filter');
+  const btnSync = document.getElementById('btn-validity-sync');
+
+  if (itemCode) {
+    itemCode.addEventListener('input', () => renderValidityProductList());
+  }
+  if (grp) {
+    grp.addEventListener('input', () => renderValidityProductList());
+  }
+  if (risk) {
+    risk.addEventListener('change', () => renderValidityProductList());
+  }
+  if (opDate) {
+    opDate.addEventListener('change', async () => {
+      await loadImportBalancesForValidity();
+      await loadValidityLinesFromServer();
+      renderValidityProductList();
+    });
+  }
+  if (btnSync) {
+    btnSync.addEventListener('click', () => syncValidityPending());
+  }
+
+  if (shell && shell.dataset.validityBound !== '1') {
+    shell.dataset.validityBound = '1';
+    shell.addEventListener('click', (e) => {
+      const addBtn = e.target.closest('.validity-btn-add');
+      if (addBtn) {
+        const codRefEnc = addBtn.getAttribute('data-coderef') || '';
+        const cod = normalizeItemCode(decodeURIComponent(codRefEnc));
+        const expEl = document.getElementById(`validity-exp-${codRefEnc}`);
+        const qtyEl = document.getElementById(`validity-qty-${codRefEnc}`);
+        const lotEl = document.getElementById(`validity-lot-${codRefEnc}`);
+        const noteEl = document.getElementById(`validity-note-${codRefEnc}`);
+        registerValidityLineLocal(cod, expEl && expEl.value, qtyEl && qtyEl.value, lotEl && lotEl.value, noteEl && noteEl.value);
+        if (expEl) expEl.value = '';
+        if (qtyEl) qtyEl.value = '';
+        if (lotEl) lotEl.value = '';
+        if (noteEl) noteEl.value = '';
+        return;
+      }
+      const rem = e.target.closest('.btn-validity-remove');
+      if (rem) {
+        const lid = rem.getAttribute('data-line-id');
+        const cid = rem.getAttribute('data-client-id');
+        const cref = rem.getAttribute('data-coderef') || '';
+        const cod = normalizeItemCode(decodeURIComponent(cref));
+        removeValidityLine(lid ? Number(lid) : null, cid || null, cod);
+      }
+    });
+  }
+}
+
 function setProductFeedback(message, isError = false) {
   productFeedback.textContent = message;
   productFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
@@ -4734,6 +5311,7 @@ if (moduleNav) {
 (async function init() {
   applyProductDefaultsToForms();
   bindCountEvents();
+  bindValidityEvents();
   bindCountAuditEvents();
   bindImportTxtEvents();
   bindProductEvents();
