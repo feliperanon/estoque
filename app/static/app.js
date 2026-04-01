@@ -18,6 +18,16 @@ function isCountOperationalEditable() {
   return getActiveCountDateKey() === getBrazilDateKey();
 }
 
+function getActiveValidityOpDateKey() {
+  const el = document.getElementById('validity-op-date');
+  const v = (el && el.value || '').trim();
+  return v || getBrazilDateKey();
+}
+
+function isValidityOperationalEditable() {
+  return getActiveValidityOpDateKey() === getBrazilDateKey();
+}
+
 // Autocomplete para Grupo + filtro funcional
 document.addEventListener('DOMContentLoaded', () => {
   const groupInput = document.getElementById('count-group');
@@ -113,6 +123,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('count-date');
   if (dateInput && !dateInput.value) {
     dateInput.value = getBrazilDateKey();
+  }
+  const validityDate = document.getElementById('validity-op-date');
+  if (validityDate && !validityDate.value) {
+    validityDate.value = getBrazilDateKey();
   }
 });
 
@@ -229,6 +243,9 @@ const API_STOCK_ANALYSIS = '/audit/stock-analysis';
 const API_STOCK_ANALYSIS_EXPORT_XLSX = '/audit/stock-analysis/export.xlsx';
 const API_IMPORT_BALANCES = '/audit/import-balances';
 const API_COUNT_SERVER_TOTALS = '/audit/count-server-totals';
+const API_VALIDITY_EVENTS = '/audit/validity-events';
+const API_VALIDITY_LINES = '/audit/validity-lines';
+const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const API_PRODUCTS = '/products';
 /** Alinhado ao `le` em GET /products e /products/catalog (products.py). */
 const PRODUCTS_LIST_LIMIT = 20000;
@@ -643,6 +660,8 @@ function setActiveSub(subKey) {
     loadCountProducts();
   } else if (subKey === 'count-audit') {
     startCountAuditPolling();
+  } else if (subKey === 'validity') {
+    loadValidityModule();
   }
 }
 

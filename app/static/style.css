@@ -4666,3 +4666,195 @@ body.sidebar-drawer-open {
 .app-layout--public .sidebar-nav-item {
   display: flex !important;
 }
+
+/* ── Módulo: Data de Vencimento (operacional, alinhado à contagem) ── */
+.validity-main-card--outer {
+  margin-bottom: 0;
+}
+.validity-op-lead {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.validity-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  margin: 0 0 1rem;
+}
+.validity-kpi {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+}
+.validity-kpi--danger {
+  background: rgba(254, 226, 226, 0.6);
+  border-color: rgba(220, 38, 38, 0.25);
+}
+.validity-kpi--warn {
+  background: rgba(254, 243, 199, 0.7);
+  border-color: rgba(217, 119, 6, 0.3);
+}
+.validity-kpi--risk {
+  background: rgba(237, 233, 254, 0.7);
+  border-color: rgba(109, 40, 217, 0.25);
+}
+.validity-kpi-value {
+  display: block;
+  font-weight: 800;
+  font-size: 1.15rem;
+  line-height: 1.2;
+  color: var(--ink, #0f172a);
+}
+.validity-kpi-label {
+  font-size: 0.7rem;
+  color: var(--muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.validity-filter-risk-col {
+  min-width: 160px;
+}
+.validity-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0.5rem;
+}
+.validity-pending-chip {
+  background: rgba(251, 191, 36, 0.25);
+  border-color: rgba(217, 119, 6, 0.35);
+}
+#sub-validity .validity-products-shell {
+  margin-top: 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  background: var(--white);
+  border-radius: 0 0 4px 4px;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-top: none;
+  overflow: hidden;
+}
+.validity-products-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.validity-product-card {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+.validity-product-card:last-child {
+  border-bottom: none;
+}
+.validity-product-card > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  font-weight: 600;
+  background: #fafbfc;
+}
+.validity-product-card > summary::-webkit-details-marker {
+  display: none;
+}
+.validity-product-title {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.validity-product-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.validity-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.validity-chip--muted {
+  background: #f1f5f9;
+  color: #475569;
+}
+.validity-chip--ok {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.validity-chip--warn {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.validity-chip--danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+.validity-chip--over {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: rgba(245, 158, 11, 0.5);
+}
+.validity-product-body {
+  padding: 0 12px 12px;
+  background: #fff;
+}
+.validity-lines-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  margin-bottom: 10px;
+}
+.validity-lines-table th,
+.validity-lines-table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+.validity-lines-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+.validity-add-row {
+  display: grid;
+  grid-template-columns: 1fr 88px 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 8px;
+}
+@media (max-width: 720px) {
+  .validity-add-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .validity-add-row .validity-add-exp {
+    grid-column: 1 / -1;
+  }
+  .validity-add-row .validity-add-actions {
+    grid-column: 1 / -1;
+  }
+}
+.validity-add-row input,
+.validity-add-row button {
+  min-height: 44px;
+}
+.validity-products-shell--readonly .validity-add-row,
+.validity-products-shell--readonly .btn-validity-remove {
+  display: none !important;
+}
+.validity-readonly-banner:not([hidden]) {
+  display: block;
+}
