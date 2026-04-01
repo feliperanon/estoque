@@ -4957,19 +4957,23 @@ function renderCountAuditDetailShell(row, detail, isLoading = false) {
 async function loadCountAuditDetail(code, forceReload = false) {
   const row = getCountAuditRowByCode(code);
   if (!row || !countAuditDetailPanel) return;
-  const referenceDate = (countAuditImport?.value || '').trim();
-  const cacheKey = `${referenceDate || '-'}::${code}`;
+  const cacheKey = getCountAuditDetailCacheKey(code);
   if (!forceReload && countAuditState.detailCache.has(cacheKey)) {
+    countAuditState.loadingDetailCode = null;
     renderCountAuditDetailShell(row, countAuditState.detailCache.get(cacheKey), false);
+    if (isCountAuditMobileViewport()) renderCountAuditRows(getCountAuditRowsFromState());
     return;
   }
 
+  countAuditState.loadingDetailCode = String(code || '');
   renderCountAuditDetailShell(row, null, true);
+  if (isCountAuditMobileViewport()) renderCountAuditRows(getCountAuditRowsFromState());
   const requestId = ++countAuditDetailRequestSeq;
   try {
     const params = new URLSearchParams();
     params.set('item_code', code);
     params.set('only_active', 'true');
+    const referenceDate = (countAuditImport?.value || '').trim();
     if (referenceDate) params.set('reference_date', referenceDate);
     const response = await apiFetch(`${API_STOCK_ANALYSIS_DETAIL}?${params.toString()}`, {
       headers: getAuthHeaders(),
@@ -4980,13 +4984,17 @@ async function loadCountAuditDetail(code, forceReload = false) {
       throw new Error(err.detail || 'Não foi possível carregar o detalhe.');
     }
     const detail = await response.json();
+    countAuditState.loadingDetailCode = null;
     countAuditState.detailCache.set(cacheKey, detail);
     if (requestId === countAuditDetailRequestSeq && String(countAuditState.selectedCode || '') === String(code)) {
       renderCountAuditDetailShell(row, detail, false);
+      if (isCountAuditMobileViewport()) renderCountAuditRows(getCountAuditRowsFromState());
     }
   } catch (error) {
     if (requestId !== countAuditDetailRequestSeq) return;
+    countAuditState.loadingDetailCode = null;
     renderCountAuditDetailShell(row, null, false);
+    if (isCountAuditMobileViewport()) renderCountAuditRows(getCountAuditRowsFromState());
     setCountAuditFeedback(error?.message || 'Falha ao carregar o detalhe do item.', true);
   }
 }
@@ -5012,6 +5020,9 @@ function clearCountAuditFilters() {
   if (countAuditOnlyDiff) countAuditOnlyDiff.checked = false;
   if (countAuditSort) countAuditSort.value = 'relevance';
   countAuditSummaryFilterKey = null;
+  countAuditState.showAllMissingMobile = false;
+  countAuditState.mobileFiltersExpanded = false;
+  syncCountAuditFiltersPresentation();
   updateCountAuditSummarySelection();
   renderCountAuditRows(getCountAuditRowsFromState());
 }
@@ -5060,15 +5071,22 @@ async function loadCountAuditAnalysis() {
     countAuditState.summary = payload.summary || {};
     countAuditState.importInfo = info;
     countAuditState.loadedAt = new Date().toISOString();
+    countAuditState.selectedCode = isCountAuditMobileViewport() ? null : countAuditState.selectedCode;
+    countAuditState.loadingDetailCode = null;
+    countAuditState.showAllMissingMobile = false;
+    countAuditState.mobileFiltersExpanded = false;
     countAuditState.detailCache.clear();
     window.lastCountAuditRows = countAuditState.rows;
 
     populateCountAuditGroups(countAuditState.rows);
     updateCountAuditHeaderContext();
+    syncCountAuditFiltersPresentation();
     renderCountAuditSummary(countAuditState.summary);
     renderCountAuditRows(countAuditState.rows);
 
-    const selected = countAuditState.selectedCode || countAuditState.rows[0]?.cod_produto || null;
+    const selected = isCountAuditMobileViewport()
+      ? null
+      : (countAuditState.selectedCode || countAuditState.rows[0]?.cod_produto || null);
     if (selected) selectCountAuditRow(String(selected));
     else renderCountAuditDetailEmpty();
 
@@ -5165,21 +5183,60 @@ function bindCountAuditEvents() {
     countAuditOnlyDiff,
     countAuditSort,
   ].filter(Boolean).forEach((el) => {
-    el.addEventListener('change', () => renderCountAuditRows(getCountAuditRowsFromState()));
+    el.addEventListener('change', () => {
+      countAuditState.showAllMissingMobile = false;
+      syncCountAuditFiltersPresentation();
+      renderCountAuditRows(getCountAuditRowsFromState());
+    });
   });
 
   if (countAuditClearFilters) {
     countAuditClearFilters.addEventListener('click', () => clearCountAuditFilters());
   }
 
+  if (countAuditToggleFilters) {
+    countAuditToggleFilters.addEventListener('click', () => {
+      countAuditState.mobileFiltersExpanded = !countAuditState.mobileFiltersExpanded;
+      syncCountAuditFiltersPresentation();
+    });
+  }
+
   if (countAuditList && !countAuditList.dataset.auditBound) {
     countAuditList.dataset.auditBound = '1';
     countAuditList.addEventListener('click', (e) => {
+      const recountBtn = e.target.closest('[data-audit-recount]');
+      if (recountBtn) {
+        openCountAuditRecount(decodeURIComponent(recountBtn.dataset.auditRecount || ''));
+        return;
+      }
+      const refreshBtn = e.target.closest('[data-audit-refresh-detail]');
+      if (refreshBtn) {
+        selectCountAuditRow(decodeURIComponent(refreshBtn.dataset.auditRefreshDetail || ''), true);
+        return;
+      }
       const target = e.target.closest('[data-action][data-code]');
       if (!target) return;
+      const action = target.dataset.action || '';
+      if (action === 'show-missing') {
+        countAuditState.showAllMissingMobile = true;
+        renderCountAuditRows(getCountAuditRowsFromState());
+        return;
+      }
+      if (action === 'hide-missing') {
+        countAuditState.showAllMissingMobile = false;
+        renderCountAuditRows(getCountAuditRowsFromState());
+        return;
+      }
       const code = decodeURIComponent(target.dataset.code || '');
       if (!code) return;
-      selectCountAuditRow(code, target.dataset.action === 'detail');
+      if (action === 'collapse' || (action === 'toggle' && isCountAuditMobileViewport() && String(countAuditState.selectedCode || '') === code)) {
+        countAuditState.selectedCode = null;
+        countAuditState.loadingDetailCode = null;
+        renderCountAuditRows(getCountAuditRowsFromState());
+        renderCountAuditDetailEmpty();
+        return;
+      }
+      selectCountAuditRow(code, action === 'detail');
     });
   }
 
@@ -5195,6 +5252,18 @@ function bindCountAuditEvents() {
       if (refreshBtn) {
         selectCountAuditRow(decodeURIComponent(refreshBtn.dataset.auditRefreshDetail || ''), true);
       }
+    });
+  }
+
+  syncCountAuditFiltersPresentation();
+
+  if (countAuditMobileMediaQuery && !countAuditList.dataset.auditViewportBound) {
+    countAuditList.dataset.auditViewportBound = '1';
+    countAuditMobileMediaQuery.addEventListener('change', () => {
+      countAuditState.showAllMissingMobile = false;
+      syncCountAuditFiltersPresentation();
+      renderCountAuditSummary(countAuditState.summary || {});
+      renderCountAuditRows(getCountAuditRowsFromState());
     });
   }
 }

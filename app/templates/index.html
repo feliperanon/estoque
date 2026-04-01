@@ -377,10 +377,10 @@
             <div class="info-card master-container validity-main-card validity-main-card--outer">
               <div class="count-main-card-inner count-main-card-extended validity-op-header">
                 <div class="count-main-title-row">
-                  <span class="count-main-title">Data de vencimento</span>
+                  <span class="count-main-title">Lançamento de validade</span>
                   <span id="validity-products-total" class="count-main-chip" aria-live="polite">0</span>
                 </div>
-                <p class="validity-op-lead muted">Toque nos indicadores para filtrar. Referência: última contagem. Edição só no dia atual (America/Sao_Paulo).</p>
+                <p class="validity-op-lead muted">Fluxo operacional: localize o produto, informe a data e salve. Histórico e auditoria ficam à direita no computador ou em <strong>Ver histórico</strong> no celular. Edição apenas na data de hoje (America/Sao_Paulo).</p>
                 <input type="hidden" id="validity-op-date" name="validity-op-date" value="" />
                 <div class="validity-kpi-strip validity-kpi-strip--scroll" id="validity-kpi-strip" aria-label="Filtros rápidos por indicador">
                   <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="with" id="validity-kpi-with-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-with">0</span><span class="validity-kpi-label">com validade</span></button>
@@ -438,7 +438,16 @@
                       <option value="code">Código</option>
                     </select>
                   </div>
+                  <div class="count-main-filter-col validity-launch-filter-col">
+                    <label class="count-filter-label count-filter-label--bold" for="validity-launch-filter">Lançamento</label>
+                    <select id="validity-launch-filter" class="count-filter-input" aria-label="Filtrar por situação de lançamento">
+                      <option value="all">Todos</option>
+                      <option value="no_line">Sem data lançada</option>
+                      <option value="has_line">Já com validade (dia)</option>
+                    </select>
+                  </div>
                 </div>
+                <p id="validity-launch-stats" class="validity-launch-stats muted" aria-live="polite"></p>
                 <div class="count-progress count-main-progress validity-progress" aria-live="polite">
                   <div class="count-progress-track">
                     <div id="validity-progress-fill" class="count-progress-fill"></div>
@@ -460,8 +469,32 @@
             </div>
             <div id="validity-readonly-banner" class="count-readonly-banner validity-readonly-banner" role="status" aria-live="polite" hidden></div>
             <div class="validity-products-shell" id="validity-products-shell">
-              <ul id="validity-products-list" class="list validity-products-list"></ul>
+              <div class="validity-launch-workspace">
+                <div class="validity-launch-list-col">
+                  <ul id="validity-products-list" class="list validity-products-list validity-launch-list" role="list"></ul>
+                </div>
+                <aside
+                  id="validity-launch-detail-panel"
+                  class="validity-launch-detail"
+                  aria-label="Histórico e detalhe do produto selecionado"
+                  hidden
+                >
+                  <div class="validity-launch-detail-sticky">
+                    <p id="validity-launch-detail-lead" class="validity-launch-detail-lead muted"></p>
+                    <div id="validity-launch-detail-inner" class="validity-launch-detail-inner">
+                      <p class="muted validity-launch-detail-placeholder">Selecione um produto na lista para ver contagem de referência e histórico de validades.</p>
+                    </div>
+                  </div>
+                </aside>
+              </div>
             </div>
+            <dialog id="validity-history-dialog" class="validity-history-dialog" aria-labelledby="validity-history-dialog-title">
+              <div class="validity-history-dialog-head">
+                <h2 id="validity-history-dialog-title" class="validity-history-dialog-title">Histórico de validades</h2>
+                <button type="button" class="btn-text validity-history-dialog-close" aria-label="Fechar">Fechar</button>
+              </div>
+              <div id="validity-history-dialog-body" class="validity-history-dialog-body"></div>
+            </dialog>
           </div>
 
           <!-- Sub: Importar Estoque -->
