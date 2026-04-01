@@ -2556,8 +2556,11 @@ function renderValidityProductList() {
   const ativos = (validityProductsCache || []).filter((p) => isActive(p.status));
   if (totalEl) totalEl.textContent = String(ativos.length);
 
-  const rows = filterValidityProductsForView(ativos);
-  updateValidityKpis(rows);
+  const todayBr = getBrazilDateKey();
+  const allRows = ativos.map(buildValidityRowForProduct);
+  updateValidityKpis(allRows, todayBr);
+  const sortMode = (document.getElementById('validity-sort')?.value || 'priority').trim();
+  const rows = sortValidityRows(filterValidityRows(allRows), sortMode, todayBr);
 
   ul.innerHTML = '';
   if (!rows.length) {
@@ -2566,7 +2569,6 @@ function renderValidityProductList() {
     return;
   }
 
-  const todayBr = getBrazilDateKey();
   const enc = encodeURIComponent;
 
   for (const row of rows) {
@@ -2575,15 +2577,27 @@ function renderValidityProductList() {
     const desc = escapeHtml((p.cod_grup_descricao || cod).trim());
     const lines = row.lines;
     const snap = getValidityLastCountSnapshot(cod);
-    const refBlock = snap
-      ? `<div class="validity-ref-block">
-          <span class="validity-meta-line"><span class="validity-meta-k">Cód.</span> ${escapeHtml(cod)}</span>
-          <span class="validity-meta-line"><span class="validity-meta-k">Última contagem</span> ${formatIntegerBR(snap.cx)} CX <span class="validity-meta-sep">|</span> ${formatIntegerBR(snap.un)} UN</span>
-          <span class="validity-meta-line"><span class="validity-meta-k">Base</span> ${formatDateBrFromIso(snap.countDate)}</span>
+    const worst = worstValidityRiskAmongLines(lines, todayBr);
+    const hasSnap = !!snap;
+    const baseOld = !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
+    const ageDays = snap ? countBaseAgeDays(snap.countDate, todayBr) : null;
+    const ageLabel = snap ? formatCountBaseAgeLabel(ageDays) : '—';
+    const ageClass = baseOld ? ' validity-metric-v--alert' : '';
+    const nextLn = earliestExpirationLine(lines);
+    const nextBr = nextLn ? formatDateBrFromIso(String(nextLn.expiration_date || '').slice(0, 10)) : '—';
+    const statusMain = validityStatusMainShort(worst, lines.length > 0, hasSnap);
+    const action = validityRecommendedAction(row, todayBr);
+    const tone = validityCardTone(worst, lines.length > 0, hasSnap, baseOld);
+
+    const refMetrics = snap
+      ? `<div class="validity-analytic-metrics">
+          <div class="validity-metric"><span class="validity-metric-k">Última contagem</span><span class="validity-metric-v">${formatIntegerBR(snap.cx)} CX <span class="validity-meta-sep">|</span> ${formatIntegerBR(snap.un)} UN</span></div>
+          <div class="validity-metric"><span class="validity-metric-k">Data base</span><span class="validity-metric-v">${formatDateBrFromIso(snap.countDate)}</span></div>
+          <div class="validity-metric"><span class="validity-metric-k">Idade da base</span><span class="validity-metric-v${ageClass}">${ageLabel}${baseOld ? ' · base antiga' : ''}</span></div>
+          <div class="validity-metric"><span class="validity-metric-k">Próximo venc.</span><span class="validity-metric-v">${nextBr}</span></div>
         </div>`
-      : `<div class="validity-ref-block">
-          <span class="validity-meta-line"><span class="validity-meta-k">Cód.</span> ${escapeHtml(cod)}</span>
-          <span class="validity-meta-line validity-meta-line--empty">Sem contagem anterior</span>
+      : `<div class="validity-analytic-metrics validity-analytic-metrics--nocount">
+          <div class="validity-metric validity-metric--full"><span class="validity-metric-k">Referência</span><span class="validity-metric-v">Sem contagem anterior no sistema</span></div>
         </div>`;
 
     const linesHtml = lines.length
@@ -2597,14 +2611,20 @@ function renderValidityProductList() {
             const delBtn = canDel
               ? `<button type="button" class="btn btn-text btn-sm btn-validity-remove" data-line-id="${ln.id != null ? ln.id : ''}" data-client-id="${escapeHtml(String(ln.client_event_id || ''))}" data-coderef="${enc(cod)}">Remover</button>`
               : '—';
+            const who = ln._local
+              ? escapeHtml(ln.device_name || 'Este aparelho')
+              : escapeHtml(ln.actor_username || '—');
+            const when = formatDateTimeBr(ln.observed_at);
             return `<tr>
               <td>${expBr}</td>
               <td><span class="${rkChip}">${rkLabel}</span></td>
+              <td class="muted">${who}</td>
+              <td class="muted">${when}</td>
               <td>${delBtn}</td>
             </tr>`;
           })
           .join('')
-      : '<tr><td colspan="3" class="muted">Nenhuma data neste dia.</td></tr>';
+      : '<tr><td colspan="5" class="muted">Nenhuma data neste dia operacional.</td></tr>';
 
     const codRefEnc = enc(cod);
     const editable = isValidityOperationalEditable();
@@ -2619,16 +2639,28 @@ function renderValidityProductList() {
     const li = document.createElement('li');
     li.className = 'validity-product-item';
     li.innerHTML = `
-      <details class="validity-product-card" open>
-        <summary>
-          <span class="validity-product-title">${desc}</span>
-          ${refBlock}
+      <details class="validity-analytic-card validity-analytic-card--${tone}" open>
+        <summary class="validity-analytic-summary">
+          <div class="validity-analytic-head">
+            <div class="validity-analytic-titlebox">
+              <span class="validity-analytic-name">${desc}</span>
+              <span class="validity-analytic-code">${escapeHtml(cod)}</span>
+            </div>
+            <div class="validity-analytic-badges">
+              <span class="validity-pill validity-pill--status" data-v-st="${escapeHtml(statusMain.key)}">${escapeHtml(statusMain.label)}</span>
+              <span class="validity-pill validity-pill--action" data-v-act="${escapeHtml(action.key)}">${escapeHtml(action.label)}</span>
+            </div>
+          </div>
+          ${refMetrics}
         </summary>
         <div class="validity-product-body">
+          <p class="validity-detail-hint muted">Detalhe das datas lançadas neste dia operacional</p>
+          <div class="validity-lines-table-wrap">
           <table class="validity-lines-table">
-            <thead><tr><th>Vencimento</th><th>Faixa</th><th></th></tr></thead>
+            <thead><tr><th>Vencimento</th><th>Faixa</th><th>Quem</th><th>Quando</th><th></th></tr></thead>
             <tbody>${linesHtml}</tbody>
           </table>
+          </div>
           ${addBlock}
         </div>
       </details>`;
@@ -2755,6 +2787,7 @@ async function syncValidityPending() {
       }
     }
     if (changed) saveValidityBucketRaw(b);
+    touchValidityLastSync();
     setValidityFeedback(`Sincronizado: ${synced.size} lancamento(s).`);
     await loadValidityLinesFromServer();
     renderValidityProductList();
@@ -2816,6 +2849,10 @@ function bindValidityEvents() {
   }
   if (risk) {
     risk.addEventListener('change', () => renderValidityProductList());
+  }
+  const sortEl = document.getElementById('validity-sort');
+  if (sortEl) {
+    sortEl.addEventListener('change', () => renderValidityProductList());
   }
   if (opDate) {
     opDate.addEventListener('change', async () => {

@@ -380,18 +380,21 @@
                   <span class="count-main-title">Data de vencimento</span>
                   <span id="validity-products-total" class="count-main-chip" aria-live="polite">0</span>
                 </div>
-                <p class="validity-op-lead muted">Lançamento de datas de vencimento por produto. Referência de estoque: última contagem registrada no sistema (CX/UN). Operação ativa só no dia atual (America/Sao_Paulo).</p>
-                <div class="validity-kpi-strip" id="validity-kpi-strip" aria-live="polite">
+                <p class="validity-op-lead muted">Painel analítico de validade: priorização por risco, referência da última contagem e histórico por dia operacional. Edição só no dia atual (America/Sao_Paulo).</p>
+                <div class="validity-kpi-strip validity-kpi-strip--exec" id="validity-kpi-strip" aria-live="polite">
                   <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-with">0</span><span class="validity-kpi-label">com validade</span></div>
                   <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-without">0</span><span class="validity-kpi-label">sem validade</span></div>
-                  <div class="validity-kpi validity-kpi--danger"><span class="validity-kpi-value" id="validity-kpi-expired">0</span><span class="validity-kpi-label">vencidos</span></div>
-                  <div class="validity-kpi validity-kpi--danger"><span class="validity-kpi-value" id="validity-kpi-d30">0</span><span class="validity-kpi-label">até 30d</span></div>
-                  <div class="validity-kpi validity-kpi--warn"><span class="validity-kpi-value" id="validity-kpi-d60">0</span><span class="validity-kpi-label">até 60d</span></div>
-                  <div class="validity-kpi validity-kpi--warn"><span class="validity-kpi-value" id="validity-kpi-d90">0</span><span class="validity-kpi-label">até 90d</span></div>
+                  <div class="validity-kpi validity-kpi--danger"><span class="validity-kpi-value" id="validity-kpi-expired">0</span><span class="validity-kpi-label">itens vencidos</span></div>
+                  <div class="validity-kpi validity-kpi--danger"><span class="validity-kpi-value" id="validity-kpi-d30">0</span><span class="validity-kpi-label">itens até 30d</span></div>
+                  <div class="validity-kpi validity-kpi--warn"><span class="validity-kpi-value" id="validity-kpi-d60">0</span><span class="validity-kpi-label">itens até 60d</span></div>
+                  <div class="validity-kpi validity-kpi--warn"><span class="validity-kpi-value" id="validity-kpi-d90">0</span><span class="validity-kpi-label">itens até 90d</span></div>
                   <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-d120">0</span><span class="validity-kpi-label">até 120d</span></div>
                   <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-d150">0</span><span class="validity-kpi-label">até 150d</span></div>
                   <div class="validity-kpi validity-kpi--risk"><span class="validity-kpi-value" id="validity-kpi-d180">0</span><span class="validity-kpi-label">até 180d</span></div>
+                  <div class="validity-kpi validity-kpi--warn"><span class="validity-kpi-value" id="validity-kpi-oldbase">0</span><span class="validity-kpi-label">base antiga</span></div>
+                  <div class="validity-kpi"><span class="validity-kpi-value" id="validity-kpi-nocount">0</span><span class="validity-kpi-label">sem contagem</span></div>
                 </div>
+                <p class="validity-sync-line muted" id="validity-last-sync">Última sincronização: —</p>
                 <div class="count-main-filters-row">
                   <div class="count-main-filter-col count-main-filter-col--produto">
                     <label class="count-filter-label count-filter-label--bold" for="validity-item-code">Produto</label>
@@ -415,19 +418,30 @@
                     </div>
                   </div>
                   <div class="count-main-filter-col validity-filter-risk-col">
-                    <label class="count-filter-label count-filter-label--bold" for="validity-risk-filter">Risco / status</label>
-                    <select id="validity-risk-filter" class="count-filter-input" aria-label="Filtro de risco">
+                    <label class="count-filter-label count-filter-label--bold" for="validity-risk-filter">Análise</label>
+                    <select id="validity-risk-filter" class="count-filter-input" aria-label="Filtro de análise">
                       <option value="all">Todos</option>
-                      <option value="none">Sem data lançada</option>
-                      <option value="near">Somente validade próxima (≤180d)</option>
+                      <option value="none">Sem validade lançada</option>
+                      <option value="critical">Somente críticos (vencido ou ≤30d)</option>
+                      <option value="near">Validade próxima (≤180d)</option>
                       <option value="expired">Vencidos</option>
-                      <option value="d30">Crítico (≤30d)</option>
-                      <option value="d60">Muito alto (≤60d)</option>
-                      <option value="d90">Alto (≤90d)</option>
-                      <option value="d120">Atenção (≤120d)</option>
-                      <option value="d150">Monitorar (≤150d)</option>
-                      <option value="d180">Controle próximo (≤180d)</option>
+                      <option value="oldbase">Somente base antiga</option>
+                      <option value="nocount">Sem contagem anterior</option>
+                      <option value="d30">Faixa: crítico (≤30d)</option>
+                      <option value="d60">Faixa: muito alto (≤60d)</option>
+                      <option value="d90">Faixa: alto (≤90d)</option>
+                      <option value="d120">Faixa: atenção (≤120d)</option>
+                      <option value="d150">Faixa: monitorar (≤150d)</option>
+                      <option value="d180">Faixa: controle próximo (≤180d)</option>
                       <option value="ok">Confortável (&gt;180d)</option>
+                    </select>
+                  </div>
+                  <div class="count-main-filter-col validity-filter-sort-col">
+                    <label class="count-filter-label count-filter-label--bold" for="validity-sort">Ordenar</label>
+                    <select id="validity-sort" class="count-filter-input" aria-label="Ordenar lista">
+                      <option value="priority">Prioridade (risco)</option>
+                      <option value="name">Nome</option>
+                      <option value="code">Código</option>
                     </select>
                   </div>
                 </div>
@@ -502,93 +516,257 @@
 
           <!-- Sub: Análise de Contagem (somente produtos ativos no catálogo) -->
           <div id="sub-count-audit" class="sub-section count-audit-page">
-            <section class="card count-audit-hero" aria-labelledby="count-audit-title">
-              <div class="count-audit-hero-head">
-                <div class="count-audit-hero-head-text">
-                  <p class="count-audit-eyebrow">Auditoria · inventário</p>
-                  <h2 id="count-audit-title" class="count-audit-hero-title">Análise de Contagem</h2>
-                  <p class="muted count-audit-hero-lead">
-                    Compara saldo (TXT ou saldo zero) com a contagem registrada. Lista apenas <strong>produtos ativos</strong>.
-                  </p>
-                </div>
-                <span class="chip count-audit-chip-ativo">Somente ativos</span>
-              </div>
-              <div class="count-audit-toolbar">
-                <div class="count-audit-field">
-                  <label class="count-audit-label" for="count-audit-date">Data da importação TXT (opcional)</label>
-                  <input id="count-audit-date" class="search-input count-audit-date-input" type="date" />
-                </div>
-                <div class="count-audit-toolbar-actions">
-                  <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark count-audit-btn-refresh">Atualizar análise</button>
-                  <button id="btn-count-audit-export-excel" type="button" class="btn-secondary btn-dark count-audit-btn-export" title="Baixar planilha com os mesmos filtros da análise">Exportar Excel</button>
-                  <label class="status-switch count-audit-switch" for="count-audit-only-diff" title="Marcado: oculta linhas OK (iguais).">
-                    <span class="status-switch-label">Listar todos</span>
-                    <input id="count-audit-only-diff" type="checkbox" />
-                    <span class="status-switch-slider" aria-hidden="true"></span>
-                    <span class="status-switch-label">Só divergências</span>
-                  </label>
-                </div>
-              </div>
-              <div id="count-audit-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite"></div>
-            </section>
+            <section class="count-audit-shell" aria-labelledby="count-audit-title">
+              <section class="card count-audit-hero">
+                <div class="count-audit-hero-grid">
+                  <div class="count-audit-hero-main">
+                    <div class="count-audit-hero-head">
+                      <div class="count-audit-hero-head-text">
+                        <p class="count-audit-eyebrow">Analise operacional · auditoria de estoque</p>
+                        <h2 id="count-audit-title" class="count-audit-hero-title">Análise de Contagem</h2>
+                        <p class="muted count-audit-hero-lead">
+                          Uma mesa de decisão para revisar cenário, destacar prioridades e atacar divergências com velocidade.
+                          A comparação continua baseada em <strong>saldo TXT</strong> versus <strong>contagem registrada</strong>, apenas para <strong>produtos ativos</strong>.
+                        </p>
+                      </div>
+                      <div class="count-audit-hero-chips">
+                        <span class="chip count-audit-chip-ativo">Somente ativos</span>
+                        <span id="count-audit-mode-indicator" class="chip count-audit-chip-mode">Modo leitura</span>
+                      </div>
+                    </div>
 
-            <div class="count-audit-top-row">
+                    <div class="count-audit-hero-meta" role="list" aria-label="Contexto da análise">
+                      <article class="count-audit-meta-card" role="listitem">
+                        <span class="count-audit-meta-label">Data operacional</span>
+                        <strong id="count-audit-operational-date" class="count-audit-meta-value">--/--/----</strong>
+                        <span class="count-audit-meta-note">America/Sao_Paulo</span>
+                      </article>
+                      <article class="count-audit-meta-card" role="listitem">
+                        <span class="count-audit-meta-label">Status da análise</span>
+                        <strong id="count-audit-analysis-status" class="count-audit-meta-value">Aguardando carga</strong>
+                        <span class="count-audit-meta-note">Priorização automática</span>
+                      </article>
+                      <article class="count-audit-meta-card" role="listitem">
+                        <span class="count-audit-meta-label">Última sincronização</span>
+                        <strong id="count-audit-last-sync" class="count-audit-meta-value">--:--</strong>
+                        <span class="count-audit-meta-note">Atualização da análise</span>
+                      </article>
+                      <article class="count-audit-meta-card" role="listitem">
+                        <span class="count-audit-meta-label">Base de comparação</span>
+                        <strong id="count-audit-base-source" class="count-audit-meta-value">Sem base carregada</strong>
+                        <span id="count-audit-base-source-note" class="count-audit-meta-note">Importação TXT ou saldo zero</span>
+                      </article>
+                    </div>
+                  </div>
+
+                  <aside class="count-audit-command-card" aria-label="Ações da análise">
+                    <div class="count-audit-field">
+                      <label class="count-audit-label" for="count-audit-date">Data da importação TXT</label>
+                      <input id="count-audit-date" class="search-input count-audit-date-input" type="date" />
+                    </div>
+                    <div class="count-audit-toolbar-actions">
+                      <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark count-audit-btn-refresh">Sincronizar análise</button>
+                      <button id="btn-count-audit-export-excel" type="button" class="btn-secondary btn-dark count-audit-btn-export" title="Exportar a base da análise em Excel">Exportar Excel</button>
+                    </div>
+                    <p class="count-audit-command-note">
+                      A lista pode ser refinada por relevância, prioridade, status e tipo de divergência sem sair desta página.
+                    </p>
+                  </aside>
+                </div>
+                <div id="count-audit-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite"></div>
+              </section>
+
               <section class="card count-audit-summary-card">
                 <div class="card-head count-audit-card-head">
                   <div>
-                    <h3>Resumo</h3>
-                    <p class="count-audit-card-sub muted">Indicadores consolidados (clique para filtrar a lista)</p>
+                    <h3>Cenário geral</h3>
+                    <p class="count-audit-card-sub muted">KPIs executivos com leitura rápida do dia operacional</p>
                   </div>
                 </div>
-                <ul id="count-audit-summary" class="count-audit-kpi-list" role="list">
-                  <li><span>Itens com saldo (base)</span><strong>0</strong></li>
-                  <li><span>Itens com contagem</span><strong>0</strong></li>
-                  <li><span>Conferidos</span><strong>0</strong></li>
-                  <li><span>Divergências</span><strong>0</strong></li>
-                  <li><span>Sem contagem</span><strong>0</strong></li>
-                  <li><span>Só na contagem</span><strong>0</strong></li>
-                </ul>
+                <div id="count-audit-summary" class="count-audit-kpi-list" role="list">
+                  <article class="count-audit-summary-placeholder" role="listitem">
+                    <span>Total de produtos</span>
+                    <strong>0</strong>
+                  </article>
+                  <article class="count-audit-summary-placeholder" role="listitem">
+                    <span>Produtos analisados</span>
+                    <strong>0</strong>
+                  </article>
+                  <article class="count-audit-summary-placeholder" role="listitem">
+                    <span>Produtos pendentes</span>
+                    <strong>0</strong>
+                  </article>
+                  <article class="count-audit-summary-placeholder" role="listitem">
+                    <span>Produtos com divergência</span>
+                    <strong>0</strong>
+                  </article>
+                  <article class="count-audit-summary-placeholder" role="listitem">
+                    <span>Divergências críticas</span>
+                    <strong>0</strong>
+                  </article>
+                  <article class="count-audit-summary-placeholder" role="listitem">
+                    <span>Produtos sem contagem</span>
+                    <strong>0</strong>
+                  </article>
+                  <article class="count-audit-summary-placeholder" role="listitem">
+                    <span>Percentual concluído</span>
+                    <strong>0%</strong>
+                  </article>
+                  <article class="count-audit-summary-placeholder" role="listitem">
+                    <span>Maior divergência do dia</span>
+                    <strong>0</strong>
+                  </article>
+                </div>
               </section>
-            </div>
 
-            <section class="card count-audit-list-card">
-              <div class="card-head count-audit-list-head">
-                <div>
-                  <h3>Produtos ativos</h3>
-                  <p class="count-audit-card-sub muted">Saldo importado × contagem registrada</p>
+              <section class="card count-audit-filters-card">
+                <div class="card-head count-audit-card-head count-audit-filters-head">
+                  <div>
+                    <h3>Filtros inteligentes</h3>
+                    <p class="count-audit-card-sub muted">Refine a análise por contexto, urgência e padrão de divergência</p>
+                  </div>
+                  <button id="count-audit-clear-filters" type="button" class="btn-secondary btn-small count-audit-btn-clear-all">Limpar filtros</button>
                 </div>
-                <span id="count-audit-total" class="chip count-audit-total-chip" aria-live="polite">0</span>
-              </div>
-              <div class="count-audit-filters-panel">
-              <div class="count-audit-filters">
-                <div class="count-audit-search-row">
-                  <input id="count-audit-search" class="search-input count-audit-search-input" type="text" placeholder="Código, descrição ou grupo..." autocomplete="off" aria-label="Filtrar lista" />
-                  <button id="count-audit-clear-search" type="button" class="btn-secondary btn-small count-audit-btn-clear" title="Limpar pesquisa" style="display:none;">Limpar</button>
+
+                <div class="count-audit-filters-panel">
+                  <div class="count-audit-search-row">
+                    <input id="count-audit-search" class="search-input count-audit-search-input" type="text" placeholder="Buscar por código, produto, grupo ou ação..." autocomplete="off" aria-label="Buscar na análise" />
+                    <button id="count-audit-clear-search" type="button" class="btn-secondary btn-small count-audit-btn-clear" title="Limpar pesquisa" style="display:none;">Limpar busca</button>
+                  </div>
+
+                  <div class="count-audit-filter-grid">
+                    <div class="count-audit-field">
+                      <label class="count-audit-label" for="count-audit-group">Grupo</label>
+                      <select id="count-audit-group" class="search-input count-audit-filter-select" aria-label="Filtrar por grupo">
+                        <option value="">Todos os grupos</option>
+                      </select>
+                    </div>
+
+                    <div class="count-audit-field">
+                      <label class="count-audit-label" for="count-audit-status">Status visual</label>
+                      <select id="count-audit-status" class="search-input count-audit-filter-select" aria-label="Filtrar por status visual">
+                        <option value="">Todos os estados</option>
+                        <option value="ok">Conferido</option>
+                        <option value="light">Divergência leve</option>
+                        <option value="high">Divergência alta</option>
+                        <option value="critical">Crítico</option>
+                        <option value="missing">Sem lançamento</option>
+                      </select>
+                    </div>
+
+                    <div class="count-audit-field">
+                      <label class="count-audit-label" for="count-audit-priority">Prioridade</label>
+                      <select id="count-audit-priority" class="search-input count-audit-filter-select" aria-label="Filtrar por prioridade">
+                        <option value="">Todas as prioridades</option>
+                        <option value="imediata">Imediata</option>
+                        <option value="alta">Alta</option>
+                        <option value="media">Média</option>
+                        <option value="baixa">Baixa</option>
+                      </select>
+                    </div>
+
+                    <div class="count-audit-field">
+                      <label class="count-audit-label" for="count-audit-divergence">Tipo de divergência</label>
+                      <select id="count-audit-divergence" class="search-input count-audit-filter-select" aria-label="Filtrar por tipo de divergência">
+                        <option value="">Todos os tipos</option>
+                        <option value="none">Sem divergência</option>
+                        <option value="caixa">Diferença em caixa</option>
+                        <option value="unidade">Diferença em unidade</option>
+                        <option value="both">Diferença em caixa e unidade</option>
+                        <option value="extra">Sem base TXT</option>
+                        <option value="missing">Sem contagem</option>
+                      </select>
+                    </div>
+
+                    <div class="count-audit-field">
+                      <label class="count-audit-label" for="count-audit-sort">Ordenação</label>
+                      <select id="count-audit-sort" class="search-input count-audit-sort-select" aria-label="Ordenar lista da análise">
+                        <option value="relevance">Relevância analítica</option>
+                        <option value="criticality">Prioridade operacional</option>
+                        <option value="diff_desc">Maior divergência total</option>
+                        <option value="diff_asc">Menor divergência total</option>
+                        <option value="cod_asc">Código (menor → maior)</option>
+                        <option value="cod_desc">Código (maior → menor)</option>
+                        <option value="nome_asc">Produto A–Z</option>
+                        <option value="nome_desc">Produto Z–A</option>
+                        <option value="grupo_asc">Grupo A–Z</option>
+                        <option value="grupo_desc">Grupo Z–A</option>
+                        <option value="saldo_cx_desc">Base CX (maior)</option>
+                        <option value="saldo_un_desc">Base UN (maior)</option>
+                        <option value="count_desc">Contagem total (maior)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="count-audit-toggle-row" role="group" aria-label="Filtros rápidos">
+                    <label class="count-audit-toggle-pill" for="count-audit-only-pending">
+                      <input id="count-audit-only-pending" type="checkbox" />
+                      <span>Somente pendentes</span>
+                    </label>
+                    <label class="count-audit-toggle-pill" for="count-audit-only-critical">
+                      <input id="count-audit-only-critical" type="checkbox" />
+                      <span>Somente críticos</span>
+                    </label>
+                    <label class="count-audit-toggle-pill" for="count-audit-only-missing">
+                      <input id="count-audit-only-missing" type="checkbox" />
+                      <span>Somente sem contagem</span>
+                    </label>
+                    <label class="count-audit-toggle-pill" for="count-audit-only-diff">
+                      <input id="count-audit-only-diff" type="checkbox" />
+                      <span>Somente divergentes</span>
+                    </label>
+                  </div>
                 </div>
-                <div class="count-audit-sort-row">
-                  <label class="count-audit-sort-label" for="count-audit-sort">Ordenar por</label>
-                  <select id="count-audit-sort" class="search-input count-audit-sort-select" aria-label="Ordenar lista de produtos">
-                    <option value="status">Situação (prioridade)</option>
-                    <option value="cod_asc">Código (menor → maior)</option>
-                    <option value="cod_desc">Código (maior → menor)</option>
-                    <option value="nome_asc">Nome A–Z</option>
-                    <option value="nome_desc">Nome Z–A</option>
-                    <option value="grupo_asc">Grupo A–Z</option>
-                    <option value="grupo_desc">Grupo Z–A</option>
-                    <option value="diff_desc">Maior diferença (abs.)</option>
-                    <option value="diff_asc">Menor diferença (abs.)</option>
-                    <option value="saldo_cx_desc">Saldo CX (maior)</option>
-                    <option value="saldo_cx_asc">Saldo CX (menor)</option>
-                    <option value="saldo_un_desc">Saldo UN (maior)</option>
-                    <option value="saldo_un_asc">Saldo UN (menor)</option>
-                  </select>
-                </div>
-              </div>
-              </div>
-              <div class="count-audit-list-panel">
-              <ul id="count-audit-list" class="count-audit-list-main" role="list">
-                <li class="count-audit-empty"><span>Carregue a análise para ver os produtos ativos.</span><strong>—</strong></li>
-              </ul>
+              </section>
+
+              <div class="count-audit-workspace">
+                <section class="card count-audit-list-card">
+                  <div class="card-head count-audit-list-head">
+                    <div>
+                      <h3>Fila de análise</h3>
+                      <p class="count-audit-card-sub muted">Prioridades, diferenças e ação sugerida em uma única leitura</p>
+                    </div>
+                    <div class="count-audit-list-head-meta">
+                      <span id="count-audit-total" class="chip count-audit-total-chip" aria-live="polite">0</span>
+                      <span id="count-audit-range-info" class="count-audit-range-info">Carregue a análise para priorizar os itens.</span>
+                    </div>
+                  </div>
+
+                  <div class="count-audit-list-header" aria-hidden="true">
+                    <span>Produto</span>
+                    <span>Base / TXT</span>
+                    <span>Contagem atual</span>
+                    <span>Diferença</span>
+                    <span>Status e prioridade</span>
+                    <span>Ação recomendada</span>
+                    <span>Detalhe</span>
+                  </div>
+
+                  <div class="count-audit-list-panel">
+                    <ul id="count-audit-list" class="count-audit-list-main" role="list">
+                      <li class="count-audit-empty"><span>Carregue a análise para ver os produtos priorizados.</span><strong>—</strong></li>
+                    </ul>
+                  </div>
+                </section>
+
+                <aside class="card count-audit-detail-card">
+                  <div class="card-head count-audit-card-head count-audit-detail-head">
+                    <div>
+                      <h3>Painel de detalhe</h3>
+                      <p class="count-audit-card-sub muted">Histórico de lançamentos, trilha de auditoria e contexto de decisão</p>
+                    </div>
+                    <span id="count-audit-detail-status" class="count-audit-detail-status">Sem seleção</span>
+                  </div>
+
+                  <div id="count-audit-detail" class="count-audit-detail-panel">
+                    <div class="count-audit-detail-empty">
+                      <strong>Selecione um item da fila</strong>
+                      <p class="muted">
+                        O painel lateral mostra histórico de lançamentos, responsáveis, observações automáticas e o caminho sugerido para recontagem.
+                      </p>
+                    </div>
+                  </div>
+                </aside>
               </div>
             </section>
           </div>
