@@ -2643,6 +2643,7 @@ function renderValidityProductList() {
   ul.innerHTML = '';
   if (!rows.length) {
     ul.innerHTML = '<li class="validity-empty"><span>Nenhum produto no filtro atual.</span></li>';
+    syncValidityKpiChipStyles();
     updateValidityReadonlyState();
     return;
   }
@@ -3983,6 +3984,7 @@ function matchesCountAuditSummaryFilter(row, key) {
 function renderCountAuditRows(rows) {
   if (!countAuditList) return;
   let list = Array.isArray(rows) ? rows.slice() : [];
+  const previousSelectedCode = String(countAuditState.selectedCode || '');
   if (countAuditSummaryFilterKey) {
     list = list.filter((row) => matchesCountAuditSummaryFilter(row, countAuditSummaryFilterKey));
   }
@@ -4655,6 +4657,7 @@ function renderCountAuditRows(rows) {
     countAuditList.innerHTML = '<li class="count-audit-empty"><span>Nenhum item corresponde aos filtros atuais.</span><strong>—</strong></li>';
     countAuditState.selectedCode = null;
     syncCountAuditListSelection();
+    renderCountAuditDetailEmpty('Nenhum item atende aos filtros aplicados.');
     return;
   }
 
@@ -4694,6 +4697,9 @@ function renderCountAuditRows(rows) {
   }).join('');
 
   syncCountAuditListSelection();
+  if (String(countAuditState.selectedCode || '') !== previousSelectedCode) {
+    selectCountAuditRow(String(countAuditState.selectedCode || ''));
+  }
 }
 
 function renderCountAuditDetailEmpty(message = 'Selecione um item da fila para abrir o painel lateral.') {

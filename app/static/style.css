@@ -5249,6 +5249,11 @@ details[open] > .validity-analytic-summary::after {
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 10px 14px;
 }
+.validity-analytic-metrics--expanded {
+  margin: 0 0 10px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
 .validity-analytic-metrics--nocount {
   grid-template-columns: 1fr;
 }
@@ -5285,7 +5290,7 @@ details[open] > .validity-analytic-summary::after {
   margin-bottom: 8px;
 }
 @media (max-width: 640px) {
-  .validity-analytic-head {
+  .validity-summary-compact-top {
     flex-direction: column;
     align-items: stretch;
   }
@@ -5368,8 +5373,9 @@ details[open] > .validity-analytic-summary::after {
   border-color: rgba(99, 102, 241, 0.35);
 }
 .validity-product-body {
-  padding: 0 12px 12px;
+  padding: 8px 12px 12px;
   background: #fff;
+  border-top: 1px solid rgba(15, 23, 42, 0.05);
 }
 .validity-lines-table {
   width: 100%;
