@@ -1420,12 +1420,21 @@ async function loadServerCountTotals() {
     countServerCountState = { ok: false, balances: {} };
     return;
   }
+  if (isAccessTokenExpired(token)) {
+    countServerCountState = { ok: false, balances: {} };
+    handleUnauthorizedResponse({ status: 401 });
+    return;
+  }
   try {
     const params = new URLSearchParams();
     params.set('count_date', getActiveCountDateKey());
     const response = await apiFetch(`${API_COUNT_SERVER_TOTALS}?${params.toString()}`, {
       headers: getAuthHeaders(),
     });
+    if (handleUnauthorizedResponse(response)) {
+      countServerCountState = { ok: false, balances: {} };
+      return;
+    }
     if (!response.ok) {
       countServerCountState = { ok: false, balances: {} };
       return;
