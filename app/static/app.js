@@ -2266,6 +2266,35 @@ function worstValidityRiskAmongLines(lines, todayBr) {
   return worst;
 }
 
+/**
+ * Próximo vencimento ainda não passou (hoje ou futuro), por data crescente.
+ * Ignora linhas só históricas vencidas quando existe lançamento válido mais novo.
+ */
+function operationalAnchorLine(lines, todayBr) {
+  if (!lines?.length) return null;
+  const sorted = [...lines].sort((a, b) =>
+    String(a.expiration_date || '').localeCompare(String(b.expiration_date || '')),
+  );
+  for (const ln of sorted) {
+    const d = validityExpiryDiffDays(ln.expiration_date, todayBr);
+    if (d !== null && d >= 0) return ln;
+  }
+  return null;
+}
+
+/**
+ * Faixa/status principal do card e priorização: baseado no próximo vencimento ativo.
+ * Linhas antigas vencidas não dominam se já existe data futura/hoje.
+ */
+function operationalValidityPrimaryCategory(lines, todayBr) {
+  if (!lines?.length) return 'none';
+  const anchor = operationalAnchorLine(lines, todayBr);
+  if (anchor) {
+    return validityRiskCategory(anchor.expiration_date, todayBr);
+  }
+  return worstValidityRiskAmongLines(lines, todayBr);
+}
+
 function earliestExpirationLine(lines) {
   if (!lines || !lines.length) return null;
   const sorted = [...lines].sort((a, b) =>
@@ -2287,6 +2316,7 @@ function validityStatusMainShort(worst, hasLines, hasSnap) {
     d180: 'Controle próximo',
     ok: 'Confortável',
     none: '—',
+    unknown: '—',
   };
   return { key: worst, label: m[worst] || worst };
 }
@@ -2303,7 +2333,7 @@ function validityRecommendedAction(row, todayBr) {
   if (isValidityCountBaseOld(snap.countDate, todayBr)) {
     return { key: 'old_base', tone: 'warn', label: 'Revisar base de contagem' };
   }
-  const w = worstValidityRiskAmongLines(lines, todayBr);
+  const w = operationalValidityPrimaryCategory(lines, todayBr);
   if (w === 'expired' || w === 'd30') {
     return { key: 'act_today', tone: 'danger', label: 'Agir hoje' };
   }
@@ -2332,7 +2362,7 @@ function validityPriorityScore(row, todayBr) {
   if (!lines.length) return 45;
   if (!snap) return 5;
   if (isValidityCountBaseOld(snap.countDate, todayBr)) return 12;
-  const w = worstValidityRiskAmongLines(lines, todayBr);
+  const w = operationalValidityPrimaryCategory(lines, todayBr);
   const map = {
     expired: 0,
     d30: 1,
@@ -2471,20 +2501,15 @@ function updateValidityKpis(allRows, todayBr) {
     const snap = getValidityLastCountSnapshot(row.cod);
     if (!snap) productsNoCount += 1;
     else if (isValidityCountBaseOld(snap.countDate, todayBr)) productsOldBase += 1;
-    for (const ln of lines) {
-      const d = validityExpiryDiffDays(ln.expiration_date, todayBr);
-      if (d === null) continue;
-      if (d < 0) {
-        expired += 1;
-        continue;
-      }
-      if (d <= 30) c30 += 1;
-      if (d <= 60) c60 += 1;
-      if (d <= 90) c90 += 1;
-      if (d <= 120) c120 += 1;
-      if (d <= 150) c150 += 1;
-      if (d <= 180) c180 += 1;
-    }
+    if (!lines.length) continue;
+    const op = operationalValidityPrimaryCategory(lines, todayBr);
+    if (op === 'expired') expired += 1;
+    if (op === 'd30') c30 += 1;
+    if (op === 'd60') c60 += 1;
+    if (op === 'd90') c90 += 1;
+    if (op === 'd120') c120 += 1;
+    if (op === 'd150') c150 += 1;
+    if (op === 'd180') c180 += 1;
   }
 
   const set = (id, v) => {
@@ -2530,22 +2555,14 @@ function rowMatchesValidityKpi(row, kpi, todayBr) {
     case 'oldbase':
       return !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
     case 'expired':
-      return lines.some((l) => {
-        const d = validityExpiryDiffDays(l.expiration_date, todayBr);
-        return d !== null && d < 0;
-      });
+      return lines.length > 0 && operationalValidityPrimaryCategory(lines, todayBr) === 'expired';
     case 'd30':
     case 'd60':
     case 'd90':
     case 'd120':
     case 'd150':
-    case 'd180': {
-      const max = parseInt(kpi.slice(1), 10);
-      return lines.some((l) => {
-        const d = validityExpiryDiffDays(l.expiration_date, todayBr);
-        return d !== null && d >= 0 && d <= max;
-      });
-    }
+    case 'd180':
+      return lines.length > 0 && operationalValidityPrimaryCategory(lines, todayBr) === kpi;
     default:
       return true;
   }
@@ -2581,21 +2598,21 @@ function filterValidityRows(rows) {
     if (risk === 'nocount') return !snap;
     if (risk === 'oldbase') return !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
     if (risk === 'critical') {
-      const w = worstValidityRiskAmongLines(row.lines, todayBr);
+      const w = operationalValidityPrimaryCategory(row.lines, todayBr);
       return w === 'expired' || w === 'd30';
     }
     if (risk === 'near') {
-      return row.lines.some((l) => {
-        const d = validityExpiryDiffDays(l.expiration_date, todayBr);
-        return d !== null && d >= 0 && d <= 180;
-      });
+      const anchor = operationalAnchorLine(row.lines, todayBr);
+      if (!anchor) return false;
+      const d = validityExpiryDiffDays(anchor.expiration_date, todayBr);
+      return d !== null && d >= 0 && d <= 180;
     }
     if (risk === 'expired') {
-      return row.lines.some((l) => validityRiskCategory(l.expiration_date, todayBr) === 'expired');
+      return operationalValidityPrimaryCategory(row.lines, todayBr) === 'expired';
     }
     const bands = ['d30', 'd60', 'd90', 'd120', 'd150', 'd180', 'ok'];
     if (bands.includes(risk)) {
-      return row.lines.some((l) => validityRiskCategory(l.expiration_date, todayBr) === risk);
+      return operationalValidityPrimaryCategory(row.lines, todayBr) === risk;
     }
     return true;
   });
@@ -2663,17 +2680,21 @@ function renderValidityProductList() {
     const desc = escapeHtml((p.cod_grup_descricao || cod).trim());
     const lines = row.lines;
     const snap = getValidityLastCountSnapshot(cod);
-    const worst = worstValidityRiskAmongLines(lines, todayBr);
+    const opCat = operationalValidityPrimaryCategory(lines, todayBr);
     const hasSnap = !!snap;
     const baseOld = !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
     const ageDays = snap ? countBaseAgeDays(snap.countDate, todayBr) : null;
     const ageLabel = snap ? formatCountBaseAgeLabel(ageDays) : '—';
     const ageClass = baseOld ? ' validity-metric-v--alert' : '';
-    const nextLn = earliestExpirationLine(lines);
-    const nextBr = nextLn ? formatDateBrFromIso(String(nextLn.expiration_date || '').slice(0, 10)) : '—';
-    const statusMain = validityStatusMainShort(worst, lines.length > 0, hasSnap);
+    const anchorLn = operationalAnchorLine(lines, todayBr);
+    const nextBr = anchorLn
+      ? formatDateBrFromIso(String(anchorLn.expiration_date || '').slice(0, 10))
+      : lines.length > 0
+        ? 'Vencidos'
+        : '—';
+    const statusMain = validityStatusMainShort(opCat, lines.length > 0, hasSnap);
     const action = validityRecommendedAction(row, todayBr);
-    const tone = validityCardTone(worst, lines.length > 0, hasSnap, baseOld);
+    const tone = validityCardTone(opCat, lines.length > 0, hasSnap, baseOld);
 
     const countCompact = snap
       ? `${formatIntegerBR(snap.cx)} CX · ${formatIntegerBR(snap.un)} UN`
@@ -2734,20 +2755,18 @@ function renderValidityProductList() {
     li.innerHTML = `
       <details class="validity-analytic-card validity-analytic-card--${tone}" ${openAttr}>
         <summary class="validity-analytic-summary">
-          <div class="validity-summary-compact">
-            <div class="validity-summary-compact-top">
-              <div class="validity-summary-titles">
-                <span class="validity-analytic-name">${desc}</span>
-                <span class="validity-analytic-code">${escapeHtml(cod)}</span>
-              </div>
-              <div class="validity-analytic-badges">
-                <span class="validity-pill validity-pill--status" data-v-st="${escapeHtml(statusMain.key)}">${escapeHtml(statusMain.label)}</span>
-                <span class="validity-pill validity-pill--action" data-v-act="${escapeHtml(action.key)}">${escapeHtml(action.label)}</span>
-              </div>
+          <div class="validity-summary-compact validity-summary-compact--dense">
+            <div class="validity-sum-r1">
+              <span class="validity-analytic-name">${desc}</span>
             </div>
-            <div class="validity-summary-compact-stats" aria-label="Resumo">
-              <span class="validity-stat-pill"><span class="validity-stat-lbl">Cont.</span> ${escapeHtml(countCompact)}</span>
-              <span class="validity-stat-pill"><span class="validity-stat-lbl">Próx.</span> ${escapeHtml(nextBr)}</span>
+            <div class="validity-sum-r2">
+              <span class="validity-analytic-code">${escapeHtml(cod)}</span>
+              <span class="validity-pill validity-pill--status" data-v-st="${escapeHtml(statusMain.key)}">${escapeHtml(statusMain.label)}</span>
+              <span class="validity-pill validity-pill--action" data-v-act="${escapeHtml(action.key)}">${escapeHtml(action.label)}</span>
+            </div>
+            <div class="validity-sum-r3" aria-label="Resumo">
+              <span class="validity-sum-stat"><span class="validity-stat-lbl">Cont.</span> ${escapeHtml(countCompact)}</span>
+              <span class="validity-sum-stat"><span class="validity-stat-lbl">Próx.</span> ${escapeHtml(nextBr)}</span>
             </div>
           </div>
         </summary>
@@ -4001,81 +4020,6 @@ function matchesCountAuditSummaryFilter(row, key) {
   }
 }
 
-function renderCountAuditRows(rows) {
-  if (!countAuditList) return;
-  let list = Array.isArray(rows) ? rows.slice() : [];
-  const previousSelectedCode = String(countAuditState.selectedCode || '');
-  if (countAuditSummaryFilterKey) {
-    list = list.filter((row) => matchesCountAuditSummaryFilter(row, countAuditSummaryFilterKey));
-  }
-  const searchInput = document.getElementById('count-audit-search');
-  const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
-  if (searchTerm) {
-    list = list.filter((row) => {
-      const cod = (row.cod_produto || '').toLowerCase();
-      const desc = (row.descricao || '').toLowerCase();
-      const grupo = (row.grupo || '').toLowerCase();
-      return cod.includes(searchTerm) || desc.includes(searchTerm) || grupo.includes(searchTerm);
-    });
-  }
-  sortCountAuditRowsForDisplay(list);
-
-  countAuditList.innerHTML = '';
-  if (countAuditTotal) countAuditTotal.textContent = String(list.length);
-  if (!list.length) {
-    const onlyDiff = countAuditOnlyDiff ? countAuditOnlyDiff.checked : false;
-    const hasSearch = !!(searchInput && searchInput.value.trim());
-    let msg = 'Nenhum produto ativo corresponde aos filtros.';
-    if (hasSearch) msg = 'Nenhum resultado para a pesquisa.';
-    else if (countAuditSummaryFilterKey) msg = 'Nenhum item neste filtro do resumo.';
-    else if (onlyDiff) msg = 'Nenhuma divergência entre saldo e contagem (produtos ativos).';
-    countAuditList.innerHTML = `<li class="count-audit-empty"><span>${msg}</span><strong>—</strong></li>`;
-    return;
-  }
-  for (const row of list) {
-    const li = document.createElement('li');
-    let statusClass = 'is-ok';
-    let statusLabel = 'OK';
-    if (row.status === 'missing_in_count') {
-      statusLabel = 'SEM CONTAGEM';
-      statusClass = 'is-danger';
-    } else if (row.status === 'extra_in_count') {
-      statusLabel = 'SO NA CONTAGEM';
-      statusClass = 'is-purple';
-    } else if (row.status === 'divergent') {
-      statusLabel = 'CONTAGEM';
-      statusClass = 'is-warn';
-    }
-    const diffCx = Number(row.difference_caixa) || 0;
-    const diffUn = Number(row.difference_unidade) || 0;
-    const diffCxText = diffCx > 0 ? `+${formatIntegerBR(diffCx)}` : `${formatIntegerBR(diffCx)}`;
-    const diffUnText = diffUn > 0 ? `+${formatIntegerBR(diffUn)}` : `${formatIntegerBR(diffUn)}`;
-    li.className = `count-audit-item ${statusClass}`;
-    li.innerHTML =
-      `<div class="count-audit-item-head">` +
-        `<div class="count-audit-item-title">` +
-          `<span class="count-audit-item-code">${row.cod_produto || '-'}</span>` +
-          `<strong class="count-audit-item-desc">${row.descricao || 'Sem descrição'}</strong>` +
-        `</div>` +
-        `<span class="count-audit-badge ${statusClass}">${statusLabel}</span>` +
-      `</div>` +
-      `<div class="count-audit-metrics">` +
-        `<div class="count-audit-metric count-audit-balance">` +
-          `<span class="count-audit-metric-label">Saldo</span>` +
-          `<strong class="count-audit-metric-value">CX ${formatIntegerBR(Number(row.import_caixa) || 0)} | UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong>` +
-        `</div>` +
-        `<div class="count-audit-metric count-audit-counted">` +
-          `<span class="count-audit-metric-label">Contagem</span>` +
-          `<strong class="count-audit-metric-value">CX ${formatIntegerBR(Number(row.counted_caixa) || 0)} | UN ${formatIntegerBR(Number(row.counted_unidade) || 0)}</strong>` +
-        `</div>` +
-        `<div class="count-audit-metric count-audit-diff ${statusClass}">` +
-          `<span class="count-audit-metric-label">Diferença</span>` +
-          `<strong class="count-audit-metric-value">CX ${diffCxText} | UN ${diffUnText}</strong>` +
-        `</div>` +
-      `</div>`;
-    countAuditList.appendChild(li);
-  }
-}
 // Eventos para barra de pesquisa na análise de contagem
 const countAuditSearch = document.getElementById('count-audit-search');
 const countAuditClearSearch = document.getElementById('count-audit-clear-search');
@@ -4636,6 +4580,7 @@ function syncCountAuditListSelection() {
 
 function renderCountAuditRows(rows) {
   if (!countAuditList) return;
+  const previousSelectedCode = String(countAuditState.selectedCode || '');
   let list = Array.isArray(rows) ? rows.slice() : [];
   if (countAuditSummaryFilterKey) {
     list = list.filter((row) => matchesCountAuditSummaryFilter(row, countAuditSummaryFilterKey));
