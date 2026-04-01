@@ -2634,6 +2634,20 @@ form#count-form.count-form {
   align-items: center;
 }
 
+.count-audit-filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.count-audit-btn-mobile-filters {
+  display: none;
+  min-height: 2.2rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .count-audit-btn-clear-all {
   min-height: 2.2rem;
   border-radius: 999px;
@@ -3155,6 +3169,126 @@ form#count-form.count-form {
   font-variant-numeric: tabular-nums;
 }
 
+.count-audit-mobile-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.95rem 1rem 1rem 1.15rem;
+}
+
+.count-audit-mobile-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.count-audit-mobile-select:focus-visible,
+.count-audit-mobile-detail-toggle:focus-visible,
+.count-audit-mobile-missing-toggle:focus-visible {
+  outline: 2px solid var(--audit-focus);
+  outline-offset: 3px;
+  border-radius: 0.75rem;
+}
+
+.count-audit-mobile-topline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.count-audit-mobile-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.count-audit-mobile-diff {
+  color: var(--audit-ink);
+  font-size: 1.08rem;
+  line-height: 1;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.count-audit-mobile-action {
+  flex: 1;
+  color: var(--audit-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.count-audit-mobile-detail-toggle,
+.count-audit-mobile-missing-toggle {
+  width: 100%;
+  min-height: 2.55rem;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.count-audit-mobile-inline-detail {
+  padding: 0 1rem 1rem 1.15rem;
+}
+
+.count-audit-detail-shell--compact {
+  gap: 0.65rem;
+}
+
+.count-audit-detail-shell--compact .count-audit-detail-hero,
+.count-audit-detail-shell--compact .count-audit-detail-section {
+  gap: 0.6rem;
+}
+
+.count-audit-detail-shell--compact .count-audit-detail-hero {
+  padding: 0.9rem;
+}
+
+.count-audit-detail-shell--compact .count-audit-detail-grid {
+  grid-template-columns: 1fr;
+}
+
+.count-audit-detail-shell--compact .count-audit-detail-metric,
+.count-audit-detail-shell--compact .count-audit-history-item,
+.count-audit-detail-shell--compact .count-audit-trail-item {
+  padding: 0.75rem 0.8rem;
+}
+
+.count-audit-detail-shell--compact .count-audit-detail-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.count-audit-mobile-missing-bucket {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.95rem 1rem 1rem 1.15rem;
+  border-bottom: 1px solid var(--audit-border);
+  background: linear-gradient(180deg, #f8fafc 0%, #f2f5f9 100%);
+}
+
+.count-audit-mobile-missing-bucket strong {
+  color: var(--audit-ink);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.count-audit-mobile-missing-bucket span {
+  color: var(--audit-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 @media (max-width: 1440px) {
   .count-audit-hero-meta,
   #sub-count-audit .count-audit-kpi-list {
@@ -3185,48 +3319,234 @@ form#count-form.count-form {
 }
 
 @media (max-width: 760px) {
-  .count-audit-hero-grid {
-    padding: 1rem;
+  #sub-count-audit .count-audit-shell {
+    gap: 0.85rem;
   }
 
-  .count-audit-hero-head,
-  .count-audit-card-head,
+  #sub-count-audit .count-audit-shell > .card,
+  #sub-count-audit .count-audit-workspace > .card {
+    border-radius: 0.9rem;
+  }
+
+  .count-audit-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 0.9rem;
+  }
+
+  .count-audit-eyebrow,
+  .count-audit-hero-lead,
+  .count-audit-chip-ativo,
+  .count-audit-command-note,
+  .count-audit-meta-card--secondary,
+  .count-audit-summary-placeholder--secondary,
+  .count-audit-summary-item--secondary,
+  .count-audit-card-sub {
+    display: none;
+  }
+
+  .count-audit-hero-head {
+    margin-bottom: 0.7rem;
+  }
+
+  .count-audit-hero-title {
+    font-size: 1.28rem;
+  }
+
+  .count-audit-hero-chips {
+    justify-content: flex-start;
+  }
+
+  .count-audit-hero-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .count-audit-meta-card {
+    padding: 0.75rem 0.8rem;
+  }
+
+  .count-audit-meta-value {
+    font-size: 0.94rem;
+  }
+
+  .count-audit-meta-note {
+    font-size: 0.7rem;
+  }
+
+  .count-audit-command-card {
+    gap: 0.75rem;
+    padding: 0.85rem;
+  }
+
+  .count-audit-hero .count-audit-label {
+    font-size: 0.69rem;
+  }
+
+  .count-audit-date-input,
+  .count-audit-filter-select,
+  .count-audit-sort-select,
+  .count-audit-search-input,
+  .count-audit-btn-refresh,
+  .count-audit-btn-export,
+  .count-audit-btn-clear,
+  .count-audit-btn-clear-all,
+  .count-audit-btn-mobile-filters {
+    min-height: 2.55rem;
+    font-size: 0.82rem;
+  }
+
+  .count-audit-toolbar-actions {
+    flex-direction: row;
+  }
+
+  .count-audit-feedback-block {
+    margin: 0 0.9rem 0.9rem;
+    padding: 0.7rem 0.8rem;
+    font-size: 0.76rem;
+  }
+
+  .count-audit-summary-card,
+  .count-audit-filters-card,
+  .count-audit-list-card {
+    padding: 0.9rem;
+  }
+
+  #sub-count-audit .count-audit-kpi-list {
+    display: flex;
+    gap: 0.6rem;
+    overflow-x: auto;
+    padding-bottom: 0.15rem;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+
+  .count-audit-summary-placeholder,
+  .count-audit-summary-item {
+    min-width: 8.9rem;
+    flex: 0 0 8.9rem;
+    padding: 0.82rem 0.85rem;
+    scroll-snap-align: start;
+  }
+
+  .count-audit-summary-placeholder strong,
+  .count-audit-summary-value {
+    font-size: 1.32rem;
+  }
+
+  .count-audit-filters-head,
   .count-audit-list-head,
   .count-audit-detail-hero-top,
   .count-audit-detail-section-head {
     flex-direction: column;
   }
 
-  .count-audit-hero-meta,
-  #sub-count-audit .count-audit-kpi-list,
-  .count-audit-filter-grid,
-  .count-audit-detail-grid,
-  .count-audit-row {
-    grid-template-columns: 1fr;
+  .count-audit-filters-actions {
+    width: 100%;
+    justify-content: stretch;
   }
 
-  .count-audit-list-header {
-    display: none;
+  .count-audit-filters-actions > * {
+    flex: 1;
+  }
+
+  .count-audit-btn-mobile-filters {
+    display: inline-flex;
+    justify-content: center;
+  }
+
+  #sub-count-audit .count-audit-filters-panel {
+    gap: 0.75rem;
+    padding: 0.8rem;
   }
 
   #sub-count-audit .count-audit-search-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .count-audit-btn-clear {
+    width: auto;
+    min-width: 5.25rem;
+  }
+
+  .count-audit-filters-card:not(.is-expanded) .count-audit-filter-grid {
+    display: none;
+  }
+
+  .count-audit-filter-grid,
+  .count-audit-detail-grid {
     grid-template-columns: 1fr;
   }
 
   .count-audit-toggle-row {
-    flex-direction: column;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.55rem;
+    padding-bottom: 0.15rem;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .count-audit-toggle-pill,
-  .count-audit-detail-btn,
-  .count-audit-btn-clear,
-  .count-audit-btn-clear-all {
-    width: 100%;
+  .count-audit-toggle-pill {
+    flex: 0 0 auto;
+    min-height: 2.45rem;
+    padding: 0.55rem 0.8rem;
+    white-space: nowrap;
   }
 
-  .count-audit-cell--detail,
+  .count-audit-workspace {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .count-audit-detail-card {
+    display: none;
+  }
+
   .count-audit-list-head-meta {
-    align-items: stretch;
+    align-items: flex-start;
+  }
+
+  .count-audit-range-info {
+    text-align: left;
+    font-size: 0.74rem;
+  }
+
+  .count-audit-list-header,
+  .count-audit-row {
+    display: none;
+  }
+
+  #sub-count-audit .count-audit-list-panel {
+    border: none;
+    background: transparent;
+  }
+
+  .count-audit-item {
+    border: 1px solid var(--audit-border);
+    border-radius: 0.9rem;
+    margin-bottom: 0.7rem;
+    overflow: hidden;
+  }
+
+  .count-audit-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .count-audit-mobile-summary {
+    flex-direction: row;
+  }
+
+  .count-audit-mobile-inline-detail {
+    padding: 0 0.9rem 0.9rem 1rem;
+  }
+
+  .count-audit-detail-shell--compact .count-audit-detail-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .count-audit-detail-shell--compact .count-audit-detail-action-btn {
+    width: 100%;
+    min-height: 2.45rem;
   }
 }
 

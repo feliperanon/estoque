@@ -530,22 +530,22 @@
                     </div>
 
                     <div class="count-audit-hero-meta" role="list" aria-label="Contexto da análise">
-                      <article class="count-audit-meta-card" role="listitem">
+                      <article class="count-audit-meta-card count-audit-meta-card--primary" role="listitem">
                         <span class="count-audit-meta-label">Data operacional</span>
                         <strong id="count-audit-operational-date" class="count-audit-meta-value">--/--/----</strong>
                         <span class="count-audit-meta-note">America/Sao_Paulo</span>
                       </article>
-                      <article class="count-audit-meta-card" role="listitem">
+                      <article class="count-audit-meta-card count-audit-meta-card--primary" role="listitem">
                         <span class="count-audit-meta-label">Status da análise</span>
                         <strong id="count-audit-analysis-status" class="count-audit-meta-value">Aguardando carga</strong>
                         <span class="count-audit-meta-note">Priorização automática</span>
                       </article>
-                      <article class="count-audit-meta-card" role="listitem">
+                      <article class="count-audit-meta-card count-audit-meta-card--secondary" role="listitem">
                         <span class="count-audit-meta-label">Última sincronização</span>
                         <strong id="count-audit-last-sync" class="count-audit-meta-value">--:--</strong>
                         <span class="count-audit-meta-note">Atualização da análise</span>
                       </article>
-                      <article class="count-audit-meta-card" role="listitem">
+                      <article class="count-audit-meta-card count-audit-meta-card--secondary" role="listitem">
                         <span class="count-audit-meta-label">Base de comparação</span>
                         <strong id="count-audit-base-source" class="count-audit-meta-value">Sem base carregada</strong>
                         <span id="count-audit-base-source-note" class="count-audit-meta-note">Importação TXT ou saldo zero</span>
@@ -578,35 +578,35 @@
                   </div>
                 </div>
                 <div id="count-audit-summary" class="count-audit-kpi-list" role="list">
-                  <article class="count-audit-summary-placeholder" role="listitem">
-                    <span>Total de produtos</span>
-                    <strong>0</strong>
-                  </article>
-                  <article class="count-audit-summary-placeholder" role="listitem">
-                    <span>Produtos analisados</span>
-                    <strong>0</strong>
-                  </article>
-                  <article class="count-audit-summary-placeholder" role="listitem">
+                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--primary" role="listitem">
                     <span>Produtos pendentes</span>
                     <strong>0</strong>
                   </article>
-                  <article class="count-audit-summary-placeholder" role="listitem">
+                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--primary" role="listitem">
                     <span>Produtos com divergência</span>
                     <strong>0</strong>
                   </article>
-                  <article class="count-audit-summary-placeholder" role="listitem">
+                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--primary" role="listitem">
                     <span>Divergências críticas</span>
                     <strong>0</strong>
                   </article>
-                  <article class="count-audit-summary-placeholder" role="listitem">
+                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--primary" role="listitem">
                     <span>Produtos sem contagem</span>
                     <strong>0</strong>
                   </article>
-                  <article class="count-audit-summary-placeholder" role="listitem">
+                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--secondary" role="listitem">
+                    <span>Total de produtos</span>
+                    <strong>0</strong>
+                  </article>
+                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--secondary" role="listitem">
+                    <span>Produtos analisados</span>
+                    <strong>0</strong>
+                  </article>
+                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--secondary" role="listitem">
                     <span>Percentual concluído</span>
                     <strong>0%</strong>
                   </article>
-                  <article class="count-audit-summary-placeholder" role="listitem">
+                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--secondary" role="listitem">
                     <span>Maior divergência do dia</span>
                     <strong>0</strong>
                   </article>
@@ -619,10 +619,13 @@
                     <h3>Filtros inteligentes</h3>
                     <p class="count-audit-card-sub muted">Refine a análise por contexto, urgência e padrão de divergência</p>
                   </div>
-                  <button id="count-audit-clear-filters" type="button" class="btn-secondary btn-small count-audit-btn-clear-all">Limpar filtros</button>
+                  <div class="count-audit-filters-actions">
+                    <button id="count-audit-toggle-filters" type="button" class="btn-secondary btn-small count-audit-btn-mobile-filters" aria-controls="count-audit-filters-panel" aria-expanded="false">Mais filtros</button>
+                    <button id="count-audit-clear-filters" type="button" class="btn-secondary btn-small count-audit-btn-clear-all">Limpar filtros</button>
+                  </div>
                 </div>
 
-                <div class="count-audit-filters-panel">
+                <div id="count-audit-filters-panel" class="count-audit-filters-panel">
                   <div class="count-audit-search-row">
                     <input id="count-audit-search" class="search-input count-audit-search-input" type="text" placeholder="Buscar por código, produto, grupo ou ação..." autocomplete="off" aria-label="Buscar na análise" />
                     <button id="count-audit-clear-search" type="button" class="btn-secondary btn-small count-audit-btn-clear" title="Limpar pesquisa" style="display:none;">Limpar busca</button>
