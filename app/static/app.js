@@ -4025,6 +4025,9 @@ const countAuditSearch = document.getElementById('count-audit-search');
 const countAuditClearSearch = document.getElementById('count-audit-clear-search');
 if (countAuditSearch) {
   countAuditSearch.addEventListener('input', () => {
+    if (typeof countAuditState !== 'undefined') {
+      countAuditState.showAllMissingMobile = false;
+    }
     // Re-renderiza usando último payload
     if (window.lastCountAuditRows) {
       renderCountAuditRows(window.lastCountAuditRows);
@@ -4036,6 +4039,9 @@ if (countAuditClearSearch) {
   countAuditClearSearch.addEventListener('click', () => {
     countAuditSearch.value = '';
     countAuditClearSearch.style.display = 'none';
+    if (typeof countAuditState !== 'undefined') {
+      countAuditState.showAllMissingMobile = false;
+    }
     if (window.lastCountAuditRows) {
       renderCountAuditRows(window.lastCountAuditRows);
     }
@@ -4046,6 +4052,9 @@ if (countAuditClearSearch) {
 const countAuditSort = document.getElementById('count-audit-sort');
 if (countAuditSort) {
   countAuditSort.addEventListener('change', () => {
+    if (typeof countAuditState !== 'undefined') {
+      countAuditState.showAllMissingMobile = false;
+    }
     if (window.lastCountAuditRows) {
       renderCountAuditRows(window.lastCountAuditRows);
     }
@@ -4197,6 +4206,7 @@ const countAuditOnlyPending = document.getElementById('count-audit-only-pending'
 const countAuditOnlyCritical = document.getElementById('count-audit-only-critical');
 const countAuditOnlyMissing = document.getElementById('count-audit-only-missing');
 const countAuditClearFilters = document.getElementById('count-audit-clear-filters');
+const countAuditToggleFilters = document.getElementById('count-audit-toggle-filters');
 const countAuditRangeInfo = document.getElementById('count-audit-range-info');
 const countAuditDetailStatus = document.getElementById('count-audit-detail-status');
 const countAuditDetailPanel = document.getElementById('count-audit-detail');
@@ -4206,6 +4216,10 @@ const countAuditLastSync = document.getElementById('count-audit-last-sync');
 const countAuditBaseSource = document.getElementById('count-audit-base-source');
 const countAuditBaseSourceNote = document.getElementById('count-audit-base-source-note');
 const countAuditModeIndicator = document.getElementById('count-audit-mode-indicator');
+const countAuditFiltersCard = document.querySelector('#sub-count-audit .count-audit-filters-card');
+const countAuditMobileMediaQuery = typeof window !== 'undefined' && window.matchMedia
+  ? window.matchMedia('(max-width: 760px)')
+  : null;
 
 const countAuditState = {
   rows: [],
@@ -4214,6 +4228,9 @@ const countAuditState = {
   loadedAt: null,
   selectedCode: null,
   detailCache: new Map(),
+  loadingDetailCode: null,
+  showAllMissingMobile: false,
+  mobileFiltersExpanded: false,
 };
 let countAuditDetailRequestSeq = 0;
 let countPrefillProductCode = null;
@@ -4233,6 +4250,88 @@ function formatAuditRelativeTime(isoValue) {
     return `${formatDateTime(isoValue)} (${diffMinutes === 0 ? 'agora' : `${Math.abs(diffMinutes)} min`})`;
   }
   return formatDateTime(isoValue);
+}
+
+function isCountAuditMobileViewport() {
+  return !!countAuditMobileMediaQuery?.matches;
+}
+
+function getCountAuditDetailCacheKey(code) {
+  return `${(countAuditImport?.value || '').trim() || '-'}::${String(code || '')}`;
+}
+
+function getCountAuditCachedDetail(code) {
+  return countAuditState.detailCache.get(getCountAuditDetailCacheKey(code)) || null;
+}
+
+function hasCountAuditAdvancedFiltersActive() {
+  return Boolean(
+    (countAuditGroupFilter?.value || '').trim()
+    || (countAuditStatusFilter?.value || '').trim()
+    || (countAuditPriorityFilter?.value || '').trim()
+    || (countAuditDivergenceFilter?.value || '').trim(),
+  );
+}
+
+function syncCountAuditFiltersPresentation() {
+  if (!countAuditFiltersCard) return;
+  const expanded = !isCountAuditMobileViewport()
+    || !!countAuditState.mobileFiltersExpanded
+    || hasCountAuditAdvancedFiltersActive();
+  countAuditFiltersCard.classList.toggle('is-expanded', expanded);
+  if (countAuditToggleFilters) {
+    countAuditToggleFilters.hidden = !isCountAuditMobileViewport();
+    countAuditToggleFilters.textContent = expanded ? 'Menos filtros' : 'Mais filtros';
+    countAuditToggleFilters.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  }
+}
+
+function shouldCompactMissingRowsForMobile(filters) {
+  return isCountAuditMobileViewport()
+    && !filters.search
+    && !filters.onlyMissing
+    && filters.status !== 'missing'
+    && filters.divergence !== 'missing'
+    && countAuditSummaryFilterKey !== 'missing';
+}
+
+function compactMissingRowsForMobile(list, filters) {
+  const missingRows = list.filter((row) => row._auditMeta?.stateKey === 'missing');
+  const nonMissingRows = list.filter((row) => row._auditMeta?.stateKey !== 'missing');
+  const visibleLimit = 8;
+  if (!shouldCompactMissingRowsForMobile(filters) || missingRows.length <= visibleLimit) {
+    return {
+      rows: list,
+      hiddenMissingCount: 0,
+      totalMissingCount: missingRows.length,
+      nonMissingCount: nonMissingRows.length,
+      compacted: false,
+    };
+  }
+
+  const visibleMissingRows = countAuditState.showAllMissingMobile ? missingRows : missingRows.slice(0, visibleLimit);
+  return {
+    rows: [...nonMissingRows, ...visibleMissingRows],
+    hiddenMissingCount: countAuditState.showAllMissingMobile ? 0 : Math.max(0, missingRows.length - visibleLimit),
+    totalMissingCount: missingRows.length,
+    nonMissingCount: nonMissingRows.length,
+    compacted: true,
+  };
+}
+
+function getCountAuditCompactActionLabel(meta = {}) {
+  switch (meta.stateKey) {
+    case 'missing':
+      return 'Contagem imediata';
+    case 'critical':
+      return 'Recontagem prioritária';
+    case 'high':
+      return 'Revisar lançamentos';
+    case 'light':
+      return 'Validar ajuste';
+    default:
+      return 'Sem ação imediata';
+  }
 }
 
 function getCountAuditFiltersSnapshot() {
@@ -4435,23 +4534,24 @@ function renderCountAuditSummary(summary) {
   const rows = getCountAuditRowsFromState();
   const dashboard = getCountAuditDashboard(summary, rows);
   const cards = [
-    ['Total de produtos', formatIntegerBR(dashboard.total), 'is-neutral', 'all', 'Escopo ativo carregado'],
-    ['Produtos analisados', formatIntegerBR(dashboard.analyzed), 'is-info', 'analyzed', 'Itens com contagem registrada'],
-    ['Produtos pendentes', formatIntegerBR(dashboard.pending), 'is-warn', 'pending', 'Itens ainda fora do fechamento'],
-    ['Produtos com divergência', formatIntegerBR(dashboard.divergent), 'is-warn', 'divergent', 'Diferença entre base e contagem'],
-    ['Divergências críticas', formatIntegerBR(dashboard.critical), 'is-danger', 'critical', 'Itens que exigem ação imediata'],
-    ['Produtos sem contagem', formatIntegerBR(dashboard.missing), 'is-danger', 'missing', 'Base prevista sem lançamento'],
-    ['Percentual concluído', `${dashboard.completedPercent}%`, 'is-ok', 'completed', `${formatIntegerBR(Number(summary.equal_items) || 0)} conferidos`],
-    ['Maior divergência do dia', formatIntegerBR(dashboard.biggestGap), 'is-highlight', '', 'Maior impacto absoluto carregado'],
+    ['Produtos pendentes', formatIntegerBR(dashboard.pending), 'is-warn', 'pending', 'Itens ainda fora do fechamento', false],
+    ['Produtos com divergência', formatIntegerBR(dashboard.divergent), 'is-warn', 'divergent', 'Diferença entre base e contagem', false],
+    ['Divergências críticas', formatIntegerBR(dashboard.critical), 'is-danger', 'critical', 'Itens que exigem ação imediata', false],
+    ['Produtos sem contagem', formatIntegerBR(dashboard.missing), 'is-danger', 'missing', 'Base prevista sem lançamento', false],
+    ['Total de produtos', formatIntegerBR(dashboard.total), 'is-neutral', 'all', 'Escopo ativo carregado', true],
+    ['Produtos analisados', formatIntegerBR(dashboard.analyzed), 'is-info', 'analyzed', 'Itens com contagem registrada', true],
+    ['Percentual concluído', `${dashboard.completedPercent}%`, 'is-ok', 'completed', `${formatIntegerBR(Number(summary.equal_items) || 0)} conferidos`, true],
+    ['Maior divergência do dia', formatIntegerBR(dashboard.biggestGap), 'is-highlight', '', 'Maior impacto absoluto carregado', true],
   ];
 
-  countAuditSummary.innerHTML = cards.map(([label, value, tone, filterKey, trend]) => {
+  countAuditSummary.innerHTML = cards.map(([label, value, tone, filterKey, trend, isSecondary]) => {
     const attrs = filterKey
       ? ` data-count-audit-filter="${filterKey}" role="button" tabindex="0" aria-pressed="false"`
       : '';
     const clickableClass = filterKey ? ' count-audit-summary-item--clickable' : '';
+    const secondaryClass = isSecondary ? ' count-audit-summary-item--secondary' : '';
     return (
-      `<article class="count-audit-summary-item ${tone}${clickableClass}"${attrs}>` +
+      `<article class="count-audit-summary-item ${tone}${clickableClass}${secondaryClass}"${attrs}>` +
         `<span class="count-audit-summary-label">${label}</span>` +
         `<strong class="count-audit-summary-value">${value}</strong>` +
         `<span class="count-audit-summary-trend">${trend}</span>` +
@@ -4468,6 +4568,7 @@ function renderCountAuditSummary(summary) {
       if (!card) return;
       const key = card.dataset.countAuditFilter;
       countAuditSummaryFilterKey = countAuditSummaryFilterKey === key || key === 'all' ? null : key;
+      countAuditState.showAllMissingMobile = false;
       updateCountAuditSummarySelection();
       renderCountAuditRows(getCountAuditRowsFromState());
     });
