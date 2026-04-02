@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=38" />
+    <link rel="stylesheet" href="/static/style.css?v=39" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -609,9 +609,9 @@
                       <div class="count-audit-hero-head-text">
                         <p class="count-audit-eyebrow">Analise operacional · auditoria de estoque</p>
                         <h2 id="count-audit-title" class="count-audit-hero-title">Análise de Contagem</h2>
-                        <p class="muted count-audit-hero-lead">
+                        <p class="count-audit-hero-lead">
                           Uma mesa de decisão para revisar cenário, destacar prioridades e atacar divergências com velocidade.
-                          A comparação continua baseada em <strong>saldo TXT</strong> versus <strong>contagem registrada</strong>, apenas para <strong>produtos ativos</strong>.
+                          Comparação entre <span class="count-audit-lead-key">saldo TXT</span> e <span class="count-audit-lead-key">contagem registrada</span>, somente <span class="count-audit-lead-key">produtos ativos</span>.
                         </p>
                       </div>
                       <div class="count-audit-hero-chips">
@@ -817,6 +817,16 @@
                     <div class="count-audit-list-head-meta">
                       <span id="count-audit-total" class="chip count-audit-total-chip" aria-live="polite">0</span>
                       <span id="count-audit-range-info" class="count-audit-range-info">Carregue a análise para priorizar os itens.</span>
+                    </div>
+                  </div>
+
+                  <div class="count-audit-list-progress" aria-hidden="true">
+                    <div class="count-audit-list-progress-label">
+                      <span>Progresso da análise</span>
+                      <span id="count-audit-progress-label-pct" class="count-audit-list-progress-pct"></span>
+                    </div>
+                    <div class="count-audit-list-progress-track">
+                      <div id="count-audit-list-progress-fill" class="count-audit-list-progress-fill"></div>
                     </div>
                   </div>
 
@@ -1165,7 +1175,7 @@
     </div>
 
     <div id="install-feedback" class="install-feedback" aria-live="polite"></div>
-    <script src="/static/app.js?v=39"></script>
+    <script src="/static/app.js?v=41"></script>
     <script src="/static/pwa-install.js?v=6"></script>
   </body>
 </html>

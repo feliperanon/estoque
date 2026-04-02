@@ -3526,10 +3526,10 @@ function tryConfirmExplicitZeroOnBlur(codRefEnc, countTypeRaw) {
 
 function parseOperationQtyFromInputEl(inp) {
   if (!inp) return null;
-  const digitsOnly = String(inp.value ?? '').replace(/\D/g, '');
+  const digitsOnly = String(inp.value ?? '').trim().replace(/\D/g, '');
   if (digitsOnly === '') return null;
-  const n = parseInt(digitsOnly, 10);
-  if (!Number.isFinite(n) || n <= 0) return null;
+  const n = Number.parseInt(digitsOnly, 10);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return null;
   return n;
 }
 
@@ -3700,6 +3700,9 @@ async function importBackup(file) {
   }
 }
 
+/** Safari iOS: o blur do input costuma ocorrer antes do click em +/- e relatedTarget costuma ser null. */
+let countAdjustPointerDeltaToken = null;
+
 function bindCountEvents() {
   if (countForm) {
     countForm.addEventListener('submit', (event) => {
@@ -3755,18 +3758,33 @@ function bindCountEvents() {
     const refreshCountListAfterEdit = () => {
       refreshCountProductListView();
     };
+    countShell.addEventListener(
+      'pointerdown',
+      (e) => {
+        const btn = e.target.closest('.btn-count-adjust');
+        if (!btn || !countShell.contains(btn)) {
+          countAdjustPointerDeltaToken = null;
+          return;
+        }
+        const a = btn.getAttribute('data-delta');
+        countAdjustPointerDeltaToken = a === '1' || a === '-1' ? a : null;
+      },
+      true,
+    );
     countShell.addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-count-adjust');
       if (!btn || !countShell.contains(btn)) return;
       e.preventDefault();
       const codRefEnc = btn.getAttribute('data-coderef') || '';
-      const deltaBtn = Number(btn.dataset.delta);
+      const rawDelta = btn.getAttribute('data-delta');
+      const deltaBtn = rawDelta === '1' ? 1 : rawDelta === '-1' ? -1 : NaN;
       const countType = btn.dataset.countType || 'caixa';
       if (!codRefEnc || !Number.isFinite(deltaBtn)) return;
       if (deltaBtn !== 1 && deltaBtn !== -1) return;
       const row = btn.closest('.count-control-row');
       const inp = row ? row.querySelector('input.count-product-qty') : null;
       applyCountRowOperation(codRefEnc, countType, inp, deltaBtn);
+      countAdjustPointerDeltaToken = null;
       refreshCountListAfterEdit();
     });
     countShell.addEventListener('focusout', (e) => {
@@ -3780,6 +3798,12 @@ function bindCountEvents() {
       const ref = inp.getAttribute('data-coderef') || '';
       const ct = inp.getAttribute('data-count-type') || 'caixa';
       tryConfirmExplicitZeroOnBlur(ref, ct);
+      const towardAdjust = countAdjustPointerDeltaToken === '1' || countAdjustPointerDeltaToken === '-1';
+      if (towardAdjust) {
+        countAdjustPointerDeltaToken = null;
+        refreshCountListAfterEdit();
+        return;
+      }
       if (parseOperationQtyFromInputEl(inp) != null) {
         dispatchCountRowPlusClick(inp);
       }
@@ -4122,12 +4146,6 @@ async function syncPendingEventsForAudit() {
   } catch {
     // silencioso — falha de rede não interrompe a análise
   }
-}
-
-function setCountAuditFeedback(message, isError = false) {
-  if (!countAuditFeedback) return;
-  countAuditFeedback.textContent = message || '';
-  countAuditFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
 }
 
 async function loadCountAuditImports() {
@@ -4678,6 +4696,15 @@ function updateCountAuditHeaderContext() {
       ? (info.file_name || 'Sem importação TXT para a data.')
       : (info.file_name || 'Base TXT carregada');
   }
+  const progressFill = document.getElementById('count-audit-list-progress-fill');
+  const progressPct = document.getElementById('count-audit-progress-label-pct');
+  if (progressFill) {
+    const pct = Math.min(100, Math.max(0, dashboard.completedPercent));
+    progressFill.style.width = `${pct}%`;
+    if (progressPct) {
+      progressPct.textContent = dashboard.total > 0 ? `${pct}%` : '—';
+    }
+  }
 }
 
 function populateCountAuditGroups(rows) {
@@ -4698,10 +4725,10 @@ function getCountAuditRowByCode(code, rows = getCountAuditRowsFromState()) {
 function setCountAuditFeedback(message, isError = false) {
   if (!countAuditFeedback) return;
   countAuditFeedback.textContent = message || '';
-  countAuditFeedback.style.display = message ? '' : 'none';
-  countAuditFeedback.style.color = isError ? '#fee2e2' : '#e2e8f0';
-  countAuditFeedback.style.borderColor = isError ? 'rgba(248, 113, 113, 0.32)' : 'rgba(255, 255, 255, 0.12)';
-  countAuditFeedback.style.background = isError ? 'rgba(127, 29, 29, 0.18)' : 'rgba(255, 255, 255, 0.08)';
+  const visible = !!message;
+  countAuditFeedback.style.display = visible ? '' : 'none';
+  countAuditFeedback.classList.toggle('is-error', visible && isError);
+  countAuditFeedback.classList.toggle('is-info', visible && !isError);
 }
 
 function updateCountAuditSummarySelection() {
@@ -5249,6 +5276,7 @@ async function loadCountAuditAnalysis() {
       renderCountAuditSummary({});
       renderCountAuditRows([]);
       renderCountAuditDetailEmpty('Não foi possível montar a análise.');
+      updateCountAuditHeaderContext();
       setCountAuditFeedback('Não foi possível montar a análise. Verifique permissões ou tente novamente.', true);
       return;
     }
