@@ -2100,9 +2100,11 @@ function renderCountProducts(products) {
     li.dataset.codProduto = codRaw;
     /* Input sempre vazio na lista: total só no readout; após +/− ou lançamento por teclado o campo não replica o saldo. */
     li.innerHTML = `
-      ${analystLiveRecount ? '<div class="count-recount-live-banner" role="status"><strong class="count-recount-live-banner-lead">Recontar</strong><span class="count-recount-live-banner-rest">em tempo real — solicitado pela análise</span></div>' : ''}
       <div class="count-product-label">
-        <span class="count-product-desc">${desc}</span>
+        <span class="count-product-title-row">
+          ${analystLiveRecount ? '<span class="count-product-recount-flag" role="status">Recontar</span>' : ''}
+          <span class="count-product-desc">${desc}</span>
+        </span>
       </div>
       <div class="count-product-controls">
         <div class="count-control-row ${rowClassFromMatch(dimCx)}">

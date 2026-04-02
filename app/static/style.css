@@ -4478,34 +4478,27 @@ body.count-audit-drawer-open {
   border-left: 3px solid #ea580c;
 }
 
-.count-recount-live-banner {
+.count-product-title-row {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.35rem 0.45rem;
-  margin: 0 0 0.5rem;
-  padding: 0.45rem 0.55rem;
-  border-radius: 6px;
-  border: 1px solid #c4b5fd;
-  background: #ede9fe;
-  color: #5b21b6;
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-.count-recount-live-banner-lead {
-  flex: 0 0 auto;
-  font-size: 0.88rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #4c1d95;
-}
-
-.count-recount-live-banner-rest {
-  flex: 1 1 12rem;
-  font-weight: 600;
+  gap: 0.35rem 0.5rem;
   min-width: 0;
+  width: 100%;
+}
+
+.count-product-title-row .count-product-desc {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.count-product-recount-flag {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #5b21b6;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
 }
 
 .count-product-item--analyst-recount {
