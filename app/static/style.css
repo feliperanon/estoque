@@ -6489,7 +6489,36 @@ details[open] > .validity-analytic-summary::after {
   }
 }
 
-/* ── Validade operacional (sub-validity): cards e filtros, alinhado à contagem ── */
+/* ── Validade operacional (#sub-validity): mesmo DNA da contagem, mobile-first ── */
+#sub-validity .count-main-filters-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px 10px;
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 1024px) {
+  #sub-validity .count-main-filters-row {
+    grid-template-columns: 1fr;
+  }
+  #sub-validity .count-main-filter-col--produto {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  #sub-validity .count-main-filter-col--grupo {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
+@media (min-width: 1025px) {
+  #sub-validity .count-main-filters-row {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 3fr);
+    align-items: start;
+  }
+}
+#sub-validity .count-main-card-inner.count-op-header .count-filter-input-wrapper {
+  min-height: 44px;
+}
 .validity-op-status-row {
   display: flex;
   flex-wrap: wrap;
@@ -6540,80 +6569,126 @@ button.validity-op-chip {
   gap: 10px;
   margin-top: 0.5rem;
 }
-.validity-op-shell .validity-op-card {
-  cursor: pointer;
-  border-radius: 8px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: #fcfcfd;
-  margin-bottom: 8px;
-  list-style: none;
-  transition: box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-}
-.validity-op-shell .validity-op-card:hover {
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
-  border-color: rgba(37, 99, 235, 0.22);
-}
-.validity-op-shell .validity-op-card.validity-op-card--overdue {
-  background: linear-gradient(180deg, #fff5f5 0%, #fffbfb 100%);
-  border-color: rgba(220, 38, 38, 0.22);
-}
-.validity-op-shell .validity-op-card.validity-op-card--open {
-  border-color: rgba(37, 99, 235, 0.45);
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.08);
-}
-.validity-op-card-inner {
-  padding: 10px 12px;
-}
-.validity-op-card-head {
+/* Lista: itens como na contagem (count-list-flat + count-product-item) */
+#sub-validity .count-list-flat .validity-op-item {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.35rem 0.75rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: #fff;
+  list-style: none;
 }
-.validity-op-card-title {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--ink, #0f172a);
-  flex: 1 1 100%;
+#sub-validity .count-list-flat .validity-op-item:last-child {
+  border-bottom: none;
+}
+.validity-op-main {
+  width: 100%;
   min-width: 0;
+  text-align: left;
+  padding: 8px 6px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s ease;
 }
-.validity-op-card-cod {
-  font-size: 0.8rem;
-  color: var(--muted, #64748b);
-  font-weight: 600;
+.validity-op-main:hover {
+  background: #f8fafc;
 }
-.validity-op-card-badges {
+.validity-op-main:focus {
+  outline: none;
+}
+.validity-op-main:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.45);
+  outline-offset: 2px;
+}
+#sub-validity .validity-op-item--overdue .validity-op-main:hover {
+  background: rgba(254, 226, 226, 0.35);
+}
+#sub-validity .validity-op-item--nohistory .validity-op-main:hover {
+  background: rgba(254, 243, 199, 0.35);
+}
+#sub-validity .validity-op-item--overdue {
+  background: linear-gradient(180deg, #fff8f8 0%, #fff 100%);
+}
+#sub-validity .validity-op-item--nohistory {
+  background: #fffefb;
+}
+.validity-op-badges-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  align-items: center;
-  width: 100%;
+  margin: 4px 0 6px;
 }
-.validity-op-card-meta {
-  margin: 0.35rem 0 0;
-  font-size: 0.78rem;
-  color: var(--muted, #64748b);
-  line-height: 1.4;
+.validity-op-dl {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8125rem;
+  line-height: 1.35;
 }
-.validity-op-card-meta strong {
-  color: #334155;
+.validity-op-dl-row {
+  display: grid;
+  grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: baseline;
+}
+@media (max-width: 520px) {
+  .validity-op-dl-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .validity-op-dl-row dt {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted, #64748b);
+  }
+}
+.validity-op-dl-row dt {
+  margin: 0;
   font-weight: 600;
+  color: #64748b;
 }
-.validity-op-card-expand {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
+.validity-op-dl-row dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+  word-break: break-word;
+}
+.validity-op-hint {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+.validity-op-item-expand {
+  padding: 0 6px 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   max-height: 0;
   overflow: hidden;
   opacity: 0;
-  transition: max-height 0.22s ease, opacity 0.18s ease, margin-top 0.18s ease;
+  transition: max-height 0.22s ease, opacity 0.18s ease, padding 0.18s ease;
 }
-.validity-op-card.validity-op-card--open .validity-op-card-expand {
-  max-height: 220px;
+.validity-op-item.validity-op-item--open .validity-op-item-expand {
+  max-height: 280px;
   opacity: 1;
+  padding-top: 4px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  margin-top: 4px;
+}
+.validity-op-item.validity-op-item--open {
+  background: #fafbff;
+  box-shadow: inset 0 1px 0 rgba(37, 99, 235, 0.08);
 }
 .validity-op-date-input {
   font-size: 1.05rem;
@@ -6621,12 +6696,19 @@ button.validity-op-chip {
   padding: 8px 10px;
   width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
 }
 .validity-op-save {
-  align-self: flex-start;
+  width: 100%;
   min-height: 44px;
-  padding-left: 1.25rem;
-  padding-right: 1.25rem;
+  box-sizing: border-box;
+}
+@media (min-width: 521px) {
+  .validity-op-save {
+    width: auto;
+    align-self: flex-start;
+    min-width: 7.5rem;
+  }
 }
 @media (max-width: 640px) {
   .validity-op-status-chips {

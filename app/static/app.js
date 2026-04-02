@@ -128,7 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (validityDate && !validityDate.value) {
     validityDate.value = getBrazilDateKey();
   }
-  syncValidityOpFilterDateFromHidden();
 });
 
 // === Grupos disponíveis para filtro (pode ser movido para API futuramente)
@@ -2734,46 +2733,26 @@ async function loadValidityLastLaunchFromServer() {
   }
 }
 
-function syncValidityOpFilterDateFromHidden() {
-  const hid = document.getElementById('validity-op-date');
-  const vis = document.getElementById('validity-op-filter-date');
-  if (!vis) return;
-  const v = (hid && hid.value) || getBrazilDateKey();
-  if (!hid || !hid.value) {
-    if (hid) hid.value = v;
-  }
-  vis.value = v;
-}
-
-function syncHiddenValidityOpDateFromFilter() {
-  const hid = document.getElementById('validity-op-date');
-  const vis = document.getElementById('validity-op-filter-date');
-  if (!hid || !vis) return;
-  const v = (vis.value || '').trim() || getBrazilDateKey();
-  hid.value = v;
-}
-
-function validityOpSortTier(row) {
+/**
+ * Ordenação operacional: atrasados / sem histórico primeiro, pendentes no prazo, lançados por último.
+ * Desempate: descrição do produto (pt-BR).
+ */
+function validityOpOperationalTier(row) {
   if (row.hasLaunchOnOpDay) return 2;
-  if (row.isOverdue) return 0;
+  const last = row.lastLaunch;
+  const ds = row.daysSinceLast;
+  if (last == null || ds == null || ds > 7) return 0;
   return 1;
 }
 
-function sortValidityOperationalRows(rows) {
-  rows.sort((a, b) => {
-    const ta = validityOpSortTier(a);
-    const tb = validityOpSortTier(b);
+function sortValidityOperationalModels(models) {
+  const descKey = (row) =>
+    String((row.product && row.product.cod_grup_descricao) || row.cod || '').trim();
+  models.sort((a, b) => {
+    const ta = validityOpOperationalTier(a);
+    const tb = validityOpOperationalTier(b);
     if (ta !== tb) return ta - tb;
-    if (ta === 0) {
-      const da = a.daysSinceLast ?? 9999;
-      const db = b.daysSinceLast ?? 9999;
-      if (da !== db) return db - da;
-    } else if (ta === 1) {
-      const da = a.daysSinceLast ?? 0;
-      const db = b.daysSinceLast ?? 0;
-      if (da !== db) return da - db;
-    }
-    return compareAuditCodProduto(a.product, b.product);
+    return descKey(a).localeCompare(descKey(b), 'pt-BR', { sensitivity: 'base' });
   });
 }
 
@@ -2784,23 +2763,30 @@ function buildValidityOperationalRowModel(p, opKey, todayBr) {
   const hasLaunchOnOpDay = linesOp.length > 0;
   const lastLaunch = mergedLastValidityLaunchDateIso(cod);
   const daysSinceLast = lastLaunch ? _validityDaysBetweenCalendar(todayBr, lastLaunch) : null;
-  const isOverdue = lastLaunch == null || daysSinceLast == null || daysSinceLast > 7;
+  const noHistory = !lastLaunch;
+  const isOverdueStrict = lastLaunch != null && daysSinceLast != null && daysSinceLast > 7;
+  /** Para filtros: atrasado (+7d) ou sem histórico, sem lançamento nesta data. */
+  const isBacklog = !hasLaunchOnOpDay && (noHistory || isOverdueStrict);
   const anchor = linesOp.length ? operationalAnchorLine(linesOp, todayBr) : null;
   const lancamentoAtualLabel = anchor
     ? formatDateBrFromIso(String(anchor.expiration_date || '').slice(0, 10))
     : '—';
   let ultimoLabel = '—';
   if (lastLaunch) ultimoLabel = formatDateBrFromIso(lastLaunch);
+  let statusPrazoLabel = '—';
+  if (noHistory) statusPrazoLabel = 'Sem histórico';
+  else if (isOverdueStrict) statusPrazoLabel = 'Atrasado (+7 dias)';
+  else statusPrazoLabel = 'No prazo';
   let auxLine = '';
-  if (lastLaunch == null) {
-    auxLine = 'Nunca registrado no sistema.';
+  if (noHistory) {
+    auxLine = 'Sem registro de lançamento anterior.';
   } else if (daysSinceLast != null) {
     auxLine = `Último lançamento há ${daysSinceLast} dia(s).`;
   }
   let badgeHtml = '';
-  if (lastLaunch == null) {
+  if (noHistory) {
     badgeHtml = '<span class="validity-chip validity-chip--warn">Sem histórico</span>';
-  } else if (isOverdue && !hasLaunchOnOpDay) {
+  } else if (isOverdueStrict && !hasLaunchOnOpDay) {
     badgeHtml = '<span class="validity-chip validity-chip--danger">Atrasado</span>';
   } else if (hasLaunchOnOpDay) {
     badgeHtml = '<span class="validity-chip validity-chip--ok">Lançado</span>';
@@ -2815,9 +2801,12 @@ function buildValidityOperationalRowModel(p, opKey, todayBr) {
     hasLaunchOnOpDay,
     lastLaunch,
     daysSinceLast,
-    isOverdue,
+    noHistory,
+    isOverdueStrict,
+    isBacklog,
     lancamentoAtualLabel,
     ultimoLabel,
+    statusPrazoLabel,
     auxLine,
     badgeHtml,
   };
@@ -2841,7 +2830,7 @@ function filterValidityOperationalModels(rows) {
     }
     if (f === 'pending') return !row.hasLaunchOnOpDay;
     if (f === 'today') return row.hasLaunchOnOpDay;
-    if (f === 'overdue') return row.isOverdue && !row.hasLaunchOnOpDay;
+    if (f === 'overdue') return row.isBacklog;
     return true;
   });
 }
@@ -2882,7 +2871,7 @@ function renderValidityOperationalView() {
   }
 
   const pend = visible.filter((r) => !r.hasLaunchOnOpDay).length;
-  const atras = visible.filter((r) => r.isOverdue && !r.hasLaunchOnOpDay).length;
+  const atras = visible.filter((r) => r.isBacklog).length;
   const ms = document.getElementById('validity-op-mini-stats');
   if (ms) {
     ms.textContent = `Neste filtro: ${launchedOnOp} lançados nesta data · ${pend} pendentes · ${atras} atrasados (+7d sem lançamento)`;
@@ -2906,25 +2895,32 @@ function renderValidityOperationalView() {
     const name = escapeHtml((p.cod_grup_descricao || row.cod || '').trim());
     const codEsc = escapeHtml(row.cod);
     const enc = encodeURIComponent(row.cod);
-    const zone = row.isOverdue && !row.hasLaunchOnOpDay ? ' validity-op-card--overdue' : '';
+    let zone = '';
+    if (row.isOverdueStrict && !row.hasLaunchOnOpDay) zone = ' validity-op-item--overdue';
+    else if (row.noHistory && !row.hasLaunchOnOpDay) zone = ' validity-op-item--nohistory';
     const li = document.createElement('li');
-    li.className = `validity-op-card count-product-item${zone}`;
+    li.className = `count-product-item validity-op-item${zone}`;
     li.dataset.codProduto = row.cod;
     li.innerHTML = `
-      <div class="validity-op-card-inner">
-        <div class="validity-op-card-head">
-          <span class="validity-op-card-title">${name}</span>
-          <span class="validity-op-card-cod">${codEsc}</span>
-          <div class="validity-op-card-badges">${row.badgeHtml}</div>
-          <p class="validity-op-card-meta">Último lançamento: <strong>${escapeHtml(row.ultimoLabel)}</strong></p>
-          <p class="validity-op-card-meta">Nesta data: <strong>${escapeHtml(row.lancamentoAtualLabel)}</strong></p>
-          <p class="validity-op-card-meta muted">${escapeHtml(row.auxLine)}</p>
+      <div class="validity-op-main" role="button" tabindex="0" aria-expanded="false" aria-label="Abrir lançamento de validade">
+        <div class="count-product-label">
+          <span class="count-product-title-row">
+            <span class="count-product-desc">${name}</span>
+            <span class="count-product-cod">· ${codEsc}</span>
+          </span>
         </div>
-        <div class="validity-op-card-expand" aria-hidden="true">
-          <label class="count-filter-label count-filter-label--bold">Data de validade</label>
-          <input type="date" class="count-filter-input validity-op-date-input" data-coderef="${enc}" autocomplete="off" aria-label="Data de validade" />
-          <button type="button" class="btn btn-primary validity-op-save" data-coderef="${enc}">Salvar</button>
-        </div>
+        <div class="validity-op-badges-row">${row.badgeHtml}</div>
+        <dl class="validity-op-dl">
+          <div class="validity-op-dl-row"><dt>Último lançamento</dt><dd>${escapeHtml(row.ultimoLabel)}</dd></div>
+          <div class="validity-op-dl-row"><dt>Status do prazo</dt><dd>${escapeHtml(row.statusPrazoLabel)}</dd></div>
+          <div class="validity-op-dl-row"><dt>Lançamento atual</dt><dd>${escapeHtml(row.lancamentoAtualLabel)}</dd></div>
+        </dl>
+        <p class="validity-op-hint muted">${escapeHtml(row.auxLine)}</p>
+      </div>
+      <div class="validity-op-item-expand" aria-hidden="true">
+        <label class="count-filter-label count-filter-label--bold">Data de validade</label>
+        <input type="date" class="count-filter-input validity-op-date-input" data-coderef="${enc}" autocomplete="off" aria-label="Data de validade" />
+        <button type="button" class="btn btn-primary validity-op-save" data-coderef="${enc}">Salvar</button>
       </div>`;
     ul.appendChild(li);
   }
@@ -2936,40 +2932,45 @@ function bindValidityOperationalListOnce() {
   const ul = document.getElementById('validity-op-list');
   if (!ul || ul.dataset.validityOpBound === '1') return;
   ul.dataset.validityOpBound = '1';
+
+  const closeAllExcept = (keep) => {
+    ul.querySelectorAll('.validity-op-item--open').forEach((n) => {
+      if (keep && n === keep) return;
+      n.classList.remove('validity-op-item--open');
+      const ex = n.querySelector('.validity-op-item-expand');
+      if (ex) ex.setAttribute('aria-hidden', 'true');
+      const m = n.querySelector('.validity-op-main');
+      if (m) m.setAttribute('aria-expanded', 'false');
+    });
+  };
+
   ul.addEventListener('click', (e) => {
     const saveBtn = e.target.closest('.validity-op-save');
     if (saveBtn) {
       e.preventDefault();
       e.stopPropagation();
-      const card = saveBtn.closest('.validity-op-card');
-      const inp = card && card.querySelector('.validity-op-date-input');
+      const item = saveBtn.closest('.validity-op-item');
+      const inp = item && item.querySelector('.validity-op-date-input');
       const cref = saveBtn.getAttribute('data-coderef') || '';
       const cod = normalizeItemCode(decodeURIComponent(cref));
       registerValidityLineLocal(cod, inp && inp.value);
-      ul.querySelectorAll('.validity-op-card--open').forEach((n) => {
-        n.classList.remove('validity-op-card--open');
-        const ex = n.querySelector('.validity-op-card-expand');
-        if (ex) ex.setAttribute('aria-hidden', 'true');
-      });
+      closeAllExcept(null);
       return;
     }
-    const t = e.target;
-    if (t && (t.closest('input') || t.closest('label'))) return;
-    const card = e.target.closest('.validity-op-card');
-    if (!card) return;
-    const expand = card.querySelector('.validity-op-card-expand');
-    if (expand && expand.contains(e.target)) return;
-    const isOpen = card.classList.contains('validity-op-card--open');
-    ul.querySelectorAll('.validity-op-card--open').forEach((n) => {
-      n.classList.remove('validity-op-card--open');
-      const ex = n.querySelector('.validity-op-card-expand');
-      if (ex) ex.setAttribute('aria-hidden', 'true');
-    });
-    if (!isOpen) {
-      card.classList.add('validity-op-card--open');
+    if (e.target.closest('.validity-op-item-expand')) return;
+    const main = e.target.closest('.validity-op-main');
+    if (!main) return;
+    const item = main.closest('.validity-op-item');
+    if (!item) return;
+    const expand = item.querySelector('.validity-op-item-expand');
+    const wasOpen = item.classList.contains('validity-op-item--open');
+    closeAllExcept(null);
+    if (!wasOpen) {
+      item.classList.add('validity-op-item--open');
+      main.setAttribute('aria-expanded', 'true');
       if (expand) expand.setAttribute('aria-hidden', 'false');
-      const cref = encodeURIComponent(card.dataset.codProduto || '');
-      const inp = card.querySelector(`input.validity-op-date-input[data-coderef="${cref}"]`);
+      const cref = encodeURIComponent(item.dataset.codProduto || '');
+      const inp = item.querySelector(`input.validity-op-date-input[data-coderef="${cref}"]`);
       if (inp) {
         const rowCod = normalizeItemCode(decodeURIComponent(cref));
         const lines = getMergedValidityLinesForProduct(rowCod);
@@ -2980,14 +2981,24 @@ function bindValidityOperationalListOnce() {
         if (sug) inp.value = sug;
         setTimeout(() => inp.focus(), 80);
       }
+    } else {
+      main.setAttribute('aria-expanded', 'false');
     }
+  });
+
+  ul.addEventListener('keydown', (e) => {
+    const main = e.target.closest('.validity-op-main');
+    if (!main || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    main.click();
   });
 }
 
 async function loadValidityOperationalModule() {
+  const hid = document.getElementById('validity-op-date');
+  if (hid) hid.value = getBrazilDateKey();
   showDashboard();
   scrollDashboardToTop();
-  syncValidityOpFilterDateFromHidden();
   await loadValidityProductsCatalog();
   await loadValidityLastLaunchFromServer();
   await loadValidityLinesFromServer();
@@ -3655,17 +3666,6 @@ function bindValidityEvents() {
 
   if (opDate) {
     opDate.addEventListener('change', async () => {
-      syncValidityOpFilterDateFromHidden();
-      await loadValidityLinesFromServer();
-      refreshValidityUiAfterMutation();
-    });
-  }
-
-  const opFilterDate = document.getElementById('validity-op-filter-date');
-  if (opFilterDate && opFilterDate.dataset.voDateBound !== '1') {
-    opFilterDate.dataset.voDateBound = '1';
-    opFilterDate.addEventListener('change', async () => {
-      syncHiddenValidityOpDateFromFilter();
       await loadValidityLinesFromServer();
       refreshValidityUiAfterMutation();
     });
