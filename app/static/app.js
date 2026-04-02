@@ -6318,7 +6318,7 @@ function countAuditValidityMarkupForRow(codRaw) {
   if (!expIso) return '';
   const risk = countAuditValidityRiskClass(expIso);
   return (
-    `<span class="count-audit-row-validity${risk ? ` ${risk}` : ''}" title="Data de referência do módulo Validade (atualiza ao sincronizar)">` +
+    `<span class="count-audit-product-exp${risk ? ` ${risk}` : ''}" title="Validade (módulo Validade)">` +
     `Venc. ${escapeHtml(formatDateBR(expIso))}` +
     `</span>`
   );
@@ -6432,10 +6432,8 @@ function renderCountAuditDesktopRowMarkup(row) {
               `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
               `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
             `</div>` +
-            `<span class="count-audit-row-name-wrap">` +
-              `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
-              `${countAuditValidityMarkupForRow(code)}` +
-            `</span>` +
+            `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
+            `${countAuditValidityMarkupForRow(code)}` +
           `</button>` +
         `</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
@@ -6486,10 +6484,8 @@ function renderCountAuditMobileRowMarkup(row) {
             `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
             `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
           `</div>` +
-          `<span class="count-audit-row-name-wrap">` +
-            `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
-            `${countAuditValidityMarkupForRow(code)}` +
-          `</span>` +
+          `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
+          `${countAuditValidityMarkupForRow(code)}` +
           `<div class="count-audit-mobile-summary">` +
             `<strong class="count-audit-mobile-diff">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong>` +
             `<span class="count-audit-mobile-action">${escapeHtml(getCountAuditCompactActionLabel(meta))}</span>` +
