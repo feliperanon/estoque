@@ -1868,6 +1868,43 @@ function getUnsyncedNetBreakByProductAndType(productCode, countType) {
   return sum;
 }
 
+/** Pendências locais não sincronizadas para um dia operacional específico (mesma regra da tela Quebra). */
+function getUnsyncedNetBreakByProductAndTypeForDate(productCode, countType, dayKey) {
+  const base = normalizeItemCode(productCode);
+  const ct = normalizeCountType(countType);
+  let sum = 0;
+  for (const event of loadBreakEventsForDate(dayKey)) {
+    if (event.synced) continue;
+    if (normalizeItemCode(event.item_code || '') !== base) continue;
+    if (normalizeCountType(event.count_type) !== ct) continue;
+    sum += Number(event.quantity || 0);
+  }
+  return sum;
+}
+
+/**
+ * Total de quebra CX/UN no dia (servidor + pendente local), alinhado ao readout da tela Quebra.
+ * @param {boolean} serverOk - GET break-day-totals ok para este dia
+ * @param {Record<string, {caixa?: number, unidade?: number}>} balancesMap - mapa código → totais do servidor
+ */
+function getNetBreakByProductAndTypeForOperationalDay(productCode, countType, dayKey, serverOk, balancesMap) {
+  const base = normalizeItemCode(productCode);
+  const ct = normalizeCountType(countType);
+  const unsynced = getUnsyncedNetBreakByProductAndTypeForDate(productCode, countType, dayKey);
+  if (serverOk && balancesMap && typeof balancesMap === 'object') {
+    const b = balancesMap[base];
+    const server = ct === 'unidade' ? Number(b?.unidade) || 0 : Number(b?.caixa) || 0;
+    return server + unsynced;
+  }
+  let sum = 0;
+  for (const event of loadBreakEventsForDate(dayKey)) {
+    if (normalizeItemCode(event.item_code || '') !== base) continue;
+    if (normalizeCountType(event.count_type) !== ct) continue;
+    sum += Number(event.quantity || 0);
+  }
+  return sum;
+}
+
 function getServerNetBreakForProductAndType(productCode, countType) {
   if (!breakServerBreakState.ok) return 0;
   const base = normalizeItemCode(productCode);
@@ -5761,6 +5798,10 @@ const countAuditState = {
   loadingDetailCode: null,
   showAllMissingMobile: false,
   mobileFiltersExpanded: false,
+  /** YYYY-MM-DD do dia operacional usado nos totais de quebra (alinhado à data da análise). */
+  breakDayKey: '',
+  breakDayOk: false,
+  breakDayBalances: {},
 };
 let countAuditDetailRequestSeq = 0;
 let countPrefillProductCode = null;
@@ -5973,6 +6014,26 @@ function enrichCountAuditRow(row) {
     }
   }
 
+  const dk = (countAuditState.breakDayKey || '').trim();
+  let breakCx = 0;
+  let breakUn = 0;
+  if (dk) {
+    breakCx = getNetBreakByProductAndTypeForOperationalDay(
+      row.cod_produto,
+      'caixa',
+      dk,
+      countAuditState.breakDayOk,
+      countAuditState.breakDayBalances,
+    );
+    breakUn = getNetBreakByProductAndTypeForOperationalDay(
+      row.cod_produto,
+      'unidade',
+      dk,
+      countAuditState.breakDayOk,
+      countAuditState.breakDayBalances,
+    );
+  }
+
   return {
     ...row,
     _auditMeta: {
@@ -5993,6 +6054,8 @@ function enrichCountAuditRow(row) {
       isDivergent: row.status === 'divergent' || row.status === 'extra_in_count',
       totalBase: importCx + importUn,
       totalCount: countedCx + countedUn,
+      breakCx,
+      breakUn,
     },
   };
 }
@@ -6310,6 +6373,7 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
           `<article class="count-audit-detail-metric"><span>Contagem atual</span><strong>${formatIntegerBR(Number(row.counted_caixa) || 0)} CX / ${formatIntegerBR(Number(row.counted_unidade) || 0)} UN</strong><small>${launches} lançamento(s) sincronizado(s)</small></article>` +
           `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
           `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
+          `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatSignedIntegerBR(meta.breakCx || 0)} CX / ${formatSignedIntegerBR(meta.breakUn || 0)} UN</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>` +
         `</div>` +
       `</section>` +
       `${isLoading ? '<div class="count-audit-detail-loading">Carregando trilha detalhada deste item...</div>' : ''}` +
@@ -6350,6 +6414,7 @@ function renderCountAuditDesktopRowMarkup(row) {
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade contagem"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.counted_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.counted_unidade) || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><div class="count-audit-diff-breakdown"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.diffCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.diffUn || 0)}</strong></div></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Quebra</span><div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da análise (mesma lógica da tela Quebra)"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.breakCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.breakUn || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
         `<div class="count-audit-cell count-audit-cell--recount-live"><button type="button" class="count-audit-btn-recount-live" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button></div>` +
@@ -6398,6 +6463,10 @@ function renderCountAuditMobileRowMarkup(row) {
           `<div class="count-audit-mobile-summary">` +
             `<strong class="count-audit-mobile-diff">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong>` +
             `<span class="count-audit-mobile-action">${escapeHtml(getCountAuditCompactActionLabel(meta))}</span>` +
+          `</div>` +
+          `<div class="count-audit-mobile-break-strip" title="Quebra no dia (mesma lógica da tela Quebra)">` +
+            `<span class="count-audit-mobile-break-label">Quebra</span>` +
+            `<span class="count-audit-mobile-break-values">CX ${formatSignedIntegerBR(meta.breakCx || 0)} · UN ${formatSignedIntegerBR(meta.breakUn || 0)}</span>` +
           `</div>` +
         `</button>` +
         `<button type="button" class="count-audit-mobile-recount-live-btn" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar em tempo real</button>` +
@@ -6610,6 +6679,34 @@ function clearCountAuditFilters() {
   renderCountAuditRows(getCountAuditRowsFromState());
 }
 
+async function loadCountAuditBreakDay(dayKey) {
+  countAuditState.breakDayKey = (dayKey || '').trim();
+  countAuditState.breakDayOk = false;
+  countAuditState.breakDayBalances = {};
+  const dk = countAuditState.breakDayKey;
+  const token = getToken();
+  if (!dk || !token) return;
+  if (unauthorizedRedirectInProgress) return;
+  try {
+    const params = new URLSearchParams();
+    params.set('operational_date', dk);
+    const response = await apiFetch(`${API_BREAK_DAY_TOTALS}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) return;
+    const data = await response.json();
+    countAuditState.breakDayOk = true;
+    countAuditState.breakDayBalances = data.balances || {};
+    if (data.operational_date) {
+      countAuditState.breakDayKey = String(data.operational_date).trim();
+    }
+  } catch {
+    /* offline: enrichCountAuditRow usa só eventos locais do dia */
+  }
+}
+
 async function loadCountAuditAnalysis() {
   if (!countAuditImport || !countAuditList) return;
   const token = getToken();
@@ -6632,6 +6729,9 @@ async function loadCountAuditAnalysis() {
     if (handleUnauthorizedResponse(response)) return;
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
+      countAuditState.breakDayKey = '';
+      countAuditState.breakDayOk = false;
+      countAuditState.breakDayBalances = {};
       setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
       return;
     }
@@ -6643,6 +6743,9 @@ async function loadCountAuditAnalysis() {
       countAuditState.summary = {};
       countAuditState.importInfo = null;
       countAuditState.loadedAt = null;
+      countAuditState.breakDayKey = '';
+      countAuditState.breakDayOk = false;
+      countAuditState.breakDayBalances = {};
       countAuditState.detailCache.clear();
       renderCountAuditSummary({});
       renderCountAuditRows([]);
@@ -6651,6 +6754,9 @@ async function loadCountAuditAnalysis() {
       setCountAuditFeedback('Não foi possível montar a análise. Verifique permissões ou tente novamente.', true);
       return;
     }
+
+    const breakDayKey = referenceDate || String(info.reference_date || '').trim() || getBrazilDateKey();
+    await loadCountAuditBreakDay(breakDayKey);
 
     countAuditSummaryFilterKey = null;
     countAuditState.rows = (payload.rows || []).map(enrichCountAuditRow);
