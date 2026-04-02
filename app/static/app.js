@@ -3763,8 +3763,12 @@ async function importBackup(file) {
   }
 }
 
-/** Safari iOS: o blur do input costuma ocorrer antes do click em +/- e relatedTarget costuma ser null. */
-let countAdjustPointerDeltaToken = null;
+/**
+ * Safari/iOS (e vários navegadores): o blur do input ocorre antes do pointerdown no botão +/-.
+ * Usamos um contador incrementado no pointerdown do botão; no focusout agendamos setTimeout(0) e
+ * só disparamos o “+ automático ao sair do campo” se nenhum botão da linha foi tocado neste gesto.
+ */
+let countAdjustGestureGeneration = 0;
 
 function bindCountEvents() {
   if (countForm) {
@@ -3826,12 +3830,8 @@ function bindCountEvents() {
       'pointerdown',
       (e) => {
         const btn = e.target.closest('.btn-count-adjust');
-        if (!btn || !countShell.contains(btn)) {
-          countAdjustPointerDeltaToken = null;
-          return;
-        }
-        const a = btn.getAttribute('data-delta');
-        countAdjustPointerDeltaToken = a === '1' || a === '-1' ? a : null;
+        if (!btn || !countShell.contains(btn)) return;
+        countAdjustGestureGeneration += 1;
       },
       true,
     );
@@ -3848,7 +3848,6 @@ function bindCountEvents() {
       const row = btn.closest('.count-control-row');
       const inp = row ? row.querySelector('input.count-product-qty') : null;
       applyCountRowOperation(codRefEnc, countType, inp, deltaBtn);
-      countAdjustPointerDeltaToken = null;
       refreshCountListAfterEdit();
     });
     countShell.addEventListener('focusout', (e) => {
@@ -3862,16 +3861,20 @@ function bindCountEvents() {
       const ref = inp.getAttribute('data-coderef') || '';
       const ct = inp.getAttribute('data-count-type') || 'caixa';
       tryConfirmExplicitZeroOnBlur(ref, ct);
-      const towardAdjust = countAdjustPointerDeltaToken === '1' || countAdjustPointerDeltaToken === '-1';
-      if (towardAdjust) {
-        countAdjustPointerDeltaToken = null;
+      const genAtBlur = countAdjustGestureGeneration;
+      const hadOpQty = parseOperationQtyFromInputEl(inp) != null;
+      if (!hadOpQty) {
         refreshCountListAfterEdit();
         return;
       }
-      if (parseOperationQtyFromInputEl(inp) != null) {
+      window.setTimeout(() => {
+        if (countAdjustGestureGeneration > genAtBlur) {
+          refreshCountListAfterEdit();
+          return;
+        }
         dispatchCountRowPlusClick(inp);
-      }
-      refreshCountListAfterEdit();
+        refreshCountListAfterEdit();
+      }, 0);
     });
     countShell.addEventListener('keydown', (e) => {
       const inp = e.target;
