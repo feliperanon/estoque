@@ -385,7 +385,9 @@
  * Slot de chips vazio não pode ter padding-top (senão o Grupo fica mais alto que a Data).
  */
 /* Slot vazio: não participa do layout (evita linha extra no flex-wrap). */
-#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper .count-group-chip-slot:empty {
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper .count-group-chip-slot:empty,
+#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper .count-group-chip-slot:empty,
+#sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper .count-group-chip-slot:empty {
   display: none;
 }
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper.count-filter-input-wrapper--date {
@@ -398,7 +400,9 @@
   width: 100%;
   min-width: 0;
 }
-#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper {
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper,
+#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper,
+#sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper {
   min-height: 44px;
   height: 44px;
   padding: 0 8px;
@@ -409,12 +413,16 @@
   min-width: 0;
 }
 /* Com chips, o wrapper precisa crescer além de 44px */
-#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper:has(.count-group-chip-slot:not(:empty)) {
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper:has(.count-group-chip-slot:not(:empty)),
+#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper:has(.count-group-chip-slot:not(:empty)),
+#sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper:has(.count-group-chip-slot:not(:empty)) {
   height: auto;
   min-height: 44px;
   max-height: none;
 }
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
+#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
+#sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper > .count-filter-input[type="date"].count-filter-date {
   height: 32px;
   min-height: 32px !important;
@@ -430,6 +438,8 @@
 }
 @media (max-width: 600px) {
   #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
+  #sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
+  #sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
   #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper > .count-filter-input[type="date"].count-filter-date {
     font-size: 16px;
   }
@@ -448,6 +458,8 @@
   text-align: left;
 }
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
+#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
+#sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data .count-filter-icon {
   align-self: center;
 }
