@@ -278,7 +278,7 @@ let validityActiveKpiKey = null;
 /** Produto selecionado na tabela da análise (painel lateral). */
 let validityAnalysisSelectedCod = null;
 /** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
-let countServerCountState = { ok: false, balances: {} };
+let countServerCountState = { ok: false, balances: {}, meta: null };
 const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
 /** Mapa por dia (YYYY-MM-DD): { "2026-04-01": [ eventos... ] } */
 const COUNT_EVENTS_BUCKET_KEY = 'estoque_count_events_by_day_v2';
@@ -1534,15 +1534,15 @@ async function loadServerCountTotals() {
   loadServerCountTotalsInFlight = (async () => {
     const token = getToken();
     if (!token) {
-      countServerCountState = { ok: false, balances: {} };
+      countServerCountState = { ok: false, balances: {}, meta: null };
       return;
     }
     if (unauthorizedRedirectInProgress) {
-      countServerCountState = { ok: false, balances: {} };
+      countServerCountState = { ok: false, balances: {}, meta: null };
       return;
     }
     if (isAccessTokenExpired(token)) {
-      countServerCountState = { ok: false, balances: {} };
+      countServerCountState = { ok: false, balances: {}, meta: null };
       handleUnauthorizedResponse({ status: 401 });
       return;
     }
@@ -1551,19 +1551,31 @@ async function loadServerCountTotals() {
       params.set('count_date', getActiveCountDateKey());
       const response = await apiFetch(`${API_COUNT_SERVER_TOTALS}?${params.toString()}`, {
         headers: getAuthHeaders(),
+        cache: 'no-store',
       });
       if (handleUnauthorizedResponse(response)) {
-        countServerCountState = { ok: false, balances: {} };
+        countServerCountState = { ok: false, balances: {}, meta: null };
         return;
       }
       if (!response.ok) {
-        countServerCountState = { ok: false, balances: {} };
+        countServerCountState = { ok: false, balances: {}, meta: null };
         return;
       }
       const data = await response.json();
-      countServerCountState = { ok: true, balances: data.balances || {} };
+      const metaRaw = data.meta;
+      const meta =
+        metaRaw && typeof metaRaw === 'object'
+          ? {
+              actors: Array.isArray(metaRaw.actors) ? metaRaw.actors : [],
+              first_observed_at: metaRaw.first_observed_at || null,
+              last_observed_at: metaRaw.last_observed_at || null,
+              event_count: Number(metaRaw.event_count) || 0,
+            }
+          : null;
+      countServerCountState = { ok: true, balances: data.balances || {}, meta };
+      updateCountKpi(countProductsCache);
     } catch {
-      countServerCountState = { ok: false, balances: {} };
+      countServerCountState = { ok: false, balances: {}, meta: null };
     }
   })();
   try {

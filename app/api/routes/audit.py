@@ -223,6 +223,67 @@ def _aggregate_count_events_by_code(
     return counted_by_code
 
 
+def _parse_payload_observed_at_utc(od: object) -> datetime | None:
+    if od is None:
+        return None
+    try:
+        s = str(od).strip()
+        if not s:
+            return None
+        if s.endswith("Z"):
+            s = s.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def _count_day_activity_meta(session: Session, count_on_date: date) -> dict:
+    """Atores e intervalo de observed_at (UTC ISO) dos eventos do dia operacional em SP."""
+    count_logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_count",
+                ChangeLog.action == "count_event",
+            )
+        ).all()
+    )
+    actors: set[str] = set()
+    observed_utc: list[datetime] = []
+    event_count = 0
+    for log in count_logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        od = payload.get("observed_at")
+        br_d = _brazil_date_from_observed_at(str(od) if od is not None else "")
+        if br_d is None or br_d != count_on_date:
+            continue
+        event_count += 1
+        a = (log.actor or "").strip()
+        if a:
+            actors.add(a)
+        pdt = _parse_payload_observed_at_utc(od)
+        if pdt:
+            observed_utc.append(pdt)
+    first_iso: str | None = None
+    last_iso: str | None = None
+    if observed_utc:
+        mn = min(observed_utc)
+        mx = max(observed_utc)
+        first_iso = mn.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        last_iso = mx.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return {
+        "count_date": count_on_date.isoformat(),
+        "actors": sorted(actors),
+        "first_observed_at": first_iso,
+        "last_observed_at": last_iso,
+        "event_count": event_count,
+    }
+
+
 def _last_count_snapshot_per_code(session: Session) -> dict[str, dict]:
     """
     Por produto: totais de CX/UN do dia da última contagem registrada no sistema
@@ -450,7 +511,8 @@ def count_server_totals(
             "caixa": int(rec.get("caixa", 0)),
             "unidade": int(rec.get("unidade", 0)),
         }
-    return {"balances": balances}
+    meta = _count_day_activity_meta(session, d)
+    return {"balances": balances, "meta": meta}
 
 
 def _compute_stock_analysis(
