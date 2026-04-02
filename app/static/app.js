@@ -1342,11 +1342,11 @@ function countProgressDetailDimLabel(stats) {
   const { total, counted, usesDimProgress, dimCompleted, dimTotal } = stats;
   if (!total) {
     return countImportBalancesState.hasTxt
-      ? '0 de 0 metades (CX e UN) conferidas com o saldo do TXT'
+      ? '0 de 0 metades (CX e UN)'
       : '0 de 0 produtos com lançamento';
   }
   if (usesDimProgress && dimTotal > 0) {
-    return `${dimCompleted} de ${dimTotal} metades (CX e UN) conferidas com o saldo do TXT`;
+    return `${dimCompleted} de ${dimTotal} metades (CX e UN)`;
   }
   return `${counted} de ${total} produtos com lançamento`;
 }
