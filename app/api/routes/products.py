@@ -515,11 +515,11 @@ def list_products_catalog(
         )
 
     try:
-        products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+        products = list(session.exec(statement.order_by(Product.cod_produto).limit(limit)).all())
     except SQLAlchemyError:
         session.rollback()
         ensure_database_ready()
-        products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
+        products = list(session.exec(statement.order_by(Product.cod_produto).limit(limit)).all())
     except Exception:
         session.rollback()
         logger.exception("Falha inesperada ao listar catalogo de produtos")

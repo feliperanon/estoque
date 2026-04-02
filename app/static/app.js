@@ -2015,6 +2015,8 @@ function renderCountProducts(products) {
   const ativos = Array.isArray(products)
     ? products.filter(p => isActive(p.status))
     : [];
+  /* Ordem por código do produto (igual análise de contagem: numérico-aware em pt-BR). */
+  ativos.sort(compareAuditCodProduto);
   if (!countProductsList) {
     const feedback = document.getElementById('count-feedback');
     if (feedback) feedback.textContent = 'ERRO: Elemento da lista de produtos não encontrado!';
