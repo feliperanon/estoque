@@ -18,6 +18,16 @@ function isCountOperationalEditable() {
   return getActiveCountDateKey() === getBrazilDateKey();
 }
 
+function getActiveBreakDateKey() {
+  const el = document.getElementById('break-date');
+  const v = (el && el.value || '').trim();
+  return v || getBrazilDateKey();
+}
+
+function isBreakOperationalEditable() {
+  return getActiveBreakDateKey() === getBrazilDateKey();
+}
+
 function getActiveValidityOpDateKey() {
   const el = document.getElementById('validity-op-date');
   const v = (el && el.value || '').trim();
@@ -247,6 +257,9 @@ const API_LAST_COUNT_PER_PRODUCT = '/audit/last-count-per-product';
 const API_VALIDITY_EVENTS = '/audit/validity-events';
 const API_VALIDITY_LINES = '/audit/validity-lines';
 const API_VALIDITY_LAST_LAUNCH = '/audit/validity-last-launch-by-product';
+const API_SYNC_BREAKS = '/audit/break-events';
+const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
+const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
 /** Dias sem nova contagem para considerar a base "antiga" (painel analítico). */
@@ -284,6 +297,8 @@ let validityActiveKpiKey = null;
 let validityAnalysisSelectedCod = null;
 /** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
 let countServerCountState = { ok: false, balances: {}, meta: null };
+let breakServerBreakState = { ok: false, balances: {} };
+let loadServerBreakTotalsInFlight = null;
 const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
 /** Mapa por dia (YYYY-MM-DD): { "2026-04-01": [ eventos... ] } */
 const COUNT_EVENTS_BUCKET_KEY = 'estoque_count_events_by_day_v2';
@@ -493,6 +508,7 @@ const PAGE_KEYS_BY_MODULE = {
     'pull',
     'return',
     'break',
+    'break-history',
     'direct-sale',
     'validity',
     'validity-analysis',
@@ -519,6 +535,7 @@ const REGISTER_ACCESS_GROUPS = [
       { key: 'pull', label: 'Puxada' },
       { key: 'return', label: 'Devolução' },
       { key: 'break', label: 'Quebra' },
+      { key: 'break-history', label: 'Registro de quebras' },
       { key: 'direct-sale', label: 'Venda Direta' },
       { key: 'validity', label: 'Validade (lançamento)' },
       { key: 'validity-analysis', label: 'Análise de Validades' },
@@ -546,6 +563,7 @@ const REGISTER_PROFILE_PRESETS = {
     'pull',
     'return',
     'break',
+    'break-history',
     'direct-sale',
     'validity',
     'validity-analysis',
@@ -561,6 +579,7 @@ const REGISTER_PROFILE_PRESETS = {
     'pull',
     'return',
     'break',
+    'break-history',
     'direct-sale',
     'validity',
     'import-txt',
@@ -579,6 +598,7 @@ const SUB_MODULES = [
   'pull',
   'return',
   'break',
+  'break-history',
   'direct-sale',
   'validity',
   'validity-analysis',
@@ -602,6 +622,7 @@ const PAGE_TITLES = {
   pull: 'Puxada',
   return: 'Devolução',
   break: 'Quebra',
+  'break-history': 'Registro de quebras',
   'direct-sale': 'Venda Direta',
   validity: 'Validade',
   'validity-analysis': 'Análise de Validades',
@@ -824,6 +845,10 @@ function canAccessHash(hashKey) {
     return canAccessModule('contagem');
   }
 
+  if (k === 'break-history') {
+    return canAccessHash('break');
+  }
+
   if (k === 'validity' || k === 'validity-launch') {
     return canAccessModule('contagem');
   }
@@ -1030,6 +1055,101 @@ function saveCountEventsForDate(dateKey, events) {
 function flattenAllCountEventsFromBucket() {
   const bucket = loadCountEventsBucketRaw();
   return Object.keys(bucket).flatMap((k) => (Array.isArray(bucket[k]) ? bucket[k] : []));
+}
+
+function migrateLegacyBreakIfNeeded() {
+  try {
+    const legacyKey = 'estoque_break_v1';
+    const raw = localStorage.getItem(legacyKey);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.removeItem(legacyKey);
+      return;
+    }
+    const bucket = loadBreakEventsBucketRaw();
+    const hasNew = Object.keys(bucket).some((k) => Array.isArray(bucket[k]) && bucket[k].length > 0);
+    if (hasNew) {
+      localStorage.removeItem(legacyKey);
+      return;
+    }
+    const day = getBrazilDateKey();
+    if (!bucket[day]) bucket[day] = [];
+    for (const e of parsed) {
+      if (!e || !e.item_code) continue;
+      bucket[day].push({
+        client_event_id: e.client_event_id || makeEventId(),
+        item_code: normalizeItemCode(String(e.item_code)),
+        count_type: 'unidade',
+        quantity: Number(e.quantity) || 0,
+        observed_at: e.observed_at || new Date().toISOString(),
+        synced: Boolean(e.synced),
+        device_name: e.device_name || getDeviceName(),
+        operational_date: day,
+        reason: null,
+      });
+    }
+    saveBreakEventsBucketRaw(bucket);
+    localStorage.removeItem(legacyKey);
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadBreakEventsBucketRaw() {
+  migrateLegacyBreakIfNeeded();
+  try {
+    const raw = localStorage.getItem(BREAK_EVENTS_BUCKET_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveBreakEventsBucketRaw(bucket) {
+  try {
+    localStorage.setItem(BREAK_EVENTS_BUCKET_KEY, JSON.stringify(bucket));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadBreakEventsForDate(dateKey) {
+  const bucket = loadBreakEventsBucketRaw();
+  const arr = bucket[dateKey];
+  return Array.isArray(arr) ? arr : [];
+}
+
+function saveBreakEventsForDate(dateKey, events) {
+  const bucket = loadBreakEventsBucketRaw();
+  bucket[dateKey] = events;
+  saveBreakEventsBucketRaw(bucket);
+}
+
+function flattenAllBreakEventsFromBucket() {
+  const bucket = loadBreakEventsBucketRaw();
+  return Object.keys(bucket).flatMap((k) => (Array.isArray(bucket[k]) ? bucket[k] : []));
+}
+
+function markBreakEventsSyncedInBucket(syncedIds) {
+  const ids = syncedIds instanceof Set ? syncedIds : new Set(syncedIds);
+  if (!ids.size) return;
+  const bucket = loadBreakEventsBucketRaw();
+  let changed = false;
+  for (const k of Object.keys(bucket)) {
+    const arr = bucket[k];
+    if (!Array.isArray(arr)) continue;
+    for (let i = 0; i < arr.length; i++) {
+      const e = arr[i];
+      if (e && ids.has(e.client_event_id)) {
+        bucket[k][i] = { ...e, synced: true, synced_at: new Date().toISOString() };
+        changed = true;
+      }
+    }
+  }
+  if (changed) saveBreakEventsBucketRaw(bucket);
 }
 
 function markEventsSyncedInBucket(syncedIds) {
@@ -1623,6 +1743,98 @@ function getNetByProductAndType(productCode, countType) {
     sum += Number(event.quantity || 0);
   }
   return sum;
+}
+
+function loadBreakEvents() {
+  return loadBreakEventsForDate(getActiveBreakDateKey());
+}
+
+function getUnsyncedNetBreakByProductAndType(productCode, countType) {
+  const base = normalizeItemCode(productCode);
+  const ct = normalizeCountType(countType);
+  let sum = 0;
+  for (const event of loadBreakEvents()) {
+    if (event.synced) continue;
+    if (normalizeItemCode(event.item_code || '') !== base) continue;
+    if (normalizeCountType(event.count_type) !== ct) continue;
+    sum += Number(event.quantity || 0);
+  }
+  return sum;
+}
+
+function getServerNetBreakForProductAndType(productCode, countType) {
+  if (!breakServerBreakState.ok) return 0;
+  const base = normalizeItemCode(productCode);
+  const ct = normalizeCountType(countType);
+  const b = breakServerBreakState.balances[base];
+  if (!b) return 0;
+  return ct === 'unidade' ? Number(b.unidade) || 0 : Number(b.caixa) || 0;
+}
+
+/**
+ * Readout de quebra no dia (#break-date): servidor + pendente local não sincronizado.
+ */
+function getNetBreakByProductAndType(productCode, countType) {
+  const base = normalizeItemCode(productCode);
+  const ct = normalizeCountType(countType);
+  const unsynced = getUnsyncedNetBreakByProductAndType(productCode, countType);
+  if (breakServerBreakState.ok) {
+    return getServerNetBreakForProductAndType(productCode, countType) + unsynced;
+  }
+  let sum = 0;
+  for (const event of loadBreakEvents()) {
+    if (normalizeItemCode(event.item_code || '') !== base) continue;
+    if (normalizeCountType(event.count_type) !== ct) continue;
+    sum += Number(event.quantity || 0);
+  }
+  return sum;
+}
+
+async function loadServerBreakTotals() {
+  if (loadServerBreakTotalsInFlight) {
+    return loadServerBreakTotalsInFlight;
+  }
+  loadServerBreakTotalsInFlight = (async () => {
+    const token = getToken();
+    if (!token) {
+      breakServerBreakState = { ok: false, balances: {} };
+      return;
+    }
+    if (unauthorizedRedirectInProgress) {
+      breakServerBreakState = { ok: false, balances: {} };
+      return;
+    }
+    if (isAccessTokenExpired(token)) {
+      breakServerBreakState = { ok: false, balances: {} };
+      handleUnauthorizedResponse({ status: 401 });
+      return;
+    }
+    try {
+      const params = new URLSearchParams();
+      params.set('operational_date', getActiveBreakDateKey());
+      const response = await apiFetch(`${API_BREAK_DAY_TOTALS}?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      });
+      if (handleUnauthorizedResponse(response)) {
+        breakServerBreakState = { ok: false, balances: {} };
+        return;
+      }
+      if (!response.ok) {
+        breakServerBreakState = { ok: false, balances: {} };
+        return;
+      }
+      const data = await response.json();
+      breakServerBreakState = { ok: true, balances: data.balances || {} };
+    } catch {
+      breakServerBreakState = { ok: false, balances: {} };
+    }
+  })();
+  try {
+    await loadServerBreakTotalsInFlight;
+  } finally {
+    loadServerBreakTotalsInFlight = null;
+  }
 }
 
 async function loadServerCountTotals() {
