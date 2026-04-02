@@ -275,8 +275,8 @@ let validityServerLines = [];
 let validityLastCountState = { ok: false, balances: {} };
 /** KPI clicável ativo (filtro rápido); null = nenhum. */
 let validityActiveKpiKey = null;
-/** Produto selecionado na lista (painel de detalhe no desktop). */
-let validityLaunchSelectedCod = null;
+/** Produto selecionado na tabela da análise (painel lateral). */
+let validityAnalysisSelectedCod = null;
 /** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
 let countServerCountState = { ok: false, balances: {} };
 const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
@@ -479,7 +479,19 @@ let countKpiTicker = null;
 let countAuditPollingTimer = null;
 
 const PAGE_KEYS_BY_MODULE = {
-  contagem: ['contagem', 'count', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'],
+  contagem: [
+    'contagem',
+    'count',
+    'pull',
+    'return',
+    'break',
+    'direct-sale',
+    'validity',
+    'validity-launch',
+    'validity-analysis',
+    'import-txt',
+    'count-audit',
+  ],
   cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'parametros-produto'],
   acesso: ['acesso'],
 };
@@ -501,7 +513,8 @@ const REGISTER_ACCESS_GROUPS = [
       { key: 'return', label: 'Devolução' },
       { key: 'break', label: 'Quebra' },
       { key: 'direct-sale', label: 'Venda Direta' },
-      { key: 'validity', label: 'Data de Vencimento' },
+      { key: 'validity-launch', label: 'Lançamento de Validade' },
+      { key: 'validity-analysis', label: 'Análise de Validades' },
       { key: 'import-txt', label: 'Importar Estoque (TXT)' },
       { key: 'count-audit', label: 'Análise de Contagem' },
     ],
@@ -527,7 +540,8 @@ const REGISTER_PROFILE_PRESETS = {
     'return',
     'break',
     'direct-sale',
-    'validity',
+    'validity-launch',
+    'validity-analysis',
     'import-txt',
     'count-audit',
     'cadastro-produto',
@@ -541,9 +555,9 @@ const REGISTER_PROFILE_PRESETS = {
     'return',
     'break',
     'direct-sale',
-    'validity',
+    'validity-launch',
     'import-txt',
-    /* count-audit: só com permissão explícita no cadastro do usuário (não no preset) */
+    /* count-audit / validity-analysis: só com permissão explícita ou perfil administrativo */
   ],
 };
 
@@ -553,14 +567,24 @@ const MODULE_ACCESS = {
   acesso: ['administrativo', 'admin'],
 };
 
-const SUB_MODULES = ['count', 'pull', 'return', 'break', 'direct-sale', 'validity', 'import-txt', 'count-audit'];
+const SUB_MODULES = [
+  'count',
+  'pull',
+  'return',
+  'break',
+  'direct-sale',
+  'validity-launch',
+  'validity-analysis',
+  'import-txt',
+  'count-audit',
+];
 const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'parametros-produto'];
 const SUB_TO_PARENT = {};
 SUB_MODULES.forEach(s => { SUB_TO_PARENT[s] = 'contagem'; });
 CADASTRO_SUBS.forEach(s => { SUB_TO_PARENT[s] = 'cadastro'; });
 
 /** Não liberar só por ter "contagem" em allowed_pages (auditoria / análise). */
-const SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED = new Set(['count-audit']);
+const SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED = new Set(['count-audit', 'validity-analysis']);
 
 const PAGE_TITLES = {
   inicio: 'Página inicial',
@@ -572,7 +596,9 @@ const PAGE_TITLES = {
   return: 'Devolução',
   break: 'Quebra',
   'direct-sale': 'Venda Direta',
-  validity: 'Data de Vencimento',
+  'validity-launch': 'Lançamento de Validade',
+  'validity-analysis': 'Análise de Validades',
+  validity: 'Lançamento de Validade',
   'import-txt': 'Importar Estoque',
   'count-audit': 'Análise de Contagem',
   'cadastro-produto': 'Cadastro de Produto',
@@ -613,7 +639,8 @@ const ACCESS_CATEGORIES = [
       { module: 'Devolução', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Quebra', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Venda Direta', roles: ['conferente', 'administrativo', 'admin'] },
-      { module: 'Data de Vencimento', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Lançamento de Validade', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Análise de Validades', roles: ['administrativo', 'admin'] },
     ],
   },
   {
@@ -680,8 +707,8 @@ function setActiveSub(subKey) {
     loadCountProducts();
   } else if (subKey === 'count-audit') {
     startCountAuditPolling();
-  } else if (subKey === 'validity') {
-    loadValidityModule();
+  } else if (subKey === 'validity-launch' || subKey === 'validity-analysis') {
+    loadValidityModuleForSub(subKey);
   }
 }
 
@@ -709,6 +736,14 @@ function setActiveModule(moduleKey, updateHistory = true) {
       history.replaceState(null, '', `${APP_BASE_PATH}#contagem`);
     }
     setActiveModule('contagem', false);
+    return;
+  }
+  // Validade unificada antiga: redireciona para lançamento (conferente); analista usa #validity-analysis
+  if (normalized === 'validity') {
+    if (updateHistory) {
+      history.replaceState(null, '', `${APP_BASE_PATH}#validity-launch`);
+    }
+    setActiveModule('validity-launch', false);
     return;
   }
 
@@ -751,6 +786,16 @@ function setActiveModule(moduleKey, updateHistory = true) {
   }
 }
 
+/** Bases com `validity` legado ganham acesso aos dois submódulos atuais. */
+function expandUserAllowedPagesForValidity(pages) {
+  const arr = [...pages];
+  if (arr.includes('validity')) {
+    if (!arr.includes('validity-launch')) arr.push('validity-launch');
+    if (!arr.includes('validity-analysis')) arr.push('validity-analysis');
+  }
+  return arr;
+}
+
 function canAccessHash(hashKey) {
   if (currentRole === 'admin') return true;
   const k = String(hashKey || '').trim().toLowerCase();
@@ -760,17 +805,23 @@ function canAccessHash(hashKey) {
     return canAccessModule('contagem');
   }
 
+  if (k === 'validity') {
+    return canAccessHash('validity-launch');
+  }
+
   if (SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED.has(k)) {
     if (currentAllowedPages.length) {
-      return currentAllowedPages.includes(k);
+      const expanded = expandUserAllowedPagesForValidity(currentAllowedPages);
+      return expanded.includes(k);
     }
     return ['administrativo', 'admin'].includes(currentRole);
   }
 
   if (currentAllowedPages.length) {
-    if (currentAllowedPages.includes(k)) return true;
+    const expanded = expandUserAllowedPagesForValidity(currentAllowedPages);
+    if (expanded.includes(k)) return true;
     const parent = SUB_TO_PARENT[k];
-    if (parent && currentAllowedPages.includes(parent)) return true;
+    if (parent && expanded.includes(parent)) return true;
     return false;
   }
   const parent = SUB_TO_PARENT[k];
@@ -1095,7 +1146,11 @@ function openUserEditPanel(user) {
     : [];
   document.querySelectorAll('.edit-access-item').forEach((node) => {
     const key = (node.value || '').trim().toLowerCase();
-    node.checked = pages.includes(key);
+    let checked = pages.includes(key);
+    if (key === 'validity-launch' || key === 'validity-analysis') {
+      checked = checked || pages.includes('validity');
+    }
+    node.checked = checked;
   });
   syncEditAllToggle();
   if (editProfilePreset) editProfilePreset.value = 'custom';
@@ -1821,11 +1876,31 @@ function flattenValidityPendingAll() {
   return Object.keys(b).flatMap((k) => (Array.isArray(b[k]) ? b[k] : []));
 }
 
+function getActiveValiditySubKey() {
+  if (document.getElementById('sub-validity-launch')?.classList.contains('active')) return 'validity-launch';
+  if (document.getElementById('sub-validity-analysis')?.classList.contains('active')) return 'validity-analysis';
+  return null;
+}
+
 function setValidityFeedback(msg, isError = false) {
-  const el = document.getElementById('validity-feedback');
+  const sub = getActiveValiditySubKey();
+  const id =
+    sub === 'validity-analysis' ? 'validity-analysis-feedback' : 'validity-launch-feedback';
+  const el = document.getElementById(id);
   if (!el) return;
   el.textContent = msg || '';
   el.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+function updateValidityPendingBadges() {
+  const pending = flattenValidityPendingAll().filter((e) => !e.synced).length;
+  const text = `${pending} pendentes`;
+  ['validity-launch-pending-badge', 'validity-analysis-pending-badge'].forEach((bid) => {
+    const badge = document.getElementById(bid);
+    if (!badge) return;
+    badge.hidden = pending === 0;
+    badge.textContent = text;
+  });
 }
 
 function renderCountProducts(products) {
@@ -2468,19 +2543,22 @@ async function loadValidityProductsCatalog() {
 }
 
 function updateValidityReadonlyState() {
-  const shell = document.getElementById('validity-products-shell');
   const editable = isValidityOperationalEditable();
-  if (shell) {
-    shell.classList.toggle('validity-products-shell--readonly', !editable);
-  }
-  const banner = document.getElementById('validity-readonly-banner');
-  if (banner) {
-    const show = !editable;
-    banner.hidden = !show;
-    banner.textContent = show
-      ? `Modo consulta (${getActiveValidityOpDateKey()}). Lancamentos apenas na data de hoje (${getBrazilDateKey()}).`
-      : '';
-  }
+  document
+    .getElementById('validity-launch-shell')
+    ?.classList.toggle('validity-products-shell--readonly', !editable);
+  document
+    .getElementById('validity-analysis-shell')
+    ?.classList.toggle('validity-products-shell--readonly', !editable);
+  const msg = !editable
+    ? `Modo consulta (${getActiveValidityOpDateKey()}). Lancamentos apenas na data de hoje (${getBrazilDateKey()}).`
+    : '';
+  ['validity-launch-readonly-banner', 'validity-analysis-readonly-banner'].forEach((id) => {
+    const banner = document.getElementById(id);
+    if (!banner) return;
+    banner.hidden = editable;
+    banner.textContent = msg;
+  });
 }
 
 function updateValidityKpis(allRows, todayBr) {
@@ -2518,26 +2596,26 @@ function updateValidityKpis(allRows, todayBr) {
     const n = document.getElementById(id);
     if (n) n.textContent = String(v);
   };
-  set('validity-kpi-with', withLine);
-  set('validity-kpi-without', without);
-  set('validity-kpi-expired', expired);
-  set('validity-kpi-d30', c30);
-  set('validity-kpi-d60', c60);
-  set('validity-kpi-d90', c90);
-  set('validity-kpi-d120', c120);
-  set('validity-kpi-d150', c150);
-  set('validity-kpi-d180', c180);
-  set('validity-kpi-oldbase', productsOldBase);
-  set('validity-kpi-nocount', productsNoCount);
+  set('validity-analysis-kpi-with', withLine);
+  set('validity-analysis-kpi-without', without);
+  set('validity-analysis-kpi-expired', expired);
+  set('validity-analysis-kpi-d30', c30);
+  set('validity-analysis-kpi-d60', c60);
+  set('validity-analysis-kpi-d90', c90);
+  set('validity-analysis-kpi-d120', c120);
+  set('validity-analysis-kpi-d150', c150);
+  set('validity-analysis-kpi-d180', c180);
+  set('validity-analysis-kpi-oldbase', productsOldBase);
+  set('validity-analysis-kpi-nocount', productsNoCount);
 
-  const ls = document.getElementById('validity-last-sync');
+  const ls = document.getElementById('validity-analysis-last-sync');
   if (ls) ls.textContent = `Última sincronização: ${formatValidityLastSyncDisplay()}`;
 
   const total = allRows.length;
   const pct = total > 0 ? Math.min(100, Math.round((withLine / total) * 100)) : 0;
-  const fill = document.getElementById('validity-progress-fill');
-  const pp = document.getElementById('validity-progress-percent');
-  const pd = document.getElementById('validity-progress-detail');
+  const fill = document.getElementById('validity-analysis-progress-fill');
+  const pp = document.getElementById('validity-analysis-progress-percent');
+  const pd = document.getElementById('validity-analysis-progress-detail');
   if (fill) fill.style.width = `${pct}%`;
   if (pp) pp.textContent = `${pct}%`;
   if (pd) pd.textContent = `${withLine} de ${total} produtos com validade lançada`;
@@ -2571,7 +2649,7 @@ function rowMatchesValidityKpi(row, kpi, todayBr) {
 }
 
 function syncValidityKpiChipStyles() {
-  document.querySelectorAll('#validity-kpi-strip [data-validity-kpi]').forEach((btn) => {
+  document.querySelectorAll('#validity-analysis-kpi-strip [data-validity-kpi]').forEach((btn) => {
     const k = btn.getAttribute('data-validity-kpi');
     const on = validityActiveKpiKey === k;
     btn.classList.toggle('validity-kpi--active', on);
@@ -2579,10 +2657,10 @@ function syncValidityKpiChipStyles() {
   });
 }
 
-function filterValidityRows(rows) {
-  const term = (document.getElementById('validity-item-code')?.value || '').trim().toLowerCase();
-  const grupo = (document.getElementById('validity-group')?.value || '').trim().toLowerCase();
-  const risk = (document.getElementById('validity-risk-filter')?.value || 'all').trim();
+function filterValidityAnalysisRows(rows) {
+  const term = (document.getElementById('validity-analysis-item-code')?.value || '').trim().toLowerCase();
+  const grupo = (document.getElementById('validity-analysis-group')?.value || '').trim().toLowerCase();
+  const risk = (document.getElementById('validity-analysis-risk-filter')?.value || 'all').trim();
   const todayBr = getBrazilDateKey();
 
   return rows.filter((row) => {
@@ -2591,7 +2669,7 @@ function filterValidityRows(rows) {
     const codigo = (p.cod_produto || '').toLowerCase();
     if (term && !codigo.includes(term) && !desc.includes(term)) return false;
     if (grupo && !desc.includes(grupo)) return false;
-    const launch = (document.getElementById('validity-launch-filter')?.value || 'all').trim();
+    const launch = (document.getElementById('validity-analysis-launch-filter')?.value || 'all').trim();
     if (launch === 'no_line' && row.lines.length > 0) return false;
     if (launch === 'has_line' && row.lines.length === 0) return false;
     if (!rowMatchesValidityKpi(row, validityActiveKpiKey, todayBr)) return false;
@@ -2623,6 +2701,22 @@ function filterValidityRows(rows) {
   });
 }
 
+function filterValidityLaunchRows(rows) {
+  const term = (document.getElementById('validity-launch-item-code')?.value || '').trim().toLowerCase();
+  const grupo = (document.getElementById('validity-launch-group')?.value || '').trim().toLowerCase();
+  const launch = (document.getElementById('validity-launch-simple-filter')?.value || 'all').trim();
+  return rows.filter((row) => {
+    const p = row.product;
+    const desc = (p.cod_grup_descricao || '').toLowerCase();
+    const codigo = (p.cod_produto || '').toLowerCase();
+    if (term && !codigo.includes(term) && !desc.includes(term)) return false;
+    if (grupo && !desc.includes(grupo)) return false;
+    if (launch === 'no_line' && row.lines.length > 0) return false;
+    if (launch === 'has_line' && row.lines.length === 0) return false;
+    return true;
+  });
+}
+
 function sortValidityRows(rows, sortMode, todayBr) {
   const out = [...rows];
   if (sortMode === 'name') {
@@ -2646,8 +2740,8 @@ function sortValidityRows(rows, sortMode, todayBr) {
 function filterValidityProductsForView(products) {
   const todayBr = getBrazilDateKey();
   const rows = (products || []).map(buildValidityRowForProduct);
-  const sortMode = (document.getElementById('validity-sort')?.value || 'priority').trim();
-  return sortValidityRows(filterValidityRows(rows), sortMode, todayBr);
+  const sortMode = (document.getElementById('validity-analysis-sort')?.value || 'priority').trim();
+  return sortValidityRows(filterValidityAnalysisRows(rows), sortMode, todayBr);
 }
 
 function getLatestValidityLineByObserved(lines) {
@@ -2733,20 +2827,16 @@ function buildValidityDetailBodyHtml(row, todayBr) {
   return `${refMetrics}<p class="validity-detail-hint muted">Datas neste dia operacional</p><div class="validity-lines-table-wrap"><table class="validity-lines-table"><thead><tr><th>Vencimento</th><th>Faixa</th><th>Quem</th><th>Quando</th><th></th></tr></thead><tbody>${linesHtml}</tbody></table></div>${addBlock}`;
 }
 
-function renderValidityDetailPanel(row) {
-  const panel = document.getElementById('validity-launch-detail-panel');
-  const inner = document.getElementById('validity-launch-detail-inner');
-  const lead = document.getElementById('validity-launch-detail-lead');
-  if (!panel || !inner) return;
-  const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
+function renderValidityAnalysisDetailPanel(row) {
+  const inner = document.getElementById('validity-analysis-detail-inner');
+  const lead = document.getElementById('validity-analysis-detail-lead');
+  if (!inner) return;
   if (!row) {
     inner.innerHTML =
-      '<p class="muted validity-launch-detail-placeholder">Selecione um produto na lista para ver contagem de referência e histórico de validades.</p>';
+      '<p class="muted validity-analysis-detail-placeholder">Selecione um produto na tabela para ver contagem de referência, métricas e histórico de validades.</p>';
     if (lead) lead.textContent = '';
-    panel.hidden = !!narrow;
     return;
   }
-  panel.hidden = false;
   const name = escapeHtml((row.product?.cod_grup_descricao || row.cod || '').trim());
   if (lead) {
     lead.innerHTML = `<strong>${name}</strong> · <span class="validity-launch-detail-code">${escapeHtml(row.cod)}</span>`;
@@ -2755,7 +2845,6 @@ function renderValidityDetailPanel(row) {
 }
 
 function openValidityHistoryDialog(row) {
-  if (row?.cod) setValidityLaunchSelection(row.cod);
   const dlg = document.getElementById('validity-history-dialog');
   const body = document.getElementById('validity-history-dialog-body');
   const title = document.getElementById('validity-history-dialog-title');
@@ -2766,21 +2855,24 @@ function openValidityHistoryDialog(row) {
   dlg.showModal();
 }
 
-function setValidityLaunchSelection(cod) {
-  validityLaunchSelectedCod = cod ? normalizeItemCode(cod) : null;
-  document.querySelectorAll('.validity-launch-row').forEach((li) => {
-    const c = li.dataset.code || '';
-    li.classList.toggle('is-selected', !!validityLaunchSelectedCod && c === validityLaunchSelectedCod);
+function setValidityAnalysisSelection(cod) {
+  validityAnalysisSelectedCod = cod ? normalizeItemCode(cod) : null;
+  document.querySelectorAll('.validity-analysis-row').forEach((tr) => {
+    const c = tr.dataset.code || '';
+    tr.classList.toggle('is-selected', !!validityAnalysisSelectedCod && c === validityAnalysisSelectedCod);
   });
-  const row = window._validityRowsByCod?.get(validityLaunchSelectedCod);
-  if (window.matchMedia('(min-width: 900px)').matches) {
-    renderValidityDetailPanel(row || null);
-  }
+  const row = window._validityRowsByCod?.get(validityAnalysisSelectedCod);
+  renderValidityAnalysisDetailPanel(row || null);
 }
 
-function renderValidityProductList() {
-  const ul = document.getElementById('validity-products-list');
-  const totalEl = document.getElementById('validity-products-total');
+function refreshValidityUiAfterMutation() {
+  const sub = getActiveValiditySubKey();
+  if (sub === 'validity-launch') renderValidityLaunchProductList();
+  else if (sub === 'validity-analysis') renderValidityAnalysisView();
+}
+
+function renderValidityLaunchProductList() {
+  const ul = document.getElementById('validity-launch-products-list');
   if (!ul) return;
 
   const isActive = (status) => {
@@ -2789,116 +2881,162 @@ function renderValidityProductList() {
     return false;
   };
   const ativos = (validityProductsCache || []).filter((p) => isActive(p.status));
-  if (totalEl) totalEl.textContent = String(ativos.length);
-
   const todayBr = getBrazilDateKey();
   const allRows = ativos.map(buildValidityRowForProduct);
-  updateValidityKpis(allRows, todayBr);
-  const sortMode = (document.getElementById('validity-sort')?.value || 'priority').trim();
-  const rows = sortValidityRows(filterValidityRows(allRows), sortMode, todayBr);
+  window._validityRowsByCod = new Map(allRows.map((r) => [r.cod, r]));
 
-  if (validityLaunchSelectedCod && !rows.some((r) => String(r.cod) === String(validityLaunchSelectedCod))) {
-    validityLaunchSelectedCod = null;
-  }
-
-  window._validityRowsByCod = new Map(rows.map((r) => [r.cod, r]));
-
-  const statsEl = document.getElementById('validity-launch-stats');
-  if (statsEl) {
-    const noline = rows.filter((r) => !r.lines.length).length;
-    const withl = rows.length - noline;
-    statsEl.textContent = `Neste filtro: ${withl} com validade lançada · ${noline} sem lançamento`;
-  }
+  const rows = sortValidityRows(filterValidityLaunchRows(allRows), 'name', todayBr);
 
   ul.innerHTML = '';
   if (!rows.length) {
     ul.innerHTML = '<li class="validity-empty"><span>Nenhum produto no filtro atual.</span></li>';
-    syncValidityKpiChipStyles();
     updateValidityReadonlyState();
-    renderValidityDetailPanel(null);
     return;
   }
 
   const enc = encodeURIComponent;
+  const editable = isValidityOperationalEditable();
 
   for (const row of rows) {
     const p = row.product;
     const cod = row.cod;
     const desc = escapeHtml((p.cod_grup_descricao || cod).trim());
     const lines = row.lines;
-    const snap = getValidityLastCountSnapshot(cod);
-    const opCat = operationalValidityPrimaryCategory(lines, todayBr);
-    const hasSnap = !!snap;
-    const baseOld = !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
-    const tone = validityCardTone(opCat, lines.length > 0, hasSnap, baseOld);
-    const hint = buildValidityHintLine(lines, todayBr);
-    const codRefEnc = enc(cod);
-    const editable = isValidityOperationalEditable();
     const hasLines = lines.length > 0;
-    const isSel = validityLaunchSelectedCod && String(validityLaunchSelectedCod) === String(cod);
-
-    const countCompact = snap
-      ? `${formatIntegerBR(snap.cx)} CX · ${formatIntegerBR(snap.un)} UN`
-      : 'Sem contagem';
+    const codRefEnc = enc(cod);
 
     const li = document.createElement('li');
-    li.className = `validity-product-item validity-launch-row${isSel ? ' is-selected' : ''}`;
+    li.className = 'validity-conf-item validity-launch-row';
     li.dataset.code = cod;
     li.innerHTML = `
-      <article class="validity-launch-card validity-launch-card--${tone} ${hasLines ? 'validity-launch-card--has' : 'validity-launch-card--pending'}" data-code="${escapeHtml(cod)}">
-        <div class="validity-launch-card-head">
-          <div class="validity-launch-identity">
-            <h3 class="validity-launch-product-name">${desc}</h3>
-            <span class="validity-launch-product-code">${escapeHtml(cod)}</span>
-          </div>
-          <span class="validity-launch-badge ${hasLines ? 'validity-launch-badge--ok' : 'validity-launch-badge--pending'}">${hasLines ? 'Com validade' : 'Pendente'}</span>
+      <article class="validity-conf-card ${hasLines ? 'validity-conf-card--done' : 'validity-conf-card--pending'}" data-code="${escapeHtml(cod)}">
+        <div class="validity-conf-card-top">
+          <h3 class="validity-conf-name">${desc}</h3>
+          <span class="validity-conf-pill ${hasLines ? 'validity-conf-pill--ok' : 'validity-conf-pill--wait'}" aria-label="${hasLines ? 'Com validade neste dia' : 'Pendente'}">${hasLines ? 'Lançado' : 'Pendente'}</span>
         </div>
-        <p class="validity-launch-meta muted" aria-label="Referência de contagem">Cont.: ${escapeHtml(countCompact)}</p>
-        <p class="validity-launch-hint muted">${escapeHtml(hint)}</p>
-        <div class="validity-launch-controls">
-          <label class="sr-only" for="validity-exp-${codRefEnc}">Data de validade</label>
-          <input type="date" class="count-filter-input validity-launch-date validity-inp-exp" id="validity-exp-${codRefEnc}" data-coderef="${codRefEnc}" ${editable ? '' : 'disabled'} />
-          <button type="button" class="btn btn-primary validity-btn-add validity-launch-save" data-coderef="${codRefEnc}" ${editable ? '' : 'disabled'}>Salvar</button>
-          <button type="button" class="btn btn-secondary validity-btn-history validity-launch-history-btn" data-coderef="${codRefEnc}">Ver histórico</button>
+        <p class="validity-conf-code">${escapeHtml(cod)}</p>
+        <div class="validity-conf-actions">
+          <label class="sr-only" for="validity-launch-exp-${codRefEnc}">Data de validade</label>
+          <input type="date" class="count-filter-input validity-launch-date validity-inp-exp validity-conf-date" id="validity-launch-exp-${codRefEnc}" data-coderef="${codRefEnc}" ${editable ? '' : 'disabled'} />
+          <button type="button" class="btn btn-primary validity-btn-add validity-launch-save validity-conf-save" data-coderef="${codRefEnc}" ${editable ? '' : 'disabled'}>Salvar</button>
         </div>
+        <button type="button" class="btn-text validity-conf-history validity-btn-history" data-coderef="${codRefEnc}">Histórico</button>
       </article>`;
     ul.appendChild(li);
+  }
+
+  updateValidityReadonlyState();
+}
+
+function renderValidityAnalysisView() {
+  const tbody = document.getElementById('validity-analysis-tbody');
+  const statusEl = document.getElementById('validity-analysis-process-status');
+  if (!tbody) return;
+
+  const isActive = (status) => {
+    const s = String(status || '').trim().toLowerCase();
+    if (!s || s === 'ativo' || s === 's' || s === 'sim' || s === '1' || s === 'true') return true;
+    return false;
+  };
+  const ativos = (validityProductsCache || []).filter((p) => isActive(p.status));
+  const todayBr = getBrazilDateKey();
+  const allRows = ativos.map(buildValidityRowForProduct);
+  window._validityRowsByCod = new Map(allRows.map((r) => [r.cod, r]));
+
+  updateValidityKpis(allRows, todayBr);
+  const sortMode = (document.getElementById('validity-analysis-sort')?.value || 'priority').trim();
+  const rows = sortValidityRows(filterValidityAnalysisRows(allRows), sortMode, todayBr);
+
+  if (statusEl) {
+    statusEl.textContent =
+      ativos.length === 0
+        ? 'Status: sem produtos ativos carregados'
+        : `Status: ${rows.length} produto(s) no filtro · ${ativos.length} ativos no catálogo`;
+  }
+
+  if (validityAnalysisSelectedCod && !rows.some((r) => String(r.cod) === String(validityAnalysisSelectedCod))) {
+    validityAnalysisSelectedCod = null;
+  }
+
+  const statsEl = document.getElementById('validity-analysis-launch-stats');
+  if (statsEl) {
+    const noline = rows.filter((r) => !r.lines.length).length;
+    const withl = rows.length - noline;
+    statsEl.textContent = `Neste filtro: ${withl} com validade lançada · ${noline} sem lançamento`;
+  }
+
+  tbody.innerHTML = '';
+  if (!rows.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="6" class="muted">Nenhum produto no filtro atual.</td></tr>';
+    syncValidityKpiChipStyles();
+    updateValidityReadonlyState();
+    setValidityAnalysisSelection(null);
+    return;
+  }
+
+  for (const row of rows) {
+    const p = row.product;
+    const cod = row.cod;
+    const lines = row.lines;
+    const snap = getValidityLastCountSnapshot(cod);
+    const st = validityStatusMainShort(operationalValidityPrimaryCategory(lines, todayBr), lines.length > 0, !!snap);
+    const anchorLn = operationalAnchorLine(lines, todayBr);
+    const nextBr = anchorLn
+      ? formatDateBrFromIso(String(anchorLn.expiration_date || '').slice(0, 10))
+      : lines.length > 0
+        ? 'Vencidos'
+        : '—';
+    const band =
+      lines.length > 0 ? validityRiskLabel(operationalValidityPrimaryCategory(lines, todayBr)) : '—';
+    const countRef = snap
+      ? `${formatIntegerBR(snap.cx)} CX / ${formatIntegerBR(snap.un)} UN`
+      : 'Sem contagem';
+
+    const tr = document.createElement('tr');
+    tr.className = 'validity-analysis-row';
+    tr.dataset.code = cod;
+    tr.innerHTML = `<td class="validity-analysis-cell-name">${escapeHtml((p.cod_grup_descricao || cod).trim())}</td>
+      <td>${escapeHtml(cod)}</td>
+      <td><span class="validity-analysis-status-pill">${escapeHtml(st.label)}</span></td>
+      <td>${escapeHtml(nextBr)}</td>
+      <td>${escapeHtml(band)}</td>
+      <td class="muted">${escapeHtml(countRef)}</td>`;
+    tbody.appendChild(tr);
   }
 
   syncValidityKpiChipStyles();
   updateValidityReadonlyState();
 
-  const sel = validityLaunchSelectedCod ? window._validityRowsByCod?.get(validityLaunchSelectedCod) : null;
-  if (window.matchMedia('(min-width: 900px)').matches) {
-    renderValidityDetailPanel(sel);
+  if (validityAnalysisSelectedCod && rows.some((r) => String(r.cod) === String(validityAnalysisSelectedCod))) {
+    setValidityAnalysisSelection(validityAnalysisSelectedCod);
   } else {
-    const pnl = document.getElementById('validity-launch-detail-panel');
-    if (pnl) pnl.hidden = true;
+    setValidityAnalysisSelection(rows[0]?.cod || null);
   }
 }
 
-/** Evita rolagem indesejada ao abrir /app#validity (fragmento, restauração ou reflow da lista). */
+/** Evita rolagem indesejada ao abrir módulos de validade (fragmento, restauração ou reflow). */
 function scrollDashboardToTop() {
   window.scrollTo(0, 0);
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
 }
 
-async function loadValidityModule() {
-  showDashboard();
-  scrollDashboardToTop();
+async function loadValidityShared() {
   const opEl = document.getElementById('validity-op-date');
   if (opEl) opEl.value = getBrazilDateKey();
   await loadLastCountPerProduct();
   await loadValidityLinesFromServer();
   await loadValidityProductsCatalog();
-  renderValidityProductList();
-  const pending = flattenValidityPendingAll().filter((e) => !e.synced).length;
-  const badge = document.getElementById('validity-pending-badge');
-  if (badge) {
-    badge.hidden = pending === 0;
-    badge.textContent = `${pending} pendentes`;
-  }
+}
+
+async function loadValidityModuleForSub(subKey) {
+  showDashboard();
+  scrollDashboardToTop();
+  await loadValidityShared();
+  if (subKey === 'validity-launch') renderValidityLaunchProductList();
+  else renderValidityAnalysisView();
+  updateValidityPendingBadges();
   scrollDashboardToTop();
   requestAnimationFrame(() => {
     scrollDashboardToTop();
@@ -2935,25 +3073,20 @@ function registerValidityLineLocal(codRaw, expirationDateStr) {
   saveValidityEventsForDate(dayKey, events);
   setValidityFeedback(`Validade ${ev.expiration_date} gravada localmente. Sincronize quando estiver online.`, false);
   const savedCod = cod;
-  renderValidityProductList();
+  refreshValidityUiAfterMutation();
   requestAnimationFrame(() => {
-    const list = document.querySelectorAll('#validity-products-list .validity-launch-row');
+    const list = document.querySelectorAll('#validity-launch-products-list .validity-launch-row');
     const ix = [...list].findIndex((li) => li.dataset.code === savedCod);
     const next = list[ix + 1];
     const target = next?.querySelector('.validity-launch-date') || list[ix]?.querySelector('.validity-launch-date');
     if (target && !target.disabled) target.focus();
-    const card = list[ix]?.querySelector('.validity-launch-card');
+    const card = list[ix]?.querySelector('.validity-conf-card');
     if (card) {
-      card.classList.add('validity-launch-card--flash');
-      setTimeout(() => card.classList.remove('validity-launch-card--flash'), 1200);
+      card.classList.add('validity-conf-card--flash');
+      setTimeout(() => card.classList.remove('validity-conf-card--flash'), 1200);
     }
   });
-  const pending = flattenValidityPendingAll().filter((e) => !e.synced).length;
-  const badge = document.getElementById('validity-pending-badge');
-  if (badge) {
-    badge.hidden = pending === 0;
-    badge.textContent = `${pending} pendentes`;
-  }
+  updateValidityPendingBadges();
   if (navigator.onLine) {
     syncValidityPending();
   }
@@ -3025,13 +3158,8 @@ async function syncValidityPending() {
     touchValidityLastSync();
     setValidityFeedback(`Sincronizado: ${synced.size} lancamento(s).`);
     await loadValidityLinesFromServer();
-    renderValidityProductList();
-    const badge = document.getElementById('validity-pending-badge');
-    const left = flattenValidityPendingAll().filter((e) => !e.synced).length;
-    if (badge) {
-      badge.hidden = left === 0;
-      badge.textContent = `${left} pendentes`;
-    }
+    refreshValidityUiAfterMutation();
+    updateValidityPendingBadges();
   } catch {
     setValidityFeedback('Erro de rede ao sincronizar.', true);
   }
@@ -3055,7 +3183,7 @@ async function removeValidityLine(lineId, clientId, codRaw) {
       return;
     }
     await loadValidityLinesFromServer();
-    renderValidityProductList();
+    refreshValidityUiAfterMutation();
     setValidityFeedback('Linha removida.');
     return;
   }
@@ -3063,40 +3191,87 @@ async function removeValidityLine(lineId, clientId, codRaw) {
     const events = loadValidityEventsForDate(dayKey);
     const next = events.filter((e) => e.client_event_id !== clientId);
     saveValidityEventsForDate(dayKey, next);
-    renderValidityProductList();
+    refreshValidityUiAfterMutation();
     setValidityFeedback('Lancamento local removido.');
   }
 }
 
-function bindValidityEvents() {
-  const shell = document.getElementById('validity-products-shell');
-  const opDate = document.getElementById('validity-op-date');
-  const itemCode = document.getElementById('validity-item-code');
-  const grp = document.getElementById('validity-group');
-  const risk = document.getElementById('validity-risk-filter');
-  const launchFilter = document.getElementById('validity-launch-filter');
-  const btnSync = document.getElementById('btn-validity-sync');
+function bindValidityShellClicks(shell) {
+  if (!shell || shell.dataset.validityBound === '1') return;
+  shell.dataset.validityBound = '1';
+  shell.addEventListener('click', (e) => {
+    const histBtn = e.target.closest('.validity-btn-history');
+    if (histBtn) {
+      e.stopPropagation();
+      const cref = histBtn.getAttribute('data-coderef') || '';
+      const cod = normalizeItemCode(decodeURIComponent(cref));
+      const row = window._validityRowsByCod?.get(cod);
+      if (row) openValidityHistoryDialog(row);
+      return;
+    }
+    const addBtn = e.target.closest('.validity-btn-add');
+    if (addBtn) {
+      const codRefEnc = addBtn.getAttribute('data-coderef') || '';
+      const cod = normalizeItemCode(decodeURIComponent(codRefEnc));
+      const expEl =
+        document.getElementById(`validity-launch-exp-${codRefEnc}`) ||
+        document.getElementById(`validity-exp-panel-${codRefEnc}`);
+      registerValidityLineLocal(cod, expEl && expEl.value);
+      if (expEl) expEl.value = '';
+      return;
+    }
+    const rem = e.target.closest('.btn-validity-remove');
+    if (rem) {
+      const lid = rem.getAttribute('data-line-id');
+      const cid = rem.getAttribute('data-client-id');
+      const cref = rem.getAttribute('data-coderef') || '';
+      const cod = normalizeItemCode(decodeURIComponent(cref));
+      removeValidityLine(lid ? Number(lid) : null, cid || null, cod);
+      return;
+    }
+    const analysisRow = e.target.closest('.validity-analysis-row');
+    if (analysisRow) {
+      const cod = analysisRow.dataset.code;
+      if (cod) setValidityAnalysisSelection(cod);
+      return;
+    }
+    const launchRow = e.target.closest('#validity-launch-products-list .validity-launch-row');
+    if (launchRow && !e.target.closest('input, button, textarea, select, a, label')) {
+      const inp = launchRow.querySelector('.validity-launch-date');
+      if (inp && !inp.disabled) requestAnimationFrame(() => inp.focus());
+    }
+  });
+}
 
-  if (itemCode) {
-    itemCode.addEventListener('input', () => renderValidityProductList());
-  }
-  if (grp) {
-    grp.addEventListener('input', () => renderValidityProductList());
-  }
-  if (risk) {
-    risk.addEventListener('change', () => renderValidityProductList());
-  }
-  if (launchFilter) {
-    launchFilter.addEventListener('change', () => {
-      validityLaunchSelectedCod = null;
-      renderValidityProductList();
+function bindValidityEvents() {
+  const launchShell = document.getElementById('validity-launch-shell');
+  const analysisShell = document.getElementById('validity-analysis-shell');
+  const opDate = document.getElementById('validity-op-date');
+
+  const launchItem = document.getElementById('validity-launch-item-code');
+  const launchGrp = document.getElementById('validity-launch-group');
+  const launchSit = document.getElementById('validity-launch-simple-filter');
+  if (launchItem) launchItem.addEventListener('input', () => renderValidityLaunchProductList());
+  if (launchGrp) launchGrp.addEventListener('input', () => renderValidityLaunchProductList());
+  if (launchSit) launchSit.addEventListener('change', () => renderValidityLaunchProductList());
+
+  const aItem = document.getElementById('validity-analysis-item-code');
+  const aGrp = document.getElementById('validity-analysis-group');
+  const aRisk = document.getElementById('validity-analysis-risk-filter');
+  const aLaunch = document.getElementById('validity-analysis-launch-filter');
+  const aSort = document.getElementById('validity-analysis-sort');
+  if (aItem) aItem.addEventListener('input', () => renderValidityAnalysisView());
+  if (aGrp) aGrp.addEventListener('input', () => renderValidityAnalysisView());
+  if (aRisk) aRisk.addEventListener('change', () => renderValidityAnalysisView());
+  if (aLaunch) {
+    aLaunch.addEventListener('change', () => {
+      validityAnalysisSelectedCod = null;
+      renderValidityAnalysisView();
     });
   }
-  const sortEl = document.getElementById('validity-sort');
-  if (sortEl) {
-    sortEl.addEventListener('change', () => renderValidityProductList());
-  }
-  const kpiStrip = document.getElementById('validity-kpi-strip');
+  if (aSort) aSort.addEventListener('change', () => renderValidityAnalysisView());
+
+  const kpiStrip = document.getElementById('validity-analysis-kpi-strip');
   if (kpiStrip && kpiStrip.dataset.kpiBound !== '1') {
     kpiStrip.dataset.kpiBound = '1';
     kpiStrip.addEventListener('click', (e) => {
@@ -3105,18 +3280,19 @@ function bindValidityEvents() {
       const k = btn.getAttribute('data-validity-kpi');
       if (!k) return;
       validityActiveKpiKey = validityActiveKpiKey === k ? null : k;
-      renderValidityProductList();
+      renderValidityAnalysisView();
     });
   }
+
   if (opDate) {
     opDate.addEventListener('change', async () => {
       await loadValidityLinesFromServer();
-      renderValidityProductList();
+      refreshValidityUiAfterMutation();
     });
   }
-  if (btnSync) {
-    btnSync.addEventListener('click', () => syncValidityPending());
-  }
+
+  document.getElementById('btn-validity-launch-sync')?.addEventListener('click', () => syncValidityPending());
+  document.getElementById('btn-validity-analysis-sync')?.addEventListener('click', () => syncValidityPending());
 
   const histDlg = document.getElementById('validity-history-dialog');
   if (histDlg && histDlg.dataset.bound !== '1') {
@@ -3127,49 +3303,8 @@ function bindValidityEvents() {
     });
   }
 
-  if (shell && shell.dataset.validityBound !== '1') {
-    shell.dataset.validityBound = '1';
-    shell.addEventListener('click', (e) => {
-      const histBtn = e.target.closest('.validity-btn-history');
-      if (histBtn) {
-        e.stopPropagation();
-        const cref = histBtn.getAttribute('data-coderef') || '';
-        const cod = normalizeItemCode(decodeURIComponent(cref));
-        const row = window._validityRowsByCod?.get(cod);
-        if (row) openValidityHistoryDialog(row);
-        return;
-      }
-      const addBtn = e.target.closest('.validity-btn-add');
-      if (addBtn) {
-        const codRefEnc = addBtn.getAttribute('data-coderef') || '';
-        const cod = normalizeItemCode(decodeURIComponent(codRefEnc));
-        const expEl =
-          document.getElementById(`validity-exp-${codRefEnc}`) ||
-          document.getElementById(`validity-exp-panel-${codRefEnc}`);
-        registerValidityLineLocal(cod, expEl && expEl.value);
-        if (expEl) expEl.value = '';
-        return;
-      }
-      const rem = e.target.closest('.btn-validity-remove');
-      if (rem) {
-        const lid = rem.getAttribute('data-line-id');
-        const cid = rem.getAttribute('data-client-id');
-        const cref = rem.getAttribute('data-coderef') || '';
-        const cod = normalizeItemCode(decodeURIComponent(cref));
-        removeValidityLine(lid ? Number(lid) : null, cid || null, cod);
-        return;
-      }
-      const launchRow = e.target.closest('.validity-launch-row');
-      if (launchRow && !e.target.closest('input, button, textarea, select, a, label')) {
-        const cod = launchRow.dataset.code;
-        if (cod) setValidityLaunchSelection(cod);
-        const inp = launchRow.querySelector('.validity-launch-date');
-        if (inp && !inp.disabled) {
-          requestAnimationFrame(() => inp.focus());
-        }
-      }
-    });
-  }
+  bindValidityShellClicks(launchShell);
+  bindValidityShellClicks(analysisShell);
 }
 
 function setProductFeedback(message, isError = false) {
@@ -4199,142 +4334,6 @@ if (countAuditSort) {
   });
 }
 
-async function loadCountAuditAnalysis() {
-  if (!countAuditImport || !countAuditList) return;
-  const token = getToken();
-  if (!token) return;
-
-  try {
-    const referenceDate = (countAuditImport.value || '').trim();
-    const onlyDiff = countAuditOnlyDiff ? countAuditOnlyDiff.checked : false;
-    const params = new URLSearchParams();
-    if (referenceDate) params.set('reference_date', referenceDate);
-    params.set('only_diff', onlyDiff ? 'true' : 'false');
-    params.set('only_active', 'true');
-    params.set('limit', '5000');
-
-    const response = await apiFetch(`${API_STOCK_ANALYSIS}?${params.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (handleUnauthorizedResponse(response)) return;
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
-      return;
-    }
-
-    const payload = await response.json();
-    const info = payload.import;
-    const rows = payload.rows || [];
-    countAuditSummaryFilterKey = null;
-
-    if (!info) {
-      setCountAuditFeedback(
-        'Não foi possível montar a análise. Verifique permissões ou tente novamente.',
-        true,
-      );
-      renderCountAuditSummary({});
-      window.lastCountAuditRows = [];
-      renderCountAuditRows([]);
-      return;
-    }
-
-    const isSynthetic = info.id == null;
-    if (isSynthetic) {
-      setCountAuditFeedback(
-        `${info.file_name || 'Análise sem TXT.'} Importe um TXT em Contagem → Importar Estoque quando quiser comparar com o saldo do arquivo.`,
-        false,
-      );
-    } else {
-      setCountAuditFeedback(
-        `Base de saldo (TXT): ${info.reference_date || '-'} — ${info.file_name || 'arquivo'}`,
-        false,
-      );
-    }
-
-    renderCountAuditSummary(payload.summary || {});
-    window.lastCountAuditRows = rows;
-    renderCountAuditRows(window.lastCountAuditRows);
-  } catch {
-    setCountAuditFeedback('Erro de conexão ao carregar análise de contagem.', true);
-  }
-}
-
-async function exportCountAuditExcel() {
-  const token = getToken();
-  if (!token) return;
-  if (!countAuditImport) return;
-
-  const referenceDate = (countAuditImport.value || '').trim();
-  const onlyDiff = countAuditOnlyDiff ? countAuditOnlyDiff.checked : false;
-  const params = new URLSearchParams();
-  if (referenceDate) params.set('reference_date', referenceDate);
-  params.set('only_diff', onlyDiff ? 'true' : 'false');
-  params.set('only_active', 'true');
-  params.set('limit', '20000');
-
-  setCountAuditFeedback('Gerando Excel...', false);
-
-  try {
-    const response = await apiFetch(`${API_STOCK_ANALYSIS_EXPORT_XLSX}?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (handleUnauthorizedResponse(response)) return;
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      setCountAuditFeedback(err.detail || 'Não foi possível gerar o Excel.', true);
-      return;
-    }
-    const blob = await response.blob();
-    let filename = 'analise-contagem.xlsx';
-    const cd = response.headers.get('Content-Disposition');
-    if (cd) {
-      const m = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd);
-      const raw = m ? decodeURIComponent(m[1] || m[2] || '') : '';
-      if (raw) filename = raw.trim();
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    setCountAuditFeedback('Excel baixado com sucesso.');
-  } catch {
-    setCountAuditFeedback('Falha ao baixar o Excel. Verifique a conexão.', true);
-  }
-}
-
-function bindCountAuditEvents() {
-  if (!countAuditImport) return;
-
-  if (btnCountAuditRefresh) {
-    btnCountAuditRefresh.addEventListener('click', () => {
-      loadCountAuditAnalysis();
-    });
-  }
-
-  if (btnCountAuditExportExcel) {
-    btnCountAuditExportExcel.addEventListener('click', () => {
-      exportCountAuditExcel();
-    });
-  }
-
-  if (countAuditImport) {
-    countAuditImport.addEventListener('change', () => {
-      loadCountAuditAnalysis();
-    });
-  }
-
-  if (countAuditOnlyDiff) {
-    countAuditOnlyDiff.addEventListener('change', () => {
-      loadCountAuditAnalysis();
-    });
-  }
-}
-
 const API_STOCK_ANALYSIS_DETAIL = '/audit/stock-analysis/detail';
 const countAuditGroupFilter = document.getElementById('count-audit-group');
 const countAuditStatusFilter = document.getElementById('count-audit-status');
@@ -5116,6 +5115,7 @@ async function loadCountAuditDetail(code, forceReload = false) {
     if (referenceDate) params.set('reference_date', referenceDate);
     const response = await apiFetch(`${API_STOCK_ANALYSIS_DETAIL}?${params.toString()}`, {
       headers: getAuthHeaders(),
+      cache: 'no-store',
     });
     if (handleUnauthorizedResponse(response)) return;
     if (!response.ok) {
@@ -5176,12 +5176,14 @@ async function loadCountAuditAnalysis() {
     const referenceDate = (countAuditImport.value || '').trim();
     const params = new URLSearchParams();
     if (referenceDate) params.set('reference_date', referenceDate);
+    /* only_diff fica no cliente (getCountAuditRowsFromState); API sempre traz base completa para os KPIs e o toggle. */
     params.set('only_diff', 'false');
     params.set('only_active', 'true');
     params.set('limit', '5000');
 
     const response = await apiFetch(`${API_STOCK_ANALYSIS}?${params.toString()}`, {
       headers: getAuthHeaders(),
+      cache: 'no-store',
     });
     if (handleUnauthorizedResponse(response)) return;
     if (!response.ok) {
@@ -5302,7 +5304,13 @@ function openCountAuditRecount(code) {
 function bindCountAuditEvents() {
   if (!countAuditImport) return;
   if (btnCountAuditRefresh) {
-    btnCountAuditRefresh.addEventListener('click', () => loadCountAuditAnalysis());
+    btnCountAuditRefresh.addEventListener('click', async () => {
+      setCountAuditFeedback('Sincronizando análise...', false);
+      if (navigator.onLine && getToken()) {
+        await syncPendingEventsForAudit();
+      }
+      await loadCountAuditAnalysis();
+    });
   }
   if (btnCountAuditExportExcel) {
     btnCountAuditExportExcel.addEventListener('click', () => exportCountAuditExcel());

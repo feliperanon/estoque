@@ -5375,7 +5375,7 @@ button.validity-kpi {
   background: rgba(251, 191, 36, 0.25);
   border-color: rgba(217, 119, 6, 0.35);
 }
-#sub-validity .validity-products-shell {
+#sub-validity-analysis .validity-analysis-shell {
   margin-top: 0;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
   background: var(--white);
@@ -5651,27 +5651,27 @@ details[open] > .validity-analytic-summary::after {
   margin-bottom: 8px;
 }
 @media (max-width: 768px) {
-  #sub-validity .validity-analytic-summary {
+  #sub-validity-analysis .validity-analytic-summary {
     padding: 5px 24px 5px 8px;
     border-left-width: 1px;
   }
-  #sub-validity .validity-analytic-name {
+  #sub-validity-analysis .validity-analytic-name {
     font-size: 0.8rem;
     -webkit-line-clamp: 2;
   }
-  #sub-validity .validity-sum-r2 .validity-pill {
+  #sub-validity-analysis .validity-sum-r2 .validity-pill {
     padding: 1px 5px;
     font-size: 0.56rem;
     letter-spacing: 0.03em;
   }
-  #sub-validity .validity-sum-r3 {
+  #sub-validity-analysis .validity-sum-r3 {
     font-size: 0.68rem;
     gap: 6px 10px;
   }
-  #sub-validity .validity-product-body {
+  #sub-validity-analysis .validity-product-body {
     padding: 6px 8px 10px;
   }
-  #sub-validity .validity-analytic-metrics--expanded {
+  #sub-validity-analysis .validity-analytic-metrics--expanded {
     margin: 0 0 8px;
     padding-top: 2px;
     gap: 6px 8px;
@@ -6010,6 +6010,257 @@ details[open] > .validity-analytic-summary::after {
   padding: 12px 12px 16px;
   overflow-y: auto;
   max-height: calc(85vh - 80px);
+}
+
+/* ── Lançamento de validade (conferente · mobile-first) ── */
+.validity-conf-page {
+  max-width: 520px;
+  margin: 0 auto;
+  padding-bottom: 1.5rem;
+}
+.validity-conf-header.card {
+  margin-bottom: 12px;
+}
+.validity-conf-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--ink, #0f172a);
+}
+.validity-conf-hint {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+}
+.validity-conf-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.validity-conf-field label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted, #64748b);
+}
+.validity-conf-search,
+.validity-conf-field .count-filter-input {
+  min-height: 48px;
+  font-size: 1rem;
+}
+.validity-conf-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.validity-conf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.validity-conf-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.validity-conf-card--pending {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+.validity-conf-card--done {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+.validity-conf-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.validity-conf-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #0f172a;
+  flex: 1;
+  min-width: 0;
+}
+.validity-conf-pill {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.validity-conf-pill--wait {
+  background: rgba(254, 243, 199, 0.85);
+  color: #92400e;
+  border-color: rgba(217, 119, 6, 0.25);
+}
+.validity-conf-pill--ok {
+  background: rgba(220, 252, 231, 0.9);
+  color: #166534;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+.validity-conf-code {
+  display: block;
+  margin: 6px 0 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}
+.validity-conf-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.validity-conf-date {
+  min-height: 48px;
+  width: 100%;
+}
+.validity-conf-save {
+  min-height: 48px;
+  width: 100%;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.validity-conf-history {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  padding: 6px 0;
+  align-self: flex-start;
+  color: #475569;
+}
+@keyframes validity-conf-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+}
+.validity-conf-card--flash {
+  animation: validity-conf-flash 1s ease;
+}
+
+/* ── Análise de validades (desktop-first) ── */
+.validity-analysis-page .validity-analysis-hero {
+  margin-bottom: 0;
+}
+.validity-analysis-hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px 24px;
+  margin-bottom: 0.75rem;
+}
+.validity-analysis-page-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+.validity-analysis-lead {
+  margin: 0;
+  max-width: 52rem;
+  font-size: 0.9rem;
+}
+.validity-analysis-hero-meta {
+  flex: 0 1 280px;
+  font-size: 0.82rem;
+}
+.validity-analysis-filters {
+  margin-top: 0.5rem;
+}
+.validity-analysis-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
+  gap: 0;
+  align-items: stretch;
+  min-height: 360px;
+}
+.validity-analysis-main-col {
+  min-width: 0;
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
+}
+.validity-analysis-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: min(70vh, 720px);
+  overflow-y: auto;
+}
+.validity-analysis-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.validity-analysis-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 800;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+.validity-analysis-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  vertical-align: top;
+}
+.validity-analysis-cell-name {
+  font-weight: 600;
+  color: #0f172a;
+  max-width: 220px;
+}
+.validity-analysis-row {
+  cursor: pointer;
+}
+.validity-analysis-row:hover {
+  background: rgba(241, 245, 249, 0.65);
+}
+.validity-analysis-row.is-selected {
+  background: rgba(219, 234, 254, 0.55);
+}
+.validity-analysis-status-pill {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: #334155;
+}
+.validity-analysis-detail {
+  background: #fcfcfd;
+  min-width: 0;
+}
+.validity-analysis-detail-sticky {
+  position: sticky;
+  top: 0;
+  padding: 14px 16px 20px;
+  max-height: min(85vh, 900px);
+  overflow-y: auto;
+}
+@media (max-width: 1023px) {
+  .validity-analysis-workspace {
+    grid-template-columns: 1fr;
+  }
+  .validity-analysis-main-col {
+    border-right: none;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  }
+  .validity-analysis-table-scroll {
+    max-height: 50vh;
+  }
 }
 
 .sr-only {

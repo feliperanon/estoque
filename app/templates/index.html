@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=37" />
+    <link rel="stylesheet" href="/static/style.css?v=38" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -75,6 +75,7 @@
         </header>
         <!-- ── MÓDULO MÃE: CONTAGEM ── -->
         <section id="module-contagem" class="module-section">
+          <input type="hidden" id="validity-op-date" name="validity-op-date" value="" />
           <div id="contagem-home" class="sub-section active">
             <section class="card contagem-home-head">
               <div>
@@ -131,10 +132,15 @@
                 <span class="module-card-title">Venda Direta</span>
                 <span class="module-card-desc">Baixa imediata com segurança operacional</span>
               </button>
-              <button type="button" class="module-card" data-sub="validity">
+              <button type="button" class="module-card" data-sub="validity-launch">
                 <span class="module-card-icon">📅</span>
-                <span class="module-card-title">Data de Vencimento</span>
-                <span class="module-card-desc">Controle por lote, validade e risco de perda</span>
+                <span class="module-card-title">Lançamento de Validade</span>
+                <span class="module-card-desc">Lançar datas no celular com fluxo rápido</span>
+              </button>
+              <button type="button" class="module-card" data-sub="validity-analysis">
+                <span class="module-card-icon">📊</span>
+                <span class="module-card-title">Análise de Validades</span>
+                <span class="module-card-desc">Indicadores, filtros, histórico e auditoria no desktop</span>
               </button>
               <button type="button" class="module-card" data-sub="import-txt">
                 <span class="module-card-icon">📂</span>
@@ -372,48 +378,86 @@
             </section>
           </div>
 
-          <!-- Sub: Data de Vencimento (operacional, espelha estrutura da contagem) -->
-          <div id="sub-validity" class="sub-section">
-            <div class="info-card master-container validity-main-card validity-main-card--outer">
+          <!-- Sub: Lançamento de validade (conferente · mobile-first) -->
+          <div id="sub-validity-launch" class="sub-section validity-conf-page">
+            <div class="validity-conf-header card">
+              <h2 class="validity-conf-title">Lançamento de validade</h2>
+              <p class="validity-conf-hint muted">Edição apenas na data de hoje (America/Sao_Paulo).</p>
+              <div class="validity-conf-filters">
+                <div class="field validity-conf-field">
+                  <label for="validity-launch-item-code">Buscar produto</label>
+                  <input id="validity-launch-item-code" name="validity-launch-item-code" type="search" class="count-filter-input validity-conf-search" placeholder="Nome ou código" autocomplete="off" aria-label="Buscar produto para validade" />
+                </div>
+                <div class="field validity-conf-field">
+                  <label for="validity-launch-group">Grupo</label>
+                  <input id="validity-launch-group" name="validity-launch-group" type="text" class="count-filter-input" placeholder="Opcional" autocomplete="off" aria-label="Filtrar por grupo" />
+                </div>
+                <div class="field validity-conf-field">
+                  <label for="validity-launch-simple-filter">Situação</label>
+                  <select id="validity-launch-simple-filter" class="count-filter-input" aria-label="Filtrar por situação de lançamento">
+                    <option value="all">Todos</option>
+                    <option value="no_line">Só pendentes</option>
+                    <option value="has_line">Só com validade</option>
+                  </select>
+                </div>
+              </div>
+              <div class="validity-conf-toolbar">
+                <button type="button" id="btn-validity-launch-sync" class="btn btn-secondary">Sincronizar</button>
+                <span id="validity-launch-pending-badge" class="chip validity-pending-chip" hidden>0 pendentes</span>
+              </div>
+              <div id="validity-launch-feedback" class="field-feedback" aria-live="polite"></div>
+            </div>
+            <div id="validity-launch-readonly-banner" class="count-readonly-banner validity-readonly-banner" role="status" aria-live="polite" hidden></div>
+            <div class="validity-conf-list-wrap" id="validity-launch-shell">
+              <ul id="validity-launch-products-list" class="validity-conf-list list" role="list"></ul>
+            </div>
+          </div>
+
+          <!-- Sub: Análise de validades (analista · desktop-first) -->
+          <div id="sub-validity-analysis" class="sub-section validity-analysis-page">
+            <div class="info-card master-container validity-main-card validity-main-card--outer validity-analysis-hero">
               <div class="count-main-card-inner count-main-card-extended validity-op-header">
-                <div class="count-main-title-row">
-                  <span class="count-main-title">Lançamento de validade</span>
-                  <span id="validity-products-total" class="count-main-chip" aria-live="polite">0</span>
+                <div class="validity-analysis-hero-top">
+                  <div>
+                    <h2 class="validity-analysis-page-title">Análise de validades</h2>
+                    <p class="validity-analysis-lead muted">Visão executiva, filtros e auditoria. Dados do dia operacional em America/Sao_Paulo.</p>
+                  </div>
+                  <div class="validity-analysis-hero-meta">
+                    <p class="validity-sync-line muted" id="validity-analysis-last-sync" aria-live="polite">Última sincronização: —</p>
+                    <p class="muted" id="validity-analysis-process-status" aria-live="polite">Status: —</p>
+                  </div>
                 </div>
-                <p class="validity-op-lead muted">Fluxo operacional: localize o produto, informe a data e salve. Histórico e auditoria ficam à direita no computador ou em <strong>Ver histórico</strong> no celular. Edição apenas na data de hoje (America/Sao_Paulo).</p>
-                <input type="hidden" id="validity-op-date" name="validity-op-date" value="" />
-                <div class="validity-kpi-strip validity-kpi-strip--scroll" id="validity-kpi-strip" aria-label="Filtros rápidos por indicador">
-                  <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="with" id="validity-kpi-with-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-with">0</span><span class="validity-kpi-label">com validade</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="without" id="validity-kpi-without-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-without">0</span><span class="validity-kpi-label">sem validade</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--danger" data-validity-kpi="expired" id="validity-kpi-expired-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-expired">0</span><span class="validity-kpi-label">vencidos</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--danger" data-validity-kpi="d30" id="validity-kpi-d30-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-d30">0</span><span class="validity-kpi-label">até 30d</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--warn" data-validity-kpi="d60" id="validity-kpi-d60-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-d60">0</span><span class="validity-kpi-label">até 60d</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--warn" data-validity-kpi="d90" id="validity-kpi-d90-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-d90">0</span><span class="validity-kpi-label">até 90d</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="d120" id="validity-kpi-d120-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-d120">0</span><span class="validity-kpi-label">até 120d</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="d150" id="validity-kpi-d150-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-d150">0</span><span class="validity-kpi-label">até 150d</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--risk" data-validity-kpi="d180" id="validity-kpi-d180-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-d180">0</span><span class="validity-kpi-label">até 180d</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--warn" data-validity-kpi="oldbase" id="validity-kpi-oldbase-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-oldbase">0</span><span class="validity-kpi-label">base antiga</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="nocount" id="validity-kpi-nocount-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-kpi-nocount">0</span><span class="validity-kpi-label">sem contagem</span></button>
+                <div class="validity-kpi-strip validity-kpi-strip--scroll" id="validity-analysis-kpi-strip" aria-label="Indicadores por faixa">
+                  <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="with" id="validity-analysis-kpi-with-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-with">0</span><span class="validity-kpi-label">com validade</span></button>
+                  <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="without" id="validity-analysis-kpi-without-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-without">0</span><span class="validity-kpi-label">sem validade</span></button>
+                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--danger" data-validity-kpi="expired" id="validity-analysis-kpi-expired-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-expired">0</span><span class="validity-kpi-label">vencidos</span></button>
+                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--danger" data-validity-kpi="d30" id="validity-analysis-kpi-d30-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d30">0</span><span class="validity-kpi-label">até 30d</span></button>
+                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--warn" data-validity-kpi="d60" id="validity-analysis-kpi-d60-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d60">0</span><span class="validity-kpi-label">até 60d</span></button>
+                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--warn" data-validity-kpi="d90" id="validity-analysis-kpi-d90-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d90">0</span><span class="validity-kpi-label">até 90d</span></button>
+                  <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="d120" id="validity-analysis-kpi-d120-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d120">0</span><span class="validity-kpi-label">até 120d</span></button>
+                  <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="d150" id="validity-analysis-kpi-d150-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d150">0</span><span class="validity-kpi-label">até 150d</span></button>
+                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--risk" data-validity-kpi="d180" id="validity-analysis-kpi-d180-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d180">0</span><span class="validity-kpi-label">até 180d</span></button>
+                  <button type="button" class="validity-kpi validity-kpi--chip validity-kpi--warn" data-validity-kpi="oldbase" id="validity-analysis-kpi-oldbase-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-oldbase">0</span><span class="validity-kpi-label">base antiga</span></button>
+                  <button type="button" class="validity-kpi validity-kpi--chip" data-validity-kpi="nocount" id="validity-analysis-kpi-nocount-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-nocount">0</span><span class="validity-kpi-label">sem contagem</span></button>
                 </div>
-                <p class="validity-sync-line muted" id="validity-last-sync" aria-live="polite">Última sincronização: —</p>
-                <div class="count-main-filters-row">
+                <div class="count-main-filters-row validity-analysis-filters">
                   <div class="count-main-filter-col count-main-filter-col--produto">
-                    <label class="count-filter-label count-filter-label--bold" for="validity-item-code">Produto</label>
+                    <label class="count-filter-label count-filter-label--bold" for="validity-analysis-item-code">Produto</label>
                     <div class="count-filter-input-wrapper">
                       <span class="count-filter-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
-                      <input id="validity-item-code" name="validity-item-code" type="text" class="count-filter-input" placeholder="Buscar produto..." autocomplete="off" aria-label="Produto validade" />
+                      <input id="validity-analysis-item-code" name="validity-analysis-item-code" type="text" class="count-filter-input" placeholder="Buscar produto..." autocomplete="off" aria-label="Produto análise validade" />
                     </div>
                   </div>
                   <div class="count-main-filter-col count-main-filter-col--grupo">
-                    <label class="count-filter-label count-filter-label--bold" for="validity-group">Grupo</label>
+                    <label class="count-filter-label count-filter-label--bold" for="validity-analysis-group">Grupo</label>
                     <div class="count-filter-input-wrapper">
                       <span class="count-filter-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
-                      <input id="validity-group" name="validity-group" type="text" class="count-filter-input" placeholder="Buscar grupo..." autocomplete="off" aria-label="Grupo validade" />
+                      <input id="validity-analysis-group" name="validity-analysis-group" type="text" class="count-filter-input" placeholder="Buscar grupo..." autocomplete="off" aria-label="Grupo análise validade" />
                     </div>
                   </div>
                   <div class="count-main-filter-col validity-filter-risk-col">
-                    <label class="count-filter-label count-filter-label--bold" for="validity-risk-filter">Análise</label>
-                    <select id="validity-risk-filter" class="count-filter-input" aria-label="Filtro de análise">
+                    <label class="count-filter-label count-filter-label--bold" for="validity-analysis-risk-filter">Análise</label>
+                    <select id="validity-analysis-risk-filter" class="count-filter-input" aria-label="Filtro de análise">
                       <option value="all">Todos</option>
                       <option value="none">Sem validade lançada</option>
                       <option value="critical">Somente críticos (vencido ou ≤30d)</option>
@@ -431,71 +475,85 @@
                     </select>
                   </div>
                   <div class="count-main-filter-col validity-filter-sort-col">
-                    <label class="count-filter-label count-filter-label--bold" for="validity-sort">Ordenar</label>
-                    <select id="validity-sort" class="count-filter-input" aria-label="Ordenar lista">
+                    <label class="count-filter-label count-filter-label--bold" for="validity-analysis-sort">Ordenar</label>
+                    <select id="validity-analysis-sort" class="count-filter-input" aria-label="Ordenar lista">
                       <option value="priority">Prioridade (risco)</option>
                       <option value="name">Nome</option>
                       <option value="code">Código</option>
                     </select>
                   </div>
                   <div class="count-main-filter-col validity-launch-filter-col">
-                    <label class="count-filter-label count-filter-label--bold" for="validity-launch-filter">Lançamento</label>
-                    <select id="validity-launch-filter" class="count-filter-input" aria-label="Filtrar por situação de lançamento">
+                    <label class="count-filter-label count-filter-label--bold" for="validity-analysis-launch-filter">Lançamento</label>
+                    <select id="validity-analysis-launch-filter" class="count-filter-input" aria-label="Filtrar por situação de lançamento">
                       <option value="all">Todos</option>
                       <option value="no_line">Sem data lançada</option>
                       <option value="has_line">Já com validade (dia)</option>
                     </select>
                   </div>
                 </div>
-                <p id="validity-launch-stats" class="validity-launch-stats muted" aria-live="polite"></p>
+                <p id="validity-analysis-launch-stats" class="validity-launch-stats muted" aria-live="polite"></p>
                 <div class="count-progress count-main-progress validity-progress" aria-live="polite">
                   <div class="count-progress-track">
-                    <div id="validity-progress-fill" class="count-progress-fill"></div>
+                    <div id="validity-analysis-progress-fill" class="count-progress-fill"></div>
                   </div>
                   <div class="count-progress-info">
                     <span class="count-progress-summary">
-                      <span id="validity-progress-percent" class="count-progress-percent">0%</span>
+                      <span id="validity-analysis-progress-percent" class="count-progress-percent">0%</span>
                       <span class="count-progress-label">com validade</span>
                     </span>
-                    <span id="validity-progress-detail" class="count-progress-detail">0 de 0 produtos com linhas de validade</span>
+                    <span id="validity-analysis-progress-detail" class="count-progress-detail">0 de 0 produtos com linhas de validade</span>
                   </div>
                 </div>
                 <div class="validity-toolbar">
-                  <button type="button" id="btn-validity-sync" class="btn btn-secondary">Sincronizar validades</button>
-                  <span id="validity-pending-badge" class="chip validity-pending-chip" hidden>0 pendentes</span>
+                  <button type="button" id="btn-validity-analysis-sync" class="btn btn-secondary">Sincronizar validades</button>
+                  <span id="validity-analysis-pending-badge" class="chip validity-pending-chip" hidden>0 pendentes</span>
                 </div>
-                <div id="validity-feedback" class="field-feedback" aria-live="polite"></div>
+                <div id="validity-analysis-feedback" class="field-feedback" aria-live="polite"></div>
               </div>
             </div>
-            <div id="validity-readonly-banner" class="count-readonly-banner validity-readonly-banner" role="status" aria-live="polite" hidden></div>
-            <div class="validity-products-shell" id="validity-products-shell">
-              <div class="validity-launch-workspace">
-                <div class="validity-launch-list-col">
-                  <ul id="validity-products-list" class="list validity-products-list validity-launch-list" role="list"></ul>
+            <div id="validity-analysis-readonly-banner" class="count-readonly-banner validity-readonly-banner" role="status" aria-live="polite" hidden></div>
+            <div class="validity-products-shell validity-analysis-shell" id="validity-analysis-shell">
+              <div class="validity-analysis-workspace">
+                <div class="validity-analysis-main-col">
+                  <div class="validity-analysis-table-scroll">
+                    <table class="validity-analysis-table" id="validity-analysis-table" aria-label="Lista de produtos e validades">
+                      <thead>
+                        <tr>
+                          <th scope="col">Produto</th>
+                          <th scope="col">Código</th>
+                          <th scope="col">Situação</th>
+                          <th scope="col">Próx. venc.</th>
+                          <th scope="col">Faixa</th>
+                          <th scope="col">Contagem ref.</th>
+                        </tr>
+                      </thead>
+                      <tbody id="validity-analysis-tbody"></tbody>
+                    </table>
+                  </div>
                 </div>
                 <aside
-                  id="validity-launch-detail-panel"
-                  class="validity-launch-detail"
-                  aria-label="Histórico e detalhe do produto selecionado"
-                  hidden
+                  id="validity-analysis-detail-panel"
+                  class="validity-analysis-detail"
+                  aria-label="Detalhe e histórico do produto"
                 >
-                  <div class="validity-launch-detail-sticky">
-                    <p id="validity-launch-detail-lead" class="validity-launch-detail-lead muted"></p>
-                    <div id="validity-launch-detail-inner" class="validity-launch-detail-inner">
-                      <p class="muted validity-launch-detail-placeholder">Selecione um produto na lista para ver contagem de referência e histórico de validades.</p>
+                  <div class="validity-analysis-detail-sticky">
+                    <p id="validity-analysis-detail-lead" class="validity-launch-detail-lead muted"></p>
+                    <div id="validity-analysis-detail-inner" class="validity-launch-detail-inner">
+                      <p class="muted validity-analysis-detail-placeholder">Selecione um produto na tabela para ver contagem de referência, métricas e histórico de validades.</p>
                     </div>
                   </div>
                 </aside>
               </div>
-              <dialog id="validity-history-dialog" class="validity-history-dialog" aria-labelledby="validity-history-dialog-title">
-                <div class="validity-history-dialog-head">
-                  <h2 id="validity-history-dialog-title" class="validity-history-dialog-title">Histórico de validades</h2>
-                  <button type="button" class="btn-text validity-history-dialog-close" aria-label="Fechar">Fechar</button>
-                </div>
-                <div id="validity-history-dialog-body" class="validity-history-dialog-body"></div>
-              </dialog>
             </div>
           </div>
+
+          <dialog id="validity-history-dialog" class="validity-history-dialog" aria-labelledby="validity-history-dialog-title">
+            <div class="validity-history-dialog-head">
+              <h2 id="validity-history-dialog-title" class="validity-history-dialog-title">Histórico de validades</h2>
+              <button type="button" class="btn-text validity-history-dialog-close" aria-label="Fechar">Fechar</button>
+            </div>
+            <div id="validity-history-dialog-body" class="validity-history-dialog-body"></div>
+          </dialog>
 
           <!-- Sub: Importar Estoque -->
           <div id="sub-import-txt" class="sub-section import-txt-page">
