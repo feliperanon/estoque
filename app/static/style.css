@@ -2244,6 +2244,10 @@ form#count-form.count-form {
   opacity: 0.6; /* Meio apagado */
 }
 
+.count-product-item.is-inactive .count-product-cod {
+  color: inherit;
+}
+
 .list li {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -4365,6 +4369,15 @@ body.count-audit-drawer-open {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
+}
+
+/* Código do item ao final do nome — discreto, não compete com o título */
+.count-product-cod {
+  font-weight: 500;
+  font-size: 0.8125em;
+  color: #64748b;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Remove setas do input numérico */

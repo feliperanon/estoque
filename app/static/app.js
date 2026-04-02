@@ -2058,6 +2058,9 @@ function renderCountProducts(products) {
     const codRaw = String(product.cod_produto || '');
     const desc = escapeHtml(product.cod_grup_descricao || '');
     const codRef = encodeURIComponent(codRaw);
+    const codHtml = codRaw
+      ? ` <span class="count-product-cod">· ${escapeHtml(codRaw)}</span>`
+      : '';
     const netCx = getNetByProductAndType(codRaw, 'caixa');
     const netUn = getNetByProductAndType(codRaw, 'unidade');
     const pair = getCountSaldoPair(codRaw);
@@ -2103,7 +2106,7 @@ function renderCountProducts(products) {
       <div class="count-product-label">
         <span class="count-product-title-row">
           ${analystLiveRecount ? '<span class="count-product-recount-flag" role="status">Recontar</span>' : ''}
-          <span class="count-product-desc">${desc}</span>
+          <span class="count-product-desc">${desc}${codHtml}</span>
         </span>
       </div>
       <div class="count-product-controls">
@@ -3764,9 +3767,10 @@ async function importBackup(file) {
 }
 
 /**
- * Safari/iOS (e vários navegadores): o blur do input ocorre antes do pointerdown no botão +/-.
- * Usamos um contador incrementado no pointerdown do botão; no focusout agendamos setTimeout(0) e
- * só disparamos o “+ automático ao sair do campo” se nenhum botão da linha foi tocado neste gesto.
+ * Safari/iOS: o blur/focusout do input costuma ocorrer antes do pointerdown no botão +/−.
+ * Incrementamos `countAdjustGestureGeneration` no pointerdown (captura) do `.btn-count-adjust`.
+ * No focusout, não decidimos na mesma volta: `setTimeout(0)` pode rodar antes do pointerdown no iOS,
+ * disparando o “+ automático” por engano. Usamos dois rAF para decidir após o pipeline de entrada.
  */
 let countAdjustGestureGeneration = 0;
 
@@ -3867,14 +3871,17 @@ function bindCountEvents() {
         refreshCountListAfterEdit();
         return;
       }
-      window.setTimeout(() => {
+      const runDeferredAutoPlus = () => {
         if (countAdjustGestureGeneration > genAtBlur) {
           refreshCountListAfterEdit();
           return;
         }
         dispatchCountRowPlusClick(inp);
         refreshCountListAfterEdit();
-      }, 0);
+      };
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(runDeferredAutoPlus);
+      });
     });
     countShell.addEventListener('keydown', (e) => {
       const inp = e.target;
