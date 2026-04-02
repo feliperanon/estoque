@@ -328,12 +328,21 @@
   margin-top: 6px;
   padding: 0;
 }
-.count-main-progress .count-progress-track {
-  order: 0;
-  height: 4px;
+.count-main-progress .count-progress-tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   width: 100%;
   min-width: 0;
   align-self: stretch;
+}
+.count-main-progress .count-progress-tracks .count-progress-track {
+  height: 4px;
+  width: 100%;
+  min-width: 0;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
 }
 .count-main-progress .count-progress-info {
   order: 1;
@@ -365,10 +374,30 @@
   min-width: 0;
   white-space: nowrap;
 }
+.count-progress-percent-wrap {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.22em;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.count-progress-percent-sep {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0 0.06em;
+}
 .count-progress-percent {
   font-size: 0.9375rem;
   font-weight: 700;
   color: var(--primary-blue, #2563eb);
+}
+.count-progress-percent--dim {
+  color: var(--primary-blue, #2563eb);
+}
+.count-progress-percent--products {
+  color: #0f766e;
 }
 .count-progress-label {
   font-size: 0.8125rem;
@@ -383,9 +412,11 @@
   min-width: 0;
   text-align: right;
   margin-left: auto;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 1.35;
+  max-width: 100%;
 }
 @media (max-width: 767px) {
   .count-main-filter-col--produto,
@@ -1865,6 +1896,21 @@ form#count-form.count-form {
 
 .count-progress-fill.is-high {
   background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+/* Barra superior: metades CX+UN — cores em .count-progress-fill + .is-low|mid|high. */
+/* Barra inferior: produtos completos (teal), faixas de intensidade próprias. */
+.count-progress-fill--products {
+  background: linear-gradient(90deg, #2dd4bf 0%, #14b8a6 100%);
+}
+.count-progress-fill--products.is-low {
+  background: linear-gradient(90deg, #5eead4 0%, #2dd4bf 100%);
+}
+.count-progress-fill--products.is-mid {
+  background: linear-gradient(90deg, #14b8a6 0%, #0d9488 100%);
+}
+.count-progress-fill--products.is-high {
+  background: linear-gradient(90deg, #0d9488 0%, #0f766e 100%);
 }
 
 .count-progress small {
@@ -4433,6 +4479,10 @@ body.count-audit-drawer-open {
 }
 
 .count-recount-live-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.45rem;
   margin: 0 0 0.5rem;
   padding: 0.45rem 0.55rem;
   border-radius: 6px;
@@ -4442,6 +4492,20 @@ body.count-audit-drawer-open {
   font-size: 0.78rem;
   font-weight: 600;
   line-height: 1.35;
+}
+
+.count-recount-live-banner-lead {
+  flex: 0 0 auto;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #4c1d95;
+}
+
+.count-recount-live-banner-rest {
+  flex: 1 1 12rem;
+  font-weight: 600;
+  min-width: 0;
 }
 
 .count-product-item--analyst-recount {
