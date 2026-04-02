@@ -121,6 +121,23 @@ class CountEventsPayload(BaseModel):
     events: list[CountEventInput]
 
 
+class BreakEventInput(BaseModel):
+    client_event_id: str = Field(min_length=8, max_length=100)
+    item_code: str = Field(min_length=1, max_length=120)
+    quantity: int = Field(ge=1, le=500_000)
+    observed_at: str
+    device_name: str | None = Field(default=None, max_length=120)
+    reason: str | None = Field(default=None, max_length=120)
+    operational_date: str | None = Field(
+        default=None,
+        description="YYYY-MM-DD (America/Sao_Paulo). Se omitido, deriva de observed_at.",
+    )
+
+
+class BreakEventsPayload(BaseModel):
+    events: list[BreakEventInput]
+
+
 class ValidityEventInput(BaseModel):
     client_event_id: str = Field(min_length=8, max_length=100)
     cod_produto: str = Field(min_length=1, max_length=120)
@@ -1160,6 +1177,223 @@ def ingest_count_events(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Falha ao sincronizar contagem: {exc}",
+        )
+
+
+def _aggregate_break_events_by_code(session: Session, operational_date: date) -> dict[str, dict[str, int]]:
+    """Soma CX/UN de quebra por produto (ChangeLog), filtrando pelo dia operacional."""
+    logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_break",
+                ChangeLog.action == "break_event",
+            )
+        ).all()
+    )
+    out: dict[str, dict[str, int]] = {}
+    for log in logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        od = payload.get("operational_date")
+        if od:
+            try:
+                d = date.fromisoformat(str(od)[:10])
+            except ValueError:
+                continue
+            if d != operational_date:
+                continue
+        else:
+            br_d = _brazil_date_from_observed_at(str(payload.get("observed_at") or ""))
+            if br_d is None or br_d != operational_date:
+                continue
+        item_code = str(payload.get("item_code") or "")
+        code = _normalize_item_code(item_code)
+        if not code:
+            continue
+        try:
+            qty = int(payload.get("quantity", 0))
+        except Exception:
+            qty = 0
+        if qty <= 0:
+            continue
+        ct = _extract_count_type(item_code)
+        if code not in out:
+            out[code] = {"caixa": 0, "unidade": 0}
+        out[code][ct] = out[code].get(ct, 0) + qty
+    return out
+
+
+def _break_event_rows_for_operational_day(session: Session, operational_date: date) -> list[dict]:
+    logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_break",
+                ChangeLog.action == "break_event",
+            )
+        ).all()
+    )
+    rows: list[dict] = []
+    for log in logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        od = payload.get("operational_date")
+        if od:
+            try:
+                d = date.fromisoformat(str(od)[:10])
+            except ValueError:
+                continue
+            if d != operational_date:
+                continue
+        else:
+            br_d = _brazil_date_from_observed_at(str(payload.get("observed_at") or ""))
+            if br_d is None or br_d != operational_date:
+                continue
+        item_code = str(payload.get("item_code") or "")
+        code = _normalize_item_code(item_code)
+        if not code:
+            continue
+        try:
+            qty = int(payload.get("quantity", 0))
+        except Exception:
+            qty = 0
+        if qty <= 0:
+            continue
+        ct = _extract_count_type(item_code)
+        rows.append(
+            {
+                "cod_produto": code,
+                "item_code_raw": item_code,
+                "quantity": qty,
+                "qty_type": ct,
+                "observed_at": payload.get("observed_at"),
+                "actor": (log.actor or "").strip() or None,
+                "reason": payload.get("reason"),
+                "client_event_id": payload.get("client_event_id"),
+                "device_name": payload.get("device_name"),
+            }
+        )
+
+    def _sort_key(r: dict) -> str:
+        return str(r.get("observed_at") or "")
+
+    rows.sort(key=_sort_key, reverse=True)
+    return rows
+
+
+@router.get("/break-day-totals")
+def break_day_totals(
+    operational_date: str | None = Query(
+        default=None,
+        description="YYYY-MM-DD do dia operacional (America/Sao_Paulo). Padrão: hoje.",
+    ),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    d = _parse_iso_date_arg(operational_date) if operational_date else br_today
+    if d is None:
+        d = br_today
+    agg = _aggregate_break_events_by_code(session, d)
+    balances: dict[str, dict[str, int]] = {}
+    for code, rec in agg.items():
+        balances[code] = {
+            "caixa": int(rec.get("caixa", 0)),
+            "unidade": int(rec.get("unidade", 0)),
+        }
+    return {"operational_date": d.isoformat(), "balances": balances}
+
+
+@router.get("/break-events")
+def list_break_events(
+    operational_date: str | None = Query(
+        default=None,
+        description="YYYY-MM-DD do dia operacional (America/Sao_Paulo). Padrão: hoje.",
+    ),
+    limit: int = Query(default=2000, ge=1, le=5000),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    d = _parse_iso_date_arg(operational_date) if operational_date else br_today
+    if d is None:
+        d = br_today
+    rows = _break_event_rows_for_operational_day(session, d)[:limit]
+    codes = list({str(r.get("cod_produto") or "") for r in rows if r.get("cod_produto")})
+    desc_map: dict[str, str] = {}
+    if codes:
+        prod_rows = list(session.exec(select(Product).where(Product.cod_produto.in_(codes))).all())
+        for p in prod_rows:
+            c = (p.cod_produto or "").strip()
+            if c:
+                desc_map[c] = (p.cod_grup_descricao or "").strip()
+    for r in rows:
+        c = str(r.get("cod_produto") or "")
+        r["product_desc"] = desc_map.get(c) or None
+    return {"operational_date": d.isoformat(), "events": rows, "count": len(rows)}
+
+
+@router.post("/break-events")
+def ingest_break_events(
+    payload: BreakEventsPayload,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    synced_ids: list[str] = []
+    max_pg_int = 2_147_483_647
+
+    try:
+        for event in payload.events:
+            dt_utc, br_date = _parse_and_validate_observed_at(event.observed_at)
+            obs_stored = dt_utc.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+            op_d: date | None = None
+            if event.operational_date:
+                op_d = _parse_iso_date_arg(event.operational_date)
+            if op_d is None:
+                op_d = br_date
+
+            event_hash = hashlib.sha256(event.client_event_id.encode("utf-8")).hexdigest()
+            entity_id = (int(event_hash[:16], 16) % max_pg_int) + 1
+
+            existing = session.exec(
+                select(ChangeLog).where(
+                    ChangeLog.entity_name == "stock_break",
+                    ChangeLog.action == "break_event",
+                    ChangeLog.entity_id == entity_id,
+                )
+            ).first()
+            if existing:
+                synced_ids.append(event.client_event_id)
+                continue
+
+            log = ChangeLog(
+                entity_name="stock_break",
+                entity_id=entity_id,
+                action="break_event",
+                actor=user.username,
+                changed_at=datetime.now(timezone.utc),
+                payload={
+                    "client_event_id": event.client_event_id,
+                    "item_code": event.item_code,
+                    "quantity": event.quantity,
+                    "observed_at": obs_stored,
+                    "device_name": event.device_name,
+                    "reason": event.reason,
+                    "operational_date": op_d.isoformat(),
+                },
+            )
+            session.add(log)
+            synced_ids.append(event.client_event_id)
+
+        session.commit()
+        return {"received": len(payload.events), "synced": len(synced_ids), "synced_ids": synced_ids}
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Falha ao sincronizar eventos de quebra")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Falha ao sincronizar quebra: {exc}",
         )
 
 
