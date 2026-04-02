@@ -75,7 +75,6 @@
         </header>
         <!-- ── MÓDULO MÃE: CONTAGEM ── -->
         <section id="module-contagem" class="module-section">
-          <input type="hidden" id="validity-op-date" name="validity-op-date" value="" />
           <div id="contagem-home" class="sub-section active">
             <section class="card contagem-home-head">
               <div>
@@ -231,7 +230,7 @@
             </div>
           </div>
 
-          <!-- Sub: Validade (lançamento operacional) — layout alinhado à Contagem -->
+          <!-- Sub: Validade — mesma estrutura visual da Contagem (#sub-count) -->
           <div id="sub-validity" class="sub-section">
             <div class="info-card master-container count-main-card count-main-card--outer">
               <form id="validity-op-form" class="count-form" autocomplete="off" novalidate>
@@ -255,9 +254,25 @@
                         <input id="validity-op-group" name="validity-op-group" type="text" class="count-filter-input" placeholder="Buscar grupo..." autocomplete="off" aria-label="Grupo validade" />
                       </div>
                     </div>
+                    <div class="count-main-filter-col count-main-filter-col--data count-main-filter-date">
+                      <label class="count-filter-label count-filter-label--bold" for="validity-op-date">Data do lançamento</label>
+                      <div class="count-filter-input-wrapper count-filter-input-wrapper--date">
+                        <span class="count-filter-icon count-filter-icon--calendar" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+                        <input id="validity-op-date" name="validity-op-date" type="date" class="count-filter-input count-filter-date" aria-label="Data do lançamento de validade" />
+                      </div>
+                    </div>
                   </div>
-                  <div class="count-progress count-main-progress validity-op-main-progress" aria-live="polite">
+                  <div class="count-progress count-main-progress" aria-live="polite">
                     <div class="count-progress-stack">
+                      <div id="validity-op-progress-block-dim" class="count-progress-block count-progress-block--dim" hidden>
+                        <div class="count-progress-track-wrap">
+                          <div class="count-progress-track" role="presentation" aria-hidden="true">
+                            <div id="validity-op-progress-fill-dim" class="count-progress-fill count-progress-fill--dim" style="width:0%;"></div>
+                          </div>
+                        </div>
+                        <span id="validity-op-progress-percent-dim" class="count-progress-percent count-progress-percent--dim">0%</span>
+                        <p id="validity-op-progress-detail-dim" class="count-progress-detail count-progress-detail--dim">—</p>
+                      </div>
                       <div id="validity-op-progress-block-products" class="count-progress-block count-progress-block--products">
                         <div class="count-progress-track-wrap">
                           <div class="count-progress-track" role="presentation" aria-hidden="true">
@@ -360,7 +375,7 @@
             </section>
           </div>
 
-          <!-- Sub: Quebra — mesma estrutura da Contagem (#sub-count), sem barra de progresso -->
+          <!-- Sub: Quebra — mesma estrutura visual da Contagem (#sub-count) -->
           <div id="sub-break" class="sub-section">
             <div class="info-card master-container count-main-card count-main-card--outer">
               <form id="break-op-form" class="count-form" autocomplete="off" novalidate>
@@ -386,24 +401,32 @@
                     </div>
                   </div>
                   <div class="count-main-filter-col count-main-filter-col--data count-main-filter-date">
-                    <label class="count-filter-label count-filter-label--bold" for="break-date">Data da quebra</label>
+                    <label class="count-filter-label count-filter-label--bold" for="break-op-date">Data da quebra</label>
                     <div class="count-filter-input-wrapper count-filter-input-wrapper--date">
                       <span class="count-filter-icon count-filter-icon--calendar" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
-                      <input id="break-date" name="break-date" type="date" class="count-filter-input count-filter-date" aria-label="Data da quebra" />
+                      <input id="break-op-date" name="break-op-date" type="date" class="count-filter-input count-filter-date" aria-label="Data da quebra" />
                     </div>
                   </div>
                 </div>
-                <div class="count-main-filters-row break-motivo-row">
-                  <div class="count-main-filter-col count-main-filter-col--produto break-motivo-col">
-                    <label class="count-filter-label count-filter-label--bold" for="break-reason">Motivo</label>
-                    <div class="count-filter-input-wrapper">
-                      <select id="break-reason" name="break-reason" class="count-filter-input break-reason-select" aria-label="Motivo da quebra">
-                        <option value="">(opcional)</option>
-                        <option>Avaria</option>
-                        <option>Vencimento</option>
-                        <option>Impróprio para consumo</option>
-                        <option>Perda operacional</option>
-                      </select>
+                <div class="count-progress count-main-progress" aria-live="polite">
+                  <div class="count-progress-stack">
+                    <div id="break-op-progress-block-dim" class="count-progress-block count-progress-block--dim" hidden>
+                      <div class="count-progress-track-wrap">
+                        <div class="count-progress-track" role="presentation" aria-hidden="true">
+                          <div id="break-op-progress-fill-dim" class="count-progress-fill count-progress-fill--dim" style="width:0%;"></div>
+                        </div>
+                      </div>
+                      <span id="break-op-progress-percent-dim" class="count-progress-percent count-progress-percent--dim">0%</span>
+                      <p id="break-op-progress-detail-dim" class="count-progress-detail count-progress-detail--dim">—</p>
+                    </div>
+                    <div id="break-op-progress-block-products" class="count-progress-block count-progress-block--products">
+                      <div class="count-progress-track-wrap">
+                        <div class="count-progress-track" role="presentation" aria-hidden="true">
+                          <div id="break-op-progress-fill-products" class="count-progress-fill count-progress-fill--products" style="width:0%;"></div>
+                        </div>
+                      </div>
+                      <span id="break-op-progress-percent-products" class="count-progress-percent count-progress-percent--products" title="Percentual de produtos com quebra no escopo">0%</span>
+                      <p id="break-op-progress-detail-products" class="count-progress-detail count-progress-detail--products">0 de 0 produtos</p>
                     </div>
                   </div>
                 </div>

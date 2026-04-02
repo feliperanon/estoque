@@ -18,10 +18,11 @@ function isCountOperationalEditable() {
   return getActiveCountDateKey() === getBrazilDateKey();
 }
 
+/** Dia operacional da quebra (campo #break-op-date, igual à data da contagem). */
 function getActiveBreakDateKey() {
-  const el = document.getElementById('break-date');
-  const v = (el && el.value || '').trim();
-  return v || getBrazilDateKey();
+  const el = document.getElementById('break-op-date');
+  const v = (el && el.value) || '';
+  return String(v).trim() || getBrazilDateKey();
 }
 
 function isBreakOperationalEditable() {
@@ -178,10 +179,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('count-date');
   if (dateInput && !dateInput.value) {
     dateInput.value = getBrazilDateKey();
-  }
-  const breakDate = document.getElementById('break-date');
-  if (breakDate && !breakDate.value) {
-    breakDate.value = getBrazilDateKey();
   }
   const breakHistoryDate = document.getElementById('break-history-date');
   if (breakHistoryDate && !breakHistoryDate.value) {
@@ -1704,6 +1701,35 @@ function updateValidityOpProgress(launchedOnOp, totalV, opKey, todayBr) {
   }
 }
 
+/** Barra de produtos com quebra (mesma pilha visual da Contagem). */
+function updateBreakOperationalProgress() {
+  const ul = document.getElementById('break-products-list');
+  const fill = document.getElementById('break-op-progress-fill-products');
+  const pctEl = document.getElementById('break-op-progress-percent-products');
+  const detailEl = document.getElementById('break-op-progress-detail-products');
+  if (!ul) return;
+  let total = 0;
+  let withBreak = 0;
+  ul.querySelectorAll('li.break-product-item').forEach((li) => {
+    if (li.style.display === 'none') return;
+    total += 1;
+    const cod = String(li.dataset.codProduto || '').trim();
+    if (!cod) return;
+    const cx = Number(getNetBreakByProductAndType(cod, 'caixa')) || 0;
+    const un = Number(getNetBreakByProductAndType(cod, 'unidade')) || 0;
+    if (cx !== 0 || un !== 0) withBreak += 1;
+  });
+  const pct = total > 0 ? Math.round((withBreak / total) * 100) : 0;
+  if (fill) {
+    fill.style.width = `${pct}%`;
+    applyCountProgressFillTier(fill, pct);
+  }
+  if (pctEl) pctEl.textContent = `${pct}%`;
+  if (detailEl) {
+    detailEl.textContent = `${withBreak} de ${total} produtos com quebra registrada`;
+  }
+}
+
 function updateCountProgress(products = countProductsCache) {
   const fillDim = document.getElementById('count-progress-fill') || countProgressFill;
   const fillProducts = document.getElementById('count-progress-fill-products');
@@ -1852,7 +1878,7 @@ function getServerNetBreakForProductAndType(productCode, countType) {
 }
 
 /**
- * Readout de quebra no dia (#break-date): servidor + pendente local não sincronizado.
+ * Readout de quebra no dia operacional (hoje, America/Sao_Paulo): servidor + pendente local não sincronizado.
  */
 function getNetBreakByProductAndType(productCode, countType) {
   const base = normalizeItemCode(productCode);
@@ -2677,12 +2703,6 @@ function setBreakFeedback(msg, isError = false) {
   el.style.color = isError ? 'var(--error)' : 'var(--accent)';
 }
 
-function getBreakReasonSnapshot() {
-  const sel = document.getElementById('break-reason');
-  const v = (sel && sel.value || '').trim();
-  return v || null;
-}
-
 function renderBreakProducts(products) {
   const isActive = (status) => {
     const s = String(status || '').trim().toLowerCase();
@@ -2710,6 +2730,7 @@ function renderBreakProducts(products) {
   if (!ativos.length) {
     ul.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
     updateBreakReadOnlyState();
+    updateBreakOperationalProgress();
     return;
   }
 
@@ -2770,6 +2791,7 @@ function renderBreakProducts(products) {
 
   for (const product of ativos) appendCard(ul, product);
   updateBreakReadOnlyState();
+  updateBreakOperationalProgress();
 }
 
 function updateBreakReadOnlyState() {
@@ -2858,7 +2880,7 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
     synced: false,
     device_name: getDeviceName(),
     operational_date: dayKey,
-    reason: getBreakReasonSnapshot(),
+    reason: null,
   };
 
   events.push(event);
@@ -2961,6 +2983,18 @@ async function syncPendingBreakEvents() {
 }
 
 function bindBreakEvents() {
+  const breakOpDate = document.getElementById('break-op-date');
+  if (breakOpDate && !breakOpDate.value) {
+    breakOpDate.value = getBrazilDateKey();
+  }
+  if (breakOpDate) {
+    breakOpDate.addEventListener('change', async () => {
+      await loadServerBreakTotals();
+      refreshBreakProductListView();
+      updateBreakReadOnlyState();
+    });
+  }
+
   const form = document.getElementById('break-op-form');
   if (form) {
     form.addEventListener('submit', (e) => {
@@ -2980,15 +3014,6 @@ function bindBreakEvents() {
       const filtered = filterCountProductsByTerm(itemCodeInput.value);
       renderBreakProducts(filtered);
       filtrarProdutosQuebra();
-    });
-  }
-
-  const breakDateEl = document.getElementById('break-date');
-  if (breakDateEl) {
-    breakDateEl.addEventListener('change', async () => {
-      await loadServerBreakTotals();
-      refreshBreakProductListView();
-      updateBreakReadOnlyState();
     });
   }
 
@@ -3099,6 +3124,7 @@ function filtrarProdutosQuebra() {
   });
   const totalSpan = document.getElementById('break-products-total');
   if (totalSpan) totalSpan.textContent = `${totalVisiveis}`;
+  updateBreakOperationalProgress();
 }
 
 async function loadBreakHistoryList() {
