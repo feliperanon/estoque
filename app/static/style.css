@@ -151,7 +151,7 @@
   border: 1px solid rgba(37, 99, 235, 0.12);
   white-space: nowrap;
 }
-/* Filtros contagem: ≤1024px produto linha inteira + grupo|data; ≥1025px três colunas (5fr 3fr 2fr) */
+/* Filtros contagem: ≤1024px produto linha inteira + grupo|data; ≥1025px três colunas (produto com mais peso) */
 .count-main-filters-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -211,14 +211,38 @@
 }
 @media (min-width: 1025px) {
   .count-main-filters-row {
-    grid-template-columns: minmax(0, 6fr) minmax(0, 2.75fr) minmax(0, 2.25fr);
+    grid-template-columns: minmax(0, 7fr) minmax(0, 2.5fr) minmax(0, 2fr);
     grid-template-areas: none;
+    align-items: start;
+  }
+  .count-main-filter-col--produto {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   .count-main-filter-col--produto,
   .count-main-filter-col--grupo,
   .count-main-filter-col--data {
     grid-area: auto;
     grid-column: auto;
+  }
+  /* Mesma altura visual Grupo × Data no desktop (inputs alinhados) */
+  #sub-count .count-main-filter-col--grupo .count-filter-input-wrapper,
+  #sub-count .count-main-filter-col--data .count-filter-input-wrapper {
+    min-height: 40px;
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+  }
+  #sub-count .count-main-filter-col--grupo .count-filter-input,
+  #sub-count .count-main-filter-col--data .count-filter-input {
+    min-height: 36px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  #sub-count .count-main-filter-col--data .count-filter-input-wrapper--date .count-filter-input.count-filter-date {
+    min-height: 36px;
   }
 }
 .count-main-filter-col--produto {
