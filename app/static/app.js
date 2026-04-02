@@ -18,15 +18,13 @@ function isCountOperationalEditable() {
   return getActiveCountDateKey() === getBrazilDateKey();
 }
 
-/** Dia operacional da quebra (campo #break-op-date, igual à data da contagem). */
+/** Dia operacional da quebra (sempre o dia civil atual em America/Sao_Paulo). */
 function getActiveBreakDateKey() {
-  const el = document.getElementById('break-op-date');
-  const v = (el && el.value) || '';
-  return String(v).trim() || getBrazilDateKey();
+  return getBrazilDateKey();
 }
 
 function isBreakOperationalEditable() {
-  return getActiveBreakDateKey() === getBrazilDateKey();
+  return true;
 }
 
 function getActiveValidityOpDateKey() {
@@ -1701,35 +1699,6 @@ function updateValidityOpProgress(launchedOnOp, totalV, opKey, todayBr) {
   }
 }
 
-/** Barra de produtos com quebra (mesma pilha visual da Contagem). */
-function updateBreakOperationalProgress() {
-  const ul = document.getElementById('break-products-list');
-  const fill = document.getElementById('break-op-progress-fill-products');
-  const pctEl = document.getElementById('break-op-progress-percent-products');
-  const detailEl = document.getElementById('break-op-progress-detail-products');
-  if (!ul) return;
-  let total = 0;
-  let withBreak = 0;
-  ul.querySelectorAll('li.break-product-item').forEach((li) => {
-    if (li.style.display === 'none') return;
-    total += 1;
-    const cod = String(li.dataset.codProduto || '').trim();
-    if (!cod) return;
-    const cx = Number(getNetBreakByProductAndType(cod, 'caixa')) || 0;
-    const un = Number(getNetBreakByProductAndType(cod, 'unidade')) || 0;
-    if (cx !== 0 || un !== 0) withBreak += 1;
-  });
-  const pct = total > 0 ? Math.round((withBreak / total) * 100) : 0;
-  if (fill) {
-    fill.style.width = `${pct}%`;
-    applyCountProgressFillTier(fill, pct);
-  }
-  if (pctEl) pctEl.textContent = `${pct}%`;
-  if (detailEl) {
-    detailEl.textContent = `${withBreak} de ${total} produtos com quebra registrada`;
-  }
-}
-
 function updateCountProgress(products = countProductsCache) {
   const fillDim = document.getElementById('count-progress-fill') || countProgressFill;
   const fillProducts = document.getElementById('count-progress-fill-products');
@@ -2767,7 +2736,6 @@ function renderBreakProducts(products) {
   if (!ativos.length) {
     ul.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
     updateBreakReadOnlyState();
-    updateBreakOperationalProgress();
     return;
   }
 
@@ -2828,7 +2796,6 @@ function renderBreakProducts(products) {
 
   for (const product of ativos) appendCard(ul, product);
   updateBreakReadOnlyState();
-  updateBreakOperationalProgress();
 }
 
 function updateBreakReadOnlyState() {
@@ -3020,18 +2987,6 @@ async function syncPendingBreakEvents() {
 }
 
 function bindBreakEvents() {
-  const breakOpDate = document.getElementById('break-op-date');
-  if (breakOpDate && !breakOpDate.value) {
-    breakOpDate.value = getBrazilDateKey();
-  }
-  if (breakOpDate) {
-    breakOpDate.addEventListener('change', async () => {
-      await loadServerBreakTotals();
-      refreshBreakProductListView();
-      updateBreakReadOnlyState();
-    });
-  }
-
   const form = document.getElementById('break-op-form');
   if (form) {
     form.addEventListener('submit', (e) => {
@@ -3161,7 +3116,6 @@ function filtrarProdutosQuebra() {
   });
   const totalSpan = document.getElementById('break-products-total');
   if (totalSpan) totalSpan.textContent = `${totalVisiveis}`;
-  updateBreakOperationalProgress();
 }
 
 async function loadBreakHistoryList() {
