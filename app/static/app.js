@@ -128,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (validityDate && !validityDate.value) {
     validityDate.value = getBrazilDateKey();
   }
+  syncValidityOpFilterDateFromHidden();
 });
 
 // === Grupos disponíveis para filtro (pode ser movido para API futuramente)
@@ -246,6 +247,7 @@ const API_COUNT_SERVER_TOTALS = '/audit/count-server-totals';
 const API_LAST_COUNT_PER_PRODUCT = '/audit/last-count-per-product';
 const API_VALIDITY_EVENTS = '/audit/validity-events';
 const API_VALIDITY_LINES = '/audit/validity-lines';
+const API_VALIDITY_LAST_LAUNCH = '/audit/validity-last-launch-by-product';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
 /** Dias sem nova contagem para considerar a base "antiga" (painel analítico). */
@@ -273,6 +275,9 @@ const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
 let countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
 let validityProductsCache = [];
 let validityServerLines = [];
+/** Última data operacional com lançamento de validade por código (servidor). */
+let validityLastLaunchByCode = {};
+let validityOpStatusFilter = 'all';
 /** Última contagem global por produto: CX/UN + count_date (ChangeLog, servidor). */
 let validityLastCountState = { ok: false, balances: {} };
 /** KPI clicável ativo (filtro rápido); null = nenhum. */
@@ -517,6 +522,7 @@ const REGISTER_ACCESS_GROUPS = [
       { key: 'return', label: 'Devolução' },
       { key: 'break', label: 'Quebra' },
       { key: 'direct-sale', label: 'Venda Direta' },
+      { key: 'validity', label: 'Validade (lançamento)' },
       { key: 'validity-analysis', label: 'Análise de Validades' },
       { key: 'import-txt', label: 'Importar Estoque (TXT)' },
       { key: 'count-audit', label: 'Análise de Contagem' },
@@ -543,6 +549,7 @@ const REGISTER_PROFILE_PRESETS = {
     'return',
     'break',
     'direct-sale',
+    'validity',
     'validity-analysis',
     'import-txt',
     'count-audit',
@@ -557,6 +564,7 @@ const REGISTER_PROFILE_PRESETS = {
     'return',
     'break',
     'direct-sale',
+    'validity',
     'import-txt',
     /* count-audit / validity-analysis: só com permissão explícita ou perfil administrativo */
   ],
@@ -574,6 +582,7 @@ const SUB_MODULES = [
   'return',
   'break',
   'direct-sale',
+  'validity',
   'validity-analysis',
   'import-txt',
   'count-audit',
@@ -596,8 +605,8 @@ const PAGE_TITLES = {
   return: 'Devolução',
   break: 'Quebra',
   'direct-sale': 'Venda Direta',
+  validity: 'Validade',
   'validity-analysis': 'Análise de Validades',
-  validity: 'Análise de Validades',
   'import-txt': 'Importar Estoque',
   'count-audit': 'Análise de Contagem',
   'cadastro-produto': 'Cadastro de Produto',
@@ -638,6 +647,7 @@ const ACCESS_CATEGORIES = [
       { module: 'Devolução', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Quebra', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Venda Direta', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Validade (lançamento)', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Análise de Validades', roles: ['administrativo', 'admin'] },
     ],
   },
@@ -716,6 +726,8 @@ function setActiveSub(subKey) {
     startCountAuditPolling();
   } else if (subKey === 'validity-analysis') {
     loadValidityModuleForSub(subKey);
+  } else if (subKey === 'validity') {
+    loadValidityOperationalModule();
   }
 }
 
@@ -748,12 +760,12 @@ function setActiveModule(moduleKey, updateHistory = true) {
     setActiveModule('contagem', false);
     return;
   }
-  // Validade unificada antiga (#validity) ou hash removido (#validity-launch): vai para análise
-  if (normalized === 'validity' || normalized === 'validity-launch') {
+  // Hash legado: lançamento rápido de validade unificado em #validity
+  if (normalized === 'validity-launch') {
     if (updateHistory) {
-      history.replaceState(null, '', `${APP_BASE_PATH}#validity-analysis`);
+      history.replaceState(null, '', `${APP_BASE_PATH}#validity`);
     }
-    setActiveModule('validity-analysis', false);
+    setActiveModule('validity', false);
     return;
   }
 
@@ -814,11 +826,8 @@ function canAccessHash(hashKey) {
     return canAccessModule('contagem');
   }
 
-  if (k === 'validity') {
-    return canAccessHash('validity-analysis');
-  }
-  if (k === 'validity-launch') {
-    return canAccessHash('validity-analysis');
+  if (k === 'validity' || k === 'validity-launch') {
+    return canAccessModule('contagem');
   }
 
   if (SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED.has(k)) {
@@ -1161,6 +1170,9 @@ function openUserEditPanel(user) {
     let checked = pages.includes(key);
     if (key === 'validity-analysis') {
       checked = checked || pages.includes('validity');
+    }
+    if (key === 'validity') {
+      checked = checked || pages.includes('validity-analysis');
     }
     node.checked = checked;
   });
@@ -1978,23 +1990,27 @@ function flattenValidityPendingAll() {
 
 function getActiveValiditySubKey() {
   if (document.getElementById('sub-validity-analysis')?.classList.contains('active')) return 'validity-analysis';
+  if (document.getElementById('sub-validity')?.classList.contains('active')) return 'validity';
   return null;
 }
 
 function setValidityFeedback(msg, isError = false) {
-  const el = document.getElementById('validity-analysis-feedback');
-  if (!el) return;
-  el.textContent = msg || '';
-  el.style.color = isError ? 'var(--error)' : 'var(--accent)';
+  const color = isError ? 'var(--error)' : 'var(--accent)';
+  document.querySelectorAll('#validity-analysis-feedback, #validity-op-feedback').forEach((el) => {
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.color = color;
+  });
 }
 
 function updateValidityPendingBadges() {
   const pending = flattenValidityPendingAll().filter((e) => !e.synced).length;
   const text = `${pending} pendentes`;
-  const badge = document.getElementById('validity-analysis-pending-badge');
-  if (!badge) return;
-  badge.hidden = pending === 0;
-  badge.textContent = text;
+  document.querySelectorAll('#validity-analysis-pending-badge, #validity-op-pending-badge').forEach((badge) => {
+    if (!badge) return;
+    badge.hidden = pending === 0;
+    badge.textContent = text;
+  });
 }
 
 function renderCountProducts(products) {
@@ -2649,11 +2665,343 @@ async function loadValidityProductsCatalog() {
   validityProductsCache = Array.isArray(products) ? products : [];
 }
 
+function _validityMaxDateStr(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return a >= b ? a : b;
+}
+
+/** Dias civis entre duas datas YYYY-MM-DD (later − earlier). */
+function _validityDaysBetweenCalendar(laterBr, earlierBr) {
+  if (!laterBr || !earlierBr) return null;
+  const a = new Date(`${laterBr}T12:00:00`);
+  const b = new Date(`${earlierBr}T12:00:00`);
+  return Math.round((a - b) / 86400000);
+}
+
+function getLocalLastValidityOperationalDayForCode(codRaw) {
+  const c = normalizeItemCode(codRaw);
+  const b = loadValidityBucketRaw();
+  let maxD = null;
+  for (const k of Object.keys(b)) {
+    const arr = b[k];
+    if (!Array.isArray(arr)) continue;
+    for (const ev of arr) {
+      if (normalizeItemCode(ev.cod_produto) === c) {
+        const d = String(ev.operational_day || k || '').slice(0, 10);
+        if (d.length >= 10) maxD = _validityMaxDateStr(maxD, d);
+      }
+    }
+  }
+  return maxD;
+}
+
+function mergedLastValidityLaunchDateIso(codRaw) {
+  const cod = normalizeItemCode(codRaw);
+  const fromServer = validityLastLaunchByCode[cod] || null;
+  const fromLocal = getLocalLastValidityOperationalDayForCode(cod);
+  return _validityMaxDateStr(fromServer, fromLocal);
+}
+
+async function loadValidityLastLaunchFromServer() {
+  const token = getToken();
+  if (!token || isAccessTokenExpired(token)) {
+    validityLastLaunchByCode = {};
+    return;
+  }
+  try {
+    const resp = await apiFetch(API_VALIDITY_LAST_LAUNCH, { headers: getAuthHeaders() });
+    if (handleUnauthorizedResponse(resp)) {
+      validityLastLaunchByCode = {};
+      return;
+    }
+    if (!resp.ok) {
+      validityLastLaunchByCode = {};
+      return;
+    }
+    const data = await resp.json();
+    const raw = data.last_by_code && typeof data.last_by_code === 'object' ? data.last_by_code : {};
+    const norm = {};
+    for (const k of Object.keys(raw)) {
+      const c = normalizeItemCode(k);
+      if (!c) continue;
+      const v = String(raw[k] || '').slice(0, 10);
+      if (v.length >= 10) norm[c] = _validityMaxDateStr(norm[c], v);
+    }
+    validityLastLaunchByCode = norm;
+  } catch {
+    validityLastLaunchByCode = {};
+  }
+}
+
+function syncValidityOpFilterDateFromHidden() {
+  const hid = document.getElementById('validity-op-date');
+  const vis = document.getElementById('validity-op-filter-date');
+  if (!vis) return;
+  const v = (hid && hid.value) || getBrazilDateKey();
+  if (!hid || !hid.value) {
+    if (hid) hid.value = v;
+  }
+  vis.value = v;
+}
+
+function syncHiddenValidityOpDateFromFilter() {
+  const hid = document.getElementById('validity-op-date');
+  const vis = document.getElementById('validity-op-filter-date');
+  if (!hid || !vis) return;
+  const v = (vis.value || '').trim() || getBrazilDateKey();
+  hid.value = v;
+}
+
+function validityOpSortTier(row) {
+  if (row.hasLaunchOnOpDay) return 2;
+  if (row.isOverdue) return 0;
+  return 1;
+}
+
+function sortValidityOperationalRows(rows) {
+  rows.sort((a, b) => {
+    const ta = validityOpSortTier(a);
+    const tb = validityOpSortTier(b);
+    if (ta !== tb) return ta - tb;
+    if (ta === 0) {
+      const da = a.daysSinceLast ?? 9999;
+      const db = b.daysSinceLast ?? 9999;
+      if (da !== db) return db - da;
+    } else if (ta === 1) {
+      const da = a.daysSinceLast ?? 0;
+      const db = b.daysSinceLast ?? 0;
+      if (da !== db) return da - db;
+    }
+    return compareAuditCodProduto(a.product, b.product);
+  });
+}
+
+function buildValidityOperationalRowModel(p, opKey, todayBr) {
+  const cod = normalizeItemCode(p.cod_produto || '');
+  const lines = getMergedValidityLinesForProduct(cod);
+  const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
+  const hasLaunchOnOpDay = linesOp.length > 0;
+  const lastLaunch = mergedLastValidityLaunchDateIso(cod);
+  const daysSinceLast = lastLaunch ? _validityDaysBetweenCalendar(todayBr, lastLaunch) : null;
+  const isOverdue = lastLaunch == null || daysSinceLast == null || daysSinceLast > 7;
+  const anchor = linesOp.length ? operationalAnchorLine(linesOp, todayBr) : null;
+  const lancamentoAtualLabel = anchor
+    ? formatDateBrFromIso(String(anchor.expiration_date || '').slice(0, 10))
+    : '—';
+  let ultimoLabel = '—';
+  if (lastLaunch) ultimoLabel = formatDateBrFromIso(lastLaunch);
+  let auxLine = '';
+  if (lastLaunch == null) {
+    auxLine = 'Nunca registrado no sistema.';
+  } else if (daysSinceLast != null) {
+    auxLine = `Último lançamento há ${daysSinceLast} dia(s).`;
+  }
+  let badgeHtml = '';
+  if (lastLaunch == null) {
+    badgeHtml = '<span class="validity-chip validity-chip--warn">Sem histórico</span>';
+  } else if (isOverdue && !hasLaunchOnOpDay) {
+    badgeHtml = '<span class="validity-chip validity-chip--danger">Atrasado</span>';
+  } else if (hasLaunchOnOpDay) {
+    badgeHtml = '<span class="validity-chip validity-chip--ok">Lançado</span>';
+  } else {
+    badgeHtml = '<span class="validity-chip validity-chip--muted">No prazo</span>';
+  }
+  return {
+    product: p,
+    cod,
+    lines,
+    linesOp,
+    hasLaunchOnOpDay,
+    lastLaunch,
+    daysSinceLast,
+    isOverdue,
+    lancamentoAtualLabel,
+    ultimoLabel,
+    auxLine,
+    badgeHtml,
+  };
+}
+
+function filterValidityOperationalModels(rows) {
+  const term = (document.getElementById('validity-op-item-code')?.value || '').trim().toLowerCase();
+  const grupo = (document.getElementById('validity-op-group')?.value || '').trim().toLowerCase();
+  const f = validityOpStatusFilter || 'all';
+  return rows.filter((row) => {
+    const p = row.product;
+    const desc = (p.cod_grup_descricao || '').toLowerCase();
+    const marca = (p.cod_grup_marca || '').toLowerCase();
+    const cod = String(row.cod || '').toLowerCase();
+    if (term) {
+      const ok = cod.includes(term) || desc.includes(term) || marca.includes(term);
+      if (!ok) return false;
+    }
+    if (grupo) {
+      if (!desc.includes(grupo)) return false;
+    }
+    if (f === 'pending') return !row.hasLaunchOnOpDay;
+    if (f === 'today') return row.hasLaunchOnOpDay;
+    if (f === 'overdue') return row.isOverdue && !row.hasLaunchOnOpDay;
+    return true;
+  });
+}
+
+function renderValidityOperationalView() {
+  const ul = document.getElementById('validity-op-list');
+  const totalEl = document.getElementById('validity-op-products-total');
+  if (!ul) return;
+
+  const isActive = (status) => {
+    const s = String(status || '').trim().toLowerCase();
+    if (!s || s === 'ativo' || s === 's' || s === 'sim' || s === '1' || s === 'true') return true;
+    return false;
+  };
+  const ativos = (validityProductsCache || []).filter((p) => isActive(p.status));
+  const opKey = getActiveValidityOpDateKey();
+  const todayBr = getBrazilDateKey();
+
+  const models = ativos.map((p) => buildValidityOperationalRowModel(p, opKey, todayBr));
+  sortValidityOperationalModels(models);
+  const visible = filterValidityOperationalModels(models);
+
+  if (totalEl) totalEl.textContent = String(visible.length);
+
+  const launchedOnOp = visible.filter((r) => r.hasLaunchOnOpDay).length;
+  const totalV = visible.length;
+  const pct = totalV > 0 ? Math.round((launchedOnOp / totalV) * 100) : 0;
+  const fill = document.getElementById('validity-op-progress-fill');
+  const pp = document.getElementById('validity-op-progress-percent');
+  const pd = document.getElementById('validity-op-progress-detail');
+  if (fill) fill.style.width = `${pct}%`;
+  if (pp) pp.textContent = `${pct}%`;
+  if (pd) {
+    const sameDay = opKey === todayBr;
+    pd.textContent = sameDay
+      ? `${launchedOnOp} de ${totalV} produtos lançados hoje`
+      : `${launchedOnOp} de ${totalV} produtos lançados nesta data`;
+  }
+
+  const pend = visible.filter((r) => !r.hasLaunchOnOpDay).length;
+  const atras = visible.filter((r) => r.isOverdue && !r.hasLaunchOnOpDay).length;
+  const ms = document.getElementById('validity-op-mini-stats');
+  if (ms) {
+    ms.textContent = `Neste filtro: ${launchedOnOp} lançados nesta data · ${pend} pendentes · ${atras} atrasados (+7d sem lançamento)`;
+  }
+
+  document.querySelectorAll('.validity-op-chip').forEach((btn) => {
+    const k = btn.getAttribute('data-validity-op-filter') || 'all';
+    btn.setAttribute('aria-pressed', k === validityOpStatusFilter ? 'true' : 'false');
+  });
+
+  updateValidityReadonlyState();
+  ul.innerHTML = '';
+  if (!visible.length) {
+    ul.innerHTML =
+      '<li class="count-all-done-msg"><span class="muted">Nenhum produto no filtro atual.</span></li>';
+    return;
+  }
+
+  for (const row of visible) {
+    const p = row.product;
+    const name = escapeHtml((p.cod_grup_descricao || row.cod || '').trim());
+    const codEsc = escapeHtml(row.cod);
+    const enc = encodeURIComponent(row.cod);
+    const zone = row.isOverdue && !row.hasLaunchOnOpDay ? ' validity-op-card--overdue' : '';
+    const li = document.createElement('li');
+    li.className = `validity-op-card count-product-item${zone}`;
+    li.dataset.codProduto = row.cod;
+    li.innerHTML = `
+      <div class="validity-op-card-inner">
+        <div class="validity-op-card-head">
+          <span class="validity-op-card-title">${name}</span>
+          <span class="validity-op-card-cod">${codEsc}</span>
+          <div class="validity-op-card-badges">${row.badgeHtml}</div>
+          <p class="validity-op-card-meta">Último lançamento: <strong>${escapeHtml(row.ultimoLabel)}</strong></p>
+          <p class="validity-op-card-meta">Nesta data: <strong>${escapeHtml(row.lancamentoAtualLabel)}</strong></p>
+          <p class="validity-op-card-meta muted">${escapeHtml(row.auxLine)}</p>
+        </div>
+        <div class="validity-op-card-expand" aria-hidden="true">
+          <label class="count-filter-label count-filter-label--bold">Data de validade</label>
+          <input type="date" class="count-filter-input validity-op-date-input" data-coderef="${enc}" autocomplete="off" aria-label="Data de validade" />
+          <button type="button" class="btn btn-primary validity-op-save" data-coderef="${enc}">Salvar</button>
+        </div>
+      </div>`;
+    ul.appendChild(li);
+  }
+
+  bindValidityOperationalListOnce();
+}
+
+function bindValidityOperationalListOnce() {
+  const ul = document.getElementById('validity-op-list');
+  if (!ul || ul.dataset.validityOpBound === '1') return;
+  ul.dataset.validityOpBound = '1';
+  ul.addEventListener('click', (e) => {
+    const saveBtn = e.target.closest('.validity-op-save');
+    if (saveBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const card = saveBtn.closest('.validity-op-card');
+      const inp = card && card.querySelector('.validity-op-date-input');
+      const cref = saveBtn.getAttribute('data-coderef') || '';
+      const cod = normalizeItemCode(decodeURIComponent(cref));
+      registerValidityLineLocal(cod, inp && inp.value);
+      ul.querySelectorAll('.validity-op-card--open').forEach((n) => {
+        n.classList.remove('validity-op-card--open');
+        const ex = n.querySelector('.validity-op-card-expand');
+        if (ex) ex.setAttribute('aria-hidden', 'true');
+      });
+      return;
+    }
+    const t = e.target;
+    if (t && (t.closest('input') || t.closest('label'))) return;
+    const card = e.target.closest('.validity-op-card');
+    if (!card) return;
+    const expand = card.querySelector('.validity-op-card-expand');
+    if (expand && expand.contains(e.target)) return;
+    const isOpen = card.classList.contains('validity-op-card--open');
+    ul.querySelectorAll('.validity-op-card--open').forEach((n) => {
+      n.classList.remove('validity-op-card--open');
+      const ex = n.querySelector('.validity-op-card-expand');
+      if (ex) ex.setAttribute('aria-hidden', 'true');
+    });
+    if (!isOpen) {
+      card.classList.add('validity-op-card--open');
+      if (expand) expand.setAttribute('aria-hidden', 'false');
+      const cref = encodeURIComponent(card.dataset.codProduto || '');
+      const inp = card.querySelector(`input.validity-op-date-input[data-coderef="${cref}"]`);
+      if (inp) {
+        const rowCod = normalizeItemCode(decodeURIComponent(cref));
+        const lines = getMergedValidityLinesForProduct(rowCod);
+        const opKey = getActiveValidityOpDateKey();
+        const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
+        const anchor = linesOp.length ? operationalAnchorLine(linesOp, getBrazilDateKey()) : null;
+        const sug = anchor ? String(anchor.expiration_date || '').slice(0, 10) : '';
+        if (sug) inp.value = sug;
+        setTimeout(() => inp.focus(), 80);
+      }
+    }
+  });
+}
+
+async function loadValidityOperationalModule() {
+  showDashboard();
+  scrollDashboardToTop();
+  syncValidityOpFilterDateFromHidden();
+  await loadValidityProductsCatalog();
+  await loadValidityLastLaunchFromServer();
+  await loadValidityLinesFromServer();
+  renderValidityOperationalView();
+  updateValidityPendingBadges();
+  scrollDashboardToTop();
+}
+
 function updateValidityReadonlyState() {
   const editable = isValidityOperationalEditable();
   document
     .getElementById('validity-analysis-shell')
     ?.classList.toggle('validity-products-shell--readonly', !editable);
+  document.getElementById('validity-op-shell')?.classList.toggle('count-products-shell--readonly', !editable);
   const msg = !editable
     ? `Modo consulta (${getActiveValidityOpDateKey()}). Lancamentos apenas na data de hoje (${getBrazilDateKey()}).`
     : '';
@@ -2661,6 +3009,11 @@ function updateValidityReadonlyState() {
   if (banner) {
     banner.hidden = editable;
     banner.textContent = msg;
+  }
+  const bannerOp = document.getElementById('validity-op-readonly-banner');
+  if (bannerOp) {
+    bannerOp.hidden = editable;
+    bannerOp.textContent = msg;
   }
 }
 
@@ -2953,7 +3306,9 @@ function setValidityAnalysisSelection(cod) {
 }
 
 function refreshValidityUiAfterMutation() {
-  if (getActiveValiditySubKey() === 'validity-analysis') renderValidityAnalysisView();
+  const sub = getActiveValiditySubKey();
+  if (sub === 'validity-analysis') renderValidityAnalysisView();
+  if (sub === 'validity') renderValidityOperationalView();
 }
 
 function renderValidityAnalysisView() {
@@ -3098,14 +3453,22 @@ function registerValidityLineLocal(codRaw, expirationDateStr) {
   };
   events.push(ev);
   saveValidityEventsForDate(dayKey, events);
-  setValidityFeedback(`Validade ${ev.expiration_date} gravada localmente. Sincronize quando estiver online.`, false);
+  const shortOk = getActiveValiditySubKey() === 'validity';
+  setValidityFeedback(
+    shortOk
+      ? 'Validade salva.'
+      : `Validade ${ev.expiration_date} gravada localmente. Sincronize quando estiver online.`,
+    false,
+  );
   const savedCod = cod;
   refreshValidityUiAfterMutation();
-  requestAnimationFrame(() => {
-    const enc = encodeURIComponent(savedCod);
-    const expEl = document.getElementById(`validity-exp-panel-${enc}`);
-    if (expEl && !expEl.disabled) expEl.focus();
-  });
+  if (getActiveValiditySubKey() === 'validity-analysis') {
+    requestAnimationFrame(() => {
+      const enc = encodeURIComponent(savedCod);
+      const expEl = document.getElementById(`validity-exp-panel-${enc}`);
+      if (expEl && !expEl.disabled) expEl.focus();
+    });
+  }
   updateValidityPendingBadges();
   if (navigator.onLine) {
     syncValidityPending();
@@ -3178,6 +3541,7 @@ async function syncValidityPending() {
     touchValidityLastSync();
     setValidityFeedback(`Sincronizado: ${synced.size} lancamento(s).`);
     await loadValidityLinesFromServer();
+    await loadValidityLastLaunchFromServer();
     refreshValidityUiAfterMutation();
     updateValidityPendingBadges();
   } catch {
@@ -3291,12 +3655,39 @@ function bindValidityEvents() {
 
   if (opDate) {
     opDate.addEventListener('change', async () => {
+      syncValidityOpFilterDateFromHidden();
       await loadValidityLinesFromServer();
       refreshValidityUiAfterMutation();
     });
   }
 
+  const opFilterDate = document.getElementById('validity-op-filter-date');
+  if (opFilterDate && opFilterDate.dataset.voDateBound !== '1') {
+    opFilterDate.dataset.voDateBound = '1';
+    opFilterDate.addEventListener('change', async () => {
+      syncHiddenValidityOpDateFromFilter();
+      await loadValidityLinesFromServer();
+      refreshValidityUiAfterMutation();
+    });
+  }
+
+  const opForm = document.getElementById('validity-op-form');
+  if (opForm && opForm.dataset.voFormBound !== '1') {
+    opForm.dataset.voFormBound = '1';
+    opForm.addEventListener('click', (e) => {
+      const chip = e.target.closest('.validity-op-chip');
+      if (!chip) return;
+      const k = chip.getAttribute('data-validity-op-filter');
+      if (!k) return;
+      validityOpStatusFilter = k;
+      renderValidityOperationalView();
+    });
+    document.getElementById('validity-op-item-code')?.addEventListener('input', () => renderValidityOperationalView());
+    document.getElementById('validity-op-group')?.addEventListener('input', () => renderValidityOperationalView());
+  }
+
   document.getElementById('btn-validity-analysis-sync')?.addEventListener('click', () => syncValidityPending());
+  document.getElementById('btn-validity-op-sync')?.addEventListener('click', () => syncValidityPending());
 
   const histDlg = document.getElementById('validity-history-dialog');
   if (histDlg && histDlg.dataset.bound !== '1') {
@@ -6557,6 +6948,7 @@ function bindModuleEvents() {
     if (card) {
       const subKey = card.dataset.sub;
       if (subKey) {
+        if (!canAccessHash(subKey)) return;
         setActiveSub(subKey);
         history.pushState(null, '', `${APP_BASE_PATH}#${subKey}`);
       }

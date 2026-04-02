@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=39" />
+    <link rel="stylesheet" href="/static/style.css?v=40" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -132,6 +132,11 @@
                 <span class="module-card-title">Venda Direta</span>
                 <span class="module-card-desc">Baixa imediata com segurança operacional</span>
               </button>
+              <button type="button" class="module-card" data-sub="validity">
+                <span class="module-card-icon">📅</span>
+                <span class="module-card-title">Validade</span>
+                <span class="module-card-desc">Lançamento rápido da data de validade por produto</span>
+              </button>
               <button type="button" class="module-card" data-sub="validity-analysis">
                 <span class="module-card-icon">📊</span>
                 <span class="module-card-title">Análise de Validades</span>
@@ -218,6 +223,73 @@
                 <p class="count-products-done-sub muted">CX e UN conferidos com o saldo do TXT.</p>
                 <ul id="count-products-list-done" class="list count-list-flat count-list-done"></ul>
               </div>
+            </div>
+          </div>
+
+          <!-- Sub: Validade (lançamento operacional) -->
+          <div id="sub-validity" class="sub-section">
+            <div class="info-card master-container count-main-card count-main-card--outer">
+              <form id="validity-op-form" class="count-form" autocomplete="off" novalidate>
+                <div class="count-main-card-inner count-main-card-extended count-op-header">
+                  <div class="count-main-title-row">
+                    <span class="count-main-title">Produtos para lançamento de validade</span>
+                    <span id="validity-op-products-total" class="count-main-chip" aria-live="polite">0</span>
+                  </div>
+                  <div class="count-main-filters-row">
+                    <div class="count-main-filter-col count-main-filter-col--produto">
+                      <label class="count-filter-label count-filter-label--bold" for="validity-op-item-code">Produto</label>
+                      <div class="count-filter-input-wrapper">
+                        <span class="count-filter-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
+                        <input id="validity-op-item-code" name="validity-op-item-code" type="text" class="count-filter-input" placeholder="Buscar produto..." autocomplete="off" aria-label="Produto validade" />
+                      </div>
+                    </div>
+                    <div class="count-main-filter-col count-main-filter-col--grupo">
+                      <label class="count-filter-label count-filter-label--bold" for="validity-op-group">Grupo</label>
+                      <div class="count-filter-input-wrapper">
+                        <span class="count-filter-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
+                        <input id="validity-op-group" name="validity-op-group" type="text" class="count-filter-input" placeholder="Buscar grupo..." autocomplete="off" aria-label="Grupo validade" />
+                      </div>
+                    </div>
+                    <div class="count-main-filter-col count-main-filter-col--data count-main-filter-date">
+                      <label class="count-filter-label count-filter-label--bold" for="validity-op-filter-date">Data operacional</label>
+                      <div class="count-filter-input-wrapper count-filter-input-wrapper--date">
+                        <span class="count-filter-icon count-filter-icon--calendar" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+                        <input id="validity-op-filter-date" name="validity-op-filter-date" type="date" class="count-filter-input count-filter-date" aria-label="Data operacional validade" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="validity-op-status-row" role="group" aria-label="Filtro por situação">
+                    <span class="count-filter-label count-filter-label--bold validity-op-status-label">Situação</span>
+                    <div class="validity-op-status-chips">
+                      <button type="button" class="validity-op-chip" data-validity-op-filter="all" aria-pressed="true">Todos</button>
+                      <button type="button" class="validity-op-chip" data-validity-op-filter="pending" aria-pressed="false">Pendentes</button>
+                      <button type="button" class="validity-op-chip" data-validity-op-filter="today" aria-pressed="false">Lançados hoje</button>
+                      <button type="button" class="validity-op-chip" data-validity-op-filter="overdue" aria-pressed="false">Atrasados (+7d)</button>
+                    </div>
+                  </div>
+                  <div class="validity-op-mini-stats muted" id="validity-op-mini-stats" aria-live="polite"></div>
+                  <div class="count-progress count-main-progress validity-op-progress-wrap" aria-live="polite">
+                    <div class="count-progress-block count-progress-block--products">
+                      <div class="count-progress-track-wrap">
+                        <div class="count-progress-track" role="presentation" aria-hidden="true">
+                          <div id="validity-op-progress-fill" class="count-progress-fill count-progress-fill--products" style="width:0%;"></div>
+                        </div>
+                      </div>
+                      <span id="validity-op-progress-percent" class="count-progress-percent count-progress-percent--products" title="Produtos com validade lançada nesta data">0%</span>
+                      <p id="validity-op-progress-detail" class="count-progress-detail count-progress-detail--products">0 de 0 produtos lançados nesta data</p>
+                    </div>
+                  </div>
+                  <div class="validity-op-toolbar">
+                    <button type="button" id="btn-validity-op-sync" class="btn btn-secondary">Sincronizar validades</button>
+                    <span id="validity-op-pending-badge" class="chip validity-pending-chip" hidden>0 pendentes</span>
+                  </div>
+                  <div id="validity-op-feedback" class="field-feedback" aria-live="polite"></div>
+                </div>
+              </form>
+            </div>
+            <div id="validity-op-readonly-banner" class="count-readonly-banner" role="status" aria-live="polite" hidden></div>
+            <div class="count-products-shell validity-op-shell" id="validity-op-shell">
+              <ul id="validity-op-list" class="list count-list-flat"></ul>
             </div>
           </div>
 

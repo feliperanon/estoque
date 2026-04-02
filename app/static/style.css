@@ -6489,6 +6489,155 @@ details[open] > .validity-analytic-summary::after {
   }
 }
 
+/* ── Validade operacional (sub-validity): cards e filtros, alinhado à contagem ── */
+.validity-op-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 0.35rem 0 0.5rem;
+  width: 100%;
+}
+.validity-op-status-label {
+  flex: 0 0 auto;
+}
+.validity-op-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1 1 220px;
+}
+button.validity-op-chip {
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #f8fafc;
+  color: var(--ink, #0f172a);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.validity-op-chip[aria-pressed="true"] {
+  border-color: rgba(37, 99, 235, 0.55);
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+}
+.validity-op-mini-stats {
+  font-size: 0.8rem;
+  margin: 0 0 0.75rem;
+  line-height: 1.45;
+}
+.validity-op-progress-wrap {
+  margin-top: 0.25rem;
+}
+.validity-op-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0.5rem;
+}
+.validity-op-shell .validity-op-card {
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fcfcfd;
+  margin-bottom: 8px;
+  list-style: none;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.validity-op-shell .validity-op-card:hover {
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+.validity-op-shell .validity-op-card.validity-op-card--overdue {
+  background: linear-gradient(180deg, #fff5f5 0%, #fffbfb 100%);
+  border-color: rgba(220, 38, 38, 0.22);
+}
+.validity-op-shell .validity-op-card.validity-op-card--open {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.08);
+}
+.validity-op-card-inner {
+  padding: 10px 12px;
+}
+.validity-op-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.35rem 0.75rem;
+}
+.validity-op-card-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink, #0f172a);
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.validity-op-card-cod {
+  font-size: 0.8rem;
+  color: var(--muted, #64748b);
+  font-weight: 600;
+}
+.validity-op-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+.validity-op-card-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted, #64748b);
+  line-height: 1.4;
+}
+.validity-op-card-meta strong {
+  color: #334155;
+  font-weight: 600;
+}
+.validity-op-card-expand {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.22s ease, opacity 0.18s ease, margin-top 0.18s ease;
+}
+.validity-op-card.validity-op-card--open .validity-op-card-expand {
+  max-height: 220px;
+  opacity: 1;
+}
+.validity-op-date-input {
+  font-size: 1.05rem;
+  min-height: 44px;
+  padding: 8px 10px;
+  width: 100%;
+  max-width: 100%;
+}
+.validity-op-save {
+  align-self: flex-start;
+  min-height: 44px;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+@media (max-width: 640px) {
+  .validity-op-status-chips {
+    gap: 6px;
+  }
+  button.validity-op-chip {
+    font-size: 0.72rem;
+    padding: 6px 10px;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

@@ -11,6 +11,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, SQLModel, select
 
@@ -1208,6 +1209,36 @@ def list_validity_lines(
             }
         )
     return {"operational_date": d.isoformat(), "lines": lines}
+
+
+@router.get("/validity-last-launch-by-product")
+def validity_last_launch_by_product(
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Última data operacional (America/Sao_Paulo) em que cada produto teve ao menos uma linha de validade."""
+    _ensure_validity_lines_table()
+    try:
+        rows = session.exec(
+            select(ValidityLine.cod_produto, func.max(ValidityLine.operational_date)).group_by(
+                ValidityLine.cod_produto
+            )
+        ).all()
+    except SQLAlchemyError as exc:
+        logger.exception("Erro ao agregar ultima validade por produto")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao consultar ultimas validades: {exc}",
+        ) from exc
+    last_by_code: dict[str, str] = {}
+    for cod_raw, d in rows:
+        if d is None:
+            continue
+        cod = _normalize_item_code(cod_raw)
+        if not cod:
+            continue
+        last_by_code[cod] = d.isoformat()
+    return {"last_by_code": last_by_code}
 
 
 @router.delete("/validity-lines/{line_id}", status_code=204)
