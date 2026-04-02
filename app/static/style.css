@@ -257,47 +257,6 @@
   line-height: 1.25;
   box-sizing: border-box;
 }
-/* Grupo × Data: mesma caixa externa 44px (border-box); Data em linha única; Grupo pode crescer com chips abaixo */
-#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper {
-  height: 44px;
-  min-height: 44px;
-  max-height: 44px;
-  padding: 0 8px;
-  align-items: center;
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-}
-#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper {
-  min-height: 44px;
-  padding: 0 8px;
-  align-items: center;
-  align-content: flex-start;
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-}
-#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input,
-#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper > .count-filter-input.count-filter-date {
-  height: 32px;
-  min-height: 32px;
-  max-height: 32px;
-  padding: 0;
-  margin: 0;
-  line-height: 32px;
-  font-size: 0.875rem;
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-}
-#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper .count-filter-input.count-filter-date {
-  appearance: none;
-  -webkit-appearance: none;
-}
-#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
-#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data .count-filter-icon {
-  align-self: center;
-}
 #sub-count .count-main-card-inner.count-op-header .count-filter-label {
   font-size: 0.75rem;
 }
@@ -419,6 +378,80 @@
   padding-top: 8px;
   padding-bottom: 8px;
 }
+
+/*
+ * Contagem (#sub-count): Grupo e Data com a mesma caixa externa 44px.
+ * Colocado após as regras globais de .count-filter-* para vencer a cascata.
+ * Slot de chips vazio não pode ter padding-top (senão o Grupo fica mais alto que a Data).
+ */
+/* Slot vazio: não participa do layout (evita linha extra no flex-wrap). */
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper .count-group-chip-slot:empty {
+  display: none;
+}
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper.count-filter-input-wrapper--date {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  padding: 0 8px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper {
+  min-height: 44px;
+  height: 44px;
+  padding: 0 8px;
+  align-items: center;
+  align-content: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+/* Com chips, o wrapper precisa crescer além de 44px */
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper:has(.count-group-chip-slot:not(:empty)) {
+  height: auto;
+  min-height: 44px;
+  max-height: none;
+}
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper > .count-filter-input[type="date"].count-filter-date {
+  height: 32px;
+  min-height: 32px !important;
+  max-height: 32px;
+  padding: 0 !important;
+  margin: 0;
+  line-height: 32px;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  vertical-align: middle;
+}
+@media (max-width: 600px) {
+  #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
+  #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper > .count-filter-input[type="date"].count-filter-date {
+    font-size: 16px;
+  }
+}
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper .count-filter-input.count-filter-date {
+  appearance: none;
+  -webkit-appearance: none;
+}
+/* WebKit: altura interna do date costuma ignorar height do input e “estoura” a caixa 44px */
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper .count-filter-input.count-filter-date::-webkit-datetime-edit,
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper .count-filter-input.count-filter-date::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+  min-height: 0;
+}
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper .count-filter-input.count-filter-date::-webkit-date-and-time-value {
+  text-align: left;
+}
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data .count-filter-icon {
+  align-self: center;
+}
+
 .count-main-progress {
   width: 100%;
   margin-top: 6px;
