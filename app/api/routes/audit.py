@@ -1,6 +1,7 @@
 import hashlib
 import re
 import logging
+from collections import defaultdict
 from datetime import date, datetime, timezone, timedelta
 from io import BytesIO
 from zoneinfo import ZoneInfo
@@ -1475,6 +1476,48 @@ def validity_last_launch_by_product(
             continue
         last_by_code[cod] = d.isoformat()
     return {"last_by_code": last_by_code}
+
+
+@router.get("/validity-display-expiry-by-product")
+def validity_display_expiry_by_product(
+    session: Session = Depends(get_session),
+    _: User = Depends(require_stock_analysis_access),
+) -> dict:
+    """
+    Mapa código → data de vencimento para exibição (alinhado ao módulo Validade no front:
+    primeiro vencimento hoje ou futuro; se só há linhas vencidas, a mais antiga).
+    """
+    _ensure_validity_lines_table()
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    try:
+        rows = session.exec(select(ValidityLine.cod_produto, ValidityLine.expiration_date)).all()
+    except SQLAlchemyError as exc:
+        logger.exception("Erro ao agregar validade por produto")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao consultar validades agregadas: {exc}",
+        ) from exc
+    by_code: dict[str, list[date]] = defaultdict(list)
+    for cod_raw, exp in rows:
+        if exp is None:
+            continue
+        cod = _normalize_item_code(cod_raw)
+        if not cod:
+            continue
+        by_code[cod].append(exp)
+    out: dict[str, str] = {}
+    for cod, dates in by_code.items():
+        uniq = sorted(set(dates))
+        chosen: date | None = None
+        for d in uniq:
+            if d >= br_today:
+                chosen = d
+                break
+        if chosen is None and uniq:
+            chosen = uniq[0]
+        if chosen is not None:
+            out[cod] = chosen.isoformat()
+    return {"today": br_today.isoformat(), "by_code": out}
 
 
 @router.delete("/validity-lines/{line_id}", status_code=204)

@@ -305,6 +305,7 @@ const API_LAST_COUNT_PER_PRODUCT = '/audit/last-count-per-product';
 const API_VALIDITY_EVENTS = '/audit/validity-events';
 const API_VALIDITY_LINES = '/audit/validity-lines';
 const API_VALIDITY_LAST_LAUNCH = '/audit/validity-last-launch-by-product';
+const API_VALIDITY_DISPLAY_EXPIRY_BY_PRODUCT = '/audit/validity-display-expiry-by-product';
 const API_SYNC_BREAKS = '/audit/break-events';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
@@ -5756,6 +5757,8 @@ const countAuditState = {
   breakDayKey: '',
   breakDayOk: false,
   breakDayBalances: {},
+  /** Mapa normalizado cod_produto → YYYY-MM-DD (servidor, GET validity-display-expiry-by-product). */
+  validityExpiryByCode: {},
 };
 let countAuditDetailRequestSeq = 0;
 let countPrefillProductCode = null;
@@ -6266,6 +6269,49 @@ function syncCountAuditListSelection() {
   });
 }
 
+const COUNT_AUDIT_VALIDITY_URGENT_DAYS = 45;
+
+/** Mescla servidor + lançamentos locais não sincronizados (módulo Validade). */
+function countAuditMergedDisplayExpiryIso(codRaw) {
+  const cod = normalizeItemCode(codRaw);
+  const todayBr = getBrazilDateKey();
+  const dates = [];
+  const srv = countAuditState.validityExpiryByCode[cod];
+  if (srv) dates.push(String(srv).slice(0, 10));
+  for (const e of flattenValidityPendingAll()) {
+    if (e.synced) continue;
+    if (normalizeItemCode(e.cod_produto) !== cod) continue;
+    const ex = (e.expiration_date || '').slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ex)) dates.push(ex);
+  }
+  const uniq = [...new Set(dates)].sort();
+  const lines = uniq.map((expiration_date) => ({ expiration_date }));
+  const anchor = operationalAnchorLine(lines, todayBr);
+  if (anchor) return anchor.expiration_date;
+  const earl = earliestExpirationLine(lines);
+  return earl ? earl.expiration_date : null;
+}
+
+function countAuditValidityRiskClass(expIso) {
+  if (!expIso) return '';
+  const d = validityExpiryDiffDays(expIso, getBrazilDateKey());
+  if (d === null) return '';
+  if (d < 0) return 'count-audit-row-validity--risk';
+  if (d <= COUNT_AUDIT_VALIDITY_URGENT_DAYS) return 'count-audit-row-validity--risk';
+  return '';
+}
+
+function countAuditValidityMarkupForRow(codRaw) {
+  const expIso = countAuditMergedDisplayExpiryIso(codRaw);
+  if (!expIso) return '';
+  const risk = countAuditValidityRiskClass(expIso);
+  return (
+    `<span class="count-audit-row-validity${risk ? ` ${risk}` : ''}" title="Data de referência do módulo Validade (atualiza ao sincronizar)">` +
+    `Venc. ${escapeHtml(formatDateBR(expIso))}` +
+    `</span>`
+  );
+}
+
 function buildCountAuditHistoryHtml(history) {
   return history.length
     ? history.map((entry) => (
@@ -6314,6 +6360,11 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
   const trailSubtitle = compact ? 'Contexto do item' : 'Contexto para validação e decisão';
   const recountLabel = compact ? 'Recontagem' : 'Abrir recontagem';
   const refreshLabel = compact ? 'Atualizar' : 'Atualizar detalhe';
+  const expIsoDetail = countAuditMergedDisplayExpiryIso(code);
+  const expRiskDetail = expIsoDetail ? countAuditValidityRiskClass(expIsoDetail) : '';
+  const expDetailLine = expIsoDetail
+    ? `<div class="count-audit-detail-validity-line${expRiskDetail ? ` ${expRiskDetail}` : ''}">Validade (referência) · ${escapeHtml(formatDateBR(expIsoDetail))}</div>`
+    : '';
 
   return (
     `<div class="${shellClass}">` +
@@ -6322,6 +6373,7 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
           `<div>` +
             `<h4 class="count-audit-detail-title">${escapeHtml(row.descricao || 'Sem descrição')}</h4>` +
             `<div class="count-audit-detail-subtitle">Código ${escapeHtml(code || '-')} · Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</div>` +
+            `${expDetailLine}` +
           `</div>` +
           `<div class="count-audit-detail-pill-row">` +
             `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
@@ -6368,7 +6420,10 @@ function renderCountAuditDesktopRowMarkup(row) {
               `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
               `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
             `</div>` +
-            `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
+            `<span class="count-audit-row-name-wrap">` +
+              `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
+              `${countAuditValidityMarkupForRow(code)}` +
+            `</span>` +
           `</button>` +
         `</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
@@ -6419,7 +6474,10 @@ function renderCountAuditMobileRowMarkup(row) {
             `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
             `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
           `</div>` +
-          `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
+          `<span class="count-audit-row-name-wrap">` +
+            `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
+            `${countAuditValidityMarkupForRow(code)}` +
+          `</span>` +
           `<div class="count-audit-mobile-summary">` +
             `<strong class="count-audit-mobile-diff">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong>` +
             `<span class="count-audit-mobile-action">${escapeHtml(getCountAuditCompactActionLabel(meta))}</span>` +
@@ -6667,6 +6725,30 @@ async function loadCountAuditBreakDay(dayKey) {
   }
 }
 
+async function loadCountAuditValidityExpiryMap() {
+  countAuditState.validityExpiryByCode = {};
+  const token = getToken();
+  if (!token || unauthorizedRedirectInProgress) return;
+  try {
+    const response = await apiFetch(API_VALIDITY_DISPLAY_EXPIRY_BY_PRODUCT, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) return;
+    const data = await response.json();
+    const raw = data.by_code || {};
+    const norm = {};
+    for (const k of Object.keys(raw)) {
+      const c = normalizeItemCode(k);
+      if (c) norm[c] = String(raw[k]).slice(0, 10);
+    }
+    countAuditState.validityExpiryByCode = norm;
+  } catch {
+    /* offline: só merge local em countAuditMergedDisplayExpiryIso */
+  }
+}
+
 async function loadCountAuditAnalysis() {
   if (!countAuditImport || !countAuditList) return;
   const token = getToken();
@@ -6692,6 +6774,7 @@ async function loadCountAuditAnalysis() {
       countAuditState.breakDayKey = '';
       countAuditState.breakDayOk = false;
       countAuditState.breakDayBalances = {};
+      countAuditState.validityExpiryByCode = {};
       setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
       return;
     }
@@ -6706,6 +6789,7 @@ async function loadCountAuditAnalysis() {
       countAuditState.breakDayKey = '';
       countAuditState.breakDayOk = false;
       countAuditState.breakDayBalances = {};
+      countAuditState.validityExpiryByCode = {};
       countAuditState.detailCache.clear();
       renderCountAuditSummary({});
       renderCountAuditRows([]);
@@ -6716,7 +6800,7 @@ async function loadCountAuditAnalysis() {
     }
 
     const breakDayKey = referenceDate || String(info.reference_date || '').trim() || getBrazilDateKey();
-    await loadCountAuditBreakDay(breakDayKey);
+    await Promise.all([loadCountAuditBreakDay(breakDayKey), loadCountAuditValidityExpiryMap()]);
 
     countAuditSummaryFilterKey = null;
     countAuditState.rows = (payload.rows || []).map(enrichCountAuditRow);
