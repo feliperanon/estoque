@@ -479,6 +479,9 @@ let countProductsCache = [];
 let currentAllowedPages = [];
 let countKpiTicker = null;
 let countAuditPollingTimer = null;
+/** Intervalo da Análise de Contagem: atualização quase em tempo real (outros dispositivos / servidor). */
+const COUNT_AUDIT_POLL_MS = 8000;
+let countAuditVisibilityBound = false;
 
 const PAGE_KEYS_BY_MODULE = {
   contagem: [
@@ -4184,7 +4187,7 @@ async function startCountAuditPolling() {
 
   await loadCountAuditAnalysis();
 
-  // Polling: a cada 30s sincroniza + recarrega a análise enquanto a aba estiver ativa
+  // Polling: sincroniza eventos locais + recarrega análise do servidor (lançamentos de outros dispositivos).
   countAuditPollingTimer = setInterval(async () => {
     const auditVisible = document.getElementById('sub-count-audit')?.classList.contains('active');
     if (!auditVisible) {
@@ -4192,11 +4195,12 @@ async function startCountAuditPolling() {
       countAuditPollingTimer = null;
       return;
     }
+    if (document.visibilityState === 'hidden') return;
     if (navigator.onLine && getToken()) {
       await syncPendingEventsForAudit();
     }
     await loadCountAuditAnalysis();
-  }, 30000);
+  }, COUNT_AUDIT_POLL_MS);
 }
 
 // Versão silenciosa do sync que não mexe no feedback da tela de contagem
@@ -5573,6 +5577,19 @@ function openCountAuditRecount(code) {
 }
 
 function bindCountAuditEvents() {
+  if (!countAuditVisibilityBound) {
+    countAuditVisibilityBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      const sub = document.getElementById('sub-count-audit');
+      if (!sub?.classList.contains('active')) return;
+      if (!getToken()) return;
+      void (async () => {
+        if (navigator.onLine) await syncPendingEventsForAudit();
+        await loadCountAuditAnalysis();
+      })();
+    });
+  }
   if (!countAuditImport) return;
   if (btnCountAuditRefresh) {
     btnCountAuditRefresh.addEventListener('click', async () => {
