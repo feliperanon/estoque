@@ -3438,7 +3438,6 @@ function renderCounts() {
 }
 
 async function syncPendingEvents() {
-  if (!btnSync) return;
   if (syncInProgress) return;
 
   const token = getToken();
@@ -3450,7 +3449,7 @@ async function syncPendingEvents() {
   if (pending.length === 0) return;
 
   syncInProgress = true;
-  btnSync.disabled = true;
+  if (btnSync) btnSync.disabled = true;
 
   try {
     const response = await apiFetch(API_SYNC_COUNTS, {
@@ -3497,7 +3496,7 @@ async function syncPendingEvents() {
     setFeedback('Sem conexao no momento. Contagem continua segura neste dispositivo.', true);
   } finally {
     syncInProgress = false;
-    btnSync.disabled = false;
+    if (btnSync) btnSync.disabled = false;
   }
 }
 
