@@ -1682,6 +1682,25 @@ function applyCountProgressFillTier(el, pct) {
   else el.classList.add('is-low');
 }
 
+/** Barra “produtos” da Validade (mesma lógica de faixas; cores roxas no CSS #sub-validity). */
+function updateValidityOpProgress(launchedOnOp, totalV, opKey, todayBr) {
+  const fill = document.getElementById('validity-op-progress-fill-products');
+  const pctEl = document.getElementById('validity-op-progress-percent-products');
+  const detailEl = document.getElementById('validity-op-progress-detail-products');
+  const pct = totalV > 0 ? Math.round((launchedOnOp / totalV) * 100) : 0;
+  if (fill) {
+    fill.style.width = `${pct}%`;
+    applyCountProgressFillTier(fill, pct);
+  }
+  if (pctEl) pctEl.textContent = `${pct}%`;
+  if (detailEl) {
+    const sameDay = opKey === todayBr;
+    detailEl.textContent = sameDay
+      ? `${launchedOnOp} de ${totalV} produtos lançados hoje`
+      : `${launchedOnOp} de ${totalV} produtos lançados nesta data`;
+  }
+}
+
 function updateCountProgress(products = countProductsCache) {
   const fillDim = document.getElementById('count-progress-fill') || countProgressFill;
   const fillProducts = document.getElementById('count-progress-fill-products');
@@ -2738,6 +2757,7 @@ function refreshBreakProductListView() {
   const term = (input && input.value || '').trim();
   const toShow = term ? filterCountProductsByTerm(term) : countProductsCache;
   renderBreakProducts(toShow);
+  filtrarProdutosQuebra();
 }
 
 function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction) {
@@ -3694,6 +3714,10 @@ function renderValidityOperationalView() {
 
   if (totalEl) totalEl.textContent = String(visible.length);
 
+  const launchedOnOp = visible.filter((r) => r.hasLaunchOnOpDay).length;
+  const totalV = visible.length;
+  updateValidityOpProgress(launchedOnOp, totalV, opKey, todayBr);
+
   updateValidityReadonlyState();
   ul.innerHTML = '';
   if (!visible.length) {
@@ -3702,7 +3726,7 @@ function renderValidityOperationalView() {
     return;
   }
 
-  for (const row of visible) {
+  visible.forEach((row, vi) => {
     const p = row.product;
     const name = escapeHtml((p.cod_grup_descricao || row.cod || '').trim());
     const codEsc = escapeHtml(row.cod);
@@ -3716,6 +3740,8 @@ function renderValidityOperationalView() {
     const hintHtml = row.hintLine
       ? `<p class="validity-op-hint muted">${escapeHtml(row.hintLine)}</p>`
       : '';
+    const fieldId = `validity-op-exp-date-${vi}`;
+    const fieldName = `validity-op-exp-date-${vi}`;
     li.innerHTML = `
       <div class="validity-op-main" role="button" tabindex="0" aria-expanded="false" aria-label="Abrir lançamento de validade">
         <div class="count-product-label">
@@ -3733,14 +3759,14 @@ function renderValidityOperationalView() {
         ${hintHtml}
       </div>
       <div class="validity-op-item-expand" aria-hidden="true">
-        <label class="validity-op-expand-label count-filter-label count-filter-label--bold">
+        <label class="validity-op-expand-label count-filter-label count-filter-label--bold" for="${fieldId}">
           Data de validade
-          <input type="date" class="count-filter-input validity-op-date-input" data-coderef="${enc}" autocomplete="off" aria-label="Data de validade" />
+          <input type="date" id="${fieldId}" name="${fieldName}" class="count-filter-input validity-op-date-input" data-coderef="${enc}" autocomplete="off" aria-label="Data de validade" />
         </label>
         <button type="button" class="btn btn-primary validity-op-save" data-coderef="${enc}">Salvar</button>
       </div>`;
     ul.appendChild(li);
-  }
+  });
 
   bindValidityOperationalListOnce();
 }
@@ -3820,27 +3846,12 @@ function bindValidityOperationalListOnce() {
         const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
         const anchor = linesOp.length ? operationalAnchorLine(linesOp, getBrazilDateKey()) : null;
         const sug = anchor ? String(anchor.expiration_date || '').slice(0, 10) : '';
-        if (sug) {
-          inp.dataset.validityOpPrefill = '1';
-          inp.value = sug;
-        }
+        if (sug) inp.value = sug;
         setTimeout(() => inp.focus(), 80);
       }
     } else {
       main.setAttribute('aria-expanded', 'false');
     }
-  });
-
-  ul.addEventListener('change', (e) => {
-    const inp = e.target.closest('.validity-op-date-input');
-    if (!inp) return;
-    if (inp.dataset.validityOpPrefill === '1') {
-      delete inp.dataset.validityOpPrefill;
-      return;
-    }
-    const item = inp.closest('.validity-op-item');
-    if (!item?.classList.contains('validity-op-item--open')) return;
-    saveValidityOpItemFromDom(item, inp);
   });
 
   ul.addEventListener('keydown', (e) => {

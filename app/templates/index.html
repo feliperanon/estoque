@@ -231,11 +231,11 @@
             </div>
           </div>
 
-          <!-- Sub: Validade (lançamento operacional) -->
+          <!-- Sub: Validade (lançamento operacional) — layout alinhado à Contagem -->
           <div id="sub-validity" class="sub-section">
             <div class="info-card master-container count-main-card count-main-card--outer">
               <form id="validity-op-form" class="count-form" autocomplete="off" novalidate>
-                <div class="count-main-card-inner count-op-header validity-op-header-compact">
+                <div class="count-main-card-inner count-main-card-extended count-op-header">
                   <div class="count-main-title-row">
                     <span class="count-main-title">Produtos para lançamento de validade</span>
                     <span id="validity-op-products-total" class="count-main-chip" aria-live="polite">0</span>
@@ -253,6 +253,19 @@
                       <div class="count-filter-input-wrapper">
                         <span class="count-filter-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
                         <input id="validity-op-group" name="validity-op-group" type="text" class="count-filter-input" placeholder="Buscar grupo..." autocomplete="off" aria-label="Grupo validade" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="count-progress count-main-progress validity-op-main-progress" aria-live="polite">
+                    <div class="count-progress-stack">
+                      <div id="validity-op-progress-block-products" class="count-progress-block count-progress-block--products">
+                        <div class="count-progress-track-wrap">
+                          <div class="count-progress-track" role="presentation" aria-hidden="true">
+                            <div id="validity-op-progress-fill-products" class="count-progress-fill count-progress-fill--products validity-op-progress-fill" style="width:0%;"></div>
+                          </div>
+                        </div>
+                        <span id="validity-op-progress-percent-products" class="count-progress-percent count-progress-percent--products" title="Percentual de produtos com validade lançada no escopo">0%</span>
+                        <p id="validity-op-progress-detail-products" class="count-progress-detail count-progress-detail--products">0 de 0 produtos</p>
                       </div>
                     </div>
                   </div>

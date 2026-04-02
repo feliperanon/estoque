@@ -6489,7 +6489,7 @@ details[open] > .validity-analytic-summary::after {
   }
 }
 
-/* ── Validade operacional (#sub-validity): cabeçalho enxuto alinhado à contagem, mobile-first ── */
+/* ── Validade operacional (#sub-validity): mesmo layout da Contagem + barra roxa ── */
 #sub-validity {
   min-width: 0;
   --count-sticky-under-app: 52px;
@@ -6499,9 +6499,9 @@ details[open] > .validity-analytic-summary::after {
     --count-sticky-under-app: 54px;
   }
 }
-#sub-validity .count-main-card-inner.count-op-header.validity-op-header-compact {
+#sub-validity .count-main-card-inner.count-op-header {
   position: sticky;
-  top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app, 54px));
+  top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app));
   z-index: 45;
   background: #fff;
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.07);
@@ -6510,11 +6510,24 @@ details[open] > .validity-analytic-summary::after {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   margin-bottom: 0;
-  padding: 6px 10px 6px;
+  padding: 6px 10px 8px;
   isolation: isolate;
 }
-#sub-validity .count-main-card-inner.validity-op-header-compact .count-main-filters-row {
-  margin-top: 4px;
+#sub-validity .validity-op-main-progress.count-main-progress {
+  margin-top: 6px;
+}
+/* Barra de progresso: roxo (diferencia da contagem / teal) */
+#sub-validity .validity-op-progress-fill.count-progress-fill--products {
+  background: linear-gradient(90deg, #c4b5fd 0%, #8b5cf6 100%);
+}
+#sub-validity .validity-op-progress-fill.count-progress-fill--products.is-low {
+  background: linear-gradient(90deg, #ddd6fe 0%, #a78bfa 100%);
+}
+#sub-validity .validity-op-progress-fill.count-progress-fill--products.is-mid {
+  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
+}
+#sub-validity .validity-op-progress-fill.count-progress-fill--products.is-high {
+  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
 }
 #sub-validity .count-main-filters-row {
   display: grid;
@@ -6695,6 +6708,80 @@ details[open] > .validity-analytic-summary::after {
     align-self: flex-start;
     min-width: 7.5rem;
   }
+}
+
+/* Quebra — lançamento (base contagem) e registro por dia */
+#sub-break .break-op-lead {
+  margin: 0 0 12px;
+  font-size: 0.92rem;
+}
+#sub-break .break-op-filters {
+  flex-wrap: wrap;
+}
+#sub-break .break-op-filter-reason {
+  min-width: min(100%, 200px);
+}
+#sub-break .break-reason-select {
+  cursor: pointer;
+}
+.break-history-page .break-history-lead {
+  margin: 0 0 12px;
+  font-size: 0.92rem;
+}
+.break-history-filters {
+  align-items: flex-end;
+}
+.break-history-actions .count-filter-label {
+  opacity: 0;
+}
+.break-history-refresh-btn {
+  min-height: 44px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.break-history-table-wrap {
+  margin-top: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.break-history-thead {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(8rem, 1.5fr) 4rem 2.5rem minmax(5rem, 0.8fr) minmax(4rem, 0.7fr);
+  gap: 8px 10px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--muted, #64748b);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  min-width: 640px;
+}
+.break-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 640px;
+}
+.break-history-row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(8rem, 1.5fr) 4rem 2.5rem minmax(5rem, 0.8fr) minmax(4rem, 0.7fr);
+  gap: 8px 10px;
+  padding: 10px 12px;
+  align-items: start;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  font-size: 0.88rem;
+}
+.break-history-row:nth-child(even) {
+  background: rgba(248, 250, 252, 0.65);
+}
+.break-history-empty {
+  padding: 16px 12px;
+  color: var(--muted);
+  min-width: 0;
+}
+.break-history-col--product {
+  word-break: break-word;
 }
 
 .sr-only {
