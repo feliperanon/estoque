@@ -151,7 +151,7 @@
   border: 1px solid rgba(37, 99, 235, 0.12);
   white-space: nowrap;
 }
-/* Filtros contagem: mobile 1 col; desktop 50/30/20 = 5fr 3fr 2fr */
+/* Filtros contagem: ≤1024px produto linha inteira + grupo|data; ≥1025px três colunas (5fr 3fr 2fr) */
 .count-main-filters-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -162,9 +162,36 @@
   padding: 0;
   box-sizing: border-box;
 }
-@media (min-width: 768px) {
+@media (max-width: 1024px) {
+  .count-main-filters-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "produto produto"
+      "grupo data";
+    align-items: start;
+  }
+  .count-main-filter-col--produto {
+    grid-area: produto;
+  }
+  .count-main-filter-col--grupo {
+    grid-area: grupo;
+    min-width: 0;
+  }
+  .count-main-filter-col--data {
+    grid-area: data;
+    min-width: 0;
+  }
+}
+@media (min-width: 1025px) {
   .count-main-filters-row {
     grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-areas: none;
+  }
+  .count-main-filter-col--produto,
+  .count-main-filter-col--grupo,
+  .count-main-filter-col--data {
+    grid-area: auto;
+    grid-column: auto;
   }
 }
 .count-main-filter-col--produto {
@@ -419,11 +446,6 @@
   max-width: 100%;
 }
 @media (max-width: 767px) {
-  .count-main-filter-col--produto,
-  .count-main-filter-col--grupo,
-  .count-main-filter-col--data {
-    grid-column: 1 / -1;
-  }
   .count-main-filter-col {
     gap: 0.3rem;
   }
