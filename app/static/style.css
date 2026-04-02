@@ -165,7 +165,7 @@
 @media (max-width: 1024px) {
   /* Duas colunas na 2ª linha: Grupo um pouco mais largo que Data; Produto ocupa 100% na 1ª linha */
   .count-main-filters-row {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.85fr);
+    grid-template-columns: minmax(0, 1.22fr) minmax(0, 0.78fr);
     grid-template-areas:
       "produto produto"
       "grupo data";
@@ -175,6 +175,8 @@
     grid-area: produto;
     min-width: 0;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   .count-main-filter-col--grupo {
     grid-area: grupo;
@@ -188,18 +190,28 @@
     display: flex;
     flex-direction: column;
   }
+  /* Mesma altura visual na linha Grupo × Data (inputs alinhados; chips do grupo ficam abaixo) */
   #sub-count .count-main-filter-col--grupo .count-filter-input-wrapper,
   #sub-count .count-main-filter-col--data .count-filter-input-wrapper {
     flex: 1 1 auto;
-    min-height: 36px;
+    min-height: 40px;
     align-items: center;
     box-sizing: border-box;
     width: 100%;
   }
+  #sub-count .count-main-filter-col--grupo .count-filter-input,
+  #sub-count .count-main-filter-col--data .count-filter-input {
+    min-height: 36px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  #sub-count .count-main-filter-col--data .count-filter-input-wrapper--date .count-filter-input.count-filter-date {
+    min-height: 36px;
+  }
 }
 @media (min-width: 1025px) {
   .count-main-filters-row {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-columns: minmax(0, 6fr) minmax(0, 2.75fr) minmax(0, 2.25fr);
     grid-template-areas: none;
   }
   .count-main-filter-col--produto,
@@ -228,21 +240,24 @@
 
 /* Filtros só na tela de contagem: mais baixos, menos “formulário” */
 #sub-count .count-main-card-inner.count-op-header .count-filter-input-wrapper {
-  min-height: 36px;
+  min-height: 40px;
   padding: 0 8px;
   border-radius: 6px;
   border-color: rgba(15, 23, 42, 0.09);
   box-shadow: none;
 }
+#sub-count .count-main-card-inner.count-op-header .count-main-filter-col--produto .count-filter-input-wrapper {
+  min-height: 40px;
+}
 #sub-count .count-main-card-inner.count-op-header .count-filter-input {
-  min-height: 32px;
-  padding: 4px 0;
+  min-height: 36px;
+  padding: 6px 0;
   font-size: 0.875rem;
 }
 #sub-count .count-main-card-inner.count-op-header .count-filter-input-wrapper--date .count-filter-input.count-filter-date {
-  min-height: 32px;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  min-height: 36px;
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 #sub-count .count-main-card-inner.count-op-header .count-filter-label {
   font-size: 0.75rem;
@@ -382,21 +397,23 @@
 .count-progress-block {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
 }
-.count-progress-block-meta {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35rem 0.5rem;
+/* Ordem fixa: trilha → % → descrição (sem percentual na mesma linha que o texto longo) */
+.count-main-progress .count-progress-percent {
+  display: block;
+  width: 100%;
   min-width: 0;
+  line-height: 1.25;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
-.count-progress-block--products .count-progress-block-meta {
-  flex-wrap: nowrap;
+.count-main-progress .count-progress-detail {
+  margin-top: 0;
 }
 .count-main-progress .count-progress-track-wrap .count-progress-track {
   height: 4px;
@@ -424,6 +441,7 @@
 .count-progress-percent--products {
   color: #0f766e;
 }
+/* Rótulo auxiliar em outras telas (ex.: validade); não usado no bloco de progresso da Contagem */
 .count-progress-label {
   font-size: 0.8125rem;
   color: #64748b;
@@ -492,11 +510,10 @@
   #sub-count .count-progress-percent--dim,
   #sub-count .count-progress-percent--products {
     font-size: 13px;
-    line-height: 1;
+    line-height: 1.3;
     font-weight: 700;
     white-space: nowrap;
   }
-  #sub-count .count-progress-label,
   #sub-count .count-progress-detail {
     font-size: 12px;
   }

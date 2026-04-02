@@ -1523,8 +1523,6 @@ function updateCountProgress(products = countProductsCache) {
     const percentSpan = document.getElementById('count-progress-percent');
     if (percentSpan) percentSpan.textContent = '0%';
     if (percentProductsSpan) percentProductsSpan.textContent = '0%';
-    const labelSpan = document.getElementById('count-progress-label');
-    if (labelSpan) labelSpan.textContent = 'em andamento';
     if (detailDimEl) detailDimEl.textContent = countProgressDetailDimLabel(stats);
     if (detailProductsEl) detailProductsEl.textContent = countProgressDetailProductsLabel(stats);
     return;
@@ -1544,11 +1542,6 @@ function updateCountProgress(products = countProductsCache) {
   if (percentSpan) percentSpan.textContent = `${percent}%`;
   if (percentProductsSpan) percentProductsSpan.textContent = dual ? `${productPercent}%` : '0%';
 
-  const labelSpan = document.getElementById('count-progress-label');
-  /* "concluído" só quando 100% do escopo atual (metades com TXT); evita 100% + divergência UN parecer finalizado. */
-  if (labelSpan) {
-    labelSpan.textContent = percent >= 100 ? 'concluído' : 'em andamento';
-  }
   if (detailDimEl) detailDimEl.textContent = countProgressDetailDimLabel(stats);
   if (detailProductsEl) detailProductsEl.textContent = countProgressDetailProductsLabel(stats);
 }
