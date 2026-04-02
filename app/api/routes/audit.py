@@ -124,7 +124,7 @@ class CountEventsPayload(BaseModel):
 class BreakEventInput(BaseModel):
     client_event_id: str = Field(min_length=8, max_length=100)
     item_code: str = Field(min_length=1, max_length=120)
-    quantity: int = Field(ge=1, le=500_000)
+    quantity: int = Field(ge=-500_000, le=500_000)
     observed_at: str
     device_name: str | None = Field(default=None, max_length=120)
     reason: str | None = Field(default=None, max_length=120)
@@ -1213,7 +1213,7 @@ def _aggregate_break_events_by_code(session: Session, operational_date: date) ->
             qty = int(payload.get("quantity", 0))
         except Exception:
             qty = 0
-        if qty <= 0:
+        if qty == 0:
             continue
         ct = _extract_count_type(item_code)
         if code not in out:
@@ -1254,7 +1254,7 @@ def _break_event_rows_for_operational_day(session: Session, operational_date: da
             qty = int(payload.get("quantity", 0))
         except Exception:
             qty = 0
-        if qty <= 0:
+        if qty == 0:
             continue
         ct = _extract_count_type(item_code)
         rows.append(
@@ -1341,6 +1341,8 @@ def ingest_break_events(
 
     try:
         for event in payload.events:
+            if event.quantity == 0:
+                continue
             dt_utc, br_date = _parse_and_validate_observed_at(event.observed_at)
             obs_stored = dt_utc.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
