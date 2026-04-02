@@ -83,6 +83,51 @@ document.addEventListener('DOMContentLoaded', () => {
   groupInput.addEventListener('change', filtrarProdutos);
 });
 
+// Autocomplete Grupo — Quebra (mesmo catálogo GROUPS)
+document.addEventListener('DOMContentLoaded', () => {
+  const groupInput = document.getElementById('break-group');
+  if (!groupInput) return;
+  let suggestionBox = null;
+  function closeSuggestions() {
+    if (suggestionBox) {
+      suggestionBox.remove();
+      suggestionBox = null;
+    }
+  }
+  groupInput.addEventListener('input', function () {
+    closeSuggestions();
+    const value = this.value.trim().toLowerCase();
+    if (!value) {
+      filtrarProdutosQuebra();
+      return;
+    }
+    const matches = GROUPS.filter((g) => g.toLowerCase().includes(value));
+    if (!matches.length) return;
+    suggestionBox = document.createElement('div');
+    suggestionBox.className = 'autocomplete-suggestions';
+    matches.forEach((g) => {
+      const opt = document.createElement('div');
+      opt.className = 'autocomplete-suggestion';
+      opt.textContent = g;
+      opt.onclick = () => {
+        groupInput.value = g;
+        closeSuggestions();
+        filtrarProdutosQuebra();
+      };
+      suggestionBox.appendChild(opt);
+    });
+    const rect = groupInput.getBoundingClientRect();
+    suggestionBox.style.position = 'absolute';
+    suggestionBox.style.left = `${rect.left + window.scrollX}px`;
+    suggestionBox.style.top = `${rect.bottom + window.scrollY}px`;
+    suggestionBox.style.width = `${rect.width}px`;
+    suggestionBox.style.zIndex = '1002';
+    document.body.appendChild(suggestionBox);
+  });
+  groupInput.addEventListener('blur', () => setTimeout(closeSuggestions, 150));
+  groupInput.addEventListener('change', filtrarProdutosQuebra);
+});
+
 // Filtro de produtos por grupo (contagem: apenas ativos na API e na renderização)
 
 // Filtro de produtos por grupo e ativo
@@ -90,7 +135,7 @@ function filtrarProdutos() {
   const grupo = (document.getElementById('count-group')?.value || '').trim().toLowerCase();
   let totalVisiveis = 0;
   const visiveis = [];
-  document.querySelectorAll('.count-product-item').forEach(item => {
+  document.querySelectorAll('#count-products-list .count-product-item').forEach(item => {
     let show = true;
     // Filtro de ativos: só mostra ativos (is-inactive = oculto)
     if (item.classList.contains('is-inactive')) show = false;
@@ -133,6 +178,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('count-date');
   if (dateInput && !dateInput.value) {
     dateInput.value = getBrazilDateKey();
+  }
+  const breakDate = document.getElementById('break-date');
+  if (breakDate && !breakDate.value) {
+    breakDate.value = getBrazilDateKey();
+  }
+  const breakHistoryDate = document.getElementById('break-history-date');
+  if (breakHistoryDate && !breakHistoryDate.value) {
+    breakHistoryDate.value = getBrazilDateKey();
   }
   const validityDate = document.getElementById('validity-op-date');
   if (validityDate && !validityDate.value) {
@@ -491,6 +544,7 @@ let userEditOriginalUsername = '';
 let usersAdminCache = [];
 
 let syncInProgress = false;
+let breakSyncInProgress = false;
 let selectedProductFile = null;
 let currentRole = 'conferente';
 let countProductsCache = [];
@@ -741,6 +795,10 @@ function setActiveSub(subKey) {
   } else if (subKey === 'count') {
     startCountRecountSignalsPolling();
     loadCountProducts();
+  } else if (subKey === 'break') {
+    loadBreakProducts();
+  } else if (subKey === 'break-history') {
+    loadBreakHistoryList();
   } else if (subKey === 'count-audit') {
     startCountAuditPolling();
   } else if (subKey === 'validity-analysis') {
@@ -2455,8 +2513,12 @@ function refreshCountProductListView() {
   renderCountProducts(toShow);
 }
 
-async function loadCountProducts() {
-  if (!countProductsList) return;
+/**
+ * @param {{ skipCountRender?: boolean }} [options]
+ */
+async function loadCountProducts(options = {}) {
+  const skipCountRender = options.skipCountRender === true;
+  if (!skipCountRender && !countProductsList) return;
   const token = getToken();
   if (!token) return;
   if (isAccessTokenExpired(token)) {
@@ -2499,32 +2561,554 @@ async function loadCountProducts() {
       if (getToken()) {
         await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
       }
-      renderCountProducts([]);
-      setFeedback('Nao foi possivel carregar a lista de produtos para contagem.', true);
+      if (!skipCountRender) {
+        renderCountProducts([]);
+        setFeedback('Nao foi possivel carregar a lista de produtos para contagem.', true);
+      }
       return;
     }
     if (!Array.isArray(products) || products.length === 0) {
       await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
-      renderCountProducts([]);
-      setFeedback('Nenhum produto ativo encontrado. Verifique se há produtos cadastrados como ATIVO.', true);
+      if (!skipCountRender) {
+        renderCountProducts([]);
+        setFeedback('Nenhum produto ativo encontrado. Verifique se há produtos cadastrados como ATIVO.', true);
+      }
       return;
     }
     countProductsCache = products;
     await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
     await refreshRecountSignalsFromServer();
-    renderCountProducts(countProductsCache);
-    if (countPrefillProductCode) {
-      const itemCodeInput = document.getElementById('item-code');
-      if (itemCodeInput) {
-        itemCodeInput.value = countPrefillProductCode;
-        itemCodeInput.dispatchEvent(new Event('input'));
+    if (!skipCountRender) {
+      renderCountProducts(countProductsCache);
+      if (countPrefillProductCode) {
+        const itemCodeInput = document.getElementById('item-code');
+        if (itemCodeInput) {
+          itemCodeInput.value = countPrefillProductCode;
+          itemCodeInput.dispatchEvent(new Event('input'));
+        }
+        countPrefillProductCode = null;
       }
-      countPrefillProductCode = null;
     }
   } catch (e) {
     console.error('Erro ao carregar produtos:', e);
-    Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]).then(() => renderCountProducts([]));
-    setFeedback('Sem conexao para carregar produtos.', true);
+    Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]).then(() => {
+      if (!skipCountRender) renderCountProducts([]);
+    });
+    if (!skipCountRender) {
+      setFeedback('Sem conexao para carregar produtos.', true);
+    }
+  }
+}
+
+async function loadBreakProducts() {
+  const list = document.getElementById('break-products-list');
+  if (!list) return;
+  await loadCountProducts({ skipCountRender: true });
+  await loadServerBreakTotals();
+  refreshBreakProductListView();
+}
+
+function setBreakFeedback(msg, isError = false) {
+  const el = document.getElementById('break-feedback');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = isError ? 'var(--error)' : 'var(--accent)';
+}
+
+function getBreakReasonSnapshot() {
+  const sel = document.getElementById('break-reason');
+  const v = (sel && sel.value || '').trim();
+  return v || null;
+}
+
+function renderBreakProducts(products) {
+  const isActive = (status) => {
+    const s = String(status || '').trim().toLowerCase();
+    if (!s || s === 'ativo' || s === 's' || s === 'sim' || s === '1' || s === 'true' || s === 'ativado' || s === 'active') return true;
+    return false;
+  };
+
+  const ativos = Array.isArray(products)
+    ? products.filter((p) => isActive(p.status))
+    : [];
+  ativos.sort(compareAuditCodProduto);
+
+  const ul = document.getElementById('break-products-list');
+  const totalSpan = document.getElementById('break-products-total');
+  if (!ul) return;
+
+  const subBreak = document.getElementById('sub-break');
+  if (subBreak) subBreak.style.display = '';
+  showDashboard();
+  ul.hidden = false;
+  ul.innerHTML = '';
+  if (totalSpan) totalSpan.textContent = `${ativos.length}`;
+  setBreakFeedback('');
+
+  if (!ativos.length) {
+    ul.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
+    updateBreakReadOnlyState();
+    return;
+  }
+
+  const appendCard = (parentUl, product) => {
+    const codRaw = String(product.cod_produto || '');
+    const desc = escapeHtml(product.cod_grup_descricao || '');
+    const codRef = encodeURIComponent(codRaw);
+    const codHtml = codRaw
+      ? ` <span class="count-product-cod">· ${escapeHtml(codRaw)}</span>`
+      : '';
+    const netCx = getNetBreakByProductAndType(codRaw, 'caixa');
+    const netUn = getNetBreakByProductAndType(codRaw, 'unidade');
+    const vCx = Math.round(Number(netCx) || 0);
+    const vUn = Math.round(Number(netUn) || 0);
+
+    const li = document.createElement('li');
+    li.className = 'count-product-item break-product-item';
+    li.dataset.codProduto = codRaw;
+    li.innerHTML = `
+      <div class="count-product-label">
+        <span class="count-product-title-row">
+          <span class="count-product-desc">${desc}${codHtml}</span>
+        </span>
+      </div>
+      <div class="count-product-controls">
+        <div class="count-control-row count-control-row--neutral">
+          <span class="count-control-type">CX</span>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
+          <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+            data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" />
+          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
+          <div class="count-control-tail">
+            <div class="count-product-readout count-product-readout--by-control break-product-readout" aria-live="polite" title="Total de quebra em caixas neste dia (sincronizado + pendente local)">
+              <span class="count-product-readout-inner">
+                <strong class="count-product-readout-value">${formatSignedIntegerBR(vCx)}</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="count-control-row count-control-row--neutral">
+          <span class="count-control-type">UN</span>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
+          <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+            data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" />
+          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
+          <div class="count-control-tail">
+            <div class="count-product-readout count-product-readout--by-control break-product-readout" aria-live="polite" title="Total de quebra em unidades neste dia (sincronizado + pendente local)">
+              <span class="count-product-readout-inner">
+                <strong class="count-product-readout-value">${formatSignedIntegerBR(vUn)}</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    parentUl.appendChild(li);
+  };
+
+  for (const product of ativos) appendCard(ul, product);
+  updateBreakReadOnlyState();
+}
+
+function updateBreakReadOnlyState() {
+  const shell = document.getElementById('break-products-shell');
+  const editable = isBreakOperationalEditable();
+  if (shell) {
+    shell.classList.toggle('count-products-shell--readonly', !editable);
+    shell.querySelectorAll('input.count-product-qty').forEach((el) => {
+      el.readOnly = !editable;
+      el.title = editable ? '' : 'Somente consulta: selecione a data de hoje para lançar.';
+    });
+    shell.querySelectorAll('.btn-count-adjust').forEach((el) => {
+      el.disabled = !editable;
+    });
+  }
+  const banner = document.getElementById('break-readonly-banner');
+  if (banner) {
+    const show = !editable;
+    banner.hidden = !show;
+    banner.textContent = show
+      ? `Modo consulta (${getActiveBreakDateKey()}). Para lançar, use a data de hoje (${getBrazilDateKey()}).`
+      : '';
+  }
+}
+
+function refreshBreakProductListView() {
+  const input = document.getElementById('break-item-code');
+  const term = (input && input.value || '').trim();
+  const toShow = term ? filterCountProductsByTerm(term) : countProductsCache;
+  renderBreakProducts(toShow);
+}
+
+function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction) {
+  const opQty = parseOperationQtyFromInputEl(inp);
+  if (opQty == null) {
+    setBreakFeedback('Digite uma quantidade maior que zero para aplicar com + ou −.', true);
+    return;
+  }
+  const refDecoded = decodeURIComponent(String(codRefEnc || ''));
+  const itemCode = normalizeItemCode(refDecoded);
+  const ct = normalizeCountType(countTypeRaw || 'caixa');
+  const current = getNetBreakByProductAndType(itemCode, ct);
+  let delta;
+  if (direction > 0) {
+    delta = opQty;
+  } else {
+    delta = -Math.min(opQty, Math.max(0, current));
+  }
+  if (delta === 0) {
+    if (inp) inp.value = '';
+    refreshBreakProductListView();
+    return;
+  }
+  registerBreakDelta(itemCode, delta, ct);
+  if (inp) inp.value = '';
+}
+
+function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa') {
+  if (!isBreakOperationalEditable()) {
+    setBreakFeedback('Só é possível lançar quebra na data de hoje (America/Sao_Paulo).', true);
+    return;
+  }
+  const itemCode = normalizeItemCode(itemCodeInput);
+  const quantity = Number(qtyDeltaInput);
+  const countType = normalizeCountType(countTypeInput);
+
+  if (!itemCode) {
+    setBreakFeedback('Informe o item para registrar.', true);
+    return;
+  }
+
+  if (!Number.isInteger(quantity) || quantity === 0) {
+    setBreakFeedback('Informe uma quantidade inteira diferente de zero.', true);
+    return;
+  }
+
+  const dayKey = getActiveBreakDateKey();
+  const events = loadBreakEventsForDate(dayKey);
+  const event = {
+    client_event_id: makeEventId(),
+    item_code: itemCode,
+    count_type: countType,
+    quantity,
+    observed_at: new Date().toISOString(),
+    synced: false,
+    device_name: getDeviceName(),
+    operational_date: dayKey,
+    reason: getBreakReasonSnapshot(),
+  };
+
+  events.push(event);
+  saveBreakEventsForDate(dayKey, events);
+
+  let productName = itemCode;
+  if (Array.isArray(countProductsCache)) {
+    const found = countProductsCache.find(
+      (p) => normalizeItemCode(p.cod_produto || '') === itemCode
+        || normalizeItemCode(p.cod_grup_descricao || '') === itemCode,
+    );
+    if (found && found.cod_grup_descricao) {
+      productName = found.cod_grup_descricao.trim();
+    }
+  }
+
+  const countTypeLabel = countType === 'unidade' ? 'Unidade' : 'Caixa';
+  const netCx = Math.round(Number(getNetBreakByProductAndType(itemCode, 'caixa')) || 0);
+  const netUn = Math.round(Number(getNetBreakByProductAndType(itemCode, 'unidade')) || 0);
+  const deltaStr = quantity > 0 ? `+${quantity}` : String(quantity);
+  setBreakFeedback(
+    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total quebra ${formatSignedIntegerBR(netCx)} CX e ${formatSignedIntegerBR(netUn)} UN`,
+    false,
+  );
+
+  const lastLaunch = document.getElementById('break-last-launch');
+  if (lastLaunch) {
+    lastLaunch.hidden = false;
+    lastLaunch.innerHTML =
+      `<span class="count-last-launch-kicker">Último lançamento</span>` +
+      `<span class="count-last-launch-body">` +
+      `<strong class="count-last-launch-name">${escapeHtml(productName)}</strong> ` +
+      `<span class="count-last-launch-delta">(${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'})</span>` +
+      ` · Total no dia: <strong>${formatSignedIntegerBR(netCx)} CX</strong> · <strong>${formatSignedIntegerBR(netUn)} UN</strong>` +
+      `</span>`;
+  }
+
+  if (navigator.onLine) {
+    syncPendingBreakEvents();
+  }
+}
+
+let breakAdjustGestureGeneration = 0;
+
+async function syncPendingBreakEvents() {
+  if (breakSyncInProgress) return;
+
+  const token = getToken();
+  if (!token) return;
+  if (!navigator.onLine) return;
+
+  const allEv = flattenAllBreakEventsFromBucket();
+  const pending = allEv.filter((event) => !event.synced);
+  if (pending.length === 0) return;
+
+  breakSyncInProgress = true;
+
+  try {
+    const response = await apiFetch(API_SYNC_BREAKS, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        events: pending.map((event) => ({
+          client_event_id: event.client_event_id,
+          item_code: normalizeCountType(event.count_type) === 'unidade'
+            ? `${event.item_code} [UN]`
+            : `${event.item_code} [CX]`,
+          quantity: event.quantity,
+          observed_at: event.observed_at,
+          device_name: event.device_name,
+          operational_date: event.operational_date || getActiveBreakDateKey(),
+          reason: event.reason || null,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        setBreakFeedback('Sessão expirada. Continue offline e faça login depois para sincronizar.', true);
+      } else {
+        setBreakFeedback('Falha ao sincronizar quebras. Os dados continuam salvos localmente.', true);
+      }
+      return;
+    }
+
+    const data = await response.json();
+    const syncedIds = new Set(data.synced_ids || []);
+    markBreakEventsSyncedInBucket(syncedIds);
+    setBreakFeedback(`Sincronização: ${syncedIds.size} evento(s) enviado(s).`);
+    await loadServerBreakTotals();
+    refreshBreakProductListView();
+  } catch {
+    setBreakFeedback('Sem conexão no momento. Quebra continua salva neste aparelho.', true);
+  } finally {
+    breakSyncInProgress = false;
+  }
+}
+
+function bindBreakEvents() {
+  const form = document.getElementById('break-op-form');
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const itemCode = document.getElementById('break-item-code')?.value;
+      if (!itemCode || !String(itemCode).trim()) {
+        setBreakFeedback('Use a busca para localizar o produto e aplique a quantidade nas linhas CX/UN.', true);
+        return;
+      }
+      document.getElementById('break-item-code')?.focus();
+    });
+  }
+
+  const itemCodeInput = document.getElementById('break-item-code');
+  if (itemCodeInput) {
+    itemCodeInput.addEventListener('input', () => {
+      const filtered = filterCountProductsByTerm(itemCodeInput.value);
+      renderBreakProducts(filtered);
+      filtrarProdutosQuebra();
+    });
+  }
+
+  const breakDateEl = document.getElementById('break-date');
+  if (breakDateEl) {
+    breakDateEl.addEventListener('change', async () => {
+      await loadServerBreakTotals();
+      refreshBreakProductListView();
+      updateBreakReadOnlyState();
+    });
+  }
+
+  const breakHistoryDate = document.getElementById('break-history-date');
+  const btnBreakHistoryRefresh = document.getElementById('btn-break-history-refresh');
+  if (breakHistoryDate) {
+    breakHistoryDate.addEventListener('change', () => {
+      loadBreakHistoryList();
+    });
+  }
+  if (btnBreakHistoryRefresh) {
+    btnBreakHistoryRefresh.addEventListener('click', () => {
+      loadBreakHistoryList();
+    });
+  }
+
+  const breakShell = document.getElementById('break-products-shell');
+  if (breakShell && breakShell.dataset.breakDelegates !== '1') {
+    breakShell.dataset.breakDelegates = '1';
+    const refreshAfter = () => {
+      refreshBreakProductListView();
+    };
+    breakShell.addEventListener(
+      'pointerdown',
+      (e) => {
+        const btn = e.target.closest('.btn-count-adjust');
+        if (!btn || !breakShell.contains(btn)) return;
+        breakAdjustGestureGeneration += 1;
+      },
+      true,
+    );
+    breakShell.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-count-adjust');
+      if (!btn || !breakShell.contains(btn)) return;
+      e.preventDefault();
+      const codRefEnc = btn.getAttribute('data-coderef') || '';
+      const rawDelta = btn.getAttribute('data-delta');
+      const deltaBtn = rawDelta === '1' ? 1 : rawDelta === '-1' ? -1 : NaN;
+      const countType = btn.dataset.countType || 'caixa';
+      if (!codRefEnc || !Number.isFinite(deltaBtn)) return;
+      if (deltaBtn !== 1 && deltaBtn !== -1) return;
+      const row = btn.closest('.count-control-row');
+      const inp = row ? row.querySelector('input.count-product-qty') : null;
+      applyBreakRowOperation(codRefEnc, countType, inp, deltaBtn);
+      refreshAfter();
+    });
+    breakShell.addEventListener('focusout', (e) => {
+      const inp = e.target;
+      if (!inp || !inp.classList || !inp.classList.contains('count-product-qty')) return;
+      if (!breakShell.contains(inp)) return;
+      const next = e.relatedTarget;
+      if (next && typeof next.closest === 'function' && next.closest('.btn-count-adjust') && breakShell.contains(next)) {
+        return;
+      }
+      const genAtBlur = breakAdjustGestureGeneration;
+      const hadOpQty = parseOperationQtyFromInputEl(inp) != null;
+      if (!hadOpQty) {
+        refreshAfter();
+        return;
+      }
+      const runDeferred = () => {
+        if (breakAdjustGestureGeneration > genAtBlur) {
+          refreshAfter();
+          return;
+        }
+        const row = inp.closest('.count-control-row');
+        const plusBtn = row?.querySelector('.btn-count-adjust.btn-plus');
+        if (plusBtn && !plusBtn.disabled) plusBtn.click();
+        refreshAfter();
+      };
+      window.requestAnimationFrame(() => window.requestAnimationFrame(runDeferred));
+    });
+    breakShell.addEventListener('keydown', (e) => {
+      const inp = e.target;
+      if (!inp.classList?.contains('count-product-qty')) return;
+      const isEnter = e.key === 'Enter' || e.key === 'NumpadEnter' || e.keyCode === 13;
+      if (!isEnter) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const row = inp.closest('.count-control-row');
+      const plusBtn = row?.querySelector('.btn-count-adjust.btn-plus');
+      if (plusBtn && !plusBtn.disabled) plusBtn.click();
+    });
+    breakShell.addEventListener(
+      'wheel',
+      (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('count-product-qty')) {
+          e.preventDefault();
+        }
+      },
+      { passive: false },
+    );
+  }
+}
+
+function filtrarProdutosQuebra() {
+  const grupo = (document.getElementById('break-group')?.value || '').trim().toLowerCase();
+  let totalVisiveis = 0;
+  document.querySelectorAll('#break-products-shell .count-product-item').forEach((item) => {
+    let show = true;
+    if (item.classList.contains('is-inactive')) show = false;
+    if (grupo) {
+      const desc = item.querySelector('.count-product-desc')?.textContent?.toLowerCase() || '';
+      show = show && desc.includes(grupo);
+    }
+    item.style.display = show ? '' : 'none';
+    if (show) totalVisiveis += 1;
+  });
+  const totalSpan = document.getElementById('break-products-total');
+  if (totalSpan) totalSpan.textContent = `${totalVisiveis}`;
+}
+
+async function loadBreakHistoryList() {
+  const list = document.getElementById('break-history-list');
+  const chip = document.getElementById('break-history-count-chip');
+  const feedback = document.getElementById('break-history-feedback');
+  const dateEl = document.getElementById('break-history-date');
+  if (!list) return;
+
+  const token = getToken();
+  if (!token) return;
+  if (feedback) {
+    feedback.textContent = 'Carregando...';
+    feedback.style.color = 'var(--accent)';
+  }
+
+  const d = (dateEl && dateEl.value) || getBrazilDateKey();
+  try {
+    const params = new URLSearchParams();
+    params.set('operational_date', d);
+    const response = await apiFetch(`${API_SYNC_BREAKS}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) {
+      if (feedback) {
+        feedback.textContent = 'Não foi possível carregar o registro.';
+        feedback.style.color = 'var(--error)';
+      }
+      return;
+    }
+    const data = await response.json();
+    const events = Array.isArray(data.events) ? data.events : [];
+    list.innerHTML = '';
+    if (chip) chip.textContent = `${events.length}`;
+    if (feedback) feedback.textContent = '';
+
+    if (!events.length) {
+      list.innerHTML = '<li class="break-history-empty"><span>Nenhuma quebra registrada neste dia.</span></li>';
+      return;
+    }
+
+    let dayLabel = d;
+    try {
+      dayLabel = new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
+    } catch {
+      dayLabel = d;
+    }
+    for (const ev of events) {
+      const cod = escapeHtml(String(ev.cod_produto || ''));
+      const desc = escapeHtml(String(ev.product_desc || '').trim());
+      const prodLine = desc ? `${desc} <span class="muted">· ${cod}</span>` : cod;
+      const qty = Number(ev.quantity) || 0;
+      const tipo = ev.qty_type === 'unidade' ? 'UN' : 'CX';
+      const reason = ev.reason ? escapeHtml(String(ev.reason)) : '—';
+      const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
+      const li = document.createElement('li');
+      li.className = 'break-history-row';
+      li.innerHTML =
+        `<span class="break-history-col break-history-col--date">${escapeHtml(dayLabel)}</span>` +
+        `<span class="break-history-col break-history-col--product">${prodLine}</span>` +
+        `<span class="break-history-col break-history-col--qty"><strong>${formatSignedIntegerBR(qty)}</strong></span>` +
+        `<span class="break-history-col break-history-col--type">${tipo}</span>` +
+        `<span class="break-history-col break-history-col--reason">${reason}</span>` +
+        `<span class="break-history-col break-history-col--actor">${actor}</span>`;
+      list.appendChild(li);
+    }
+  } catch {
+    if (feedback) {
+      feedback.textContent = 'Sem conexão.';
+      feedback.style.color = 'var(--error)';
+    }
   }
 }
 
@@ -4467,7 +5051,13 @@ function bindCountEvents() {
   window.addEventListener('online', () => {
     updateNetworkStatus();
     syncPendingEvents();
+    syncPendingBreakEvents();
     loadServerCountTotals().then(() => refreshCountProductListView());
+    loadServerBreakTotals().then(() => {
+      if (document.getElementById('sub-break')?.classList.contains('active')) {
+        refreshBreakProductListView();
+      }
+    });
   });
 
   window.addEventListener('offline', () => {
@@ -7121,7 +7711,6 @@ function bindProdutosEvents() {
 const EXTRA_MODULES = [
   { key: 'pull',         storageKey: 'estoque_pull_v1',         label: 'Puxada' },
   { key: 'return',       storageKey: 'estoque_return_v1',       label: 'Devolucao' },
-  { key: 'break',        storageKey: 'estoque_break_v1',        label: 'Quebra' },
   { key: 'direct-sale',  storageKey: 'estoque_directsale_v1',   label: 'Venda Direta' },
   { key: 'validity',     storageKey: 'estoque_validity_v1',     label: 'Validade' },
 ];
@@ -7258,6 +7847,7 @@ function clearLocalOperationalCaches() {
     localStorage.removeItem(COUNT_EVENTS_KEY);
     localStorage.removeItem(COUNT_EVENTS_BUCKET_KEY);
     localStorage.removeItem(COUNT_EVENTS_DAY_KEY);
+    localStorage.removeItem(BREAK_EVENTS_BUCKET_KEY);
     localStorage.removeItem(PRODUCT_DEFAULTS_KEY);
     for (const mod of EXTRA_MODULES) {
       localStorage.removeItem(mod.storageKey);
@@ -7715,6 +8305,7 @@ if (moduleNav) {
   bindProdutosEvents();
   bindModuleEvents();
   bindExtraModules();
+  bindBreakEvents();
   bindAdminPurge();
   const token = getToken();
   const user = getUser();
