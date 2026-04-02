@@ -165,18 +165,16 @@
   box-sizing: border-box;
 }
 @media (max-width: 1024px) {
-  /* 2ª linha: Grupo um pouco maior que Data (Data com fração maior que antes para não “apertar”) */
+  /* Duas colunas: linha 1 = Produto em largura total; linha 2 = Grupo | Data */
   .count-main-filters-row {
     grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
-    grid-template-areas:
-      "produto produto"
-      "grupo data";
+    grid-template-areas: none;
     align-items: stretch;
     column-gap: 10px;
   }
   .count-main-filter-col--produto {
-    grid-area: produto;
     grid-column: 1 / -1;
+    grid-row: 1;
     justify-self: stretch;
     min-width: 0;
     width: 100%;
@@ -184,13 +182,15 @@
     box-sizing: border-box;
   }
   .count-main-filter-col--grupo {
-    grid-area: grupo;
+    grid-column: 1;
+    grid-row: 2;
     min-width: 0;
     display: flex;
     flex-direction: column;
   }
   .count-main-filter-col--data {
-    grid-area: data;
+    grid-column: 2;
+    grid-row: 2;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -255,15 +255,7 @@
     min-height: 38px;
   }
 }
-.count-main-filter-col--produto {
-  grid-column: auto;
-}
-.count-main-filter-col--grupo {
-  grid-column: auto;
-}
-.count-main-filter-col--data {
-  grid-column: auto;
-}
+/* Não definir grid-column aqui: regras globais “auto” sobrescreviam o span 1 / -1 do mobile e geravam célula vazia. */
 .count-main-filter-col {
   min-width: 0;
   display: flex;
