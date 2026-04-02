@@ -1,12 +1,7 @@
-def _ensure_inventory_tables() -> None:
-    SQLModel.metadata.create_all(
-        engine,
-        tables=[InventoryImport.__table__, InventoryImportItem.__table__],
-        checkfirst=True,
-    )
-
+import json
 import logging
 from datetime import date
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.exc import SQLAlchemyError
@@ -21,6 +16,32 @@ from app.services.inventory_txt_parse import build_import_item_metrics, parse_in
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 logger = logging.getLogger(__name__)
+
+
+def _ensure_inventory_tables() -> None:
+    SQLModel.metadata.create_all(
+        engine,
+        tables=[InventoryImport.__table__, InventoryImportItem.__table__],
+        checkfirst=True,
+    )
+
+
+def _normalize_import_item_metrics(metrics: Any) -> dict[str, Any] | None:
+    """Garante dict para o schema Pydantic (evita 500 se o JSON veio como str no banco)."""
+    if metrics is None:
+        return None
+    if isinstance(metrics, dict):
+        return metrics
+    if isinstance(metrics, str):
+        try:
+            parsed = json.loads(metrics)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            logger.warning("metrics JSON inválido em item de importação; usando fallback vazio")
+        return {"raw": [], "caixa": 0, "unidade": 0, "metrics_parse_error": True}
+    logger.warning("metrics com tipo inesperado %s; usando fallback", type(metrics).__name__)
+    return {"raw": [], "caixa": 0, "unidade": 0, "metrics_parse_error": True}
 
 
 @router.delete("/imports/{import_id}", status_code=204)
@@ -170,38 +191,50 @@ def get_import_details(
     _: User = Depends(require_roles("administrativo", "admin", "conferente")),
 ):
     _ensure_inventory_tables()
-    inv_import = session.get(InventoryImport, import_id)
-    if not inv_import:
-        raise HTTPException(status_code=404, detail="Importação não encontrada")
-        
-    items = session.exec(
-        select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == import_id)
-    ).all()
+    try:
+        inv_import = session.get(InventoryImport, import_id)
+        if not inv_import:
+            raise HTTPException(status_code=404, detail="Importação não encontrada")
 
-    details_items = []
-    for item in items:
-        product = session.exec(select(Product).where(Product.cod_produto == item.cod_produto)).first()
-        pre_registered = bool(product and (product.source_system or "") == "txt_import")
-        details_items.append({
-            "id": item.id,
-            "inventory_import_id": item.inventory_import_id,
-            "cod_produto": item.cod_produto,
-            "descricao": item.descricao,
-            "metrics": item.metrics,
-            "created_at": item.created_at,
-            "pre_registered": pre_registered,
-            "product_id": product.id if product else None,
-        })
+        items = session.exec(
+            select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == import_id)
+        ).all()
 
-    details_items.sort(key=lambda row: (not row["pre_registered"], row["cod_produto"]))
+        details_items = []
+        for item in items:
+            cod = (item.cod_produto or "").strip()
+            desc = (item.descricao or "").strip()
+            product = session.exec(select(Product).where(Product.cod_produto == cod)).first() if cod else None
+            pre_registered = bool(product and (product.source_system or "") == "txt_import")
+            details_items.append({
+                "id": item.id,
+                "inventory_import_id": item.inventory_import_id,
+                "cod_produto": cod,
+                "descricao": desc,
+                "metrics": _normalize_import_item_metrics(item.metrics),
+                "created_at": item.created_at,
+                "pre_registered": pre_registered,
+                "product_id": product.id if product else None,
+            })
 
-    return InventoryImportDetailRead(
-        id=inv_import.id,
-        reference_date=inv_import.reference_date,
-        file_name=inv_import.file_name,
-        total_products=inv_import.total_products,
-        created_products=inv_import.created_products,
-        imported_by=inv_import.imported_by,
-        imported_at=inv_import.imported_at,
-        items=details_items
-    )
+        details_items.sort(key=lambda row: (not row["pre_registered"], row["cod_produto"]))
+
+        return InventoryImportDetailRead(
+            id=inv_import.id,
+            reference_date=inv_import.reference_date,
+            file_name=inv_import.file_name,
+            total_products=inv_import.total_products,
+            created_products=inv_import.created_products,
+            imported_by=inv_import.imported_by,
+            imported_at=inv_import.imported_at,
+            items=details_items,
+        )
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        session.rollback()
+        logger.exception("Falha SQL ao carregar detalhe da importação %s", import_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Falha de banco ao carregar importação. Erro: {exc}",
+        ) from exc

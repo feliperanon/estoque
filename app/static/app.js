@@ -253,6 +253,8 @@ const VALIDITY_OLD_BASE_DAYS = 14;
 const API_PRODUCTS = '/products';
 /** Alinhado ao `le` em GET /products e /products/catalog (products.py). */
 const PRODUCTS_LIST_LIMIT = 20000;
+/** Detalhe da importação TXT: renderizar até N itens (evita travar o navegador em arquivos enormes). */
+const IMPORT_TXT_DETAIL_ITEMS_LIMIT = 20000;
 const API_PRODUCTS_CATALOG = '/products/catalog';
 const API_AUTH_ME = '/auth/me';
 const API_PRODUCTS_IMPORT_EXCEL = '/products/import-excel';
@@ -3921,7 +3923,7 @@ function bindImportTxtEvents() {
             return;
           }
 
-          const top = items.slice(0, 200);
+          const top = items.slice(0, IMPORT_TXT_DETAIL_ITEMS_LIMIT);
           for (const it of top) {
             const li = document.createElement('li');
             if (it.pre_registered) {
@@ -3958,7 +3960,9 @@ function bindImportTxtEvents() {
 
           if (items.length > top.length) {
             const li = document.createElement('li');
-            li.innerHTML = `<span class="muted">Mostrando ${formatIntegerBR(top.length)} de ${formatIntegerBR(items.length)} itens.</span>`;
+            li.innerHTML =
+              `<span class="muted">Listagem limitada a ${formatIntegerBR(top.length)} itens (total ${formatIntegerBR(items.length)}). ` +
+              `Use exportação ou consulta no servidor para o arquivo completo.</span>`;
             detailsItems.appendChild(li);
           }
         } catch {
