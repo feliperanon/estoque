@@ -2016,7 +2016,14 @@ body.modal-open::before {
   z-index: 1100;
 }
 
-form#count-form.count-form {
+/*
+ * Cabeçalhos operacionais (Contagem / Validade / Quebra): o .count-form global é grid 3 col
+ * (Puxada, Devolução, etc.). Esses forms têm só o card + feedback — sem display:block o card
+ * ocupa só a 1ª coluna (~33% da largura) e o resto fica vazio.
+ */
+form#count-form.count-form,
+form#validity-op-form.count-form,
+form#break-op-form.count-form {
   display: block;
   width: 100%;
   max-width: 100%;
