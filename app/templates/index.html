@@ -132,11 +132,6 @@
                 <span class="module-card-title">Venda Direta</span>
                 <span class="module-card-desc">Baixa imediata com segurança operacional</span>
               </button>
-              <button type="button" class="module-card" data-sub="validity-launch">
-                <span class="module-card-icon">📅</span>
-                <span class="module-card-title">Lançamento de Validade</span>
-                <span class="module-card-desc">Lançar datas no celular com fluxo rápido</span>
-              </button>
               <button type="button" class="module-card" data-sub="validity-analysis">
                 <span class="module-card-icon">📊</span>
                 <span class="module-card-title">Análise de Validades</span>
@@ -386,41 +381,6 @@
                 <li><span>Nenhuma venda direta registrada ainda.</span><strong>0</strong></li>
               </ul>
             </section>
-          </div>
-
-          <!-- Sub: Lançamento de validade (conferente · mobile-first) -->
-          <div id="sub-validity-launch" class="sub-section validity-conf-page">
-            <div class="validity-conf-header card">
-              <h2 class="validity-conf-title">Lançamento de validade</h2>
-              <p class="validity-conf-hint muted">Edição apenas na data de hoje (America/Sao_Paulo).</p>
-              <div class="validity-conf-filters">
-                <div class="field validity-conf-field">
-                  <label for="validity-launch-item-code">Buscar produto</label>
-                  <input id="validity-launch-item-code" name="validity-launch-item-code" type="search" class="count-filter-input validity-conf-search" placeholder="Nome ou código" autocomplete="off" aria-label="Buscar produto para validade" />
-                </div>
-                <div class="field validity-conf-field">
-                  <label for="validity-launch-group">Grupo</label>
-                  <input id="validity-launch-group" name="validity-launch-group" type="text" class="count-filter-input" placeholder="Opcional" autocomplete="off" aria-label="Filtrar por grupo" />
-                </div>
-                <div class="field validity-conf-field">
-                  <label for="validity-launch-simple-filter">Situação</label>
-                  <select id="validity-launch-simple-filter" class="count-filter-input" aria-label="Filtrar por situação de lançamento">
-                    <option value="all">Todos</option>
-                    <option value="no_line">Só pendentes</option>
-                    <option value="has_line">Só com validade</option>
-                  </select>
-                </div>
-              </div>
-              <div class="validity-conf-toolbar">
-                <button type="button" id="btn-validity-launch-sync" class="btn btn-secondary">Sincronizar</button>
-                <span id="validity-launch-pending-badge" class="chip validity-pending-chip" hidden>0 pendentes</span>
-              </div>
-              <div id="validity-launch-feedback" class="field-feedback" aria-live="polite"></div>
-            </div>
-            <div id="validity-launch-readonly-banner" class="count-readonly-banner validity-readonly-banner" role="status" aria-live="polite" hidden></div>
-            <div class="validity-conf-list-wrap" id="validity-launch-shell">
-              <ul id="validity-launch-products-list" class="validity-conf-list list" role="list"></ul>
-            </div>
           </div>
 
           <!-- Sub: Análise de validades (analista · desktop-first) -->
