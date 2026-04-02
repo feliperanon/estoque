@@ -45,6 +45,22 @@ def test_example_line_caixa_347_unidade_5() -> None:
     assert "347" in seg and "5I" in seg
 
 
+LINE_516_PESSEGO_TRAILING_DIGIT = (
+    "516 TIAL NECTAR PESSEGO 1        41     I            I       2    I        "
+    "39     I            I       -39     I             I"
+)
+
+
+def test_line516_descricao_inclui_1_antes_do_padding_saldo_fisico_39() -> None:
+    """Regressão: dígito final no nome (ex. embalagem) não pode virar 1º token do bloco numérico."""
+    parsed = parse_inventory_txt_line(LINE_516_PESSEGO_TRAILING_DIGIT)
+    assert parsed is not None
+    assert parsed["descricao"] == "TIAL NECTAR PESSEGO 1"
+    assert parsed["caixa"] == 39
+    assert parsed["unidade"] == 0
+    assert (parsed["caixa"], parsed["unidade"]) != (0, 3)
+
+
 def test_line10_saldo_fisico_572_1_not_informativo_1_50() -> None:
     """Regressão: não usar últimos números (1, 50); SALDO FÍSICO é o 4º bloco de 13 cols."""
     parsed = parse_inventory_txt_line(LINE_10_MATE_COURO)

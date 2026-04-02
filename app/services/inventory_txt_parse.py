@@ -5,8 +5,10 @@ from __future__ import annotations
 import re
 
 # Linha de produto: código, descrição (texto), bloco numérico com tokens tipo 347, 5I, I.
+# Entre texto e colunas o mapa usa padding de 2+ espaços; um único espaço pode ser parte do nome
+# (ex.: "PESSEGO 1" antes do SLD.INICIAL) e não deve iniciar o bloco numérico.
 _LINE_RE = re.compile(
-    r"^(\d+)\s+(.+?)\s+((?:-?\d*I?|I)(?:\s+(?:-?\d*I?|I))*)$",
+    r"^(\d+)\s+(.+?)\s{2,}((?:-?\d*I?|I)(?:\s+(?:-?\d*I?|I))*)$",
 )
 
 # Mapa diário sintético (VDER0004): após o texto, o bloco numérico é largura fixa por

@@ -690,6 +690,10 @@ function setActiveSub(subKey) {
   const parentEl = document.getElementById(`module-${parent}`);
   if (!parentEl) return;
 
+  if (subKey !== 'count-audit') {
+    closeCountAuditDetailDrawer();
+  }
+
   // Para o polling de análise se estava ativo em outro submódulo
   if (countAuditPollingTimer && subKey !== 'count-audit') {
     clearInterval(countAuditPollingTimer);
@@ -4411,6 +4415,9 @@ const countAuditToggleFilters = document.getElementById('count-audit-toggle-filt
 const countAuditRangeInfo = document.getElementById('count-audit-range-info');
 const countAuditDetailStatus = document.getElementById('count-audit-detail-status');
 const countAuditDetailPanel = document.getElementById('count-audit-detail');
+const countAuditDrawerRoot = document.getElementById('count-audit-drawer-root');
+const countAuditDrawerBackdrop = document.getElementById('count-audit-drawer-backdrop');
+const countAuditDrawerClose = document.getElementById('count-audit-drawer-close');
 const countAuditOperationalDate = document.getElementById('count-audit-operational-date');
 const countAuditAnalysisStatus = document.getElementById('count-audit-analysis-status');
 const countAuditLastSync = document.getElementById('count-audit-last-sync');
@@ -4455,6 +4462,27 @@ function formatAuditRelativeTime(isoValue) {
 
 function isCountAuditMobileViewport() {
   return !!countAuditMobileMediaQuery?.matches;
+}
+
+let countAuditDrawerEscBound = false;
+
+function openCountAuditDetailDrawer() {
+  if (!countAuditDrawerRoot || isCountAuditMobileViewport()) return;
+  countAuditDrawerRoot.classList.add('is-open');
+  countAuditDrawerRoot.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('count-audit-drawer-open');
+  window.setTimeout(() => {
+    if (countAuditDrawerClose && countAuditDrawerRoot.classList.contains('is-open')) {
+      countAuditDrawerClose.focus();
+    }
+  }, 0);
+}
+
+function closeCountAuditDetailDrawer() {
+  if (!countAuditDrawerRoot) return;
+  countAuditDrawerRoot.classList.remove('is-open');
+  countAuditDrawerRoot.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('count-audit-drawer-open');
 }
 
 function getCountAuditDetailCacheKey(code) {
@@ -5139,19 +5167,19 @@ function renderCountAuditRows(rows) {
 
   syncCountAuditListSelection();
   if (countAuditState.selectedCode && String(countAuditState.selectedCode || '') !== previousSelectedCode) {
-    selectCountAuditRow(String(countAuditState.selectedCode || ''));
+    selectCountAuditRow(String(countAuditState.selectedCode || ''), {});
   } else if (!countAuditState.selectedCode) {
     renderCountAuditDetailEmpty();
   }
 }
 
-function renderCountAuditDetailEmpty(message = 'Selecione um item da fila para abrir o painel lateral.') {
+function renderCountAuditDetailEmpty(message = 'Selecione um item na fila ou use Detalhe.') {
   if (!countAuditDetailPanel) return;
   if (countAuditDetailStatus) countAuditDetailStatus.textContent = 'Sem seleção';
   countAuditDetailPanel.innerHTML =
     `<div class="count-audit-detail-empty">` +
-      `<strong>${escapeHtml(message)}</strong>` +
-      `<p class="muted">Histórico de lançamentos, responsáveis, observações automáticas e trilha de auditoria aparecem aqui.</p>` +
+      `<p class="count-audit-detail-empty-title">${escapeHtml(message)}</p>` +
+      `<p class="muted">Histórico de lançamentos, trilha de auditoria, recontagem e atualização ficam neste painel.</p>` +
     `</div>`;
 }
 
@@ -5211,12 +5239,31 @@ async function loadCountAuditDetail(code, forceReload = false) {
   }
 }
 
-function selectCountAuditRow(code, forceReload = false) {
+/**
+ * @param {string} code
+ * @param {{ forceReload?: boolean, openDrawer?: boolean }} [opts]
+ */
+function selectCountAuditRow(code, opts = {}) {
+  const forceReload = !!opts.forceReload;
+  const openDrawer = !!opts.openDrawer;
   const row = getCountAuditRowByCode(code);
   if (!row) return;
   countAuditState.selectedCode = code;
   syncCountAuditListSelection();
-  loadCountAuditDetail(code, forceReload);
+
+  if (isCountAuditMobileViewport()) {
+    loadCountAuditDetail(code, forceReload);
+    return;
+  }
+
+  if (openDrawer) {
+    openCountAuditDetailDrawer();
+  }
+
+  const drawerOpen = countAuditDrawerRoot?.classList.contains('is-open');
+  if (drawerOpen) {
+    loadCountAuditDetail(code, forceReload);
+  }
 }
 
 function clearCountAuditFilters() {
@@ -5299,11 +5346,13 @@ async function loadCountAuditAnalysis() {
     renderCountAuditSummary(countAuditState.summary);
     renderCountAuditRows(countAuditState.rows);
 
-    const selected = isCountAuditMobileViewport()
-      ? null
-      : (countAuditState.selectedCode || countAuditState.rows[0]?.cod_produto || null);
-    if (selected) selectCountAuditRow(String(selected));
-    else renderCountAuditDetailEmpty();
+    if (!isCountAuditMobileViewport()) {
+      if (countAuditDrawerRoot?.classList.contains('is-open') && countAuditState.selectedCode) {
+        loadCountAuditDetail(String(countAuditState.selectedCode), true);
+      } else {
+        renderCountAuditDetailEmpty('Abra o detalhe para ver histórico, trilha e ações.');
+      }
+    }
 
     if (info.id == null) {
       setCountAuditFeedback(info.file_name || 'Análise sem TXT: usando saldo zero para produtos ativos.', false);
@@ -5432,7 +5481,7 @@ function bindCountAuditEvents() {
       }
       const refreshBtn = e.target.closest('[data-audit-refresh-detail]');
       if (refreshBtn) {
-        selectCountAuditRow(decodeURIComponent(refreshBtn.dataset.auditRefreshDetail || ''), true);
+        selectCountAuditRow(decodeURIComponent(refreshBtn.dataset.auditRefreshDetail || ''), { forceReload: true });
         return;
       }
       const target = e.target.closest('[data-action][data-code]');
@@ -5457,7 +5506,7 @@ function bindCountAuditEvents() {
         renderCountAuditDetailEmpty();
         return;
       }
-      selectCountAuditRow(code, action === 'detail');
+      selectCountAuditRow(code, { forceReload: action === 'detail', openDrawer: true });
     });
   }
 
@@ -5471,8 +5520,23 @@ function bindCountAuditEvents() {
       }
       const refreshBtn = e.target.closest('[data-audit-refresh-detail]');
       if (refreshBtn) {
-        selectCountAuditRow(decodeURIComponent(refreshBtn.dataset.auditRefreshDetail || ''), true);
+        selectCountAuditRow(decodeURIComponent(refreshBtn.dataset.auditRefreshDetail || ''), { forceReload: true });
       }
+    });
+  }
+
+  if (countAuditDrawerBackdrop) {
+    countAuditDrawerBackdrop.addEventListener('click', () => closeCountAuditDetailDrawer());
+  }
+  if (countAuditDrawerClose) {
+    countAuditDrawerClose.addEventListener('click', () => closeCountAuditDetailDrawer());
+  }
+  if (!countAuditDrawerEscBound) {
+    countAuditDrawerEscBound = true;
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (!countAuditDrawerRoot?.classList.contains('is-open')) return;
+      closeCountAuditDetailDrawer();
     });
   }
 

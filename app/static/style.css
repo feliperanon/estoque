@@ -2255,6 +2255,8 @@ form#count-form.count-form {
   --audit-missing-bg: #f1f5f9;
   --audit-progress-track: #e2e8f0;
   --audit-progress-fill: #0f766e;
+  --audit-accent-ring: rgba(15, 118, 110, 0.22);
+  --audit-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 #module-contagem #sub-count-audit.sub-section.active.count-audit-page {
@@ -2279,176 +2281,153 @@ form#count-form.count-form {
   box-shadow: var(--audit-shadow-sm);
 }
 
-.count-audit-hero {
-  position: relative;
-  overflow: hidden;
-  padding: 0;
-  color: var(--audit-ink);
-  background: var(--audit-card);
-  border: 1px solid var(--audit-border);
-  box-shadow: var(--audit-shadow-sm);
+#sub-count-audit,
+#sub-count-audit .count-audit-shell {
+  font-family: var(--audit-font-sans);
 }
 
-.count-audit-hero::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--audit-focus);
-  pointer-events: none;
+/* Cabeçalho operacional */
+.count-audit-header {
+  padding: var(--audit-space-4) var(--audit-space-5);
 }
 
-.count-audit-hero-grid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1.8fr) minmax(18rem, 0.92fr);
-  gap: var(--audit-space-5);
-  padding: var(--audit-space-5) var(--audit-space-5) var(--audit-space-4);
-}
-
-.count-audit-hero-main {
-  min-width: 0;
-}
-
-.count-audit-hero-head {
+.count-audit-header__row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
-  gap: var(--audit-space-4);
+  gap: var(--audit-space-3);
   margin-bottom: var(--audit-space-4);
 }
 
-.count-audit-hero-head-text {
+.count-audit-header__titles {
   min-width: 0;
   flex: 1;
 }
 
-.count-audit-eyebrow {
-  margin: 0 0 var(--audit-space-2);
-  font-size: var(--audit-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--audit-subtle);
-}
-
-.count-audit-hero-title {
+.count-audit-page-title {
   margin: 0;
   color: var(--audit-ink);
-  font-size: var(--audit-text-xl);
+  font-size: 1.125rem;
   font-weight: 600;
+  line-height: 1.3;
   letter-spacing: -0.02em;
-  line-height: 1.25;
 }
 
-.count-audit-hero-lead {
-  margin: var(--audit-space-3) 0 0;
-  max-width: 68ch;
+.count-audit-page-subtitle {
+  margin: 0.35rem 0 0;
+  max-width: 56rem;
   color: var(--audit-muted);
-  font-size: var(--audit-text-md);
-  line-height: 1.6;
+  font-size: var(--audit-text-sm);
   font-weight: 400;
+  line-height: 1.45;
 }
 
-.count-audit-lead-key {
-  font-weight: 600;
-  color: var(--audit-ink-secondary);
-}
-
-.count-audit-hero-chips {
+.count-audit-header__chips {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: var(--audit-space-2);
+  align-items: center;
 }
 
 .count-audit-chip-ativo,
 .count-audit-chip-mode {
-  padding: 0.35rem 0.65rem;
+  padding: 0.28rem 0.55rem;
   border-radius: 6px;
   border: 1px solid var(--audit-border);
   background: var(--audit-card-alt);
   color: var(--audit-ink-secondary);
   font-size: var(--audit-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: none;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .count-audit-chip-mode {
-  background: rgba(15, 118, 110, 0.08);
-  border-color: rgba(15, 118, 110, 0.22);
+  background: rgba(15, 118, 110, 0.07);
+  border-color: rgba(15, 118, 110, 0.2);
   color: #0d5c56;
 }
 
-.count-audit-hero-meta {
+.count-audit-header__meta {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--audit-space-3);
+  gap: var(--audit-space-2);
+  margin-bottom: var(--audit-space-4);
 }
 
-.count-audit-meta-card {
+.count-audit-meta-pill {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: var(--audit-space-3) var(--audit-space-4);
-  border-radius: var(--audit-radius-sm);
+  gap: 0.2rem;
+  padding: var(--audit-space-2) var(--audit-space-3);
+  border-radius: 8px;
   border: 1px solid var(--audit-border);
   background: var(--audit-card-alt);
+  min-width: 0;
+}
+
+.count-audit-meta-pill--soft {
+  background: #fafbfc;
 }
 
 .count-audit-meta-label {
-  font-size: var(--audit-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--audit-subtle);
+  line-height: 1.2;
 }
 
 .count-audit-meta-value {
-  font-size: var(--audit-text-base);
-  line-height: 1.3;
+  font-size: var(--audit-text-sm);
+  line-height: 1.35;
   font-weight: 600;
   color: var(--audit-ink);
   font-variant-numeric: tabular-nums;
+  word-break: break-word;
 }
 
-.count-audit-meta-note {
-  font-size: var(--audit-text-sm);
+.count-audit-meta-hint {
+  font-size: 0.7rem;
   color: var(--audit-muted);
-  line-height: 1.4;
+  line-height: 1.35;
+  font-weight: 400;
 }
 
-.count-audit-command-card {
+.count-audit-header__toolbar {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: var(--audit-space-3);
-  padding: var(--audit-space-4);
-  border-radius: var(--audit-radius-sm);
-  border: 1px solid var(--audit-border);
-  background: var(--audit-surface-muted, var(--audit-card-alt));
-  box-shadow: none;
+  padding-top: var(--audit-space-3);
+  border-top: 1px solid var(--audit-border);
 }
 
 .count-audit-field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.3rem;
   min-width: 0;
 }
 
-.count-audit-label {
-  font-size: var(--audit-text-sm);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--audit-ink-secondary);
+.count-audit-field--date {
+  flex: 0 1 12rem;
 }
 
-.count-audit-hero .count-audit-label {
-  color: var(--audit-muted);
+.count-audit-label {
+  font-size: var(--audit-text-xs);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--audit-subtle);
+}
+
+.count-audit-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--audit-space-2);
+  margin-left: auto;
 }
 
 .count-audit-date-input,
@@ -2466,7 +2445,7 @@ form#count-form.count-form {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.count-audit-hero .count-audit-date-input {
+.count-audit-header .count-audit-date-input {
   background: var(--audit-card);
   border-color: var(--audit-border-strong);
 }
@@ -2480,26 +2459,14 @@ form#count-form.count-form {
   box-shadow: 0 0 0 3px var(--audit-accent-ring);
 }
 
-.count-audit-toolbar-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--audit-space-2);
-}
-
 .count-audit-btn-refresh,
 .count-audit-btn-export {
-  min-height: 2.625rem;
-  width: 100%;
+  min-height: 2.35rem;
+  padding-inline: 1rem;
   border-radius: 8px;
   font-size: var(--audit-text-sm);
-  font-weight: 600;
-}
-
-.count-audit-command-note {
-  margin: 0;
-  color: var(--audit-muted);
-  font-size: var(--audit-text-sm);
-  line-height: 1.5;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .count-audit-feedback-block {
@@ -2538,11 +2505,15 @@ form#count-form.count-form {
 .count-audit-card-head h3,
 .count-audit-list-head h3 {
   margin: 0;
-  font-size: var(--audit-text-lg);
+  font-size: 1rem;
   font-weight: 600;
   color: var(--audit-ink);
   letter-spacing: -0.01em;
   line-height: 1.3;
+}
+
+.count-audit-card-head--tight {
+  margin-bottom: var(--audit-space-3);
 }
 
 .count-audit-card-sub {
@@ -2555,15 +2526,14 @@ form#count-form.count-form {
 
 .count-audit-summary-card,
 .count-audit-filters-card,
-.count-audit-list-card,
-.count-audit-detail-card {
+.count-audit-list-card {
   padding: var(--audit-space-4) var(--audit-space-5);
 }
 
 #sub-count-audit .count-audit-kpi-list {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--audit-space-3);
+  gap: var(--audit-space-2);
   margin: 0;
   padding: 0;
 }
@@ -2572,28 +2542,28 @@ form#count-form.count-form {
 .count-audit-summary-item {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: var(--audit-space-3) var(--audit-space-4);
-  border-radius: var(--audit-radius-sm);
+  gap: 0.25rem;
+  padding: var(--audit-space-2) var(--audit-space-3);
+  border-radius: 8px;
   border: 1px solid var(--audit-border);
-  background: var(--audit-card);
-  box-shadow: var(--audit-shadow-sm);
+  background: var(--audit-card-alt);
+  box-shadow: none;
 }
 
 .count-audit-summary-placeholder span,
 .count-audit-summary-label {
-  font-size: var(--audit-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--audit-subtle);
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .count-audit-summary-placeholder strong,
 .count-audit-summary-value {
-  font-size: var(--audit-text-kpi);
-  line-height: 1.15;
+  font-size: 1.05rem;
+  line-height: 1.2;
   font-weight: 600;
   color: var(--audit-ink);
   font-variant-numeric: tabular-nums;
@@ -2769,10 +2739,8 @@ form#count-form.count-form {
 }
 
 .count-audit-workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.95fr);
-  gap: 1.25rem;
-  align-items: start;
+  display: block;
+  width: 100%;
 }
 
 .count-audit-list-card {
@@ -2817,34 +2785,36 @@ form#count-form.count-form {
 
 .count-audit-list-progress {
   margin-bottom: var(--audit-space-3);
-  padding-bottom: var(--audit-space-3);
+  padding: var(--audit-space-3) 0;
   border-bottom: 1px solid var(--audit-border);
 }
 
-.count-audit-list-progress-label {
+.count-audit-list-progress-top {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
   gap: var(--audit-space-3);
-  margin-bottom: var(--audit-space-2);
-  font-size: var(--audit-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--audit-subtle);
+  margin-bottom: 0.5rem;
 }
 
 .count-audit-list-progress-pct {
-  font-size: var(--audit-text-sm);
+  font-size: 1.35rem;
   font-weight: 600;
-  letter-spacing: normal;
-  text-transform: none;
+  letter-spacing: -0.02em;
   color: var(--audit-ink);
   font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.count-audit-list-progress-caption {
+  font-size: var(--audit-text-xs);
+  font-weight: 500;
+  color: var(--audit-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .count-audit-list-progress-track {
-  height: 6px;
+  height: 5px;
   border-radius: 999px;
   background: var(--audit-progress-track);
   overflow: hidden;
@@ -2860,14 +2830,14 @@ form#count-form.count-form {
 
 .count-audit-list-header {
   display: grid;
-  grid-template-columns: minmax(0, 2.2fr) repeat(3, minmax(0, 0.92fr)) minmax(0, 1.2fr) minmax(0, 1.25fr) 7.25rem;
-  gap: var(--audit-space-3);
+  grid-template-columns: minmax(0, 2.35fr) repeat(3, minmax(0, 0.88fr)) minmax(0, 1.05fr) minmax(0, 1.1fr) 5.5rem;
+  gap: var(--audit-space-2);
   align-items: center;
-  padding: 0 0.15rem var(--audit-space-3);
+  padding: 0 0.35rem var(--audit-space-2);
   color: var(--audit-subtle);
-  font-size: var(--audit-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -2943,10 +2913,10 @@ form#count-form.count-form {
 
 .count-audit-row {
   display: grid;
-  grid-template-columns: minmax(0, 2.2fr) repeat(3, minmax(0, 0.92fr)) minmax(0, 1.2fr) minmax(0, 1.25fr) 7.25rem;
-  gap: var(--audit-space-3);
+  grid-template-columns: minmax(0, 2.35fr) repeat(3, minmax(0, 0.88fr)) minmax(0, 1.05fr) minmax(0, 1.1fr) 5.5rem;
+  gap: var(--audit-space-2);
   align-items: stretch;
-  padding: var(--audit-space-4) var(--audit-space-4) var(--audit-space-4) 1rem;
+  padding: 0.55rem 0.65rem 0.55rem 0.85rem;
 }
 
 .count-audit-cell {
@@ -2958,18 +2928,18 @@ form#count-form.count-form {
 }
 
 .count-audit-cell-label {
-  font-size: var(--audit-text-xs);
+  font-size: 0.65rem;
   color: var(--audit-subtle);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 600;
+  letter-spacing: 0.05em;
+  font-weight: 500;
 }
 
 .count-audit-cell-value {
   color: var(--audit-ink);
-  font-size: var(--audit-text-base);
-  line-height: 1.35;
-  font-weight: 600;
+  font-size: var(--audit-text-sm);
+  line-height: 1.3;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2981,7 +2951,7 @@ form#count-form.count-form {
 }
 
 .count-audit-cell--product {
-  gap: 0.55rem;
+  gap: 0.35rem;
 }
 
 .count-audit-row-select {
@@ -2999,15 +2969,15 @@ form#count-form.count-form {
 
 .count-audit-row-select:focus-visible {
   outline: 2px solid var(--audit-focus);
-  outline-offset: 4px;
-  border-radius: 0.5rem;
+  outline-offset: 2px;
+  border-radius: 0.35rem;
 }
 
 .count-audit-row-topline {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
 .count-audit-state-badge,
@@ -3015,17 +2985,17 @@ form#count-form.count-form {
 .count-audit-code-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
   width: fit-content;
   max-width: 100%;
-  padding: 0.22rem 0.5rem;
-  border-radius: 6px;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
   border: 1px solid var(--audit-border);
-  font-size: var(--audit-text-2xs);
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .count-audit-state-badge::before {
@@ -3079,15 +3049,16 @@ form#count-form.count-form {
   background: var(--audit-card-alt);
   border-color: var(--audit-border);
   text-transform: none;
-  letter-spacing: 0.02em;
-  font-size: var(--audit-text-xs);
+  letter-spacing: 0.01em;
+  font-size: 0.68rem;
+  font-weight: 500;
 }
 
 .count-audit-row-name {
   color: var(--audit-ink);
-  font-size: var(--audit-text-base);
-  line-height: 1.35;
-  font-weight: 600;
+  font-size: var(--audit-text-md);
+  line-height: 1.3;
+  font-weight: 500;
 }
 
 .count-audit-row-meta {
@@ -3100,8 +3071,8 @@ form#count-form.count-form {
 }
 
 .count-audit-diff-total {
-  font-size: var(--audit-text-lg);
-  line-height: 1.15;
+  font-size: var(--audit-text-md);
+  line-height: 1.2;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -3117,9 +3088,9 @@ form#count-form.count-form {
 
 .count-audit-recommendation {
   color: var(--audit-ink);
-  font-size: var(--audit-text-md);
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: var(--audit-text-sm);
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .count-audit-row-insight {
@@ -3135,41 +3106,142 @@ form#count-form.count-form {
 
 .count-audit-detail-btn,
 .count-audit-detail-action-btn {
-  min-height: 2.5rem;
-  border-radius: 8px;
-  font-size: var(--audit-text-sm);
-  font-weight: 600;
+  min-height: 2.1rem;
+  border-radius: 6px;
+  font-size: var(--audit-text-xs);
+  font-weight: 500;
 }
 
 .count-audit-detail-btn {
   width: 100%;
 }
 
-.count-audit-detail-card {
-  position: sticky;
-  top: 5rem;
+/* Drawer de detalhe (desktop) */
+.count-audit-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.count-audit-drawer-root.is-open {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+body.count-audit-drawer-open {
+  overflow: hidden;
+}
+
+.count-audit-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(15, 23, 42, 0.38);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.count-audit-drawer-root.is-open .count-audit-drawer-backdrop {
+  opacity: 1;
+}
+
+.count-audit-drawer-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(26.5rem, 100vw);
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--audit-card);
+  border-left: 1px solid var(--audit-border-strong);
+  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.12);
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+}
+
+.count-audit-drawer-root.is-open .count-audit-drawer-panel {
+  transform: translateX(0);
+}
+
+.count-audit-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--audit-space-3);
+  padding: var(--audit-space-3) var(--audit-space-4);
+  border-bottom: 1px solid var(--audit-border);
+  flex-shrink: 0;
+  background: var(--audit-card-alt);
+}
+
+.count-audit-drawer-header-text {
+  min-width: 0;
+}
+
+.count-audit-drawer-title {
+  margin: 0;
+  font-size: var(--audit-text-md);
+  font-weight: 600;
+  color: var(--audit-ink);
+  line-height: 1.3;
+}
+
+.count-audit-drawer-close {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--audit-border);
+  background: var(--audit-card);
+  color: var(--audit-ink-secondary);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.count-audit-drawer-close:hover {
+  background: #f1f5f9;
+  border-color: var(--audit-border-strong);
 }
 
 .count-audit-detail-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.55rem;
-  border-radius: 6px;
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
   border: 1px solid var(--audit-border);
-  background: var(--audit-card-alt);
+  background: var(--audit-card);
   color: var(--audit-muted);
-  font-size: var(--audit-text-xs);
-  font-weight: 600;
+  font-size: 0.65rem;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .count-audit-detail-panel {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  min-height: 26rem;
+  gap: 0.75rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--audit-space-3) var(--audit-space-4) var(--audit-space-5);
+  -webkit-overflow-scrolling: touch;
+}
+
+.count-audit-detail-panel--drawer {
+  min-height: 12rem;
 }
 
 .count-audit-detail-empty,
@@ -3183,10 +3255,12 @@ form#count-form.count-form {
   line-height: 1.5;
 }
 
-.count-audit-detail-empty strong {
+.count-audit-detail-empty-title {
+  margin: 0 0 0.35rem;
   font-weight: 600;
   color: var(--audit-ink);
-  font-size: var(--audit-text-md);
+  font-size: var(--audit-text-sm);
+  line-height: 1.35;
 }
 
 .count-audit-detail-shell,
@@ -3201,11 +3275,11 @@ form#count-form.count-form {
 .count-audit-detail-hero {
   display: flex;
   flex-direction: column;
-  gap: var(--audit-space-3);
-  padding: var(--audit-space-4);
-  border-radius: var(--audit-radius-sm);
+  gap: var(--audit-space-2);
+  padding: var(--audit-space-3);
+  border-radius: 8px;
   border: 1px solid var(--audit-border);
-  background: var(--audit-card);
+  background: var(--audit-card-alt);
 }
 
 .count-audit-detail-hero-top,
@@ -3255,17 +3329,17 @@ form#count-form.count-form {
 .count-audit-detail-metric,
 .count-audit-history-item,
 .count-audit-trail-item {
-  padding: 0.82rem 0.9rem;
-  border-radius: 0.85rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 6px;
   border: 1px solid var(--audit-border);
-  background: #fff;
+  background: var(--audit-card);
 }
 
 .count-audit-detail-metric span {
-  font-size: 0.66rem;
-  font-weight: 700;
+  font-size: 0.65rem;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--audit-subtle);
 }
 
@@ -3398,25 +3472,13 @@ form#count-form.count-form {
 }
 
 @media (max-width: 1440px) {
-  .count-audit-hero-meta,
+  .count-audit-header__meta,
   #sub-count-audit .count-audit-kpi-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .count-audit-filter-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 1220px) {
-  .count-audit-hero-grid,
-  .count-audit-workspace {
-    grid-template-columns: 1fr;
-  }
-
-  .count-audit-detail-card {
-    position: relative;
-    top: auto;
   }
 }
 
@@ -3436,59 +3498,50 @@ form#count-form.count-form {
     border-radius: 0.9rem;
   }
 
-  .count-audit-hero-grid {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+  .count-audit-header {
     padding: 0.9rem;
   }
 
-  .count-audit-eyebrow,
-  .count-audit-hero-lead,
+  .count-audit-page-subtitle,
   .count-audit-chip-ativo,
-  .count-audit-command-note,
-  .count-audit-meta-card--secondary,
+  .count-audit-meta-pill--soft,
   .count-audit-summary-placeholder--secondary,
   .count-audit-summary-item--secondary,
   .count-audit-card-sub {
     display: none;
   }
 
-  .count-audit-hero-head {
-    margin-bottom: 0.7rem;
-  }
-
-  .count-audit-hero-title {
-    font-size: 1.28rem;
-  }
-
-  .count-audit-hero-chips {
-    justify-content: flex-start;
-  }
-
-  .count-audit-hero-meta {
+  .count-audit-header__meta {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.55rem;
   }
 
-  .count-audit-meta-card {
-    padding: 0.75rem 0.8rem;
+  .count-audit-meta-pill {
+    padding: 0.65rem 0.75rem;
   }
 
   .count-audit-meta-value {
-    font-size: 0.94rem;
+    font-size: 0.88rem;
   }
 
-  .count-audit-meta-note {
-    font-size: 0.7rem;
+  .count-audit-header__toolbar {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .count-audit-command-card {
-    gap: 0.75rem;
-    padding: 0.85rem;
+  .count-audit-field--date {
+    flex: 1 1 auto;
   }
 
-  .count-audit-hero .count-audit-label {
-    font-size: 0.69rem;
+  .count-audit-header__actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .count-audit-header__actions .count-audit-btn-refresh,
+  .count-audit-header__actions .count-audit-btn-export {
+    flex: 1;
+    min-height: 2.55rem;
   }
 
   .count-audit-date-input,
@@ -3504,12 +3557,8 @@ form#count-form.count-form {
     font-size: 0.82rem;
   }
 
-  .count-audit-toolbar-actions {
-    flex-direction: row;
-  }
-
   .count-audit-feedback-block {
-    margin: 0 0.9rem 0.9rem;
+    margin: 0.75rem 0 0;
     padding: 0.7rem 0.8rem;
     font-size: 0.76rem;
   }
@@ -3601,13 +3650,8 @@ form#count-form.count-form {
     white-space: nowrap;
   }
 
-  .count-audit-workspace {
-    grid-template-columns: 1fr;
-    gap: 0.85rem;
-  }
-
-  .count-audit-detail-card {
-    display: none;
+  .count-audit-drawer-root {
+    display: none !important;
   }
 
   .count-audit-list-head-meta {
@@ -3619,10 +3663,10 @@ form#count-form.count-form {
     font-size: 0.74rem;
   }
 
-  .count-audit-list-progress-label {
+  .count-audit-list-progress-top {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.15rem;
+    gap: 0.2rem;
   }
 
   .count-audit-list-header,

@@ -602,70 +602,54 @@
           <!-- Sub: Análise de Contagem (somente produtos ativos no catálogo) -->
           <div id="sub-count-audit" class="sub-section count-audit-page">
             <section class="count-audit-shell" aria-labelledby="count-audit-title">
-              <section class="card count-audit-hero">
-                <div class="count-audit-hero-grid">
-                  <div class="count-audit-hero-main">
-                    <div class="count-audit-hero-head">
-                      <div class="count-audit-hero-head-text">
-                        <p class="count-audit-eyebrow">Analise operacional · auditoria de estoque</p>
-                        <h2 id="count-audit-title" class="count-audit-hero-title">Análise de Contagem</h2>
-                        <p class="count-audit-hero-lead">
-                          Uma mesa de decisão para revisar cenário, destacar prioridades e atacar divergências com velocidade.
-                          Comparação entre <span class="count-audit-lead-key">saldo TXT</span> e <span class="count-audit-lead-key">contagem registrada</span>, somente <span class="count-audit-lead-key">produtos ativos</span>.
-                        </p>
-                      </div>
-                      <div class="count-audit-hero-chips">
-                        <span class="chip count-audit-chip-ativo">Somente ativos</span>
-                        <span id="count-audit-mode-indicator" class="chip count-audit-chip-mode">Modo leitura</span>
-                      </div>
-                    </div>
-
-                    <div class="count-audit-hero-meta" role="list" aria-label="Contexto da análise">
-                      <article class="count-audit-meta-card count-audit-meta-card--primary" role="listitem">
-                        <span class="count-audit-meta-label">Data operacional</span>
-                        <strong id="count-audit-operational-date" class="count-audit-meta-value">--/--/----</strong>
-                        <span class="count-audit-meta-note">America/Sao_Paulo</span>
-                      </article>
-                      <article class="count-audit-meta-card count-audit-meta-card--primary" role="listitem">
-                        <span class="count-audit-meta-label">Status da análise</span>
-                        <strong id="count-audit-analysis-status" class="count-audit-meta-value">Aguardando carga</strong>
-                        <span class="count-audit-meta-note">Priorização automática</span>
-                      </article>
-                      <article class="count-audit-meta-card count-audit-meta-card--secondary" role="listitem">
-                        <span class="count-audit-meta-label">Última sincronização</span>
-                        <strong id="count-audit-last-sync" class="count-audit-meta-value">--:--</strong>
-                        <span class="count-audit-meta-note">Atualização da análise</span>
-                      </article>
-                      <article class="count-audit-meta-card count-audit-meta-card--secondary" role="listitem">
-                        <span class="count-audit-meta-label">Base de comparação</span>
-                        <strong id="count-audit-base-source" class="count-audit-meta-value">Sem base carregada</strong>
-                        <span id="count-audit-base-source-note" class="count-audit-meta-note">Importação TXT ou saldo zero</span>
-                      </article>
-                    </div>
+              <header class="card count-audit-header">
+                <div class="count-audit-header__row">
+                  <div class="count-audit-header__titles">
+                    <h2 id="count-audit-title" class="count-audit-page-title">Análise de Contagem</h2>
+                    <p class="count-audit-page-subtitle">Saldo TXT × contagem registrada · somente produtos ativos · America/Sao_Paulo</p>
                   </div>
-
-                  <aside class="count-audit-command-card" aria-label="Ações da análise">
-                    <div class="count-audit-field">
-                      <label class="count-audit-label" for="count-audit-date">Data da importação TXT</label>
-                      <input id="count-audit-date" class="search-input count-audit-date-input" type="date" />
-                    </div>
-                    <div class="count-audit-toolbar-actions">
-                      <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark count-audit-btn-refresh">Sincronizar análise</button>
-                      <button id="btn-count-audit-export-excel" type="button" class="btn-secondary btn-dark count-audit-btn-export" title="Exportar a base da análise em Excel">Exportar Excel</button>
-                    </div>
-                    <p class="count-audit-command-note">
-                      A lista pode ser refinada por relevância, prioridade, status e tipo de divergência sem sair desta página.
-                    </p>
-                  </aside>
+                  <div class="count-audit-header__chips">
+                    <span class="chip count-audit-chip-ativo">Somente ativos</span>
+                    <span id="count-audit-mode-indicator" class="chip count-audit-chip-mode">Modo leitura</span>
+                  </div>
+                </div>
+                <div class="count-audit-header__meta" role="list" aria-label="Contexto da análise">
+                  <article class="count-audit-meta-pill" role="listitem">
+                    <span class="count-audit-meta-label">Data operacional</span>
+                    <span id="count-audit-operational-date" class="count-audit-meta-value">--/--/----</span>
+                  </article>
+                  <article class="count-audit-meta-pill" role="listitem">
+                    <span class="count-audit-meta-label">Status</span>
+                    <span id="count-audit-analysis-status" class="count-audit-meta-value">Aguardando carga</span>
+                  </article>
+                  <article class="count-audit-meta-pill count-audit-meta-pill--soft" role="listitem">
+                    <span class="count-audit-meta-label">Última sincronização</span>
+                    <span id="count-audit-last-sync" class="count-audit-meta-value">--:--</span>
+                  </article>
+                  <article class="count-audit-meta-pill count-audit-meta-pill--soft" role="listitem">
+                    <span class="count-audit-meta-label">Base TXT</span>
+                    <span id="count-audit-base-source" class="count-audit-meta-value">Sem base carregada</span>
+                    <span id="count-audit-base-source-note" class="count-audit-meta-hint">Importação ou saldo zero</span>
+                  </article>
+                </div>
+                <div class="count-audit-header__toolbar" aria-label="Ações da análise">
+                  <div class="count-audit-field count-audit-field--date">
+                    <label class="count-audit-label" for="count-audit-date">Data da importação TXT</label>
+                    <input id="count-audit-date" class="search-input count-audit-date-input" type="date" />
+                  </div>
+                  <div class="count-audit-header__actions">
+                    <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark count-audit-btn-refresh">Sincronizar</button>
+                    <button id="btn-count-audit-export-excel" type="button" class="btn-secondary btn-dark count-audit-btn-export" title="Exportar a base da análise em Excel">Exportar Excel</button>
+                  </div>
                 </div>
                 <div id="count-audit-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
-              </section>
+              </header>
 
               <section class="card count-audit-summary-card">
-                <div class="card-head count-audit-card-head">
+                <div class="card-head count-audit-card-head count-audit-card-head--tight">
                   <div>
-                    <h3>Cenário geral</h3>
-                    <p class="count-audit-card-sub muted">KPIs executivos com leitura rápida do dia operacional</p>
+                    <h3>Indicadores</h3>
+                    <p class="count-audit-card-sub muted">Leitura rápida do cenário</p>
                   </div>
                 </div>
                 <div id="count-audit-summary" class="count-audit-kpi-list" role="list">
@@ -707,8 +691,8 @@
               <section class="card count-audit-filters-card">
                 <div class="card-head count-audit-card-head count-audit-filters-head">
                   <div>
-                    <h3>Filtros inteligentes</h3>
-                    <p class="count-audit-card-sub muted">Refine a análise por contexto, urgência e padrão de divergência</p>
+                    <h3>Filtros</h3>
+                    <p class="count-audit-card-sub muted">Busca, grupo, status e ordenação</p>
                   </div>
                   <div class="count-audit-filters-actions">
                     <button id="count-audit-toggle-filters" type="button" class="btn-secondary btn-small count-audit-btn-mobile-filters" aria-controls="count-audit-filters-panel" aria-expanded="false" hidden>Mais filtros</button>
@@ -812,7 +796,7 @@
                   <div class="card-head count-audit-list-head">
                     <div>
                       <h3>Fila de análise</h3>
-                      <p class="count-audit-card-sub muted">Prioridades, diferenças e ação sugerida em uma única leitura</p>
+                      <p class="count-audit-card-sub muted">Use a linha ou o botão Detalhe para abrir histórico e trilha</p>
                     </div>
                     <div class="count-audit-list-head-meta">
                       <span id="count-audit-total" class="chip count-audit-total-chip" aria-live="polite">0</span>
@@ -821,9 +805,9 @@
                   </div>
 
                   <div class="count-audit-list-progress" aria-hidden="true">
-                    <div class="count-audit-list-progress-label">
-                      <span>Progresso da análise</span>
-                      <span id="count-audit-progress-label-pct" class="count-audit-list-progress-pct"></span>
+                    <div class="count-audit-list-progress-top">
+                      <span id="count-audit-progress-label-pct" class="count-audit-list-progress-pct">0%</span>
+                      <span class="count-audit-list-progress-caption">Progresso da análise</span>
                     </div>
                     <div class="count-audit-list-progress-track">
                       <div id="count-audit-list-progress-fill" class="count-audit-list-progress-fill"></div>
@@ -835,8 +819,8 @@
                     <span>Base / TXT</span>
                     <span>Contagem atual</span>
                     <span>Diferença</span>
-                    <span>Status e prioridade</span>
-                    <span>Ação recomendada</span>
+                    <span>Status</span>
+                    <span>Ação</span>
                     <span>Detalhe</span>
                   </div>
 
@@ -846,22 +830,24 @@
                     </ul>
                   </div>
                 </section>
+              </div>
 
-                <aside class="card count-audit-detail-card">
-                  <div class="card-head count-audit-card-head count-audit-detail-head">
-                    <div>
-                      <h3>Painel de detalhe</h3>
-                      <p class="count-audit-card-sub muted">Histórico de lançamentos, trilha de auditoria e contexto de decisão</p>
+              <div id="count-audit-drawer-root" class="count-audit-drawer-root" aria-hidden="true">
+                <button type="button" id="count-audit-drawer-backdrop" class="count-audit-drawer-backdrop" aria-label="Fechar painel de detalhe" tabindex="-1"></button>
+                <aside class="count-audit-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="count-audit-drawer-title">
+                  <div class="count-audit-drawer-header">
+                    <div class="count-audit-drawer-header-text">
+                      <h3 id="count-audit-drawer-title" class="count-audit-drawer-title">Detalhe do item</h3>
+                      <span id="count-audit-detail-status" class="count-audit-detail-status">Sem seleção</span>
                     </div>
-                    <span id="count-audit-detail-status" class="count-audit-detail-status">Sem seleção</span>
+                    <button type="button" id="count-audit-drawer-close" class="count-audit-drawer-close" aria-label="Fechar detalhe">
+                      <span aria-hidden="true">×</span>
+                    </button>
                   </div>
-
-                  <div id="count-audit-detail" class="count-audit-detail-panel">
+                  <div id="count-audit-detail" class="count-audit-detail-panel count-audit-detail-panel--drawer">
                     <div class="count-audit-detail-empty">
-                      <strong>Selecione um item da fila</strong>
-                      <p class="muted">
-                        O painel lateral mostra histórico de lançamentos, responsáveis, observações automáticas e o caminho sugerido para recontagem.
-                      </p>
+                      <p class="count-audit-detail-empty-title">Nenhum detalhe aberto</p>
+                      <p class="muted">Selecione um item na fila ou use o botão Detalhe para ver histórico, trilha e ações.</p>
                     </div>
                   </div>
                 </aside>
