@@ -2770,7 +2770,7 @@ function renderBreakProducts(products) {
           <div class="count-control-tail">
             <div class="count-product-readout count-product-readout--by-control break-product-readout" aria-live="polite" title="Total de quebra em caixas neste dia (sincronizado + pendente local)">
               <span class="count-product-readout-inner">
-                <strong class="count-product-readout-value">${formatSignedIntegerBR(vCx)}</strong>
+                <strong class="count-product-readout-value">${formatBreakIntegerBR(vCx)}</strong>
               </span>
             </div>
           </div>
@@ -2784,7 +2784,7 @@ function renderBreakProducts(products) {
           <div class="count-control-tail">
             <div class="count-product-readout count-product-readout--by-control break-product-readout" aria-live="polite" title="Total de quebra em unidades neste dia (sincronizado + pendente local)">
               <span class="count-product-readout-inner">
-                <strong class="count-product-readout-value">${formatSignedIntegerBR(vUn)}</strong>
+                <strong class="count-product-readout-value">${formatBreakIntegerBR(vUn)}</strong>
               </span>
             </div>
           </div>
@@ -2904,9 +2904,9 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   const countTypeLabel = countType === 'unidade' ? 'Unidade' : 'Caixa';
   const netCx = Math.round(Number(getNetBreakByProductAndType(itemCode, 'caixa')) || 0);
   const netUn = Math.round(Number(getNetBreakByProductAndType(itemCode, 'unidade')) || 0);
-  const deltaStr = quantity > 0 ? `+${quantity}` : String(quantity);
+  const deltaStr = formatBreakIntegerBR(quantity);
   setBreakFeedback(
-    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total quebra ${formatSignedIntegerBR(netCx)} CX e ${formatSignedIntegerBR(netUn)} UN`,
+    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total quebra ${formatBreakIntegerBR(netCx)} CX e ${formatBreakIntegerBR(netUn)} UN`,
     false,
   );
 
@@ -2918,7 +2918,7 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
       `<span class="count-last-launch-body">` +
       `<strong class="count-last-launch-name">${escapeHtml(productName)}</strong> ` +
       `<span class="count-last-launch-delta">(${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'})</span>` +
-      ` · Total no dia: <strong>${formatSignedIntegerBR(netCx)} CX</strong> · <strong>${formatSignedIntegerBR(netUn)} UN</strong>` +
+      ` · Total no dia: <strong>${formatBreakIntegerBR(netCx)} CX</strong> · <strong>${formatBreakIntegerBR(netUn)} UN</strong>` +
       `</span>`;
   }
 
@@ -3178,7 +3178,7 @@ async function loadBreakHistoryList() {
       li.innerHTML =
         `<span class="break-history-col break-history-col--date">${escapeHtml(dayLabel)}</span>` +
         `<span class="break-history-col break-history-col--product">${prodLine}</span>` +
-        `<span class="break-history-col break-history-col--qty"><strong>${formatSignedIntegerBR(qty)}</strong></span>` +
+        `<span class="break-history-col break-history-col--qty"><strong>${formatBreakIntegerBR(qty)}</strong></span>` +
         `<span class="break-history-col break-history-col--type">${tipo}</span>` +
         `<span class="break-history-col break-history-col--reason">${reason}</span>` +
         `<span class="break-history-col break-history-col--actor">${actor}</span>`;
@@ -5768,6 +5768,12 @@ function formatSignedIntegerBR(value) {
   return n > 0 ? `+${formatIntegerBR(n)}` : formatIntegerBR(n);
 }
 
+/** Quantidades de quebra na UI: sem prefixo + ou − (valor absoluto formatado). */
+function formatBreakIntegerBR(value) {
+  const n = Math.abs(Number(value) || 0);
+  return formatIntegerBR(n);
+}
+
 function formatAuditRelativeTime(isoValue) {
   if (!isoValue) return '--';
   const date = new Date(isoValue);
@@ -6327,7 +6333,7 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
           `<article class="count-audit-detail-metric"><span>Contagem atual</span><strong>${formatIntegerBR(Number(row.counted_caixa) || 0)} CX / ${formatIntegerBR(Number(row.counted_unidade) || 0)} UN</strong><small>${launches} lançamento(s) sincronizado(s)</small></article>` +
           `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
           `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatSignedIntegerBR(meta.breakCx || 0)} CX / ${formatSignedIntegerBR(meta.breakUn || 0)} UN</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>` +
+          `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatBreakIntegerBR(meta.breakCx || 0)} CX / ${formatBreakIntegerBR(meta.breakUn || 0)} UN</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>` +
         `</div>` +
       `</section>` +
       `${isLoading ? '<div class="count-audit-detail-loading">Carregando trilha detalhada deste item...</div>' : ''}` +
@@ -6368,7 +6374,7 @@ function renderCountAuditDesktopRowMarkup(row) {
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade contagem"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.counted_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.counted_unidade) || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><div class="count-audit-diff-breakdown"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.diffCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.diffUn || 0)}</strong></div></div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Quebra</span><div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da análise (mesma lógica da tela Quebra)"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.breakCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.breakUn || 0)}</strong></div></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Quebra</span><div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da análise (mesma lógica da tela Quebra)"><strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(meta.breakCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(meta.breakUn || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
         `<div class="count-audit-cell count-audit-cell--recount-live"><button type="button" class="count-audit-btn-recount-live" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button></div>` +
@@ -6420,7 +6426,7 @@ function renderCountAuditMobileRowMarkup(row) {
           `</div>` +
           `<div class="count-audit-mobile-break-strip" title="Quebra no dia (mesma lógica da tela Quebra)">` +
             `<span class="count-audit-mobile-break-label">Quebra</span>` +
-            `<span class="count-audit-mobile-break-values">CX ${formatSignedIntegerBR(meta.breakCx || 0)} · UN ${formatSignedIntegerBR(meta.breakUn || 0)}</span>` +
+            `<span class="count-audit-mobile-break-values">CX ${formatBreakIntegerBR(meta.breakCx || 0)} · UN ${formatBreakIntegerBR(meta.breakUn || 0)}</span>` +
           `</div>` +
         `</button>` +
         `<button type="button" class="count-audit-mobile-recount-live-btn" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar em tempo real</button>` +
