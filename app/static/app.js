@@ -4508,6 +4508,18 @@ async function syncValidityPending() {
     await loadValidityLastLaunchFromServer();
     refreshValidityUiAfterMutation();
     updateValidityPendingBadges();
+    if (document.getElementById('sub-count-audit')?.classList.contains('active')) {
+      await loadCountAuditValidityExpiryMap();
+      renderCountAuditRows(getCountAuditRowsFromState());
+      const sel = String(countAuditState.selectedCode || '');
+      if (sel && countAuditDetailPanel) {
+        const row = getCountAuditRowsFromState().find((r) => String(r.cod_produto) === sel);
+        if (row) {
+          const d = getCountAuditCachedDetail(sel);
+          renderCountAuditDetailShell(row, d, false);
+        }
+      }
+    }
   } catch {
     setValidityFeedback('Erro de rede ao sincronizar.', true);
   }
