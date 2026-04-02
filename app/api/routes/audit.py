@@ -16,7 +16,7 @@ from sqlmodel import Session, SQLModel, select
 
 from app.api.deps import require_roles, require_stock_analysis_access
 from app.db.session import engine, get_session
-from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, User, ValidityLine
+from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, RecountSignal, User, ValidityLine
 from app.services.inventory_txt_parse import (
     extract_caixa_unidade_from_numeric_tail,
     extract_caixa_unidade_from_txt_tokens,
@@ -1344,3 +1344,75 @@ def ingest_validity_events(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Falha ao sincronizar validade: {exc}",
         ) from exc
+
+
+def _ensure_recount_signals_table() -> None:
+    try:
+        SQLModel.metadata.create_all(engine, tables=[RecountSignal.__table__], checkfirst=True)
+    except SQLAlchemyError:
+        logger.exception("Falha ao garantir tabela recount_signals")
+        raise
+
+
+def _brazil_today_date() -> date:
+    return datetime.now(timezone.utc).astimezone(_BR).date()
+
+
+class RecountSignalIn(BaseModel):
+    cod_produto: str = Field(min_length=1, max_length=120)
+    operational_date: date | None = None
+
+
+class RecountSignalsOut(BaseModel):
+    operational_date: date
+    codes: list[str]
+
+
+@router.post("/recount-signal")
+def post_recount_signal(
+    body: RecountSignalIn,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_stock_analysis_access),
+):
+    """Analista solicita recontagem ao conferente para o dia operacional informado (ou hoje em SP)."""
+    _ensure_recount_signals_table()
+    cod = _normalize_item_code(body.cod_produto)
+    if not cod:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Codigo do produto invalido.")
+    op_date = body.operational_date or _brazil_today_date()
+    existing = session.exec(
+        select(RecountSignal).where(
+            RecountSignal.operational_date == op_date,
+            RecountSignal.cod_produto == cod,
+        )
+    ).first()
+    now = datetime.now(timezone.utc)
+    if existing:
+        existing.requested_at = now
+        existing.requested_by = user.username
+        session.add(existing)
+    else:
+        session.add(
+            RecountSignal(
+                operational_date=op_date,
+                cod_produto=cod,
+                requested_by=user.username,
+                requested_at=now,
+            )
+        )
+    session.commit()
+    return {"ok": True, "cod_produto": cod, "operational_date": op_date.isoformat()}
+
+
+@router.get("/recount-signals", response_model=RecountSignalsOut)
+def get_recount_signals(
+    operational_date: date | None = Query(default=None),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+):
+    """Lista códigos com solicitação de recontagem ativa para o dia operacional (alinhado à #count-date)."""
+    _ensure_recount_signals_table()
+    op_date = operational_date or _brazil_today_date()
+    rows = session.exec(select(RecountSignal).where(RecountSignal.operational_date == op_date)).all()
+    codes = sorted({str(r.cod_produto) for r in rows})
+    return RecountSignalsOut(operational_date=op_date, codes=codes)

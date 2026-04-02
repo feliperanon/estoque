@@ -331,3 +331,19 @@ class FailedImportRow(SQLModel, table=True):
     row_payload: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     created_at: datetime = Field(default_factory=utcnow)
 
+
+class RecountSignal(SQLModel, table=True):
+    """Solicitação de recontagem em tempo real (analista → conferente), por dia operacional."""
+
+    __tablename__ = "recount_signals"
+    __table_args__ = (
+        UniqueConstraint("operational_date", "cod_produto", name="uq_recount_signal_day_cod"),
+        {"schema": "app_core"},
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    operational_date: date = Field(index=True)
+    cod_produto: str = Field(max_length=120, index=True)
+    requested_by: str | None = Field(default=None, max_length=120)
+    requested_at: datetime = Field(default_factory=utcnow)
+

@@ -19,6 +19,7 @@ from app.models.entities import (
     VehicleSnapshot,
     InventoryImport,
     InventoryImportItem,
+    RecountSignal,
     ValidityLine,
 )
 
@@ -42,5 +43,6 @@ __all__ = [
     "FailedImportRow",
     "InventoryImport",
     "InventoryImportItem",
+    "RecountSignal",
     "ValidityLine",
 ]

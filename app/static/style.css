@@ -2830,7 +2830,7 @@ form#count-form.count-form {
 
 .count-audit-list-header {
   display: grid;
-  grid-template-columns: minmax(0, 2.35fr) repeat(3, minmax(0, 0.88fr)) minmax(0, 1.05fr) minmax(0, 1.1fr) 5.5rem;
+  grid-template-columns: minmax(0, 2.35fr) repeat(3, minmax(0, 0.88fr)) minmax(0, 1.05fr) minmax(0, 1.1fr) 4.6rem 4.6rem;
   gap: var(--audit-space-2);
   align-items: center;
   padding: 0 0.35rem var(--audit-space-2);
@@ -2913,7 +2913,7 @@ form#count-form.count-form {
 
 .count-audit-row {
   display: grid;
-  grid-template-columns: minmax(0, 2.35fr) repeat(3, minmax(0, 0.88fr)) minmax(0, 1.05fr) minmax(0, 1.1fr) 5.5rem;
+  grid-template-columns: minmax(0, 2.35fr) repeat(3, minmax(0, 0.88fr)) minmax(0, 1.05fr) minmax(0, 1.1fr) 4.6rem 4.6rem;
   gap: var(--audit-space-2);
   align-items: stretch;
   padding: 0.55rem 0.65rem 0.55rem 0.85rem;
@@ -2948,6 +2948,31 @@ form#count-form.count-form {
   font-size: var(--audit-text-sm);
   line-height: 1.4;
   font-weight: 400;
+}
+
+.count-audit-cxu-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  align-items: flex-start;
+}
+
+.count-audit-cx-val {
+  margin: 0;
+  color: var(--audit-ink);
+  font-size: var(--audit-text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.count-audit-un-val {
+  margin: 0;
+  color: #5b21b6;
+  font-size: var(--audit-text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
 }
 
 .count-audit-cell--product {
@@ -3061,28 +3086,20 @@ form#count-form.count-form {
   font-weight: 500;
 }
 
-.count-audit-row-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.65rem;
-  color: var(--audit-muted);
-  font-size: var(--audit-text-sm);
-  line-height: 1.4;
-}
-
-.count-audit-diff-total {
-  font-size: var(--audit-text-md);
-  line-height: 1.2;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
 .count-audit-diff-breakdown {
   display: flex;
   flex-direction: column;
-  gap: 0.12rem;
-  color: var(--audit-muted);
+  gap: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.count-audit-diff-cx,
+.count-audit-diff-un {
+  margin: 0;
+  color: var(--audit-critical);
   font-size: var(--audit-text-sm);
+  font-weight: 600;
+  line-height: 1.25;
   font-variant-numeric: tabular-nums;
 }
 
@@ -3100,11 +3117,41 @@ form#count-form.count-form {
   font-weight: 400;
 }
 
+.count-audit-cell--recount-live {
+  align-items: stretch;
+  justify-content: center;
+}
+
+.count-audit-btn-recount-live {
+  width: 100%;
+  min-height: 2.1rem;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid #6d28d9;
+  border-radius: 6px;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.count-audit-btn-recount-live:hover {
+  background: #6d28d9;
+  border-color: #5b21b6;
+}
+
+.count-audit-btn-recount-live:focus-visible {
+  outline: 2px solid #7c3aed;
+  outline-offset: 2px;
+}
+
 .count-audit-cell--detail {
   align-items: flex-end;
 }
 
-.count-audit-detail-btn,
 .count-audit-detail-action-btn {
   min-height: 2.1rem;
   border-radius: 6px;
@@ -3112,8 +3159,30 @@ form#count-form.count-form {
   font-weight: 500;
 }
 
+/* Botão Detalhe na grade: verde operacional, texto branco legível (evita herdar .btn-secondary do topbar). */
 .count-audit-detail-btn {
   width: 100%;
+  min-height: 2.1rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #0d5c56;
+  border-radius: 6px;
+  background: var(--audit-focus);
+  color: #fff;
+  font-size: var(--audit-text-xs);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.count-audit-detail-btn:hover {
+  background: #0d9488;
+  border-color: #0f766e;
+}
+
+.count-audit-detail-btn:focus-visible {
+  outline: 2px solid var(--audit-focus);
+  outline-offset: 2px;
 }
 
 /* Drawer de detalhe (desktop) */
@@ -4361,6 +4430,61 @@ body.count-audit-drawer-open {
 .count-product-item--recontagem {
   background: rgba(255, 237, 213, 0.4) !important;
   border-left: 3px solid #ea580c;
+}
+
+.count-recount-live-banner {
+  margin: 0 0 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid #c4b5fd;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.count-product-item--analyst-recount {
+  background: #f5f3ff !important;
+  border-left: 4px solid #7c3aed !important;
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.12);
+}
+
+.count-audit-recount-live-btn {
+  flex: 1 1 auto;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #6d28d9;
+  border-radius: 8px;
+  background: #7c3aed;
+  color: #fff;
+  font-size: var(--audit-text-sm);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.count-audit-recount-live-btn:hover {
+  background: #6d28d9;
+}
+
+.count-audit-mobile-recount-live-btn {
+  width: 100%;
+  min-height: 2.45rem;
+  margin-top: 0.35rem;
+  border: 1px solid #6d28d9;
+  border-radius: 8px;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.count-audit-mobile-recount-live-btn:hover {
+  background: #6d28d9;
 }
 
 .count-all-done-msg {

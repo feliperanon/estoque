@@ -707,9 +707,14 @@ function setActiveSub(subKey) {
   const target = document.getElementById(`sub-${subKey}`);
   if (target) target.classList.add('active');
 
+  if (subKey !== 'count') {
+    stopCountRecountSignalsPolling();
+  }
+
   if (subKey === 'produtos') {
     searchProdutos();
   } else if (subKey === 'count') {
+    startCountRecountSignalsPolling();
     loadCountProducts();
   } else if (subKey === 'count-audit') {
     startCountAuditPolling();
@@ -724,6 +729,9 @@ function showModuleHome(moduleKey) {
   parentEl.querySelectorAll('.sub-section').forEach((s) => s.classList.remove('active'));
   const home = document.getElementById(`${moduleKey}-home`);
   if (home) home.classList.add('active');
+  if (moduleKey === 'contagem') {
+    stopCountRecountSignalsPolling();
+  }
 }
 
 function setActiveModule(moduleKey, updateHistory = true) {
@@ -2019,6 +2027,10 @@ function renderCountProducts(products) {
     const vUn = Math.max(0, Math.round(Number(netUn) || 0));
 
     let cardClass = 'count-product-item';
+    const analystLiveRecount = serverRecountSignalCodes.has(codRaw);
+    if (analystLiveRecount) {
+      cardClass += ' count-product-item--analyst-recount';
+    }
     if (hasTxt && pair) {
       if (dimCx === true && dimUn === true) {
         cardClass += ' count-product-item--conferido';
@@ -2047,6 +2059,7 @@ function renderCountProducts(products) {
     li.dataset.codProduto = codRaw;
     /* Input sempre vazio na lista: total só no readout; após +/− ou lançamento por teclado o campo não replica o saldo. */
     li.innerHTML = `
+      ${analystLiveRecount ? '<div class="count-recount-live-banner" role="status">Recontar em tempo real — solicitado pela análise</div>' : ''}
       <div class="count-product-label">
         <span class="count-product-desc">${desc}</span>
       </div>
@@ -2232,6 +2245,7 @@ async function loadCountProducts() {
     }
     countProductsCache = products;
     await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
+    await refreshRecountSignalsFromServer();
     renderCountProducts(countProductsCache);
     if (countPrefillProductCode) {
       const itemCodeInput = document.getElementById('item-code');
@@ -3753,6 +3767,7 @@ function bindCountEvents() {
   if (countDateEl) {
     countDateEl.addEventListener('change', async () => {
       await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
+      refreshRecountSignalsFromServer();
       refreshCountProductListView();
       updateCountReadOnlyState();
     });
@@ -4407,6 +4422,8 @@ if (countAuditSort) {
 }
 
 const API_STOCK_ANALYSIS_DETAIL = '/audit/stock-analysis/detail';
+const API_RECOUNT_SIGNAL = '/audit/recount-signal';
+const API_RECOUNT_SIGNALS = '/audit/recount-signals';
 const countAuditGroupFilter = document.getElementById('count-audit-group');
 const countAuditStatusFilter = document.getElementById('count-audit-status');
 const countAuditPriorityFilter = document.getElementById('count-audit-priority');
@@ -4446,6 +4463,9 @@ const countAuditState = {
 };
 let countAuditDetailRequestSeq = 0;
 let countPrefillProductCode = null;
+let countRecountSignalsPollTimer = null;
+/** Códigos com solicitação de recontagem em tempo real para o dia de #count-date. */
+let serverRecountSignalCodes = new Set();
 
 function formatSignedIntegerBR(value) {
   const n = Number(value) || 0;
@@ -5001,6 +5021,7 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
         `<ul class="count-audit-trail-list">${buildCountAuditTrailHtml(row, meta, importInfo, actors, devices)}</ul>` +
       `</section>` +
       `<div class="count-audit-detail-actions">` +
+        `<button type="button" class="count-audit-recount-live-btn" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar em tempo real</button>` +
         `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-audit-recount="${encodeURIComponent(code)}">${recountLabel}</button>` +
         `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-audit-refresh-detail="${encodeURIComponent(code)}">${refreshLabel}</button>` +
         `${compact ? `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-action="collapse" data-code="${encodeURIComponent(code)}">Fechar</button>` : ''}` +
@@ -5023,18 +5044,15 @@ function renderCountAuditDesktopRowMarkup(row) {
               `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
             `</div>` +
             `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
-            `<div class="count-audit-row-meta">` +
-              `<span>Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</span>` +
-              `<span>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</span>` +
-            `</div>` +
           `</button>` +
         `</div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><strong class="count-audit-cell-value">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><span class="count-audit-cell-note">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</span></div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span><strong class="count-audit-cell-value">CX ${formatIntegerBR(Number(row.counted_caixa) || 0)}</strong><span class="count-audit-cell-note">UN ${formatIntegerBR(Number(row.counted_unidade) || 0)}</span></div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><strong class="count-audit-diff-total">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong><div class="count-audit-diff-breakdown"><span>CX ${formatSignedIntegerBR(meta.diffCx || 0)}</span><span>UN ${formatSignedIntegerBR(meta.diffUn || 0)}</span></div></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade contagem"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.counted_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.counted_unidade) || 0)}</strong></div></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><div class="count-audit-diff-breakdown"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.diffCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.diffUn || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
-        `<div class="count-audit-cell count-audit-cell--detail"><button type="button" class="btn-secondary btn-small count-audit-detail-btn" data-action="detail" data-code="${encodeURIComponent(code)}">Detalhe</button></div>` +
+        `<div class="count-audit-cell count-audit-cell--recount-live"><button type="button" class="count-audit-btn-recount-live" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button></div>` +
+        `<div class="count-audit-cell count-audit-cell--detail"><button type="button" class="count-audit-detail-btn" data-action="detail" data-code="${encodeURIComponent(code)}">Detalhe</button></div>` +
       `</div>` +
     `</li>`
   );
@@ -5081,6 +5099,7 @@ function renderCountAuditMobileRowMarkup(row) {
             `<span class="count-audit-mobile-action">${escapeHtml(getCountAuditCompactActionLabel(meta))}</span>` +
           `</div>` +
         `</button>` +
+        `<button type="button" class="count-audit-mobile-recount-live-btn" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar em tempo real</button>` +
         `<button type="button" class="btn-secondary count-audit-mobile-detail-toggle" data-action="toggle" data-code="${encodeURIComponent(code)}">${isExpanded ? 'Ocultar detalhe' : 'Ver detalhe'}</button>` +
       `</div>` +
       `${isExpanded ? `<div class="count-audit-mobile-inline-detail">${buildCountAuditDetailMarkup(row, detail, isLoading, true)}</div>` : ''}` +
@@ -5414,6 +5433,69 @@ async function exportCountAuditExcel() {
   }
 }
 
+async function postRecountLiveSignal(codeRaw) {
+  const code = String(codeRaw || '').trim();
+  if (!code) return;
+  if (!getToken()) return;
+  const op = getActiveCountDateKey();
+  try {
+    const r = await apiFetch(API_RECOUNT_SIGNAL, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cod_produto: code, operational_date: op }),
+    });
+    if (handleUnauthorizedResponse(r)) return;
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      setCountAuditFeedback(String(err.detail || 'Não foi possível enviar a solicitação de recontagem.'), true);
+      return;
+    }
+    setCountAuditFeedback(
+      `Recontagem em tempo real enviada para ${code} (dia ${formatDateBR(op)}). O conferente verá o alerta roxo na Contagem com essa mesma data.`,
+      false,
+    );
+  } catch {
+    setCountAuditFeedback('Erro de conexão ao solicitar recontagem.', true);
+  }
+}
+
+async function refreshRecountSignalsFromServer() {
+  const subCount = document.getElementById('sub-count');
+  if (!subCount || !subCount.classList.contains('active')) return;
+  const token = getToken();
+  if (!token || isAccessTokenExpired(token)) return;
+  const op = getActiveCountDateKey();
+  try {
+    const r = await apiFetch(`${API_RECOUNT_SIGNALS}?operational_date=${encodeURIComponent(op)}`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(r)) return;
+    if (!r.ok) return;
+    const data = await r.json();
+    const codes = Array.isArray(data.codes) ? data.codes : [];
+    serverRecountSignalCodes = new Set(codes.map((c) => String(c)));
+    if (Array.isArray(countProductsCache) && countProductsCache.length) {
+      refreshCountProductListView();
+    }
+  } catch {
+    /* offline */
+  }
+}
+
+function startCountRecountSignalsPolling() {
+  stopCountRecountSignalsPolling();
+  refreshRecountSignalsFromServer();
+  countRecountSignalsPollTimer = window.setInterval(refreshRecountSignalsFromServer, 22000);
+}
+
+function stopCountRecountSignalsPolling() {
+  if (countRecountSignalsPollTimer) {
+    window.clearInterval(countRecountSignalsPollTimer);
+    countRecountSignalsPollTimer = null;
+  }
+}
+
 function openCountAuditRecount(code) {
   countPrefillProductCode = code;
   setActiveModule('count');
@@ -5488,6 +5570,11 @@ function bindCountAuditEvents() {
         selectCountAuditRow(decodeURIComponent(refreshBtn.dataset.auditRefreshDetail || ''), { forceReload: true });
         return;
       }
+      const recountLiveBtn = e.target.closest('[data-action="recount-live"]');
+      if (recountLiveBtn) {
+        postRecountLiveSignal(decodeURIComponent(recountLiveBtn.getAttribute('data-code') || ''));
+        return;
+      }
       const target = e.target.closest('[data-action][data-code]');
       if (!target) return;
       const action = target.dataset.action || '';
@@ -5517,6 +5604,11 @@ function bindCountAuditEvents() {
   if (countAuditDetailPanel && !countAuditDetailPanel.dataset.auditBound) {
     countAuditDetailPanel.dataset.auditBound = '1';
     countAuditDetailPanel.addEventListener('click', (e) => {
+      const recountLiveBtn = e.target.closest('[data-action="recount-live"]');
+      if (recountLiveBtn) {
+        postRecountLiveSignal(decodeURIComponent(recountLiveBtn.getAttribute('data-code') || ''));
+        return;
+      }
       const recountBtn = e.target.closest('[data-audit-recount]');
       if (recountBtn) {
         openCountAuditRecount(decodeURIComponent(recountBtn.dataset.auditRecount || ''));

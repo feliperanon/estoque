@@ -10,6 +10,7 @@ from app.models import (
     InventoryImportItem,
     Product,
     ProductHistory,
+    RecountSignal,
     User,
     ValidityLine,
 )
@@ -66,6 +67,7 @@ def _ensure_inventory_tables() -> None:
         InventoryImport.__table__,
         InventoryImportItem.__table__,
         ValidityLine.__table__,
+        RecountSignal.__table__,
     ]:
         try:
             SQLModel.metadata.create_all(engine, tables=[table], checkfirst=True)
