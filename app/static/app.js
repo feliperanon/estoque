@@ -814,6 +814,9 @@ function showModuleHome(moduleKey) {
   parentEl.querySelectorAll('.sub-section').forEach((s) => s.classList.remove('active'));
   const home = document.getElementById(`${moduleKey}-home`);
   if (home) home.classList.add('active');
+  if (pageTitleEl) {
+    pageTitleEl.textContent = PAGE_TITLES[moduleKey] || 'Estoque';
+  }
   if (moduleKey === 'contagem') {
     stopCountRecountSignalsPolling();
   }
@@ -7829,8 +7832,8 @@ function bindModuleEvents() {
       const subKey = card.dataset.sub;
       if (subKey) {
         if (!canAccessHash(subKey)) return;
-        setActiveSub(subKey);
-        history.pushState(null, '', `${APP_BASE_PATH}#${subKey}`);
+        /* setActiveModule atualiza o título do header (#sidebar-page-title) e delega a setActiveSub */
+        setActiveModule(subKey);
       }
       return;
     }
