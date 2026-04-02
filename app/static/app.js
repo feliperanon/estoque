@@ -5018,7 +5018,7 @@ function renderCountAuditDesktopRowMarkup(row) {
               `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
               `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
             `</div>` +
-            `<strong class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</strong>` +
+            `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
             `<div class="count-audit-row-meta">` +
               `<span>Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</span>` +
               `<span>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</span>` +
@@ -5071,7 +5071,7 @@ function renderCountAuditMobileRowMarkup(row) {
             `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
             `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
           `</div>` +
-          `<strong class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</strong>` +
+          `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
           `<div class="count-audit-mobile-summary">` +
             `<strong class="count-audit-mobile-diff">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong>` +
             `<span class="count-audit-mobile-action">${escapeHtml(getCountAuditCompactActionLabel(meta))}</span>` +
@@ -5546,6 +5546,9 @@ function bindCountAuditEvents() {
     countAuditList.dataset.auditViewportBound = '1';
     countAuditMobileMediaQuery.addEventListener('change', () => {
       countAuditState.showAllMissingMobile = false;
+      if (isCountAuditMobileViewport()) {
+        closeCountAuditDetailDrawer();
+      }
       syncCountAuditFiltersPresentation();
       renderCountAuditSummary(countAuditState.summary || {});
       renderCountAuditRows(getCountAuditRowsFromState());

@@ -2472,7 +2472,7 @@ form#count-form.count-form {
 .count-audit-feedback-block {
   position: relative;
   z-index: 1;
-  margin: 0 var(--audit-space-5) var(--audit-space-4);
+  margin: var(--audit-space-3) 0 0;
   padding: var(--audit-space-3) var(--audit-space-4);
   border-radius: var(--audit-radius-sm);
   border: 1px solid var(--audit-border);
@@ -3269,7 +3269,7 @@ body.count-audit-drawer-open {
 .count-audit-trail-list {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 0.5rem;
 }
 
 .count-audit-detail-hero {
@@ -3293,12 +3293,26 @@ body.count-audit-drawer-open {
   flex-wrap: wrap;
 }
 
-.count-audit-detail-title,
+.count-audit-history-topline strong,
+.count-audit-trail-topline strong {
+  font-weight: 500;
+  font-size: var(--audit-text-sm);
+  color: var(--audit-ink);
+}
+
+.count-audit-detail-title {
+  margin: 0;
+  color: var(--audit-ink);
+  font-size: var(--audit-text-md);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .count-audit-detail-section-head h4 {
   margin: 0;
   color: var(--audit-ink);
-  font-size: var(--audit-text-base);
-  font-weight: 600;
+  font-size: var(--audit-text-sm);
+  font-weight: 500;
   line-height: 1.35;
 }
 
@@ -3318,6 +3332,11 @@ body.count-audit-drawer-open {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-actions {
+  padding-top: var(--audit-space-3);
+  border-top: 1px solid var(--audit-border);
 }
 
 .count-audit-detail-grid {
@@ -3395,9 +3414,9 @@ body.count-audit-drawer-open {
 
 .count-audit-mobile-diff {
   color: var(--audit-ink);
-  font-size: 1.08rem;
+  font-size: 1.02rem;
   line-height: 1;
-  font-weight: 800;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -3415,7 +3434,7 @@ body.count-audit-drawer-open {
   min-height: 2.55rem;
   border-radius: 0.75rem;
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .count-audit-mobile-inline-detail {
@@ -3456,7 +3475,7 @@ body.count-audit-drawer-open {
   gap: 0.65rem;
   padding: 0.95rem 1rem 1rem 1.15rem;
   border-bottom: 1px solid var(--audit-border);
-  background: linear-gradient(180deg, #f8fafc 0%, #f2f5f9 100%);
+  background: var(--audit-card-alt);
 }
 
 .count-audit-mobile-missing-bucket strong {
