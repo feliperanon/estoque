@@ -2242,6 +2242,46 @@ function formatDateBrFromIso(iso) {
   return `${d}/${m}/${y}`;
 }
 
+/** Campo livre de validade: aceita DD/MM/AAAA ou YYYY-MM-DD → YYYY-MM-DD ou null. */
+function parseValidityDateInputToIso(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    const y = Number(iso[1]);
+    const mo = Number(iso[2]);
+    const d = Number(iso[3]);
+    if (y < 1990 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    const t = new Date(`${iso[1]}-${iso[2]}-${iso[3]}T12:00:00`);
+    if (Number.isNaN(t.getTime())) return null;
+    if (t.getFullYear() !== y || t.getMonth() + 1 !== mo || t.getDate() !== d) return null;
+    return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  }
+  const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!br) return null;
+  const d = Number(br[1]);
+  const mo = Number(br[2]);
+  const y = Number(br[3]);
+  if (y < 1990 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const mm = String(mo).padStart(2, '0');
+  const dd = String(d).padStart(2, '0');
+  const t = new Date(`${y}-${mm}-${dd}T12:00:00`);
+  if (Number.isNaN(t.getTime())) return null;
+  if (t.getFullYear() !== y || t.getMonth() + 1 !== mo || t.getDate() !== d) return null;
+  return `${y}-${mm}-${dd}`;
+}
+
+function applyValidityDateDigitMask(el) {
+  if (!el) return;
+  const digits = String(el.value || '').replace(/\D/g, '').slice(0, 8);
+  let out = '';
+  for (let i = 0; i < digits.length; i++) {
+    if (i === 2 || i === 4) out += '/';
+    out += digits[i];
+  }
+  el.value = out;
+}
+
 function loadValidityBucketRaw() {
   try {
     const raw = localStorage.getItem(VALIDITY_BUCKET_KEY);
@@ -3762,11 +3802,15 @@ function renderValidityOperationalView() {
         ${hintHtml}
       </div>
       <div class="validity-op-item-expand" aria-hidden="true">
-        <label class="validity-op-expand-label count-filter-label count-filter-label--bold" for="${fieldId}">
-          Data de validade
-          <input type="date" id="${fieldId}" name="${fieldName}" class="count-filter-input validity-op-date-input" data-coderef="${enc}" autocomplete="off" aria-label="Data de validade" />
-        </label>
-        <button type="button" class="btn btn-primary validity-op-save" data-coderef="${enc}">Salvar</button>
+        <div class="validity-op-expand-row">
+          <div class="validity-op-expand-field">
+            <label class="validity-op-expand-kicker" for="${fieldId}">Data de validade</label>
+            <input type="text" id="${fieldId}" name="${fieldName}" class="count-filter-input validity-op-date-input" data-coderef="${enc}"
+              inputmode="numeric" maxlength="10" enterkeyhint="done" autocomplete="off"
+              placeholder="DD/MM/AAAA" aria-label="Data de validade, digite dia, mês e ano" />
+          </div>
+          <button type="button" class="btn btn-primary validity-op-save" data-coderef="${enc}">Enviar</button>
+        </div>
       </div>`;
     ul.appendChild(li);
   });
@@ -3783,8 +3827,11 @@ function saveValidityOpItemFromDom(item, inp) {
     ? normalizeItemCode(decodeURIComponent(cref))
     : normalizeItemCode(item.dataset.codProduto || '');
   if (!cod) return;
-  const exp = String(inp.value || '').trim().slice(0, 10);
-  if (exp.length < 8) return;
+  const exp = parseValidityDateInputToIso(inp.value);
+  if (!exp) {
+    setValidityFeedback('Informe a data completa em DD/MM/AAAA.', true);
+    return;
+  }
   const gk = `${cod}|${exp}`;
   const now = Date.now();
   if (validityOpSaveGuard.key === gk && now - validityOpSaveGuard.t < 900) {
@@ -3818,6 +3865,12 @@ function bindValidityOperationalListOnce() {
     });
   };
 
+  ul.addEventListener('input', (e) => {
+    const inp = e.target.closest('.validity-op-date-input');
+    if (!inp) return;
+    applyValidityDateDigitMask(inp);
+  });
+
   ul.addEventListener('click', (e) => {
     const saveBtn = e.target.closest('.validity-op-save');
     if (saveBtn) {
@@ -3828,11 +3881,14 @@ function bindValidityOperationalListOnce() {
       if (item && inp) saveValidityOpItemFromDom(item, inp);
       return;
     }
-    if (e.target.closest('.validity-op-item-expand')) return;
-    const main = e.target.closest('.validity-op-main');
-    if (!main) return;
-    const item = main.closest('.validity-op-item');
+    if (e.target.closest('.validity-op-date-input')) return;
+
+    const item = e.target.closest('.validity-op-item');
     if (!item) return;
+    if (e.target.closest('.validity-op-item-expand')) return;
+
+    const main = item.querySelector('.validity-op-main');
+    if (!main) return;
     const expand = item.querySelector('.validity-op-item-expand');
     const wasOpen = item.classList.contains('validity-op-item--open');
     closeAllExcept(null);
@@ -3849,7 +3905,7 @@ function bindValidityOperationalListOnce() {
         const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
         const anchor = linesOp.length ? operationalAnchorLine(linesOp, getBrazilDateKey()) : null;
         const sug = anchor ? String(anchor.expiration_date || '').slice(0, 10) : '';
-        if (sug) inp.value = sug;
+        inp.value = sug ? formatDateBrFromIso(sug) : '';
         setTimeout(() => inp.focus(), 80);
       }
     } else {
