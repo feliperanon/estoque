@@ -151,31 +151,36 @@
   border: 1px solid rgba(37, 99, 235, 0.12);
   white-space: nowrap;
 }
-/* Filtros contagem: ≤1024px produto linha inteira + grupo|data; ≥1025px três colunas (produto com mais peso) */
+/* Filtros contagem: ≤1024px produto linha cheia + grupo|data; ≥1025px 5fr 3fr 2fr */
 .count-main-filters-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 6px 10px;
   width: 100%;
+  min-width: 0;
   align-items: start;
+  justify-items: stretch;
   margin-top: 6px;
   padding: 0;
   box-sizing: border-box;
 }
 @media (max-width: 1024px) {
-  /* Duas colunas na 2ª linha: Grupo um pouco mais largo que Data; Produto ocupa 100% na 1ª linha */
+  /* 2ª linha: Grupo um pouco maior que Data (Data com fração maior que antes para não “apertar”) */
   .count-main-filters-row {
-    grid-template-columns: minmax(0, 1.22fr) minmax(0, 0.78fr);
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
     grid-template-areas:
       "produto produto"
       "grupo data";
     align-items: stretch;
+    column-gap: 10px;
   }
   .count-main-filter-col--produto {
     grid-area: produto;
+    grid-column: 1 / -1;
+    justify-self: stretch;
     min-width: 0;
     width: 100%;
-    max-width: 100%;
+    max-width: none;
     box-sizing: border-box;
   }
   .count-main-filter-col--grupo {
@@ -190,35 +195,38 @@
     display: flex;
     flex-direction: column;
   }
-  /* Mesma altura visual na linha Grupo × Data (inputs alinhados; chips do grupo ficam abaixo) */
+  /* Mesma altura da faixa de input Grupo × Data (chips do grupo em linha extra abaixo) */
   #sub-count .count-main-filter-col--grupo .count-filter-input-wrapper,
   #sub-count .count-main-filter-col--data .count-filter-input-wrapper {
     flex: 1 1 auto;
-    min-height: 40px;
+    min-height: 44px;
     align-items: center;
+    align-content: center;
     box-sizing: border-box;
     width: 100%;
   }
   #sub-count .count-main-filter-col--grupo .count-filter-input,
   #sub-count .count-main-filter-col--data .count-filter-input {
-    min-height: 36px;
+    min-height: 38px;
     padding-top: 6px;
     padding-bottom: 6px;
+    line-height: 1.25;
+    box-sizing: border-box;
   }
   #sub-count .count-main-filter-col--data .count-filter-input-wrapper--date .count-filter-input.count-filter-date {
-    min-height: 36px;
+    min-height: 38px;
   }
 }
 @media (min-width: 1025px) {
   .count-main-filters-row {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 2.5fr) minmax(0, 2fr);
+    grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 2fr);
     grid-template-areas: none;
     align-items: start;
   }
   .count-main-filter-col--produto {
     min-width: 0;
     width: 100%;
-    max-width: 100%;
+    max-width: none;
     box-sizing: border-box;
   }
   .count-main-filter-col--produto,
@@ -227,22 +235,24 @@
     grid-area: auto;
     grid-column: auto;
   }
-  /* Mesma altura visual Grupo × Data no desktop (inputs alinhados) */
   #sub-count .count-main-filter-col--grupo .count-filter-input-wrapper,
   #sub-count .count-main-filter-col--data .count-filter-input-wrapper {
-    min-height: 40px;
+    min-height: 44px;
     align-items: center;
+    align-content: center;
     box-sizing: border-box;
     width: 100%;
   }
   #sub-count .count-main-filter-col--grupo .count-filter-input,
   #sub-count .count-main-filter-col--data .count-filter-input {
-    min-height: 36px;
+    min-height: 38px;
     padding-top: 6px;
     padding-bottom: 6px;
+    line-height: 1.25;
+    box-sizing: border-box;
   }
   #sub-count .count-main-filter-col--data .count-filter-input-wrapper--date .count-filter-input.count-filter-date {
-    min-height: 36px;
+    min-height: 38px;
   }
 }
 .count-main-filter-col--produto {
@@ -262,26 +272,46 @@
   align-items: stretch;
 }
 
+/* Produto: ocupa 100% da célula do grid (evita encolher por flex interno) */
+#sub-count .count-main-filter-col--produto .count-filter-input-wrapper,
+#sub-count .count-main-filter-col--produto .count-filter-input {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+#sub-count .count-main-filter-col--produto .count-filter-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* Filtros só na tela de contagem: mais baixos, menos “formulário” */
 #sub-count .count-main-card-inner.count-op-header .count-filter-input-wrapper {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 8px;
   border-radius: 6px;
   border-color: rgba(15, 23, 42, 0.09);
   box-shadow: none;
 }
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--produto .count-filter-input-wrapper {
-  min-height: 40px;
+  min-height: 44px;
+  width: 100%;
+  max-width: none;
 }
 #sub-count .count-main-card-inner.count-op-header .count-filter-input {
-  min-height: 36px;
+  min-height: 38px;
   padding: 6px 0;
   font-size: 0.875rem;
+  line-height: 1.25;
+  box-sizing: border-box;
 }
 #sub-count .count-main-card-inner.count-op-header .count-filter-input-wrapper--date .count-filter-input.count-filter-date {
-  min-height: 36px;
+  min-height: 38px;
   padding-top: 6px;
   padding-bottom: 6px;
+  line-height: 1.25;
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
 }
 #sub-count .count-main-card-inner.count-op-header .count-filter-label {
   font-size: 0.75rem;
