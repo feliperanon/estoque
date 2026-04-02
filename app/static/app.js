@@ -182,10 +182,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (breakHistoryDate && !breakHistoryDate.value) {
     breakHistoryDate.value = getBrazilDateKey();
   }
-  const validityDate = document.getElementById('validity-op-date');
-  if (validityDate && !validityDate.value) {
-    validityDate.value = getBrazilDateKey();
-  }
 });
 
 // === Grupos disponíveis para filtro (pode ser movido para API futuramente)
@@ -3948,8 +3944,6 @@ function bindValidityOperationalListOnce() {
 }
 
 async function loadValidityOperationalModule() {
-  const hid = document.getElementById('validity-op-date');
-  if (hid) hid.value = getBrazilDateKey();
   showDashboard();
   scrollDashboardToTop();
   await loadValidityProductsCatalog();
@@ -4370,8 +4364,6 @@ function scrollDashboardToTop() {
 }
 
 async function loadValidityShared() {
-  const opEl = document.getElementById('validity-op-date');
-  if (opEl) opEl.value = getBrazilDateKey();
   await loadLastCountPerProduct();
   await loadValidityLinesFromServer();
   await loadValidityProductsCatalog();
@@ -4598,7 +4590,6 @@ function bindValidityShellClicks(shell) {
 
 function bindValidityEvents() {
   const analysisShell = document.getElementById('validity-analysis-shell');
-  const opDate = document.getElementById('validity-op-date');
 
   const aItem = document.getElementById('validity-analysis-item-code');
   const aGrp = document.getElementById('validity-analysis-group');
@@ -4626,13 +4617,6 @@ function bindValidityEvents() {
       if (!k) return;
       validityActiveKpiKey = validityActiveKpiKey === k ? null : k;
       renderValidityAnalysisView();
-    });
-  }
-
-  if (opDate) {
-    opDate.addEventListener('change', async () => {
-      await loadValidityLinesFromServer();
-      refreshValidityUiAfterMutation();
     });
   }
 

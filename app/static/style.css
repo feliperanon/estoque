@@ -6670,6 +6670,17 @@ details[open] > .validity-analytic-summary::after {
   width: 100%;
   min-width: 0;
 }
+@media (min-width: 1025px) {
+  #sub-validity .count-main-filters-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 1024px) {
+  #sub-validity .count-main-filter-col--grupo {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
 /* Barra inferior: roxo (validade ≠ teal da contagem) */
 #sub-validity .validity-op-progress-fill.count-progress-fill--products {
   background: linear-gradient(90deg, #c4b5fd 0%, #8b5cf6 100%);
@@ -6931,7 +6942,6 @@ details[open] > .validity-analytic-summary::after {
 }
 #sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
 #sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--produto .count-filter-icon,
-#sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--data .count-filter-icon,
 #sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
 #sub-break .count-main-card-inner.count-op-header .count-main-filter-col--produto .count-filter-icon,
 #sub-break .count-main-card-inner.count-op-header .count-main-filter-col--data .count-filter-icon {
