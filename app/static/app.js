@@ -1346,6 +1346,24 @@ function formatDurationFromMs(msValue) {
   return `${h}:${m}:${s}`;
 }
 
+/** Linha do mini-KPI: quem sincronizou no servidor (dia da #count-date) vs. sessão local. */
+function formatKpiCountUserLine() {
+  const me = getUser();
+  const sess = (me && (me.full_name || me.name || me.username)) || '—';
+  if (!kpiCountUser) return;
+  const meta = countServerCountState.ok ? countServerCountState.meta : null;
+  const actors = meta && Array.isArray(meta.actors) ? meta.actors.filter(Boolean) : [];
+  if (actors.length) {
+    const shown =
+      actors.length <= 2
+        ? actors.join(', ')
+        : `${actors.slice(0, 2).join(', ')} +${actors.length - 2}`;
+    kpiCountUser.textContent = `Servidor (${actors.length} conferente${actors.length === 1 ? '' : 's'}): ${shown} · Você: ${sess}`;
+    return;
+  }
+  kpiCountUser.textContent = `Sem lançamentos sincronizados neste dia no servidor · Você: ${sess}`;
+}
+
 function estimateCountFinish(events, totalProducts) {
   const byItem = new Map();
   for (const event of events) {
@@ -1383,24 +1401,41 @@ function estimateCountFinish(events, totalProducts) {
 
 function updateCountKpi(products = countProductsCache) {
   if (!kpiCountPercent || !kpiCountWindow || !kpiCountElapsed || !kpiCountEta) return;
+  formatKpiCountUserLine();
+
   const events = loadCountEvents();
   const stats = computeCountProgressStats(products);
   const { total, percent } = stats;
   kpiCountPercent.textContent = `${percent}%`;
 
-  if (!events.length) {
-    kpiCountWindow.textContent = 'Início: --:-- | Fim: --:--';
-    kpiCountElapsed.textContent = 'Tempo em andamento: 00:00:00';
-    kpiCountEta.textContent = 'Previsão de término: --:--';
-    return;
-  }
-
   const timestamps = events
     .map((e) => new Date(e.observed_at || '').getTime())
     .filter((ts) => Number.isFinite(ts))
     .sort((a, b) => a - b);
-  const startMs = timestamps[0] || Date.now();
-  const lastMs = timestamps[timestamps.length - 1] || startMs;
+  const serverFirst =
+    countServerCountState.ok && countServerCountState.meta?.first_observed_at
+      ? new Date(countServerCountState.meta.first_observed_at).getTime()
+      : null;
+  const serverLast =
+    countServerCountState.ok && countServerCountState.meta?.last_observed_at
+      ? new Date(countServerCountState.meta.last_observed_at).getTime()
+      : null;
+  const starts = [timestamps[0], serverFirst].filter((t) => Number.isFinite(t));
+  const lastLocal = timestamps.length ? timestamps[timestamps.length - 1] : null;
+  const ends = [lastLocal, serverLast].filter((t) => Number.isFinite(t));
+
+  if (!starts.length) {
+    kpiCountWindow.textContent = 'Início: --:-- | Fim: --:--';
+    kpiCountElapsed.textContent = 'Tempo em andamento: 00:00:00';
+    kpiCountEta.textContent =
+      percent > 0
+        ? 'Previsão de término: aguardando horários dos lançamentos sincronizados'
+        : 'Previsão de término: --:--';
+    return;
+  }
+
+  const startMs = Math.min(...starts);
+  const lastMs = ends.length ? Math.max(startMs, ...ends) : startMs;
   const finished = total > 0 && percent >= 100;
   const endMs = finished ? lastMs : null;
   const elapsedMs = (finished ? endMs : Date.now()) - startMs;
@@ -6775,9 +6810,6 @@ if (userEditForm) {
 function initDashboard(user) {
   const label = user?.full_name || user?.name || user?.username || 'Usuário';
   userDisplay.textContent = label;
-  if (kpiCountUser) {
-    kpiCountUser.textContent = `Contador: ${label}`;
-  }
   currentRole = normalizeRole(user?.role || 'conferente') || 'conferente';
   currentAllowedPages = Array.isArray(user?.allowed_pages)
     ? user.allowed_pages.map((p) => String(p).trim().toLowerCase()).filter(Boolean)
@@ -6802,6 +6834,7 @@ function initDashboard(user) {
   loadProducts();
   loadUsersAdminList();
   startCountKpiTicker();
+  updateCountKpi(countProductsCache);
   const adminPurgeSection = document.getElementById('admin-purge-section');
   if (adminPurgeSection) {
     adminPurgeSection.style.display = currentRole === 'admin' ? 'block' : 'none';
@@ -6816,8 +6849,9 @@ btnLogout.addEventListener('click', () => {
     countKpiTicker = null;
   }
   clearSession();
+  countServerCountState = { ok: false, balances: {}, meta: null };
   if (kpiCountUser) {
-    kpiCountUser.textContent = 'Contador: --';
+    kpiCountUser.textContent = 'Servidor: — · Você: —';
   }
   loginForm.reset();
   history.replaceState(null, '', APP_BASE_PATH);
