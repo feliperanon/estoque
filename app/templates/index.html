@@ -189,28 +189,30 @@
                   </div>
                 </div>
                 <div class="count-progress count-main-progress" aria-live="polite">
-                  <div class="count-progress-tracks">
-                    <div class="count-progress-track-wrap">
-                      <div class="count-progress-track" role="presentation" aria-hidden="true">
-                        <div id="count-progress-fill" class="count-progress-fill count-progress-fill--dim" style="width:0%;"></div>
+                  <div class="count-progress-stack">
+                    <div class="count-progress-block count-progress-block--dim">
+                      <div class="count-progress-track-wrap">
+                        <div class="count-progress-track" role="presentation" aria-hidden="true">
+                          <div id="count-progress-fill" class="count-progress-fill count-progress-fill--dim" style="width:0%;"></div>
+                        </div>
                       </div>
-                    </div>
-                    <div id="count-progress-track-products" class="count-progress-track-wrap count-progress-track-wrap--products" hidden>
-                      <div class="count-progress-track" role="presentation" aria-hidden="true">
-                        <div id="count-progress-fill-products" class="count-progress-fill count-progress-fill--products" style="width:0%;"></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="count-progress-info">
-                    <span class="count-progress-summary">
-                      <span class="count-progress-percent-wrap" id="count-progress-percent-wrap">
+                      <div class="count-progress-block-meta">
                         <span id="count-progress-percent" class="count-progress-percent count-progress-percent--dim" title="Metades CX e UN conferidas com o saldo do TXT">0%</span>
-                        <span id="count-progress-percent-sep" class="count-progress-percent-sep" hidden>·</span>
-                        <span id="count-progress-percent-products" class="count-progress-percent count-progress-percent--products" hidden title="Produtos com CX e UN conferidos com o TXT">0%</span>
-                      </span>
-                      <span id="count-progress-label" class="count-progress-label">em andamento</span>
-                    </span>
-                    <span id="count-progress-detail" class="count-progress-detail">0 de 0 produtos com lançamento</span>
+                        <span id="count-progress-label" class="count-progress-label">em andamento</span>
+                      </div>
+                      <p id="count-progress-detail-dim" class="count-progress-detail count-progress-detail--dim">0 de 0 produtos com lançamento</p>
+                    </div>
+                    <div id="count-progress-block-products" class="count-progress-block count-progress-block--products" hidden>
+                      <div class="count-progress-track-wrap">
+                        <div class="count-progress-track" role="presentation" aria-hidden="true">
+                          <div id="count-progress-fill-products" class="count-progress-fill count-progress-fill--products" style="width:0%;"></div>
+                        </div>
+                      </div>
+                      <div class="count-progress-block-meta">
+                        <span id="count-progress-percent-products" class="count-progress-percent count-progress-percent--products" title="Produtos com CX e UN conferidos com o TXT">0%</span>
+                      </div>
+                      <p id="count-progress-detail-products" class="count-progress-detail count-progress-detail--products">0 de 0 produtos</p>
+                    </div>
                   </div>
                 </div>
                 <div id="count-last-launch" class="count-last-launch" role="status" aria-live="polite" hidden></div>

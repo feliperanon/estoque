@@ -1334,18 +1334,28 @@ function computeCountProgressStats(products = countProductsCache) {
   };
 }
 
-/** Texto da barra principal: com TXT usa metades CX/UN (ex.: 1 de 2 = 50%). */
-function countProgressDetailLabel(stats) {
+/** Descrição sob a barra de metades (CX/UN vs TXT). */
+function countProgressDetailDimLabel(stats) {
   const { total, counted, usesDimProgress, dimCompleted, dimTotal } = stats;
   if (!total) {
     return countImportBalancesState.hasTxt
-      ? '0 de 0 metades (CX e UN) · 0 de 0 produtos completos com o TXT'
+      ? '0 de 0 metades (CX e UN) conferidas com o saldo do TXT'
       : '0 de 0 produtos com lançamento';
   }
   if (usesDimProgress && dimTotal > 0) {
-    return `${dimCompleted} de ${dimTotal} metades (CX e UN) · ${counted} de ${total} produtos completos com o TXT`;
+    return `${dimCompleted} de ${dimTotal} metades (CX e UN) conferidas com o saldo do TXT`;
   }
   return `${counted} de ${total} produtos com lançamento`;
+}
+
+/** Descrição sob a barra de produtos (somente contagem “X de Y produtos”). */
+function countProgressDetailProductsLabel(stats) {
+  const { total, counted, usesDimProgress, dimTotal } = stats;
+  if (!total) return '0 de 0 produtos';
+  if (usesDimProgress && dimTotal > 0) {
+    return `${counted} de ${total} produtos`;
+  }
+  return `${counted} de ${total} produtos`;
 }
 
 function formatClock(dateValue) {
@@ -1489,17 +1499,16 @@ function applyCountProgressFillTier(el, pct) {
 function updateCountProgress(products = countProductsCache) {
   const fillDim = document.getElementById('count-progress-fill') || countProgressFill;
   const fillProducts = document.getElementById('count-progress-fill-products');
-  const trackProductsWrap = document.getElementById('count-progress-track-products');
-  const percentSep = document.getElementById('count-progress-percent-sep');
+  const blockProducts = document.getElementById('count-progress-block-products');
   const percentProductsSpan = document.getElementById('count-progress-percent-products');
+  const detailDimEl = document.getElementById('count-progress-detail-dim');
+  const detailProductsEl = document.getElementById('count-progress-detail-products');
   if (!fillDim) return;
   const stats = computeCountProgressStats(products);
   const { total, percent, productPercent, usesDimProgress } = stats;
   const dual = Boolean(total && usesDimProgress && stats.dimTotal > 0);
 
-  if (trackProductsWrap) trackProductsWrap.hidden = !dual;
-  if (percentSep) percentSep.hidden = !dual;
-  if (percentProductsSpan) percentProductsSpan.hidden = !dual;
+  if (blockProducts) blockProducts.hidden = !dual;
 
   if (!total) {
     fillDim.style.width = '0%';
@@ -1513,8 +1522,8 @@ function updateCountProgress(products = countProductsCache) {
     if (percentProductsSpan) percentProductsSpan.textContent = '0%';
     const labelSpan = document.getElementById('count-progress-label');
     if (labelSpan) labelSpan.textContent = 'em andamento';
-    const detailSpan = document.getElementById('count-progress-detail');
-    if (detailSpan) detailSpan.textContent = countProgressDetailLabel(stats);
+    if (detailDimEl) detailDimEl.textContent = countProgressDetailDimLabel(stats);
+    if (detailProductsEl) detailProductsEl.textContent = countProgressDetailProductsLabel(stats);
     return;
   }
 
@@ -1537,8 +1546,8 @@ function updateCountProgress(products = countProductsCache) {
   if (labelSpan) {
     labelSpan.textContent = percent >= 100 ? 'concluído' : 'em andamento';
   }
-  const detailSpan = document.getElementById('count-progress-detail');
-  if (detailSpan) detailSpan.textContent = countProgressDetailLabel(stats);
+  if (detailDimEl) detailDimEl.textContent = countProgressDetailDimLabel(stats);
+  if (detailProductsEl) detailProductsEl.textContent = countProgressDetailProductsLabel(stats);
 }
 
 function getDeviceName() {
