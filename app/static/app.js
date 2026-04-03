@@ -182,6 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (breakHistoryDate && !breakHistoryDate.value) {
     breakHistoryDate.value = getBrazilDateKey();
   }
+  const mateCouroTrocaDate = document.getElementById('mate-couro-troca-date');
+  if (mateCouroTrocaDate && !mateCouroTrocaDate.value) {
+    mateCouroTrocaDate.value = getBrazilDateKey();
+  }
   const breakHistoryMetaDate = document.getElementById('break-history-meta-date');
   if (breakHistoryMetaDate && breakHistoryDate && breakHistoryDate.value) {
     try {
@@ -713,8 +717,9 @@ const PAGE_TITLES = {
 };
 
 const PRODUCT_DEFAULTS_KEY = 'estoque_product_defaults_v1';
-/** Acumulativo de troca (Mate couro) — só neste aparelho; limpar na própria tela. */
-const MATE_COURO_TROCA_STORAGE_KEY = 'estoque_mate_couro_troca_acum_v1';
+/** Acumulativo de troca (Mate couro): pending + dias já incorporados — só neste aparelho. */
+const MATE_COURO_TROCA_STORAGE_KEY = 'estoque_mate_couro_troca_v2';
+const MATE_COURO_TROCA_STORAGE_LEGACY_KEY = 'estoque_mate_couro_troca_acum_v1';
 const MATE_COURO_CIA = 'Mate couro';
 const DEFAULT_PRODUCT_PARAMS = {
   cod_grup_sp: [],
@@ -3291,182 +3296,284 @@ async function loadBreakHistoryList() {
   }
 }
 
-function loadMateCouroTrocaStateRaw() {
+function readMateCouroTrocaStorage() {
   try {
-    const raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_KEY);
-    if (!raw) return {};
+    let raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_KEY);
+    if (!raw) raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_LEGACY_KEY);
+    if (!raw) return { pending: {}, daySnapshots: {} };
     const o = JSON.parse(raw);
-    return o && typeof o === 'object' ? o : {};
+    if (!o || typeof o !== 'object') return { pending: {}, daySnapshots: {} };
+    if (o.pending && typeof o.pending === 'object' && o.daySnapshots && typeof o.daySnapshots === 'object') {
+      return {
+        pending: o.pending,
+        daySnapshots: o.daySnapshots,
+      };
+    }
+    const pending = {};
+    for (const [k, v] of Object.entries(o)) {
+      if (k === 'pending' || k === 'daySnapshots' || k === 'incorporatedDays') continue;
+      if (v && typeof v === 'object' && ('cx' in v || 'un' in v)) {
+        const base = normalizeItemCode(k);
+        pending[base] = {
+          cx: Math.max(0, Math.round(Number(v.cx) || 0)),
+          un: Math.max(0, Math.round(Number(v.un) || 0)),
+        };
+      }
+    }
+    return { pending, daySnapshots: {} };
   } catch {
-    return {};
+    return { pending: {}, daySnapshots: {} };
   }
 }
 
-function saveMateCouroTrocaState(map) {
+function writeMateCouroTrocaStorage(state) {
   try {
-    localStorage.setItem(MATE_COURO_TROCA_STORAGE_KEY, JSON.stringify(map));
+    const payload = {
+      pending: state.pending && typeof state.pending === 'object' ? state.pending : {},
+      daySnapshots:
+        state.daySnapshots && typeof state.daySnapshots === 'object' ? state.daySnapshots : {},
+    };
+    localStorage.setItem(MATE_COURO_TROCA_STORAGE_KEY, JSON.stringify(payload));
+    localStorage.removeItem(MATE_COURO_TROCA_STORAGE_LEGACY_KEY);
   } catch (e) {
     console.warn(e);
   }
 }
 
-function getMateCouroTrocaEntry(productCode) {
-  const base = normalizeItemCode(productCode);
-  const m = loadMateCouroTrocaStateRaw();
-  const e = m[base];
-  const cx = Math.round(Number(e?.cx) || 0);
-  const un = Math.round(Number(e?.un) || 0);
-  return { cx: Math.max(0, cx), un: Math.max(0, un) };
+function mergePendingDelta(state, cod, dcx, dun) {
+  const base = normalizeItemCode(cod);
+  const cur = state.pending[base] || { cx: 0, un: 0 };
+  const nx = Math.max(0, Math.round(cur.cx + dcx));
+  const nu = Math.max(0, Math.round(cur.un + dun));
+  if (nx === 0 && nu === 0) delete state.pending[base];
+  else state.pending[base] = { cx: nx, un: nu };
 }
 
-function setMateCouroTrocaEntry(productCode, cx, un) {
-  const base = normalizeItemCode(productCode);
-  const m = loadMateCouroTrocaStateRaw();
-  const nx = Math.max(0, Math.round(Number(cx) || 0));
-  const nu = Math.max(0, Math.round(Number(un) || 0));
-  m[base] = { cx: nx, un: nu };
-  if (nx === 0 && nu === 0) delete m[base];
-  saveMateCouroTrocaState(m);
-}
-
-function parseMateCouroOpQty(inp) {
-  const q = parseOperationQtyFromInputEl(inp);
-  if (q != null) return q;
-  return 1;
-}
-
-function applyMateCouroTrocaRowOperation(codRefEnc, countTypeRaw, inp, direction) {
-  const refDecoded = decodeURIComponent(String(codRefEnc || ''));
-  const itemCode = normalizeItemCode(refDecoded);
-  const ct = normalizeCountType(countTypeRaw || 'caixa');
-  const opQty = parseMateCouroOpQty(inp);
-  const cur = getMateCouroTrocaEntry(itemCode);
-  const v = ct === 'unidade' ? cur.un : cur.cx;
-  let delta;
-  if (direction > 0) {
-    delta = opQty;
-  } else {
-    delta = -Math.min(opQty, Math.max(0, v));
+function aggregateMateCouroEventsByCode(events) {
+  const m = {};
+  for (const ev of events || []) {
+    const code = normalizeItemCode(String(ev.cod_produto || ''));
+    if (!code) continue;
+    let cx = Number(ev.cx);
+    let un = Number(ev.un);
+    if (!Number.isFinite(cx) || !Number.isFinite(un)) {
+      const qty = Number(ev.quantity) || 0;
+      const tipo = ev.qty_type === 'unidade' ? 'unidade' : 'caixa';
+      cx = tipo === 'caixa' ? qty : 0;
+      un = tipo === 'unidade' ? qty : 0;
+    }
+    cx = Math.round(cx);
+    un = Math.round(un);
+    if (!m[code]) m[code] = { cx: 0, un: 0 };
+    m[code].cx += cx;
+    m[code].un += un;
   }
-  if (delta === 0) {
-    if (inp) inp.value = '';
-    renderMateCouroTrocaList();
-    return;
-  }
-  if (ct === 'unidade') {
-    setMateCouroTrocaEntry(itemCode, cur.cx, cur.un + delta);
-  } else {
-    setMateCouroTrocaEntry(itemCode, cur.cx + delta, cur.un);
-  }
-  if (inp) inp.value = '';
-  renderMateCouroTrocaList();
+  return m;
 }
 
-function filterMateCouroProductsByTerm(term) {
-  const t = String(term || '').trim().toLowerCase();
-  const src = Array.isArray(mateCouroProductsCache) ? mateCouroProductsCache : [];
-  if (!t) return src;
-  return src.filter((p) => {
-    const cod = String(p.cod_produto || '').toLowerCase();
-    const desc = String(p.cod_grup_descricao || '').toLowerCase();
-    return cod.includes(t) || desc.includes(t);
+/** Soma ao pendente apenas o delta em relação ao último Carregar deste mesmo dia (permite novas quebras no mesmo dia). */
+function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
+  const state = readMateCouroTrocaStorage();
+  if (!state.daySnapshots) state.daySnapshots = {};
+  const agg = aggregateMateCouroEventsByCode(mateEvents);
+  const prev = state.daySnapshots[dayKey] || {};
+  const codes = new Set([...Object.keys(agg), ...Object.keys(prev)]);
+  let anyDelta = false;
+  for (const cod of codes) {
+    const a = agg[cod] || { cx: 0, un: 0 };
+    const p = prev[cod] || { cx: 0, un: 0 };
+    const dcx = a.cx - p.cx;
+    const dun = a.un - p.un;
+    if (dcx !== 0 || dun !== 0) {
+      mergePendingDelta(state, cod, dcx, dun);
+      anyDelta = true;
+    }
+  }
+  state.daySnapshots[dayKey] = agg;
+  writeMateCouroTrocaStorage(state);
+  return anyDelta;
+}
+
+async function ensureMateCouroCatalogLoaded() {
+  if (Array.isArray(mateCouroProductsCache) && mateCouroProductsCache.length) return;
+  const token = getToken();
+  if (!token) return;
+  const params = new URLSearchParams();
+  params.set('limit', '20000');
+  params.set('status', 'ativo');
+  params.set('cia', MATE_COURO_CIA);
+  const response = await apiFetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
+    headers: getAuthHeaders(),
+    cache: 'no-store',
   });
+  if (!response.ok) return;
+  const data = await response.json();
+  mateCouroProductsCache = Array.isArray(data) ? data : [];
 }
 
-function renderMateCouroTrocaList() {
-  const ul = document.getElementById('mate-couro-troca-list');
-  const chip = document.getElementById('mate-couro-troca-count-chip');
-  const rangeInfo = document.getElementById('mate-couro-troca-range-info');
-  const searchEl = document.getElementById('mate-couro-troca-search');
-  if (!ul) return;
-
-  const term = (searchEl && searchEl.value) || '';
-  const products = filterMateCouroProductsByTerm(term);
-  products.sort(compareAuditCodProduto);
-
-  if (chip) chip.textContent = `${products.length}`;
-  if (rangeInfo) {
-    rangeInfo.textContent = products.length
-      ? `${products.length} produto(s) Mate couro no filtro.`
-      : mateCouroProductsCache.length
-        ? 'Nenhum produto com este filtro.'
-        : 'Nenhum produto ativo da CIA Mate couro.';
+function getMateCouroCodSet() {
+  const s = new Set();
+  for (const p of mateCouroProductsCache || []) {
+    const c = normalizeItemCode(String(p.cod_produto || ''));
+    if (c) s.add(c);
   }
+  return s;
+}
 
-  ul.innerHTML = '';
-  if (!products.length) {
-    ul.innerHTML =
-      '<li class="count-audit-empty"><span>Nenhum produto para exibir.</span><strong>—</strong></li>';
+function filterEventsMateCouro(events) {
+  const set = getMateCouroCodSet();
+  return (events || []).filter((ev) => set.has(normalizeItemCode(String(ev.cod_produto || ''))));
+}
+
+function renderMateCouroDayList(dayLabel, mateEvents) {
+  const list = document.getElementById('mate-couro-troca-day-list');
+  const chip = document.getElementById('mate-couro-troca-day-chip');
+  const rangeInfo = document.getElementById('mate-couro-troca-day-range-info');
+  if (!list) return;
+  if (chip) chip.textContent = `${mateEvents.length}`;
+  if (rangeInfo) {
+    rangeInfo.textContent = mateEvents.length
+      ? `${mateEvents.length} produto(s) com lançamento Mate couro neste dia.`
+      : 'Nenhum lançamento Mate couro para este dia.';
+  }
+  list.innerHTML = '';
+  if (!mateEvents.length) {
+    list.innerHTML =
+      '<li class="count-audit-empty"><span>Nenhuma quebra Mate couro registrada neste dia.</span><strong>—</strong></li>';
     return;
   }
-
-  for (const product of products) {
-    const codRaw = String(product.cod_produto || '');
-    const codRef = encodeURIComponent(codRaw);
-    const desc = escapeHtml(product.cod_grup_descricao || '');
-    const codHtml = codRaw ? ` <span class="count-audit-code-badge">${escapeHtml(codRaw)}</span>` : '';
-    const qCx = Math.round(Number(getNetBreakByProductAndType(codRaw, 'caixa')) || 0);
-    const qUn = Math.round(Number(getNetBreakByProductAndType(codRaw, 'unidade')) || 0);
-    const tr = getMateCouroTrocaEntry(codRaw);
-    const tCx = tr.cx;
-    const tUn = tr.un;
-    const totCx = qCx + tCx;
-    const totUn = qUn + tUn;
-
+  for (const ev of mateEvents) {
+    const codRaw = String(ev.cod_produto || '');
+    const cod = escapeHtml(codRaw);
+    const descRaw = String(ev.product_desc || '').trim();
+    const descEsc = escapeHtml(descRaw);
+    const nameHtml = descRaw ? descEsc : cod;
+    let cx = Number(ev.cx);
+    let un = Number(ev.un);
+    if (!Number.isFinite(cx) || !Number.isFinite(un)) {
+      const qty = Number(ev.quantity) || 0;
+      const tipo = ev.qty_type === 'unidade' ? 'unidade' : 'caixa';
+      cx = tipo === 'caixa' ? qty : 0;
+      un = tipo === 'unidade' ? qty : 0;
+    }
+    cx = Math.round(cx);
+    un = Math.round(un);
+    const reason = ev.reason ? escapeHtml(String(ev.reason)) : '—';
+    const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
     const li = document.createElement('li');
-    li.className = 'count-audit-item mate-couro-troca-item';
+    li.className = 'count-audit-item break-history-item';
     li.setAttribute('data-state', 'ok');
     li.innerHTML =
-      `<div class="mate-couro-troca-audit-row">` +
+      `<div class="break-history-audit-row">` +
       `<div class="count-audit-cell count-audit-cell--product">` +
       `<div class="break-history-product-static">` +
-      `<div class="count-audit-row-topline">${codHtml}</div>` +
-      `<span class="count-audit-row-name">${desc || escapeHtml(codRaw)}</span>` +
+      `<div class="count-audit-row-topline">` +
+      `<span class="count-audit-code-badge">${cod}</span>` +
+      `</div>` +
+      `<span class="count-audit-row-name">${nameHtml}</span>` +
       `</div></div>` +
       `<div class="count-audit-cell">` +
-      `<span class="count-audit-cell-label">Quebra (dia)</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Mesma lógica da tela Quebra (hoje)">` +
-      `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(qCx)}</strong>` +
-      `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(qUn)}</strong>` +
-      `</div></div>` +
-      `<div class="count-audit-cell mate-couro-troca-troca-block-wrap">` +
-      `<span class="count-audit-cell-label">Troca acum.</span>` +
-      `<div class="mate-couro-troca-troca-block">` +
-      `<div class="count-control-row count-control-row--neutral">` +
-      `<span class="count-control-type">CX</span>` +
-      `<button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" data-mate-troca="1" aria-label="Menos caixa na troca acumulada">−</button>` +
-      `<input type="number" class="count-product-qty mate-couro-troca-qty" min="0" step="1" inputmode="numeric" autocomplete="off" data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade da operação em caixas (troca acum.)" />` +
-      `<button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" data-mate-troca="1" aria-label="Mais caixa na troca acumulada">+</button>` +
-      `<div class="count-control-tail">` +
-      `<div class="count-product-readout count-product-readout--by-control" title="Acumulativo de troca (local)">` +
-      `<span class="count-product-readout-inner"><strong class="count-product-readout-value">${formatBreakIntegerBR(tCx)}</strong></span>` +
-      `</div></div></div>` +
-      `<div class="count-control-row count-control-row--neutral">` +
-      `<span class="count-control-type">UN</span>` +
-      `<button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" data-mate-troca="1" aria-label="Menos unidade na troca acumulada">−</button>` +
-      `<input type="number" class="count-product-qty mate-couro-troca-qty" min="0" step="1" inputmode="numeric" autocomplete="off" data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade da operação em unidades (troca acum.)" />` +
-      `<button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" data-mate-troca="1" aria-label="Mais unidade na troca acumulada">+</button>` +
-      `<div class="count-control-tail">` +
-      `<div class="count-product-readout count-product-readout--by-control" title="Acumulativo de troca (local)">` +
-      `<span class="count-product-readout-inner"><strong class="count-product-readout-value">${formatBreakIntegerBR(tUn)}</strong></span>` +
-      `</div></div></div>` +
+      `<span class="count-audit-cell-label">Dia</span>` +
+      `<strong class="count-audit-cell-value">${escapeHtml(dayLabel)}</strong>` +
+      `</div>` +
+      `<div class="count-audit-cell">` +
+      `<span class="count-audit-cell-label">Quebra</span>` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional (mesma lógica da tela Quebra)">` +
+      `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(cx)}</strong>` +
+      `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(un)}</strong>` +
       `</div></div>` +
       `<div class="count-audit-cell">` +
-      `<span class="count-audit-cell-label">Total</span>` +
-      `<div class="count-audit-diff-breakdown" title="Quebra (dia) + troca acumulada">` +
-      `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(totCx)}</strong>` +
-      `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(totUn)}</strong>` +
+      `<span class="count-audit-cell-label">Motivo</span>` +
+      `<span class="count-audit-cell-value">${reason}</span>` +
+      `</div>` +
+      `<div class="count-audit-cell">` +
+      `<span class="count-audit-cell-label">Usuário</span>` +
+      `<span class="count-audit-cell-value">${actor}</span>` +
+      `</div>` +
+      `</div>`;
+    list.appendChild(li);
+  }
+}
+
+function getMateCouroPendingRowsFiltered() {
+  const state = readMateCouroTrocaStorage();
+  const searchEl = document.getElementById('mate-couro-troca-pending-search');
+  const term = ((searchEl && searchEl.value) || '').trim().toLowerCase();
+  const rows = [];
+  for (const [cod, v] of Object.entries(state.pending || {})) {
+    const cx = Math.round(Number(v.cx) || 0);
+    const un = Math.round(Number(v.un) || 0);
+    if (cx === 0 && un === 0) continue;
+    const p = (mateCouroProductsCache || []).find(
+      (x) => normalizeItemCode(String(x.cod_produto || '')) === cod,
+    );
+    const desc = p ? String(p.cod_grup_descricao || '').trim() : '';
+    if (term) {
+      const ok = cod.toLowerCase().includes(term) || desc.toLowerCase().includes(term);
+      if (!ok) continue;
+    }
+    rows.push({ cod, cx, un, desc });
+  }
+  rows.sort((a, b) => compareAuditCodProduto({ cod_produto: a.cod }, { cod_produto: b.cod }));
+  return rows;
+}
+
+function renderMateCouroPendingList() {
+  const ul = document.getElementById('mate-couro-troca-pending-list');
+  const chip = document.getElementById('mate-couro-troca-pending-chip');
+  const rangeInfo = document.getElementById('mate-couro-troca-pending-range-info');
+  const metaPending = document.getElementById('mate-couro-troca-meta-pending');
+  if (!ul) return;
+  const rows = getMateCouroPendingRowsFiltered();
+  if (chip) chip.textContent = `${rows.length}`;
+  if (rangeInfo) {
+    rangeInfo.textContent = rows.length
+      ? `${rows.length} produto(s) com saldo pendente de troca.`
+      : 'Nenhum produto com saldo pendente.';
+  }
+  if (metaPending) metaPending.textContent = rows.length ? `${rows.length}` : '—';
+  ul.innerHTML = '';
+  if (!rows.length) {
+    ul.innerHTML =
+      '<li class="count-audit-empty"><span>Nenhum saldo pendente. Carregue dias com quebra Mate couro para acumular.</span><strong>—</strong></li>';
+    return;
+  }
+  for (const r of rows) {
+    const codEsc = escapeHtml(r.cod);
+    const nameEsc = escapeHtml(r.desc || r.cod);
+    const codRef = encodeURIComponent(r.cod);
+    const li = document.createElement('li');
+    li.className = 'count-audit-item mate-couro-pending-item';
+    li.setAttribute('data-state', 'ok');
+    li.innerHTML =
+      `<div class="mate-couro-pending-audit-row">` +
+      `<div class="count-audit-cell count-audit-cell--product">` +
+      `<div class="break-history-product-static">` +
+      `<div class="count-audit-row-topline"><span class="count-audit-code-badge">${codEsc}</span></div>` +
+      `<span class="count-audit-row-name">${nameEsc}</span>` +
       `</div></div>` +
+      `<div class="count-audit-cell">` +
+      `<span class="count-audit-cell-label">Acumulativo</span>` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Pendente de troca (local)">` +
+      `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
+      `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
+      `</div></div>` +
+      `<div class="count-audit-cell mate-couro-pending-actions">` +
+      `<button type="button" class="btn-secondary btn-small" data-mate-pend="recebeu" data-coderef="${codRef}">Registrar chegada</button>` +
+      `<button type="button" class="btn-secondary btn-small" data-mate-pend="definir" data-coderef="${codRef}">Definir saldo</button>` +
+      `<button type="button" class="btn-secondary btn-small" data-mate-pend="zerar" data-coderef="${codRef}">Zerar</button>` +
+      `</div>` +
       `</div>`;
     ul.appendChild(li);
   }
 }
 
-async function loadMateCouroTrocaPage() {
+async function loadMateCouroBreakDayList() {
+  const feedback = document.getElementById('mate-couro-troca-feedback');
+  const dateEl = document.getElementById('mate-couro-troca-date');
   const metaDate = document.getElementById('mate-couro-troca-meta-date');
   const metaCount = document.getElementById('mate-couro-troca-meta-count');
-  const feedback = document.getElementById('mate-couro-troca-feedback');
-  const dk = getActiveBreakDateKey();
+  const list = document.getElementById('mate-couro-troca-day-list');
 
   const setFb = (visible, message, isError) => {
     if (!feedback) return;
@@ -3476,32 +3583,32 @@ async function loadMateCouroTrocaPage() {
     feedback.classList.toggle('is-info', !!(visible && !isError));
   };
 
-  if (metaDate) {
-    try {
-      metaDate.textContent = new Date(`${dk.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
-    } catch {
-      metaDate.textContent = dk;
-    }
-  }
+  if (!list) return;
 
   const token = getToken();
   if (!token) {
-    mateCouroProductsCache = [];
-    if (metaCount) metaCount.textContent = '—';
-    renderMateCouroTrocaList();
-    setFb(true, 'Faça login para carregar a base de troca.', true);
+    setFb(true, 'Faça login para carregar.', true);
     return;
   }
 
+  const d = (dateEl && dateEl.value) || getBrazilDateKey();
+  const dayKey = String(d).slice(0, 10);
+  let dayLabel = d;
+  try {
+    dayLabel = new Date(`${dayKey}T12:00:00`).toLocaleDateString('pt-BR');
+  } catch {
+    dayLabel = d;
+  }
+  if (metaDate) metaDate.textContent = dayLabel;
+
   setFb(true, 'Carregando...', false);
+  await ensureMateCouroCatalogLoaded();
   await loadServerBreakTotals();
 
   try {
     const params = new URLSearchParams();
-    params.set('limit', '20000');
-    params.set('status', 'ativo');
-    params.set('cia', MATE_COURO_CIA);
-    const response = await apiFetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
+    params.set('operational_date', dayKey);
+    const response = await apiFetch(`${API_SYNC_BREAKS}?${params.toString()}`, {
       headers: getAuthHeaders(),
       cache: 'no-store',
     });
@@ -3510,84 +3617,136 @@ async function loadMateCouroTrocaPage() {
       return;
     }
     if (!response.ok) {
-      mateCouroProductsCache = [];
+      setFb(true, 'Não foi possível carregar o registro.', true);
       if (metaCount) metaCount.textContent = '—';
-      renderMateCouroTrocaList();
-      setFb(true, 'Não foi possível carregar o catálogo Mate couro.', true);
+      renderMateCouroDayList(dayLabel, []);
       return;
     }
     const data = await response.json();
-    mateCouroProductsCache = Array.isArray(data) ? data : [];
-    if (metaCount) metaCount.textContent = `${mateCouroProductsCache.length}`;
-    setFb(false, '', false);
-    renderMateCouroTrocaList();
+    const events = Array.isArray(data.events) ? data.events : [];
+    const mateEvents = filterEventsMateCouro(events);
+    if (metaCount) metaCount.textContent = `${mateEvents.length}`;
+    const hadDelta = mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
+    if (hadDelta) {
+      setFb(true, 'Novas quebras deste dia foram somadas ao pendente de troca.', false);
+    } else if (mateEvents.length) {
+      setFb(true, 'Nenhuma alteração nas quebras deste dia desde o último Carregar.', false);
+    } else {
+      setFb(false, '', false);
+    }
+    renderMateCouroDayList(dayLabel, mateEvents);
+    renderMateCouroPendingList();
   } catch {
-    mateCouroProductsCache = [];
-    if (metaCount) metaCount.textContent = '—';
-    renderMateCouroTrocaList();
     setFb(true, 'Sem conexão.', true);
+    if (metaCount) metaCount.textContent = '—';
   }
 }
 
-function bindMateCouroTrocaEvents() {
-  const shell = document.getElementById('mate-couro-troca-list');
-  const searchEl = document.getElementById('mate-couro-troca-search');
-  const btnRefresh = document.getElementById('btn-mate-couro-troca-refresh');
-  const btnClear = document.getElementById('btn-mate-couro-troca-clear');
-
-  if (searchEl && !searchEl.dataset.mateTrocaBound) {
-    searchEl.dataset.mateTrocaBound = '1';
-    searchEl.addEventListener('input', () => renderMateCouroTrocaList());
+async function loadMateCouroTrocaPage() {
+  const dateEl = document.getElementById('mate-couro-troca-date');
+  if (dateEl && !dateEl.value) {
+    dateEl.value = getBrazilDateKey();
   }
+  await loadMateCouroBreakDayList();
+}
 
-  if (btnRefresh && !btnRefresh.dataset.mateTrocaBound) {
-    btnRefresh.dataset.mateTrocaBound = '1';
-    btnRefresh.addEventListener('click', () => {
-      loadMateCouroTrocaPage();
+function parseMateCouroIntPrompt(label, def) {
+  const raw = window.prompt(label, def);
+  if (raw == null) return null;
+  const n = Number.parseInt(String(raw).replace(/\D/g, ''), 10);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
+function bindMateCouroTrocaEvents() {
+  const dateEl = document.getElementById('mate-couro-troca-date');
+  const btnLoad = document.getElementById('btn-mate-couro-troca-load');
+  const btnClearAll = document.getElementById('btn-mate-couro-troca-clear-all');
+  const pendingSearch = document.getElementById('mate-couro-troca-pending-search');
+  const pendingList = document.getElementById('mate-couro-troca-pending-list');
+
+  if (dateEl && !dateEl.dataset.mateTrocaBound) {
+    dateEl.dataset.mateTrocaBound = '1';
+    dateEl.addEventListener('change', () => {
+      loadMateCouroBreakDayList();
     });
   }
 
-  if (btnClear && !btnClear.dataset.mateTrocaBound) {
-    btnClear.dataset.mateTrocaBound = '1';
-    btnClear.addEventListener('click', () => {
+  if (btnLoad && !btnLoad.dataset.mateTrocaBound) {
+    btnLoad.dataset.mateTrocaBound = '1';
+    btnLoad.addEventListener('click', () => {
+      loadMateCouroBreakDayList();
+    });
+  }
+
+  if (btnClearAll && !btnClearAll.dataset.mateTrocaBound) {
+    btnClearAll.dataset.mateTrocaBound = '1';
+    btnClearAll.addEventListener('click', () => {
       if (
         !window.confirm(
-          'Zerar o acumulativo de troca neste aparelho? As quebras no servidor não serão alteradas.',
+          'Zerar todo o acumulativo de troca e o histórico de snapshots por dia neste aparelho? As quebras no servidor não serão alteradas.',
         )
       ) {
         return;
       }
-      saveMateCouroTrocaState({});
-      renderMateCouroTrocaList();
+      writeMateCouroTrocaStorage({ pending: {}, daySnapshots: {} });
+      renderMateCouroPendingList();
     });
   }
 
-  if (shell && shell.dataset.mateTrocaDelegates !== '1') {
-    shell.dataset.mateTrocaDelegates = '1';
-    shell.addEventListener('click', (e) => {
-      const btn = e.target.closest('.btn-count-adjust[data-mate-troca="1"]');
-      if (!btn || !shell.contains(btn)) return;
-      e.preventDefault();
-      const codRefEnc = btn.getAttribute('data-coderef') || '';
-      const rawDelta = btn.getAttribute('data-delta');
-      const deltaBtn = rawDelta === '1' ? 1 : rawDelta === '-1' ? -1 : NaN;
-      const countType = btn.dataset.countType || 'caixa';
-      if (!codRefEnc || !Number.isFinite(deltaBtn)) return;
-      if (deltaBtn !== 1 && deltaBtn !== -1) return;
-      const row = btn.closest('.count-control-row');
-      const inp = row ? row.querySelector('input.mate-couro-troca-qty') : null;
-      applyMateCouroTrocaRowOperation(codRefEnc, countType, inp, deltaBtn);
+  if (pendingSearch && !pendingSearch.dataset.mateTrocaBound) {
+    pendingSearch.dataset.mateTrocaBound = '1';
+    pendingSearch.addEventListener('input', () => {
+      renderMateCouroPendingList();
     });
-    shell.addEventListener('keydown', (e) => {
-      const inp = e.target;
-      if (!inp.classList?.contains('mate-couro-troca-qty')) return;
-      const isEnter = e.key === 'Enter' || e.key === 'NumpadEnter' || e.keyCode === 13;
-      if (!isEnter) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const row = inp.closest('.count-control-row');
-      const plusBtn = row?.querySelector('.btn-count-adjust.btn-plus[data-mate-troca="1"]');
-      if (plusBtn) plusBtn.click();
+  }
+
+  if (pendingList && pendingList.dataset.matePendDelegates !== '1') {
+    pendingList.dataset.matePendDelegates = '1';
+    pendingList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-mate-pend]');
+      if (!btn || !pendingList.contains(btn)) return;
+      const action = btn.getAttribute('data-mate-pend');
+      const codRef = btn.getAttribute('data-coderef') || '';
+      const cod = normalizeItemCode(decodeURIComponent(codRef));
+      if (!cod) return;
+      const state = readMateCouroTrocaStorage();
+      const cur = state.pending[cod] || { cx: 0, un: 0 };
+
+      if (action === 'zerar') {
+        if (!window.confirm(`Zerar pendente de troca para ${cod}?`)) return;
+        delete state.pending[cod];
+        writeMateCouroTrocaStorage(state);
+        renderMateCouroPendingList();
+        return;
+      }
+
+      if (action === 'recebeu') {
+        const cxIn = parseMateCouroIntPrompt('Quantidade em CX que chegou (abatida do pendente):', '0');
+        if (cxIn === null) return;
+        const unIn = parseMateCouroIntPrompt('Quantidade em UN que chegou (abatida do pendente):', '0');
+        if (unIn === null) return;
+        const next = {
+          cx: Math.max(0, cur.cx - cxIn),
+          un: Math.max(0, cur.un - unIn),
+        };
+        if (next.cx === 0 && next.un === 0) delete state.pending[cod];
+        else state.pending[cod] = next;
+        writeMateCouroTrocaStorage(state);
+        renderMateCouroPendingList();
+        return;
+      }
+
+      if (action === 'definir') {
+        const cxNew = parseMateCouroIntPrompt(`Novo pendente em CX para ${cod}:`, String(cur.cx));
+        if (cxNew === null) return;
+        const unNew = parseMateCouroIntPrompt(`Novo pendente em UN para ${cod}:`, String(cur.un));
+        if (unNew === null) return;
+        if (cxNew === 0 && unNew === 0) delete state.pending[cod];
+        else state.pending[cod] = { cx: cxNew, un: unNew };
+        writeMateCouroTrocaStorage(state);
+        renderMateCouroPendingList();
+      }
     });
   }
 }
@@ -8509,6 +8668,7 @@ function clearLocalOperationalCaches() {
     localStorage.removeItem(COUNT_EVENTS_DAY_KEY);
     localStorage.removeItem(BREAK_EVENTS_BUCKET_KEY);
     localStorage.removeItem(MATE_COURO_TROCA_STORAGE_KEY);
+    localStorage.removeItem(MATE_COURO_TROCA_STORAGE_LEGACY_KEY);
     localStorage.removeItem(PRODUCT_DEFAULTS_KEY);
     for (const mod of EXTRA_MODULES) {
       localStorage.removeItem(mod.storageKey);
