@@ -3303,10 +3303,10 @@ function readMateCouroTrocaStorage() {
     if (!raw) return { pending: {}, daySnapshots: {} };
     const o = JSON.parse(raw);
     if (!o || typeof o !== 'object') return { pending: {}, daySnapshots: {} };
-    if (o.pending && typeof o.pending === 'object' && o.daySnapshots && typeof o.daySnapshots === 'object') {
+    if (o.pending && typeof o.pending === 'object') {
       return {
         pending: o.pending,
-        daySnapshots: o.daySnapshots,
+        daySnapshots: o.daySnapshots && typeof o.daySnapshots === 'object' ? o.daySnapshots : {},
       };
     }
     const pending = {};
