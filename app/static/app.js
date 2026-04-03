@@ -3290,6 +3290,307 @@ async function loadBreakHistoryList() {
   }
 }
 
+function loadMateCouroTrocaStateRaw() {
+  try {
+    const raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_KEY);
+    if (!raw) return {};
+    const o = JSON.parse(raw);
+    return o && typeof o === 'object' ? o : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveMateCouroTrocaState(map) {
+  try {
+    localStorage.setItem(MATE_COURO_TROCA_STORAGE_KEY, JSON.stringify(map));
+  } catch (e) {
+    console.warn(e);
+  }
+}
+
+function getMateCouroTrocaEntry(productCode) {
+  const base = normalizeItemCode(productCode);
+  const m = loadMateCouroTrocaStateRaw();
+  const e = m[base];
+  const cx = Math.round(Number(e?.cx) || 0);
+  const un = Math.round(Number(e?.un) || 0);
+  return { cx: Math.max(0, cx), un: Math.max(0, un) };
+}
+
+function setMateCouroTrocaEntry(productCode, cx, un) {
+  const base = normalizeItemCode(productCode);
+  const m = loadMateCouroTrocaStateRaw();
+  const nx = Math.max(0, Math.round(Number(cx) || 0));
+  const nu = Math.max(0, Math.round(Number(un) || 0));
+  m[base] = { cx: nx, un: nu };
+  if (nx === 0 && nu === 0) delete m[base];
+  saveMateCouroTrocaState(m);
+}
+
+function parseMateCouroOpQty(inp) {
+  const q = parseOperationQtyFromInputEl(inp);
+  if (q != null) return q;
+  return 1;
+}
+
+function applyMateCouroTrocaRowOperation(codRefEnc, countTypeRaw, inp, direction) {
+  const refDecoded = decodeURIComponent(String(codRefEnc || ''));
+  const itemCode = normalizeItemCode(refDecoded);
+  const ct = normalizeCountType(countTypeRaw || 'caixa');
+  const opQty = parseMateCouroOpQty(inp);
+  const cur = getMateCouroTrocaEntry(itemCode);
+  const v = ct === 'unidade' ? cur.un : cur.cx;
+  let delta;
+  if (direction > 0) {
+    delta = opQty;
+  } else {
+    delta = -Math.min(opQty, Math.max(0, v));
+  }
+  if (delta === 0) {
+    if (inp) inp.value = '';
+    renderMateCouroTrocaList();
+    return;
+  }
+  if (ct === 'unidade') {
+    setMateCouroTrocaEntry(itemCode, cur.cx, cur.un + delta);
+  } else {
+    setMateCouroTrocaEntry(itemCode, cur.cx + delta, cur.un);
+  }
+  if (inp) inp.value = '';
+  renderMateCouroTrocaList();
+}
+
+function filterMateCouroProductsByTerm(term) {
+  const t = String(term || '').trim().toLowerCase();
+  const src = Array.isArray(mateCouroProductsCache) ? mateCouroProductsCache : [];
+  if (!t) return src;
+  return src.filter((p) => {
+    const cod = String(p.cod_produto || '').toLowerCase();
+    const desc = String(p.cod_grup_descricao || '').toLowerCase();
+    return cod.includes(t) || desc.includes(t);
+  });
+}
+
+function renderMateCouroTrocaList() {
+  const ul = document.getElementById('mate-couro-troca-list');
+  const chip = document.getElementById('mate-couro-troca-count-chip');
+  const rangeInfo = document.getElementById('mate-couro-troca-range-info');
+  const searchEl = document.getElementById('mate-couro-troca-search');
+  if (!ul) return;
+
+  const term = (searchEl && searchEl.value) || '';
+  const products = filterMateCouroProductsByTerm(term);
+  products.sort(compareAuditCodProduto);
+
+  if (chip) chip.textContent = `${products.length}`;
+  if (rangeInfo) {
+    rangeInfo.textContent = products.length
+      ? `${products.length} produto(s) Mate couro no filtro.`
+      : mateCouroProductsCache.length
+        ? 'Nenhum produto com este filtro.'
+        : 'Nenhum produto ativo da CIA Mate couro.';
+  }
+
+  ul.innerHTML = '';
+  if (!products.length) {
+    ul.innerHTML =
+      '<li class="count-audit-empty"><span>Nenhum produto para exibir.</span><strong>—</strong></li>';
+    return;
+  }
+
+  for (const product of products) {
+    const codRaw = String(product.cod_produto || '');
+    const codRef = encodeURIComponent(codRaw);
+    const desc = escapeHtml(product.cod_grup_descricao || '');
+    const codHtml = codRaw ? ` <span class="count-audit-code-badge">${escapeHtml(codRaw)}</span>` : '';
+    const qCx = Math.round(Number(getNetBreakByProductAndType(codRaw, 'caixa')) || 0);
+    const qUn = Math.round(Number(getNetBreakByProductAndType(codRaw, 'unidade')) || 0);
+    const tr = getMateCouroTrocaEntry(codRaw);
+    const tCx = tr.cx;
+    const tUn = tr.un;
+    const totCx = qCx + tCx;
+    const totUn = qUn + tUn;
+
+    const li = document.createElement('li');
+    li.className = 'count-audit-item mate-couro-troca-item';
+    li.setAttribute('data-state', 'ok');
+    li.innerHTML =
+      `<div class="mate-couro-troca-audit-row">` +
+      `<div class="count-audit-cell count-audit-cell--product">` +
+      `<div class="break-history-product-static">` +
+      `<div class="count-audit-row-topline">${codHtml}</div>` +
+      `<span class="count-audit-row-name">${desc || escapeHtml(codRaw)}</span>` +
+      `</div></div>` +
+      `<div class="count-audit-cell">` +
+      `<span class="count-audit-cell-label">Quebra (dia)</span>` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Mesma lógica da tela Quebra (hoje)">` +
+      `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(qCx)}</strong>` +
+      `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(qUn)}</strong>` +
+      `</div></div>` +
+      `<div class="count-audit-cell mate-couro-troca-troca-block-wrap">` +
+      `<span class="count-audit-cell-label">Troca acum.</span>` +
+      `<div class="mate-couro-troca-troca-block" id="mate-couro-troca-shell">` +
+      `<div class="count-control-row count-control-row--neutral">` +
+      `<span class="count-control-type">CX</span>` +
+      `<button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" data-mate-troca="1" aria-label="Menos caixa na troca acumulada">−</button>` +
+      `<input type="number" class="count-product-qty mate-couro-troca-qty" min="0" step="1" inputmode="numeric" autocomplete="off" data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade da operação em caixas (troca acum.)" />` +
+      `<button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" data-mate-troca="1" aria-label="Mais caixa na troca acumulada">+</button>` +
+      `<div class="count-control-tail">` +
+      `<div class="count-product-readout count-product-readout--by-control" title="Acumulativo de troca (local)">` +
+      `<span class="count-product-readout-inner"><strong class="count-product-readout-value">${formatBreakIntegerBR(tCx)}</strong></span>` +
+      `</div></div></div>` +
+      `<div class="count-control-row count-control-row--neutral">` +
+      `<span class="count-control-type">UN</span>` +
+      `<button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" data-mate-troca="1" aria-label="Menos unidade na troca acumulada">−</button>` +
+      `<input type="number" class="count-product-qty mate-couro-troca-qty" min="0" step="1" inputmode="numeric" autocomplete="off" data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade da operação em unidades (troca acum.)" />` +
+      `<button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" data-mate-troca="1" aria-label="Mais unidade na troca acumulada">+</button>` +
+      `<div class="count-control-tail">` +
+      `<div class="count-product-readout count-product-readout--by-control" title="Acumulativo de troca (local)">` +
+      `<span class="count-product-readout-inner"><strong class="count-product-readout-value">${formatBreakIntegerBR(tUn)}</strong></span>` +
+      `</div></div></div>` +
+      `</div></div>` +
+      `<div class="count-audit-cell">` +
+      `<span class="count-audit-cell-label">Total</span>` +
+      `<div class="count-audit-diff-breakdown" title="Quebra (dia) + troca acumulada">` +
+      `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(totCx)}</strong>` +
+      `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(totUn)}</strong>` +
+      `</div></div>` +
+      `</div>`;
+    ul.appendChild(li);
+  }
+}
+
+async function loadMateCouroTrocaPage() {
+  const metaDate = document.getElementById('mate-couro-troca-meta-date');
+  const metaCount = document.getElementById('mate-couro-troca-meta-count');
+  const feedback = document.getElementById('mate-couro-troca-feedback');
+  const dk = getActiveBreakDateKey();
+
+  const setFb = (visible, message, isError) => {
+    if (!feedback) return;
+    feedback.textContent = message || '';
+    feedback.style.display = visible ? '' : 'none';
+    feedback.classList.toggle('is-error', !!(visible && isError));
+    feedback.classList.toggle('is-info', !!(visible && !isError));
+  };
+
+  if (metaDate) {
+    try {
+      metaDate.textContent = new Date(`${dk.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
+    } catch {
+      metaDate.textContent = dk;
+    }
+  }
+
+  const token = getToken();
+  if (!token) {
+    mateCouroProductsCache = [];
+    if (metaCount) metaCount.textContent = '—';
+    renderMateCouroTrocaList();
+    setFb(true, 'Faça login para carregar a base de troca.', true);
+    return;
+  }
+
+  setFb(true, 'Carregando...', false);
+  await loadServerBreakTotals();
+
+  try {
+    const params = new URLSearchParams();
+    params.set('limit', '20000');
+    params.set('status', 'ativo');
+    params.set('cia', MATE_COURO_CIA);
+    const response = await apiFetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) {
+      setFb(false, '', false);
+      return;
+    }
+    if (!response.ok) {
+      mateCouroProductsCache = [];
+      if (metaCount) metaCount.textContent = '—';
+      renderMateCouroTrocaList();
+      setFb(true, 'Não foi possível carregar o catálogo Mate couro.', true);
+      return;
+    }
+    const data = await response.json();
+    mateCouroProductsCache = Array.isArray(data) ? data : [];
+    if (metaCount) metaCount.textContent = `${mateCouroProductsCache.length}`;
+    setFb(false, '', false);
+    renderMateCouroTrocaList();
+  } catch {
+    mateCouroProductsCache = [];
+    if (metaCount) metaCount.textContent = '—';
+    renderMateCouroTrocaList();
+    setFb(true, 'Sem conexão.', true);
+  }
+}
+
+function bindMateCouroTrocaEvents() {
+  const shell = document.getElementById('mate-couro-troca-list');
+  const searchEl = document.getElementById('mate-couro-troca-search');
+  const btnRefresh = document.getElementById('btn-mate-couro-troca-refresh');
+  const btnClear = document.getElementById('btn-mate-couro-troca-clear');
+
+  if (searchEl && !searchEl.dataset.mateTrocaBound) {
+    searchEl.dataset.mateTrocaBound = '1';
+    searchEl.addEventListener('input', () => renderMateCouroTrocaList());
+  }
+
+  if (btnRefresh && !btnRefresh.dataset.mateTrocaBound) {
+    btnRefresh.dataset.mateTrocaBound = '1';
+    btnRefresh.addEventListener('click', () => {
+      loadMateCouroTrocaPage();
+    });
+  }
+
+  if (btnClear && !btnClear.dataset.mateTrocaBound) {
+    btnClear.dataset.mateTrocaBound = '1';
+    btnClear.addEventListener('click', () => {
+      if (
+        !window.confirm(
+          'Zerar o acumulativo de troca neste aparelho? As quebras no servidor não serão alteradas.',
+        )
+      ) {
+        return;
+      }
+      saveMateCouroTrocaState({});
+      renderMateCouroTrocaList();
+    });
+  }
+
+  if (shell && shell.dataset.mateTrocaDelegates !== '1') {
+    shell.dataset.mateTrocaDelegates = '1';
+    shell.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-count-adjust[data-mate-troca="1"]');
+      if (!btn || !shell.contains(btn)) return;
+      e.preventDefault();
+      const codRefEnc = btn.getAttribute('data-coderef') || '';
+      const rawDelta = btn.getAttribute('data-delta');
+      const deltaBtn = rawDelta === '1' ? 1 : rawDelta === '-1' ? -1 : NaN;
+      const countType = btn.dataset.countType || 'caixa';
+      if (!codRefEnc || !Number.isFinite(deltaBtn)) return;
+      if (deltaBtn !== 1 && deltaBtn !== -1) return;
+      const row = btn.closest('.count-control-row');
+      const inp = row ? row.querySelector('input.mate-couro-troca-qty') : null;
+      applyMateCouroTrocaRowOperation(codRefEnc, countType, inp, deltaBtn);
+    });
+    shell.addEventListener('keydown', (e) => {
+      const inp = e.target;
+      if (!inp.classList?.contains('mate-couro-troca-qty')) return;
+      const isEnter = e.key === 'Enter' || e.key === 'NumpadEnter' || e.keyCode === 13;
+      if (!isEnter) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const row = inp.closest('.count-control-row');
+      const plusBtn = row?.querySelector('.btn-count-adjust.btn-plus[data-mate-troca="1"]');
+      if (plusBtn) plusBtn.click();
+    });
+  }
+}
+
 function _validityLineKey(line) {
   const id = line.id != null ? `s-${line.id}` : `l-${line.client_event_id || ''}`;
   const exp = line.expiration_date || '';
