@@ -182,6 +182,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (breakHistoryDate && !breakHistoryDate.value) {
     breakHistoryDate.value = getBrazilDateKey();
   }
+  const breakHistoryMetaDate = document.getElementById('break-history-meta-date');
+  if (breakHistoryMetaDate && breakHistoryDate && breakHistoryDate.value) {
+    try {
+      breakHistoryMetaDate.textContent = new Date(`${breakHistoryDate.value.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
+    } catch {
+      breakHistoryMetaDate.textContent = breakHistoryDate.value;
+    }
+  }
 });
 
 // === Grupos disponíveis para filtro (pode ser movido para API futuramente)
@@ -317,7 +325,15 @@ const IMPORT_TXT_DETAIL_ITEMS_LIMIT = 20000;
 const API_PRODUCTS_CATALOG = '/products/catalog';
 const API_AUTH_ME = '/auth/me';
 const API_PRODUCTS_IMPORT_EXCEL = '/products/import-excel';
-const APP_BASE_PATH = '/app';
+const APP_BASE_PATH = (() => {
+  const p = window.location.pathname.replace(/\/$/, '');
+  if (!p || p === '/') return '';
+  return p;
+})();
+
+function historyBasePathNoHash() {
+  return APP_BASE_PATH || '/';
+}
 if ('scrollRestoration' in history) {
   try {
     history.scrollRestoration = 'manual';
@@ -549,6 +565,8 @@ let breakSyncInProgress = false;
 let selectedProductFile = null;
 let currentRole = 'conferente';
 let countProductsCache = [];
+/** Catálogo ativo CIA Mate couro (base de troca). */
+let mateCouroProductsCache = [];
 let currentAllowedPages = [];
 let countKpiTicker = null;
 let countAuditPollingTimer = null;
@@ -564,6 +582,7 @@ const PAGE_KEYS_BY_MODULE = {
     'return',
     'break',
     'break-history',
+    'mate-couro-troca',
     'direct-sale',
     'validity',
     'validity-analysis',
@@ -591,6 +610,7 @@ const REGISTER_ACCESS_GROUPS = [
       { key: 'return', label: 'Devolução' },
       { key: 'break', label: 'Quebra' },
       { key: 'break-history', label: 'Registro de quebras' },
+      { key: 'mate-couro-troca', label: 'Base de troca (Mate couro)' },
       { key: 'direct-sale', label: 'Venda Direta' },
       { key: 'validity', label: 'Validade (lançamento)' },
       { key: 'validity-analysis', label: 'Análise de Validades' },
@@ -619,6 +639,7 @@ const REGISTER_PROFILE_PRESETS = {
     'return',
     'break',
     'break-history',
+    'mate-couro-troca',
     'direct-sale',
     'validity',
     'validity-analysis',
@@ -635,6 +656,7 @@ const REGISTER_PROFILE_PRESETS = {
     'return',
     'break',
     'break-history',
+    'mate-couro-troca',
     'direct-sale',
     'validity',
     'import-txt',
@@ -654,6 +676,7 @@ const SUB_MODULES = [
   'return',
   'break',
   'break-history',
+  'mate-couro-troca',
   'direct-sale',
   'validity',
   'validity-analysis',
@@ -678,6 +701,7 @@ const PAGE_TITLES = {
   return: 'Devolução',
   break: 'Quebra',
   'break-history': 'Registro de quebras',
+  'mate-couro-troca': 'Base de troca (Mate couro)',
   'direct-sale': 'Venda Direta',
   validity: 'Validade',
   'validity-analysis': 'Análise de Validades',
@@ -689,6 +713,9 @@ const PAGE_TITLES = {
 };
 
 const PRODUCT_DEFAULTS_KEY = 'estoque_product_defaults_v1';
+/** Acumulativo de troca (Mate couro) — só neste aparelho; limpar na própria tela. */
+const MATE_COURO_TROCA_STORAGE_KEY = 'estoque_mate_couro_troca_acum_v1';
+const MATE_COURO_CIA = 'Mate couro';
 const DEFAULT_PRODUCT_PARAMS = {
   cod_grup_sp: [],
   cod_grup_cia: [],
@@ -800,6 +827,8 @@ function setActiveSub(subKey) {
     loadBreakProducts();
   } else if (subKey === 'break-history') {
     loadBreakHistoryList();
+  } else if (subKey === 'mate-couro-troca') {
+    loadMateCouroTrocaPage();
   } else if (subKey === 'count-audit') {
     startCountAuditPolling();
   } else if (subKey === 'validity-analysis') {
@@ -850,8 +879,29 @@ function setActiveModule(moduleKey, updateHistory = true) {
     return;
   }
 
-  // Página inicial: não existe #module-inicio no DOM; home operacional é a de Contagem
-  const lookupKey = normalized === 'inicio' ? 'contagem' : normalized;
+  if (normalized === 'inicio') {
+    document.querySelectorAll('.module-section').forEach((section) => {
+      section.classList.remove('active');
+    });
+    const hub = document.getElementById('module-inicio');
+    if (hub) hub.classList.add('active');
+
+    document.querySelectorAll('.module-btn').forEach((btn) => {
+      const btnMod = (btn.dataset.module || '').trim().toLowerCase();
+      btn.classList.toggle('active', btnMod === 'inicio');
+    });
+
+    if (pageTitleEl) {
+      pageTitleEl.textContent = PAGE_TITLES.inicio;
+    }
+
+    if (updateHistory && window.location.hash.slice(1) !== 'inicio') {
+      history.pushState(null, '', `${APP_BASE_PATH}#inicio`);
+    }
+    return;
+  }
+
+  const lookupKey = normalized;
   const parentKey = SUB_TO_PARENT[lookupKey];
   const actualModule = parentKey || lookupKey;
   const subKey = parentKey ? lookupKey : null;
@@ -904,10 +954,10 @@ function canAccessHash(hashKey) {
   if (!k) return false;
 
   if (k === 'inicio') {
-    return canAccessModule('contagem');
+    return true;
   }
 
-  if (k === 'break-history') {
+  if (k === 'break-history' || k === 'mate-couro-troca') {
     return canAccessHash('break');
   }
 
@@ -944,6 +994,20 @@ function renderSubCardsAccess() {
   });
 }
 
+function renderHubCards() {
+  document.querySelectorAll('.module-hub-card[data-module]').forEach((card) => {
+    const mk = (card.dataset.module || '').trim().toLowerCase();
+    if (!mk || mk === 'inicio') {
+      card.hidden = false;
+      card.style.display = '';
+      return;
+    }
+    const visible = canAccessModule(mk);
+    card.hidden = !visible;
+    card.style.display = visible ? '' : 'none';
+  });
+}
+
 function getCurrentHashKey() {
   return decodeURIComponent((window.location.hash || '').replace('#', '')).trim().toLowerCase();
 }
@@ -968,8 +1032,7 @@ function renderModuleNav() {
     } else {
       setActiveModule(firstVisible, false);
       if (hashModule && hashModule !== firstVisible) {
-        const hashForUrl = firstVisible === 'inicio' ? 'contagem' : firstVisible;
-        history.replaceState(null, '', `${APP_BASE_PATH}#${hashForUrl}`);
+        history.replaceState(null, '', `${APP_BASE_PATH}#${firstVisible}`);
       }
     }
   }
@@ -1424,7 +1487,7 @@ function handleUnauthorizedResponse(response) {
   unauthorizedRedirectInProgress = true;
   clearSession();
   loginForm.reset();
-  history.replaceState(null, '', APP_BASE_PATH);
+  history.replaceState(null, '', historyBasePathNoHash());
   loginError.textContent = 'Sessao expirada neste ambiente. Faca login novamente.';
   showLogin();
   return true;
@@ -2934,8 +2997,6 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   }
 }
 
-let breakAdjustGestureGeneration = 0;
-
 async function syncPendingBreakEvents() {
   if (breakSyncInProgress) return;
 
@@ -3035,15 +3096,6 @@ function bindBreakEvents() {
     const refreshAfter = () => {
       refreshBreakProductListView();
     };
-    breakShell.addEventListener(
-      'pointerdown',
-      (e) => {
-        const btn = e.target.closest('.btn-count-adjust');
-        if (!btn || !breakShell.contains(btn)) return;
-        breakAdjustGestureGeneration += 1;
-      },
-      true,
-    );
     breakShell.addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-count-adjust');
       if (!btn || !breakShell.contains(btn)) return;
@@ -3067,23 +3119,11 @@ function bindBreakEvents() {
       if (next && typeof next.closest === 'function' && next.closest('.btn-count-adjust') && breakShell.contains(next)) {
         return;
       }
-      const genAtBlur = breakAdjustGestureGeneration;
       const hadOpQty = parseOperationQtyFromInputEl(inp) != null;
       if (!hadOpQty) {
         refreshAfter();
-        return;
       }
-      const runDeferred = () => {
-        if (breakAdjustGestureGeneration > genAtBlur) {
-          refreshAfter();
-          return;
-        }
-        const row = inp.closest('.count-control-row');
-        const plusBtn = row?.querySelector('.btn-count-adjust.btn-plus');
-        if (plusBtn && !plusBtn.disabled) plusBtn.click();
-        refreshAfter();
-      };
-      window.requestAnimationFrame(() => window.requestAnimationFrame(runDeferred));
+      // Sem aplicar ao sair do campo: blur não dispara + (evita envio “sozinho” e permite usar − com valor digitado).
     });
     breakShell.addEventListener('keydown', (e) => {
       const inp = e.target;
@@ -3130,16 +3170,33 @@ async function loadBreakHistoryList() {
   const chip = document.getElementById('break-history-count-chip');
   const feedback = document.getElementById('break-history-feedback');
   const dateEl = document.getElementById('break-history-date');
+  const metaDate = document.getElementById('break-history-meta-date');
+  const metaCount = document.getElementById('break-history-meta-count');
+  const rangeInfo = document.getElementById('break-history-range-info');
   if (!list) return;
 
   const token = getToken();
   if (!token) return;
-  if (feedback) {
-    feedback.textContent = 'Carregando...';
-    feedback.style.color = 'var(--accent)';
-  }
 
   const d = (dateEl && dateEl.value) || getBrazilDateKey();
+  let dayLabel = d;
+  try {
+    dayLabel = new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
+  } catch {
+    dayLabel = d;
+  }
+  if (metaDate) metaDate.textContent = dayLabel;
+
+  const setBreakHistoryFeedback = (visible, message, isError) => {
+    if (!feedback) return;
+    feedback.textContent = message || '';
+    feedback.style.display = visible ? '' : 'none';
+    feedback.classList.toggle('is-error', !!(visible && isError));
+    feedback.classList.toggle('is-info', !!(visible && !isError));
+  };
+
+  setBreakHistoryFeedback(true, 'Carregando...', false);
+
   try {
     const params = new URLSearchParams();
     params.set('operational_date', d);
@@ -3147,35 +3204,40 @@ async function loadBreakHistoryList() {
       headers: getAuthHeaders(),
       cache: 'no-store',
     });
-    if (handleUnauthorizedResponse(response)) return;
+    if (handleUnauthorizedResponse(response)) {
+      setBreakHistoryFeedback(false, '', false);
+      return;
+    }
     if (!response.ok) {
-      if (feedback) {
-        feedback.textContent = 'Não foi possível carregar o registro.';
-        feedback.style.color = 'var(--error)';
-      }
+      setBreakHistoryFeedback(true, 'Não foi possível carregar o registro.', true);
+      if (metaCount) metaCount.textContent = '—';
+      if (rangeInfo) rangeInfo.textContent = 'Falha ao carregar. Tente novamente.';
       return;
     }
     const data = await response.json();
     const events = Array.isArray(data.events) ? data.events : [];
     list.innerHTML = '';
+    setBreakHistoryFeedback(false, '', false);
+
+    if (metaCount) metaCount.textContent = `${events.length}`;
+    if (rangeInfo) {
+      rangeInfo.textContent = events.length
+        ? `${events.length} produto(s) com lançamento de quebra neste dia.`
+        : 'Nenhum lançamento para este dia.';
+    }
     if (chip) chip.textContent = `${events.length}`;
-    if (feedback) feedback.textContent = '';
 
     if (!events.length) {
-      list.innerHTML = '<li class="break-history-empty"><span>Nenhuma quebra registrada neste dia.</span></li>';
+      list.innerHTML = '<li class="count-audit-empty"><span>Nenhuma quebra registrada neste dia.</span><strong>—</strong></li>';
       return;
     }
 
-    let dayLabel = d;
-    try {
-      dayLabel = new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
-    } catch {
-      dayLabel = d;
-    }
     for (const ev of events) {
-      const cod = escapeHtml(String(ev.cod_produto || ''));
-      const desc = escapeHtml(String(ev.product_desc || '').trim());
-      const prodLine = desc ? `${desc} <span class="muted">· ${cod}</span>` : cod;
+      const codRaw = String(ev.cod_produto || '');
+      const cod = escapeHtml(codRaw);
+      const descRaw = String(ev.product_desc || '').trim();
+      const descEsc = escapeHtml(descRaw);
+      const nameHtml = descRaw ? descEsc : cod;
       let cx = Number(ev.cx);
       let un = Number(ev.un);
       if (!Number.isFinite(cx) || !Number.isFinite(un)) {
@@ -3186,30 +3248,45 @@ async function loadBreakHistoryList() {
       }
       cx = Math.round(cx);
       un = Math.round(un);
-      const cxUnHtml =
-        `<span class="break-history-col break-history-col--cx-un">` +
-        `<span class="break-history-cx-un-cell" title="Totais líquidos de quebra no dia (caixa e unidade)">` +
-        `<span><strong>${formatBreakIntegerBR(cx)}</strong> CX</span>` +
-        `<span aria-hidden="true">·</span>` +
-        `<span><strong>${formatBreakIntegerBR(un)}</strong> UN</span>` +
-        `</span></span>`;
       const reason = ev.reason ? escapeHtml(String(ev.reason)) : '—';
       const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
       const li = document.createElement('li');
-      li.className = 'break-history-row';
+      li.className = 'count-audit-item break-history-item';
+      li.setAttribute('data-state', 'ok');
       li.innerHTML =
-        `<span class="break-history-col break-history-col--date">${escapeHtml(dayLabel)}</span>` +
-        `<span class="break-history-col break-history-col--product">${prodLine}</span>` +
-        cxUnHtml +
-        `<span class="break-history-col break-history-col--reason">${reason}</span>` +
-        `<span class="break-history-col break-history-col--actor">${actor}</span>`;
+        `<div class="break-history-audit-row">` +
+        `<div class="count-audit-cell count-audit-cell--product">` +
+        `<div class="break-history-product-static">` +
+        `<div class="count-audit-row-topline">` +
+        `<span class="count-audit-code-badge">${cod}</span>` +
+        `</div>` +
+        `<span class="count-audit-row-name">${nameHtml}</span>` +
+        `</div></div>` +
+        `<div class="count-audit-cell">` +
+        `<span class="count-audit-cell-label">Dia</span>` +
+        `<strong class="count-audit-cell-value">${escapeHtml(dayLabel)}</strong>` +
+        `</div>` +
+        `<div class="count-audit-cell">` +
+        `<span class="count-audit-cell-label">Quebra</span>` +
+        `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional (mesma lógica da tela Quebra)">` +
+        `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(cx)}</strong>` +
+        `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(un)}</strong>` +
+        `</div></div>` +
+        `<div class="count-audit-cell">` +
+        `<span class="count-audit-cell-label">Motivo</span>` +
+        `<span class="count-audit-cell-value">${reason}</span>` +
+        `</div>` +
+        `<div class="count-audit-cell">` +
+        `<span class="count-audit-cell-label">Usuário</span>` +
+        `<span class="count-audit-cell-value">${actor}</span>` +
+        `</div>` +
+        `</div>`;
       list.appendChild(li);
     }
   } catch {
-    if (feedback) {
-      feedback.textContent = 'Sem conexão.';
-      feedback.style.color = 'var(--error)';
-    }
+    setBreakHistoryFeedback(true, 'Sem conexão.', true);
+    if (metaCount) metaCount.textContent = '—';
+    if (rangeInfo) rangeInfo.textContent = 'Verifique a rede e tente de novo.';
   }
 }
 
@@ -8084,8 +8161,16 @@ function bindModuleEvents() {
     setActiveModule(moduleKey);
   });
 
-  // Card grid clicks -> navega para sub-módulo
   document.addEventListener('click', (event) => {
+    const hub = event.target.closest('.module-hub-card');
+    if (hub) {
+      const moduleKey = (hub.dataset.module || '').trim().toLowerCase();
+      if (!moduleKey) return;
+      if (!canAccessModule(moduleKey)) return;
+      setActiveModule(moduleKey);
+      closeSidebar();
+      return;
+    }
     const card = event.target.closest('.module-card');
     if (card) {
       const subKey = card.dataset.sub;
@@ -8121,6 +8206,7 @@ function clearLocalOperationalCaches() {
     localStorage.removeItem(COUNT_EVENTS_BUCKET_KEY);
     localStorage.removeItem(COUNT_EVENTS_DAY_KEY);
     localStorage.removeItem(BREAK_EVENTS_BUCKET_KEY);
+    localStorage.removeItem(MATE_COURO_TROCA_STORAGE_KEY);
     localStorage.removeItem(PRODUCT_DEFAULTS_KEY);
     for (const mod of EXTRA_MODULES) {
       localStorage.removeItem(mod.storageKey);
@@ -8502,6 +8588,7 @@ function initDashboard(user) {
 
   renderModuleNav();
   renderSubCardsAccess();
+  renderHubCards();
   const hashKey = getCurrentHashKey();
   // Quando a URL e /app#contagem, deve abrir a home informativa do modulo.
   if (hashKey === 'contagem') {
@@ -8536,7 +8623,7 @@ btnLogout.addEventListener('click', () => {
     kpiCountUser.textContent = 'Servidor: — · Você: —';
   }
   loginForm.reset();
-  history.replaceState(null, '', APP_BASE_PATH);
+  history.replaceState(null, '', historyBasePathNoHash());
   showLogin();
   closeSidebar();
 });

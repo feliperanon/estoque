@@ -544,6 +544,7 @@ def list_products_catalog(
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
     q: str | None = Query(default=None),
     status_filter: str = Query(default="todos", alias="status"),
+    cia: str | None = Query(default=None, description="Filtra por cod_grup_cia exato."),
     limit: int = Query(default=500, ge=1, le=20000),
 ) -> list[ProductRead]:
     statement = select(Product)
@@ -559,6 +560,8 @@ def list_products_catalog(
                 Product.status == normalized_status.upper()
             )
         )
+    if (cia or "").strip():
+        statement = statement.where(Product.cod_grup_cia == cia.strip())
     if q:
         statement = statement.where(
             Product.cod_produto.contains(q)

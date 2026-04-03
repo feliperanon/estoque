@@ -18,6 +18,7 @@ app.add_middleware(
         "http://127.0.0.1:8000",
         "http://localhost:8000",
         "https://estoque-app-hrt2.onrender.com",
+        "https://estoque-app-production-bfd0.up.railway.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -37,7 +38,7 @@ def startup_tasks() -> None:
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse("landing.html", {"request": request, "app_name": settings.app_name})
+    return templates.TemplateResponse("index.html", {"request": request, "app_name": settings.app_name})
 
 
 @app.get("/app", response_class=HTMLResponse)
