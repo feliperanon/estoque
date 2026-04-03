@@ -442,6 +442,48 @@ def _map_headers(raw_headers: tuple) -> tuple[list[str | None], int]:
     return mapped, len(recognized)
 
 
+def _parse_optional_price_query(q: str) -> float | None:
+    """Interpreta texto como valor monetário para busca pelo campo custo (price)."""
+    raw = (q or "").strip()
+    if not raw:
+        return None
+    raw = re.sub(r"^\s*R\$\s*", "", raw, flags=re.I).strip()
+    if not raw:
+        return None
+    if re.search(r",\d{1,2}$", raw):
+        normalized = raw.replace(".", "").replace(",", ".")
+    else:
+        normalized = raw.replace(",", ".")
+    try:
+        val = float(normalized)
+    except ValueError:
+        return None
+    if val != val or val < 0 or val > 1e12:  # exclui NaN
+        return None
+    return round(val, 2)
+
+
+def _product_list_search_clause(q: str):
+    """Busca em código, descrição, SKU, Cia, Tipo, Segmento, Marca e custo (valor numérico)."""
+    qn = (q or "").strip()
+    if not qn:
+        return None
+    ql = qn.lower()
+    parts = [
+        func.lower(func.coalesce(Product.cod_produto, "")).contains(ql),
+        func.lower(Product.cod_grup_descricao).contains(ql),
+        func.lower(Product.cod_grup_sku).contains(ql),
+        func.lower(func.coalesce(Product.cod_grup_cia, "")).contains(ql),
+        func.lower(func.coalesce(Product.cod_grup_tipo, "")).contains(ql),
+        func.lower(func.coalesce(Product.cod_grup_segmento, "")).contains(ql),
+        func.lower(func.coalesce(Product.cod_grup_marca, "")).contains(ql),
+    ]
+    pv = _parse_optional_price_query(qn)
+    if pv is not None:
+        parts.append(and_(Product.price.isnot(None), func.abs(Product.price - pv) < 0.005))
+    return or_(*parts)
+
+
 @router.get("", response_model=list[ProductRead])
 def list_products(
     session: Session = Depends(get_session),
@@ -449,12 +491,23 @@ def list_products(
     q: str | None = Query(default=None),
     limit: int = Query(default=500, ge=1, le=20000),
     status: list[str] | None = Query(default=None),
+    cia: str | None = Query(default=None),
+    segmento: str | None = Query(default=None),
+    marca: str | None = Query(default=None),
 ) -> list[ProductRead]:
     statement = select(Product)
-    if q:
-        statement = statement.where(
-            Product.cod_produto.contains(q) | Product.cod_grup_descricao.contains(q) | Product.cod_grup_sku.contains(q),
-        )
+    q_stripped = (q or "").strip()
+    if q_stripped:
+        clause = _product_list_search_clause(q_stripped)
+        if clause is not None:
+            statement = statement.where(clause)
+
+    if (cia or "").strip():
+        statement = statement.where(Product.cod_grup_cia == cia.strip())
+    if (segmento or "").strip():
+        statement = statement.where(Product.cod_grup_segmento == segmento.strip())
+    if (marca or "").strip():
+        statement = statement.where(Product.cod_grup_marca == marca.strip())
 
     tokens = _normalize_list_status_tokens(status)
     if tokens:

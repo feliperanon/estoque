@@ -396,7 +396,8 @@ function getProdutosStatusFilters() {
   return out;
 }
 
-async function apiFetchProductsList(searchQuery, statusFilters) {
+async function apiFetchProductsList(searchQuery, statusFilters, options = {}) {
+  const applyDimFilters = options.applyProdutosDimFilters === true;
   const token = getToken();
   if (!token) return null;
   if (isAccessTokenExpired(token)) {
@@ -409,6 +410,14 @@ async function apiFetchProductsList(searchQuery, statusFilters) {
     params.set('limit', String(limit));
     const qt = (searchQuery || '').trim();
     if (qt) params.set('q', qt);
+    if (applyDimFilters) {
+      const fcia = document.getElementById('produtos-filter-cia')?.value?.trim() || '';
+      const fseg = document.getElementById('produtos-filter-segmento')?.value?.trim() || '';
+      const fmar = document.getElementById('produtos-filter-marca')?.value?.trim() || '';
+      if (fcia) params.set('cia', fcia);
+      if (fseg) params.set('segmento', fseg);
+      if (fmar) params.set('marca', fmar);
+    }
     if (Array.isArray(statusFilters) && statusFilters.length > 0) {
       const full =
         statusFilters.length === 3 &&
@@ -2901,7 +2910,8 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   const countTypeLabel = countType === 'unidade' ? 'Unidade' : 'Caixa';
   const netCx = Math.round(Number(getNetBreakByProductAndType(itemCode, 'caixa')) || 0);
   const netUn = Math.round(Number(getNetBreakByProductAndType(itemCode, 'unidade')) || 0);
-  const deltaStr = formatBreakIntegerBR(quantity);
+  const deltaStr =
+    quantity < 0 ? formatSignedIntegerBR(quantity) : formatBreakIntegerBR(quantity);
   setBreakFeedback(
     `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total quebra ${formatBreakIntegerBR(netCx)} CX e ${formatBreakIntegerBR(netUn)} UN`,
     false,
@@ -3166,8 +3176,23 @@ async function loadBreakHistoryList() {
       const cod = escapeHtml(String(ev.cod_produto || ''));
       const desc = escapeHtml(String(ev.product_desc || '').trim());
       const prodLine = desc ? `${desc} <span class="muted">· ${cod}</span>` : cod;
-      const qty = Number(ev.quantity) || 0;
-      const tipo = ev.qty_type === 'unidade' ? 'UN' : 'CX';
+      let cx = Number(ev.cx);
+      let un = Number(ev.un);
+      if (!Number.isFinite(cx) || !Number.isFinite(un)) {
+        const qty = Number(ev.quantity) || 0;
+        const tipo = ev.qty_type === 'unidade' ? 'unidade' : 'caixa';
+        cx = tipo === 'caixa' ? qty : 0;
+        un = tipo === 'unidade' ? qty : 0;
+      }
+      cx = Math.round(cx);
+      un = Math.round(un);
+      const cxUnHtml =
+        `<span class="break-history-col break-history-col--cx-un">` +
+        `<span class="break-history-cx-un-cell" title="Totais líquidos de quebra no dia (caixa e unidade)">` +
+        `<span><strong>${formatBreakIntegerBR(cx)}</strong> CX</span>` +
+        `<span aria-hidden="true">·</span>` +
+        `<span><strong>${formatBreakIntegerBR(un)}</strong> UN</span>` +
+        `</span></span>`;
       const reason = ev.reason ? escapeHtml(String(ev.reason)) : '—';
       const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
       const li = document.createElement('li');
@@ -3175,8 +3200,7 @@ async function loadBreakHistoryList() {
       li.innerHTML =
         `<span class="break-history-col break-history-col--date">${escapeHtml(dayLabel)}</span>` +
         `<span class="break-history-col break-history-col--product">${prodLine}</span>` +
-        `<span class="break-history-col break-history-col--qty"><strong>${formatBreakIntegerBR(qty)}</strong></span>` +
-        `<span class="break-history-col break-history-col--type">${tipo}</span>` +
+        cxUnHtml +
         `<span class="break-history-col break-history-col--reason">${reason}</span>` +
         `<span class="break-history-col break-history-col--actor">${actor}</span>`;
       list.appendChild(li);
@@ -5767,7 +5791,7 @@ function formatSignedIntegerBR(value) {
   return n > 0 ? `+${formatIntegerBR(n)}` : formatIntegerBR(n);
 }
 
-/** Quantidades de quebra na UI: sem prefixo + ou − (valor absoluto formatado). */
+/** Totais de quebra na UI (readout, histórico líquido): magnitude sem sinal. Para deltas use formatSignedIntegerBR. */
 function formatBreakIntegerBR(value) {
   const n = Math.abs(Number(value) || 0);
   return formatIntegerBR(n);
@@ -7231,13 +7255,13 @@ function updateDefaultsFromFormSelections() {
   saveProductDefaults(nextDefaults);
 }
 
-function fillSelect(selectId, options, selected = null) {
+function fillSelect(selectId, options, selected = null, placeholderLabel = 'Selecione...') {
   const el = document.getElementById(selectId);
   if (!el) return;
   el.innerHTML = '';
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = 'Selecione...';
+  placeholder.textContent = placeholderLabel;
   placeholder.selected = selected == null || selected === '';
   el.appendChild(placeholder);
   if (!Array.isArray(options) || options.length === 0) return;
@@ -7278,6 +7302,9 @@ function mergeUnique(baseValues, newValues) {
 
 function applyProductDefaultsToForms() {
   const defaults = loadProductDefaults();
+  const preserveProdutosCia = document.getElementById('produtos-filter-cia')?.value ?? '';
+  const preserveProdutosSeg = document.getElementById('produtos-filter-segmento')?.value ?? '';
+  const preserveProdutosMarca = document.getElementById('produtos-filter-marca')?.value ?? '';
   const pairs = [
     ['cod_grup_cia', 'prod-cod-cia', 'edit-cod-cia'],
     ['cod_grup_tipo', 'prod-cod-tipo', 'edit-cod-tipo'],
@@ -7289,6 +7316,9 @@ function applyProductDefaultsToForms() {
     fillSelect(createId, defaults[key]);
     fillSelect(editId, defaults[key]);
   }
+  fillSelect('produtos-filter-cia', defaults.cod_grup_cia, preserveProdutosCia, 'Todos');
+  fillSelect('produtos-filter-segmento', defaults.cod_grup_segmento, preserveProdutosSeg, 'Todos');
+  fillSelect('produtos-filter-marca', defaults.cod_grup_marca, preserveProdutosMarca, 'Todos');
   renderParamRemoveValues(defaults);
 }
 
@@ -7686,7 +7716,7 @@ async function searchProdutos() {
   }
 
   try {
-    const resp = await apiFetchProductsList(q, filters);
+    const resp = await apiFetchProductsList(q, filters, { applyProdutosDimFilters: true });
     if (!resp) return;
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao buscar produtos.', true); return; }
@@ -7907,6 +7937,11 @@ function bindProdutosEvents() {
 
   btnSearch.addEventListener('click', () => searchProdutos());
   searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchProdutos(); } });
+
+  for (const fid of ['produtos-filter-cia', 'produtos-filter-segmento', 'produtos-filter-marca']) {
+    const fel = document.getElementById(fid);
+    if (fel) fel.addEventListener('change', () => searchProdutos());
+  }
 
   tbody.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');

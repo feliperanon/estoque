@@ -425,8 +425,7 @@
               <div class="break-history-thead" aria-hidden="true">
                 <span class="break-history-col break-history-col--date">Dia</span>
                 <span class="break-history-col break-history-col--product">Produto</span>
-                <span class="break-history-col break-history-col--qty">Qtd</span>
-                <span class="break-history-col break-history-col--type">Tipo</span>
+                <span class="break-history-col break-history-col--cx-un">CX / UN</span>
                 <span class="break-history-col break-history-col--reason">Motivo</span>
                 <span class="break-history-col break-history-col--actor">Usuário</span>
               </div>
@@ -985,8 +984,22 @@
               <h2>Produtos Cadastrados</h2>
               <p class="muted">Pesquise, edite, ative/inative ou exclua produtos. Clique em um produto para ver o histórico.</p>
               <div class="search-row">
-                <input id="produtos-search" type="text" placeholder="Buscar por codigo, SKU ou descrição..." class="search-input" />
+                <input id="produtos-search" type="text" placeholder="Código, SKU, descrição, Cia, Segmento, Marca ou valor do custo (ex.: 12,90)..." class="search-input" />
                 <button id="btn-produtos-search" type="button" class="btn-secondary btn-dark">Buscar</button>
+              </div>
+              <div class="produtos-extra-filters" role="group" aria-label="Filtrar por Cia, Segmento e Marca">
+                <div class="field produtos-filter-field">
+                  <label for="produtos-filter-cia">Cia</label>
+                  <select id="produtos-filter-cia" class="search-select"></select>
+                </div>
+                <div class="field produtos-filter-field">
+                  <label for="produtos-filter-segmento">Segmento</label>
+                  <select id="produtos-filter-segmento" class="search-select"></select>
+                </div>
+                <div class="field produtos-filter-field">
+                  <label for="produtos-filter-marca">Marca</label>
+                  <select id="produtos-filter-marca" class="search-select"></select>
+                </div>
               </div>
               <div class="produtos-status-filters" role="group" aria-label="Filtrar listagem por status do produto">
                 <span class="produtos-status-filters-label">Status na busca</span>

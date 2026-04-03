@@ -4414,6 +4414,31 @@ body.count-audit-drawer-open {
   color: var(--ink);
 }
 
+#sub-produtos .produtos-extra-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+#sub-produtos .produtos-extra-filters .produtos-filter-field {
+  flex: 1 1 160px;
+  min-width: 140px;
+  margin: 0;
+}
+
+#sub-produtos .produtos-extra-filters .produtos-filter-field label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+#sub-produtos .produtos-extra-filters select {
+  width: 100%;
+}
+
 .status-switch {
   display: inline-flex;
   align-items: center;
@@ -6975,7 +7000,7 @@ details[open] > .validity-analytic-summary::after {
 }
 .break-history-thead {
   display: grid;
-  grid-template-columns: 5.5rem minmax(8rem, 1.5fr) 4rem 2.5rem minmax(5rem, 0.8fr) minmax(4rem, 0.7fr);
+  grid-template-columns: 5.5rem minmax(8rem, 1.4fr) minmax(7rem, 1fr) minmax(5rem, 0.85fr) minmax(4rem, 0.7fr);
   gap: 8px 10px;
   padding: 8px 12px;
   font-size: 0.78rem;
@@ -6984,22 +7009,35 @@ details[open] > .validity-analytic-summary::after {
   letter-spacing: 0.02em;
   color: var(--muted, #64748b);
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  min-width: 640px;
+  min-width: 560px;
 }
 .break-history-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  min-width: 640px;
+  min-width: 560px;
 }
 .break-history-row {
   display: grid;
-  grid-template-columns: 5.5rem minmax(8rem, 1.5fr) 4rem 2.5rem minmax(5rem, 0.8fr) minmax(4rem, 0.7fr);
+  grid-template-columns: 5.5rem minmax(8rem, 1.4fr) minmax(7rem, 1fr) minmax(5rem, 0.85fr) minmax(4rem, 0.7fr);
   gap: 8px 10px;
   padding: 10px 12px;
   align-items: start;
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
   font-size: 0.88rem;
+}
+.break-history-col--cx-un {
+  white-space: nowrap;
+}
+.break-history-cx-un-cell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+  font-variant-numeric: tabular-nums;
+}
+.break-history-cx-un-cell strong {
+  font-weight: 700;
 }
 .break-history-row:nth-child(even) {
   background: rgba(248, 250, 252, 0.65);

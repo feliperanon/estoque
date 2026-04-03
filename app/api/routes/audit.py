@@ -1223,6 +1223,66 @@ def _aggregate_break_events_by_code(session: Session, operational_date: date) ->
     return out
 
 
+def _merge_break_event_rows_for_operational_day(raw: list[dict]) -> list[dict]:
+    """Consolida lançamentos do dia: uma linha por produto com totais líquidos CX e UN no mesmo registro."""
+    buckets: dict[str, list[dict]] = defaultdict(list)
+    for r in raw:
+        code = str(r.get("cod_produto") or "")
+        if not code:
+            continue
+        buckets[code].append(r)
+
+    merged: list[dict] = []
+    for code in sorted(buckets.keys()):
+        items = buckets[code]
+        total_cx = sum(
+            int(x.get("quantity") or 0)
+            for x in items
+            if str(x.get("qty_type") or "caixa") == "caixa"
+        )
+        total_un = sum(
+            int(x.get("quantity") or 0)
+            for x in items
+            if str(x.get("qty_type") or "caixa") == "unidade"
+        )
+        if total_cx == 0 and total_un == 0:
+            continue
+        observed_list = [str(x.get("observed_at") or "") for x in items if x.get("observed_at")]
+        observed_max = max(observed_list) if observed_list else None
+        actors_set: set[str] = set()
+        for x in items:
+            a = (x.get("actor") or "").strip()
+            if a:
+                actors_set.add(a)
+        reasons_set: set[str] = set()
+        for x in items:
+            rs = x.get("reason")
+            if rs is not None and str(rs).strip():
+                reasons_set.add(str(rs).strip())
+        reason_out: str | None = None
+        if len(reasons_set) == 1:
+            reason_out = next(iter(reasons_set))
+        actor_out: str | None = None
+        if len(actors_set) == 1:
+            actor_out = next(iter(actors_set))
+        elif len(actors_set) > 1:
+            actor_out = ", ".join(sorted(actors_set))
+
+        merged.append(
+            {
+                "cod_produto": code,
+                "cx": int(total_cx),
+                "un": int(total_un),
+                "observed_at": observed_max,
+                "actor": actor_out,
+                "reason": reason_out,
+                "client_event_id": None,
+                "device_name": None,
+            }
+        )
+    return merged
+
+
 def _break_event_rows_for_operational_day(session: Session, operational_date: date) -> list[dict]:
     logs = list(
         session.exec(
@@ -1232,7 +1292,7 @@ def _break_event_rows_for_operational_day(session: Session, operational_date: da
             )
         ).all()
     )
-    rows: list[dict] = []
+    raw: list[dict] = []
     for log in logs:
         payload = log.payload if isinstance(log.payload, dict) else {}
         od = payload.get("operational_date")
@@ -1258,7 +1318,7 @@ def _break_event_rows_for_operational_day(session: Session, operational_date: da
         if qty == 0:
             continue
         ct = _extract_count_type(item_code)
-        rows.append(
+        raw.append(
             {
                 "cod_produto": code,
                 "item_code_raw": item_code,
@@ -1272,11 +1332,7 @@ def _break_event_rows_for_operational_day(session: Session, operational_date: da
             }
         )
 
-    def _sort_key(r: dict) -> str:
-        return str(r.get("observed_at") or "")
-
-    rows.sort(key=_sort_key, reverse=True)
-    return rows
+    return _merge_break_event_rows_for_operational_day(raw)
 
 
 @router.get("/break-day-totals")
