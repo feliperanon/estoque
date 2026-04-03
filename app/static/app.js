@@ -747,6 +747,7 @@ const ACCESS_CATEGORIES = [
       { module: 'Puxada', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Devolução', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Quebra', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Base de troca (Mate couro)', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Venda Direta', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Validade (lançamento)', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Análise de Validades', roles: ['administrativo', 'admin'] },
