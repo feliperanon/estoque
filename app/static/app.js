@@ -3430,7 +3430,7 @@ function renderMateCouroTrocaList() {
       `</div></div>` +
       `<div class="count-audit-cell mate-couro-troca-troca-block-wrap">` +
       `<span class="count-audit-cell-label">Troca acum.</span>` +
-      `<div class="mate-couro-troca-troca-block" id="mate-couro-troca-shell">` +
+      `<div class="mate-couro-troca-troca-block">` +
       `<div class="count-control-row count-control-row--neutral">` +
       `<span class="count-control-type">CX</span>` +
       `<button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" data-mate-troca="1" aria-label="Menos caixa na troca acumulada">−</button>` +
@@ -8967,6 +8967,7 @@ if (moduleNav) {
   bindModuleEvents();
   bindExtraModules();
   bindBreakEvents();
+  bindMateCouroTrocaEvents();
   bindAdminPurge();
   const token = getToken();
   const user = getUser();
