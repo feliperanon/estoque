@@ -4333,6 +4333,12 @@ body.count-audit-drawer-open {
   font-weight: 500;
 }
 
+.count-audit-drawer-header .count-audit-detail-status {
+  margin-top: 0.4rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
 .count-audit-detail-empty,
 .count-audit-detail-loading {
   padding: var(--audit-space-4);
@@ -4415,11 +4421,6 @@ body.count-audit-drawer-open {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-}
-
-.count-audit-detail-panel--drawer .count-audit-detail-actions {
-  padding-top: var(--audit-space-3);
-  border-top: 1px solid var(--audit-border);
 }
 
 .count-audit-detail-grid {
