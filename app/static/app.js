@@ -3689,6 +3689,7 @@ async function loadMateCouroBreakDayList() {
   } catch {
     setFb(true, 'Sem conexão.', true);
     if (statusEl) statusEl.textContent = 'Falha';
+    updateMateCouroKpis();
   }
 }
 

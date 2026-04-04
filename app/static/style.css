@@ -2906,7 +2906,8 @@ form#break-op-form.count-form {
   padding: var(--audit-space-4) var(--audit-space-5);
 }
 
-#sub-count-audit .count-audit-kpi-list {
+#sub-count-audit .count-audit-kpi-list,
+#sub-mate-couro-troca .count-audit-kpi-list {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--audit-space-2);
@@ -4154,7 +4155,8 @@ body.count-audit-drawer-open {
 
 @media (max-width: 1440px) {
   .count-audit-header__meta,
-  #sub-count-audit .count-audit-kpi-list {
+  #sub-count-audit .count-audit-kpi-list,
+  #sub-mate-couro-troca .count-audit-kpi-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4171,12 +4173,15 @@ body.count-audit-drawer-open {
 
 @media (max-width: 760px) {
   #sub-count-audit .count-audit-shell,
+  #sub-mate-couro-troca .count-audit-shell,
   #sub-break-history .count-audit-shell {
     gap: 0.85rem;
   }
 
   #sub-count-audit .count-audit-shell > .card,
   #sub-count-audit .count-audit-workspace > .card,
+  #sub-mate-couro-troca .count-audit-shell > .card,
+  #sub-mate-couro-troca .count-audit-workspace > .card,
   #sub-break-history .count-audit-shell > .card,
   #sub-break-history .count-audit-workspace > .card {
     border-radius: 0.9rem;
@@ -4253,7 +4258,8 @@ body.count-audit-drawer-open {
     padding: 0.9rem;
   }
 
-  #sub-count-audit .count-audit-kpi-list {
+  #sub-count-audit .count-audit-kpi-list,
+  #sub-mate-couro-troca .count-audit-kpi-list {
     display: flex;
     gap: 0.6rem;
     overflow-x: auto;
