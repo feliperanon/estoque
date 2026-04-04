@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=44" />
+    <link rel="stylesheet" href="/static/style.css?v=46" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -501,8 +501,8 @@
 
           <!-- Sub: Base de Troca — mesmo layout da Análise de Contagem (#count-audit) -->
           <div id="sub-mate-couro-troca" class="sub-section count-audit-page mate-troca-page">
-            <section class="count-audit-shell" aria-labelledby="mate-couro-troca-title">
-              <header class="card count-audit-header">
+            <section class="count-audit-shell mate-troca-shell" aria-labelledby="mate-couro-troca-title">
+              <header class="card count-audit-header mate-troca-header-card">
                 <div class="count-audit-header__row">
                   <div class="count-audit-header__titles">
                     <h2 id="mate-couro-troca-title" class="count-audit-page-title">Base de Troca</h2>
@@ -538,52 +538,62 @@
                     <input id="mate-couro-troca-date" name="mate-couro-troca-date" type="date" class="search-input count-audit-date-input" aria-label="Dia operacional da quebra" />
                   </div>
                   <div class="count-audit-header__actions">
-                    <button type="button" id="btn-mate-couro-troca-load" class="btn-secondary btn-dark count-audit-btn-refresh">Carregar</button>
+                    <button type="button" id="btn-mate-couro-troca-load" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--primary count-audit-btn-refresh">Carregar</button>
                   </div>
                 </div>
                 <div id="mate-couro-troca-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
               </header>
 
-              <section class="card count-audit-summary-card">
-                <div class="card-head count-audit-card-head count-audit-card-head--tight">
+              <section class="card mate-troca-kpi-shell" id="mate-troca-summary" aria-labelledby="mate-troca-kpi-title">
+                <div class="mate-troca-kpi-head">
                   <div>
-                    <h3>Indicadores</h3>
-                    <p class="count-audit-card-sub muted">Leitura rápida do cenário</p>
+                    <h3 id="mate-troca-kpi-title">Indicadores</h3>
+                    <p class="mate-troca-kpi-lead">Dia consultado, pendências CX/UN e referência do catálogo</p>
                   </div>
                 </div>
-                <div id="mate-troca-summary" class="count-audit-kpi-list" role="list">
-                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--primary" role="listitem">
-                    <span>Itens com quebra (dia)</span>
-                    <strong id="mate-troca-kpi-items-day">—</strong>
-                  </article>
-                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--primary" role="listitem">
-                    <span>Produtos pendentes</span>
-                    <strong id="mate-troca-kpi-pending-count">0</strong>
-                  </article>
-                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--primary" role="listitem">
-                    <span>Total CX pendente</span>
-                    <strong id="mate-troca-kpi-pend-cx">0</strong>
-                  </article>
-                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--primary" role="listitem">
-                    <span>Total UN pendente</span>
-                    <strong id="mate-troca-kpi-pend-un">0</strong>
-                  </article>
-                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--secondary" role="listitem">
-                    <span>Produtos Mate couro (ativos)</span>
-                    <strong id="mate-troca-kpi-catalog">—</strong>
-                  </article>
-                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--secondary" role="listitem">
-                    <span>Dias com snapshot</span>
-                    <strong id="mate-troca-kpi-snap-days">0</strong>
-                  </article>
-                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--secondary" role="listitem">
-                    <span>Último Carregar</span>
-                    <strong id="mate-troca-kpi-last-load">—</strong>
-                  </article>
-                  <article class="count-audit-summary-placeholder count-audit-summary-placeholder--secondary" role="listitem">
-                    <span>Resumo operacional</span>
-                    <strong id="mate-troca-kpi-resume">—</strong>
-                  </article>
+                <div class="mate-troca-kpi-groups">
+                  <div class="mate-troca-kpi-group" role="group" aria-label="Operação e pendências">
+                    <span class="mate-troca-kpi-group-title">Operação e pendências</span>
+                    <div class="mate-troca-kpi-grid mate-troca-kpi-grid--ops" role="list">
+                      <article class="mate-troca-kpi-tile mate-troca-kpi-tile--ops" role="listitem">
+                        <span class="mate-troca-kpi-label">Itens com quebra (dia)</span>
+                        <strong class="mate-troca-kpi-num" id="mate-troca-kpi-items-day">—</strong>
+                      </article>
+                      <article class="mate-troca-kpi-tile mate-troca-kpi-tile--ops" role="listitem">
+                        <span class="mate-troca-kpi-label">Produtos pendentes</span>
+                        <strong class="mate-troca-kpi-num" id="mate-troca-kpi-pending-count">0</strong>
+                      </article>
+                      <article class="mate-troca-kpi-tile mate-troca-kpi-tile--ops" role="listitem">
+                        <span class="mate-troca-kpi-label">Total CX pendente</span>
+                        <strong class="mate-troca-kpi-num" id="mate-troca-kpi-pend-cx">0</strong>
+                      </article>
+                      <article class="mate-troca-kpi-tile mate-troca-kpi-tile--ops" role="listitem">
+                        <span class="mate-troca-kpi-label">Total UN pendente</span>
+                        <strong class="mate-troca-kpi-num" id="mate-troca-kpi-pend-un">0</strong>
+                      </article>
+                    </div>
+                  </div>
+                  <div class="mate-troca-kpi-group mate-troca-kpi-group--ref" role="group" aria-label="Referência">
+                    <span class="mate-troca-kpi-group-title">Referência</span>
+                    <div class="mate-troca-kpi-grid mate-troca-kpi-grid--ref" role="list">
+                      <article class="mate-troca-kpi-tile mate-troca-kpi-tile--ref" role="listitem">
+                        <span class="mate-troca-kpi-label">Produtos Mate couro (ativos)</span>
+                        <strong class="mate-troca-kpi-num" id="mate-troca-kpi-catalog">—</strong>
+                      </article>
+                      <article class="mate-troca-kpi-tile mate-troca-kpi-tile--ref" role="listitem">
+                        <span class="mate-troca-kpi-label">Dias com snapshot</span>
+                        <strong class="mate-troca-kpi-num" id="mate-troca-kpi-snap-days">0</strong>
+                      </article>
+                      <article class="mate-troca-kpi-tile mate-troca-kpi-tile--ref" role="listitem">
+                        <span class="mate-troca-kpi-label">Último Carregar</span>
+                        <strong class="mate-troca-kpi-num mate-troca-kpi-num--compact" id="mate-troca-kpi-last-load">—</strong>
+                      </article>
+                      <article class="mate-troca-kpi-tile mate-troca-kpi-tile--ref" role="listitem">
+                        <span class="mate-troca-kpi-label">Resumo operacional</span>
+                        <strong class="mate-troca-kpi-num mate-troca-kpi-num--compact" id="mate-troca-kpi-resume">—</strong>
+                      </article>
+                    </div>
+                  </div>
                 </div>
               </section>
 
@@ -594,7 +604,7 @@
                     <p class="count-audit-card-sub muted">Busca no pendente e limpeza do acumulativo</p>
                   </div>
                   <div class="count-audit-filters-actions">
-                    <button type="button" id="btn-mate-couro-troca-clear-all" class="btn-secondary btn-small count-audit-btn-clear-all">Limpar acumulativo todo</button>
+                    <button type="button" id="btn-mate-couro-troca-clear-all" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline count-audit-btn-clear-all">Limpar acumulativo todo</button>
                   </div>
                 </div>
                 <div id="mate-troca-filters-panel" class="count-audit-filters-panel">

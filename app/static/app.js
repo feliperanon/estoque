@@ -3597,9 +3597,9 @@ function renderMateCouroPendingList() {
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
       `</div></div>` +
       `<div class="count-audit-cell mate-couro-pending-actions">` +
-      `<button type="button" class="btn-secondary btn-small" data-mate-pend="recebeu" data-coderef="${codRef}">Registrar chegada</button>` +
-      `<button type="button" class="btn-secondary btn-small" data-mate-pend="definir" data-coderef="${codRef}">Definir saldo</button>` +
-      `<button type="button" class="btn-secondary btn-small" data-mate-pend="zerar" data-coderef="${codRef}">Zerar</button>` +
+      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--primary" data-mate-pend="recebeu" data-coderef="${codRef}">Registrar chegada</button>` +
+      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--outline" data-mate-pend="definir" data-coderef="${codRef}">Definir saldo</button>` +
+      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--muted" data-mate-pend="zerar" data-coderef="${codRef}">Zerar</button>` +
       `</div>` +
       `</div>`;
     ul.appendChild(li);

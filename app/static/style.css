@@ -2845,6 +2845,133 @@ form#break-op-form.count-form {
   white-space: nowrap;
 }
 
+/* .btn-secondary global = texto branco (sidebar). Em cards claros da análise / base de troca / quebras: contraste legível */
+#sub-count-audit .btn-secondary,
+#sub-mate-couro-troca .btn-secondary,
+#sub-break-history .btn-secondary {
+  color: var(--audit-ink);
+  border-color: var(--audit-border-strong);
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+#sub-count-audit .btn-secondary:hover,
+#sub-mate-couro-troca .btn-secondary:hover,
+#sub-break-history .btn-secondary:hover {
+  background: var(--audit-card-alt);
+  border-color: rgba(15, 118, 110, 0.4);
+  color: var(--audit-ink);
+}
+
+#sub-count-audit .btn-secondary:focus-visible,
+#sub-mate-couro-troca .btn-secondary:focus-visible,
+#sub-break-history .btn-secondary:focus-visible {
+  outline: 2px solid var(--audit-focus);
+  outline-offset: 2px;
+}
+
+/* Base de Troca — botões próprios (não usar .btn-secondary: texto branco do sidebar quebra em cards claros) */
+#sub-mate-couro-troca .mate-troca-toolbar-btn,
+#sub-mate-couro-troca .mate-troca-pend-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-family: var(--audit-font-sans);
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  border-radius: 10px;
+  border-style: solid;
+  border-width: 1px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#sub-mate-couro-troca .mate-troca-toolbar-btn:focus-visible,
+#sub-mate-couro-troca .mate-troca-pend-btn:focus-visible {
+  outline: 2px solid var(--audit-focus);
+  outline-offset: 2px;
+}
+
+#sub-mate-couro-troca .mate-troca-toolbar-btn--primary {
+  min-height: 2.5rem;
+  padding: 0.5rem 1.15rem;
+  font-size: var(--audit-text-sm);
+  color: #ffffff;
+  background: linear-gradient(180deg, #0d9488 0%, #0f766e 100%);
+  border-color: #0d5c56;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+#sub-mate-couro-troca .mate-troca-toolbar-btn--primary:hover {
+  background: linear-gradient(180deg, #14b8a6 0%, #0d9488 100%);
+  border-color: #0f766e;
+  color: #ffffff;
+}
+
+#sub-mate-couro-troca .mate-troca-toolbar-btn--outline {
+  min-height: 2.2rem;
+  padding: 0.45rem 0.95rem;
+  font-size: var(--audit-text-xs);
+  color: #0f172a;
+  background: #ffffff;
+  border-color: #94a3b8;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+#sub-mate-couro-troca .mate-troca-toolbar-btn--outline:hover {
+  background: #f8fafc;
+  border-color: #0f766e;
+  color: #0f172a;
+}
+
+#sub-mate-couro-troca .mate-troca-pend-btn {
+  min-height: 2.35rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.78rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#sub-mate-couro-troca .mate-troca-pend-btn--primary {
+  color: #ffffff;
+  background: linear-gradient(180deg, #0d9488 0%, #0f766e 100%);
+  border-color: #0d5c56;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+}
+
+#sub-mate-couro-troca .mate-troca-pend-btn--primary:hover {
+  background: linear-gradient(180deg, #14b8a6 0%, #0d9488 100%);
+  color: #ffffff;
+}
+
+#sub-mate-couro-troca .mate-troca-pend-btn--outline {
+  color: #0f172a;
+  background: #ffffff;
+  border-color: #0f766e;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+#sub-mate-couro-troca .mate-troca-pend-btn--outline:hover {
+  background: #ecfdf5;
+  color: #064e3b;
+  border-color: #0d9488;
+}
+
+#sub-mate-couro-troca .mate-troca-pend-btn--muted {
+  color: #334155;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+#sub-mate-couro-troca .mate-troca-pend-btn--muted:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
 .count-audit-feedback-block {
   position: relative;
   z-index: 1;
@@ -2906,13 +3033,159 @@ form#break-op-form.count-form {
   padding: var(--audit-space-4) var(--audit-space-5);
 }
 
-#sub-count-audit .count-audit-kpi-list,
-#sub-mate-couro-troca .count-audit-kpi-list {
+#sub-count-audit .count-audit-kpi-list {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--audit-space-2);
   margin: 0;
   padding: 0;
+}
+
+/* Base de Troca — painel de KPIs (layout próprio, não reutiliza placeholders da análise) */
+#sub-mate-couro-troca .mate-troca-kpi-shell {
+  padding: var(--audit-space-5) var(--audit-space-5);
+  background: linear-gradient(165deg, #ffffff 0%, #f8fafc 52%, #ffffff 100%);
+  border: 1px solid var(--audit-border);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 20px rgba(15, 118, 110, 0.04);
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-head {
+  margin-bottom: var(--audit-space-5);
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--audit-ink);
+  line-height: 1.25;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-lead {
+  margin: 0.35rem 0 0;
+  font-size: var(--audit-text-sm);
+  line-height: 1.45;
+  color: var(--audit-muted);
+  font-weight: 400;
+  max-width: 42rem;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: var(--audit-radius-sm);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-group--ref {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(248, 250, 252, 0.9);
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-group-title {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--audit-subtle);
+  line-height: 1.2;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
+  min-height: 4.85rem;
+  padding: 0.85rem 0.9rem 0.9rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--audit-border);
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-tile::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.65rem;
+  bottom: 0.65rem;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--audit-border-strong);
+  opacity: 0.85;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-tile--ops {
+  border-color: rgba(15, 118, 110, 0.22);
+  background: linear-gradient(145deg, #ffffff 0%, #f0fdfa 100%);
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-tile--ops::before {
+  background: linear-gradient(180deg, #0d9488 0%, #0f766e 100%);
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-tile--ref {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-tile--ref::before {
+  background: #94a3b8;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--audit-muted);
+  line-height: 1.35;
+  padding-right: 0.25rem;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-num {
+  font-size: 1.28rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--audit-ink);
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-tile--ops .mate-troca-kpi-num {
+  color: #0f172a;
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-num--compact {
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .count-audit-summary-placeholder,
@@ -3037,7 +3310,8 @@ form#break-op-form.count-form {
   white-space: nowrap;
 }
 
-#sub-count-audit .count-audit-filters-panel {
+#sub-count-audit .count-audit-filters-panel,
+#sub-mate-couro-troca .count-audit-filters-panel {
   display: flex;
   flex-direction: column;
   gap: var(--audit-space-4);
@@ -3047,7 +3321,8 @@ form#break-op-form.count-form {
   background: var(--audit-card-alt);
 }
 
-#sub-count-audit .count-audit-search-row {
+#sub-count-audit .count-audit-search-row,
+#sub-mate-couro-troca .count-audit-search-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.65rem;
@@ -3327,10 +3602,6 @@ form#break-op-form.count-form {
   gap: 0.35rem;
   align-items: center;
   justify-content: flex-start;
-}
-
-#sub-mate-couro-troca .mate-couro-pending-actions .btn-small {
-  font-size: 0.75rem;
 }
 
 @media (max-width: 640px) {
@@ -4155,8 +4426,11 @@ body.count-audit-drawer-open {
 
 @media (max-width: 1440px) {
   .count-audit-header__meta,
-  #sub-count-audit .count-audit-kpi-list,
-  #sub-mate-couro-troca .count-audit-kpi-list {
+  #sub-count-audit .count-audit-kpi-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #sub-mate-couro-troca .mate-troca-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4196,7 +4470,8 @@ body.count-audit-drawer-open {
   .count-audit-meta-pill--soft,
   .count-audit-summary-placeholder--secondary,
   .count-audit-summary-item--secondary,
-  .count-audit-card-sub {
+  .count-audit-card-sub,
+  #sub-mate-couro-troca .mate-troca-kpi-lead {
     display: none;
   }
 
@@ -4254,18 +4529,32 @@ body.count-audit-drawer-open {
 
   .count-audit-summary-card,
   .count-audit-filters-card,
-  .count-audit-list-card {
+  .count-audit-list-card,
+  #sub-mate-couro-troca .mate-troca-kpi-shell {
     padding: 0.9rem;
   }
 
-  #sub-count-audit .count-audit-kpi-list,
-  #sub-mate-couro-troca .count-audit-kpi-list {
+  #sub-count-audit .count-audit-kpi-list {
     display: flex;
     gap: 0.6rem;
     overflow-x: auto;
     padding-bottom: 0.15rem;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
+  }
+
+  #sub-mate-couro-troca .mate-troca-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  #sub-mate-couro-troca .mate-troca-kpi-tile {
+    min-height: 4.35rem;
+    padding: 0.75rem 0.8rem 0.8rem 0.9rem;
+  }
+
+  #sub-mate-couro-troca .mate-troca-kpi-num {
+    font-size: 1.18rem;
   }
 
   .count-audit-summary-placeholder,
