@@ -571,6 +571,8 @@ let currentRole = 'conferente';
 let countProductsCache = [];
 /** Catálogo ativo CIA Mate couro (base de troca). */
 let mateCouroProductsCache = [];
+/** Último número de itens Mate couro no dia carregado (para KPIs). */
+let lastMateTrocaDayItemsCount = null;
 let currentAllowedPages = [];
 let countKpiTicker = null;
 let countAuditPollingTimer = null;
@@ -614,7 +616,7 @@ const REGISTER_ACCESS_GROUPS = [
       { key: 'return', label: 'Devolução' },
       { key: 'break', label: 'Quebra' },
       { key: 'break-history', label: 'Registro de quebras' },
-      { key: 'mate-couro-troca', label: 'Base de troca (Mate couro)' },
+      { key: 'mate-couro-troca', label: 'Base de Troca' },
       { key: 'direct-sale', label: 'Venda Direta' },
       { key: 'validity', label: 'Validade (lançamento)' },
       { key: 'validity-analysis', label: 'Análise de Validades' },
@@ -705,7 +707,7 @@ const PAGE_TITLES = {
   return: 'Devolução',
   break: 'Quebra',
   'break-history': 'Registro de quebras',
-  'mate-couro-troca': 'Base de troca (Mate couro)',
+  'mate-couro-troca': 'Base de Troca',
   'direct-sale': 'Venda Direta',
   validity: 'Validade',
   'validity-analysis': 'Análise de Validades',
