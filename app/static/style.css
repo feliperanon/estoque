@@ -4197,8 +4197,140 @@ body.count-audit-drawer-open {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Painel detalhe no drawer: hierarquia limpa, minimalista */
 .count-audit-detail-panel--drawer {
   min-height: 12rem;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-shell {
+  gap: 1.125rem;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-hero {
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 10px;
+  border-color: #e8eaed;
+  background: #fafbfc;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-hero-top {
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-subtitle {
+  margin-top: 0.2rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--audit-muted);
+  line-height: 1.45;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-validity-line {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--audit-muted);
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-pill-row {
+  gap: 0.4rem;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-grid {
+  gap: 0.55rem;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-metric {
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border-color: #e8eaed;
+  background: #fff;
+  gap: 0.3rem;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-metric span:first-of-type {
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-metric strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-metric small {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--audit-muted);
+  line-height: 1.45;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-section {
+  gap: 0.65rem;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-section-head {
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-section-head h4 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-section-head span {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--audit-muted);
+}
+
+.count-audit-detail-panel--drawer .count-audit-history-item,
+.count-audit-detail-panel--drawer .count-audit-trail-item {
+  padding: 0.6rem 0.7rem;
+  border-radius: 8px;
+  border-color: #e8eaed;
+  background: #fff;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--audit-border);
+}
+
+.count-audit-detail-panel--drawer .count-audit-recount-live-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.45rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.count-audit-detail-panel--drawer .count-audit-detail-action-btn {
+  width: 100%;
+  min-height: 2.35rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 .count-audit-detail-empty,
@@ -4250,12 +4382,6 @@ body.count-audit-drawer-open {
   flex-wrap: wrap;
 }
 
-.count-audit-history-topline strong,
-.count-audit-trail-topline strong {
-  font-weight: 500;
-  font-size: var(--audit-text-sm);
-  color: var(--audit-ink);
-}
 
 .count-audit-detail-title {
   margin: 0;
@@ -4302,6 +4428,12 @@ body.count-audit-drawer-open {
   gap: 0.7rem;
 }
 
+.count-audit-detail-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
 .count-audit-detail-metric,
 .count-audit-history-item,
 .count-audit-trail-item {
@@ -4325,6 +4457,29 @@ body.count-audit-drawer-open {
   font-size: var(--audit-text-md);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.count-audit-detail-metric small {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--audit-muted);
+  line-height: 1.45;
+}
+
+.count-audit-history-actor {
+  font-weight: 500;
+  font-size: var(--audit-text-sm);
+  color: var(--audit-ink);
+}
+
+.count-audit-trail-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--audit-subtle);
+  line-height: 1.35;
 }
 
 .count-audit-mobile-row {

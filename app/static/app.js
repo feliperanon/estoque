@@ -6943,7 +6943,7 @@ function buildCountAuditHistoryHtml(history) {
     ? history.map((entry) => (
       `<li class="count-audit-history-item">` +
         `<div class="count-audit-history-topline">` +
-          `<strong>${escapeHtml(entry.actor || 'Equipe')}</strong>` +
+          `<span class="count-audit-history-actor">${escapeHtml(entry.actor || 'Equipe')}</span>` +
           `<span>${escapeHtml(formatAuditRelativeTime(entry.observed_at || entry.changed_at || ''))}</span>` +
         `</div>` +
         `<div class="count-audit-history-values">` +
@@ -6966,7 +6966,7 @@ function buildCountAuditTrailHtml(row, meta, importInfo, actors, devices) {
     ['Dispositivos', devices.length ? devices.join(', ') : 'Sem dispositivo identificado'],
   ].map(([label, value]) => (
     `<li class="count-audit-trail-item">` +
-      `<div class="count-audit-trail-topline"><strong>${label}</strong></div>` +
+      `<div class="count-audit-trail-topline"><span class="count-audit-trail-label">${escapeHtml(label)}</span></div>` +
       `<div class="count-audit-trail-note">${escapeHtml(value)}</div>` +
     `</li>`
   )).join('');
