@@ -2576,8 +2576,9 @@ form#break-op-form.count-form {
   border-color: #e3c86a;
 }
 
-/* ── Análise de Contagem (#sub-count-audit) e Registro de quebras (#sub-break-history) — mesmo tema visual ── */
+/* ── Análise de Contagem (#sub-count-audit), Base de Troca (#sub-mate-couro-troca) e Registro de quebras (#sub-break-history) — mesmo tema visual ── */
 #sub-count-audit.count-audit-page,
+#sub-mate-couro-troca.count-audit-page,
 #sub-break-history.break-history-page {
   --audit-radius: 12px;
   --audit-radius-sm: 10px;
@@ -2623,6 +2624,7 @@ form#break-op-form.count-form {
 }
 
 #module-contagem #sub-count-audit.sub-section.active.count-audit-page,
+#module-contagem #sub-mate-couro-troca.sub-section.active.count-audit-page,
 #module-contagem #sub-break-history.sub-section.active.break-history-page {
   display: block;
   width: 100%;
@@ -2630,6 +2632,7 @@ form#break-op-form.count-form {
 }
 
 #sub-count-audit .count-audit-shell,
+#sub-mate-couro-troca .count-audit-shell,
 #sub-break-history .count-audit-shell {
   display: flex;
   flex-direction: column;
@@ -2639,6 +2642,8 @@ form#break-op-form.count-form {
 
 #sub-count-audit .count-audit-shell > .card,
 #sub-count-audit .count-audit-workspace > .card,
+#sub-mate-couro-troca .count-audit-shell > .card,
+#sub-mate-couro-troca .count-audit-workspace > .card,
 #sub-break-history .count-audit-shell > .card,
 #sub-break-history .count-audit-workspace > .card {
   margin: 0;
@@ -2650,6 +2655,8 @@ form#break-op-form.count-form {
 
 #sub-count-audit,
 #sub-count-audit .count-audit-shell,
+#sub-mate-couro-troca,
+#sub-mate-couro-troca .count-audit-shell,
 #sub-break-history,
 #sub-break-history .count-audit-shell {
   font-family: var(--audit-font-sans);
@@ -3266,26 +3273,16 @@ form#break-op-form.count-form {
   min-width: 0;
 }
 
-.count-audit-workspace--mate-couro-stack {
+/* Base de Troca — workspace com duas filas (como fila da análise, empilhada) */
+#sub-mate-couro-troca .mate-troca-workspace {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
+  width: 100%;
 }
 
-.mate-couro-troca-toolbar-secondary {
-  padding: 0 0.25rem 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.mate-couro-troca-toolbar-hint {
-  margin: 0;
-  font-size: 0.85rem;
-}
-
-.mate-couro-pending-search {
-  padding: 0 0.35rem 0.75rem;
+.mate-troca-filters-hint {
+  margin: 0.35rem 0 0;
 }
 
 .mate-couro-pending-card .card-head {

@@ -754,7 +754,7 @@ const ACCESS_CATEGORIES = [
       { module: 'Puxada', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Devolução', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Quebra', roles: ['conferente', 'administrativo', 'admin'] },
-      { module: 'Base de troca (Mate couro)', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Base de Troca', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Venda Direta', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Validade (lançamento)', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Análise de Validades', roles: ['administrativo', 'admin'] },
@@ -3427,6 +3427,43 @@ function filterEventsMateCouro(events) {
   return (events || []).filter((ev) => set.has(normalizeItemCode(String(ev.cod_produto || ''))));
 }
 
+function updateMateCouroKpis() {
+  const state = readMateCouroTrocaStorage();
+  let sumCx = 0;
+  let sumUn = 0;
+  let nProd = 0;
+  for (const v of Object.values(state.pending || {})) {
+    const cx = Math.round(Number(v?.cx) || 0);
+    const un = Math.round(Number(v?.un) || 0);
+    sumCx += cx;
+    sumUn += un;
+    if (cx !== 0 || un !== 0) nProd += 1;
+  }
+  const snapDays = Object.keys(state.daySnapshots || {}).length;
+  const catalogLen = Array.isArray(mateCouroProductsCache) ? mateCouroProductsCache.length : 0;
+
+  const setText = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+
+  setText(
+    'mate-troca-kpi-items-day',
+    lastMateTrocaDayItemsCount == null ? '—' : String(lastMateTrocaDayItemsCount),
+  );
+  setText('mate-troca-kpi-pending-count', String(nProd));
+  setText('mate-troca-kpi-pend-cx', formatBreakIntegerBR(sumCx));
+  setText('mate-troca-kpi-pend-un', formatBreakIntegerBR(sumUn));
+  setText('mate-troca-kpi-catalog', catalogLen ? String(catalogLen) : '—');
+  setText('mate-troca-kpi-snap-days', String(snapDays));
+  setText(
+    'mate-troca-kpi-resume',
+    nProd
+      ? `${nProd} prod. · ${formatBreakIntegerBR(sumCx)} CX / ${formatBreakIntegerBR(sumUn)} UN`
+      : '—',
+  );
+}
+
 function renderMateCouroDayList(dayLabel, mateEvents) {
   const list = document.getElementById('mate-couro-troca-day-list');
   const chip = document.getElementById('mate-couro-troca-day-chip');
@@ -3524,7 +3561,6 @@ function renderMateCouroPendingList() {
   const ul = document.getElementById('mate-couro-troca-pending-list');
   const chip = document.getElementById('mate-couro-troca-pending-chip');
   const rangeInfo = document.getElementById('mate-couro-troca-pending-range-info');
-  const metaPending = document.getElementById('mate-couro-troca-meta-pending');
   if (!ul) return;
   const rows = getMateCouroPendingRowsFiltered();
   if (chip) chip.textContent = `${rows.length}`;
@@ -3533,11 +3569,11 @@ function renderMateCouroPendingList() {
       ? `${rows.length} produto(s) com saldo pendente de troca.`
       : 'Nenhum produto com saldo pendente.';
   }
-  if (metaPending) metaPending.textContent = rows.length ? `${rows.length}` : '—';
   ul.innerHTML = '';
   if (!rows.length) {
     ul.innerHTML =
       '<li class="count-audit-empty"><span>Nenhum saldo pendente. Carregue dias com quebra Mate couro para acumular.</span><strong>—</strong></li>';
+    updateMateCouroKpis();
     return;
   }
   for (const r of rows) {
@@ -3568,14 +3604,17 @@ function renderMateCouroPendingList() {
       `</div>`;
     ul.appendChild(li);
   }
+  updateMateCouroKpis();
 }
 
 async function loadMateCouroBreakDayList() {
   const feedback = document.getElementById('mate-couro-troca-feedback');
   const dateEl = document.getElementById('mate-couro-troca-date');
   const metaDate = document.getElementById('mate-couro-troca-meta-date');
-  const metaCount = document.getElementById('mate-couro-troca-meta-count');
   const list = document.getElementById('mate-couro-troca-day-list');
+  const statusEl = document.getElementById('mate-troca-analysis-status');
+  const lastSyncEl = document.getElementById('mate-troca-last-sync');
+  const lastLoadKpi = document.getElementById('mate-troca-kpi-last-load');
 
   const setFb = (visible, message, isError) => {
     if (!feedback) return;
@@ -3590,6 +3629,7 @@ async function loadMateCouroBreakDayList() {
   const token = getToken();
   if (!token) {
     setFb(true, 'Faça login para carregar.', true);
+    if (statusEl) statusEl.textContent = 'Sem sessão';
     return;
   }
 
@@ -3604,7 +3644,9 @@ async function loadMateCouroBreakDayList() {
   if (metaDate) metaDate.textContent = dayLabel;
 
   setFb(true, 'Carregando...', false);
+  if (statusEl) statusEl.textContent = 'Carregando…';
   await ensureMateCouroCatalogLoaded();
+  updateMateCouroKpis();
   await loadServerBreakTotals();
 
   try {
@@ -3620,15 +3662,21 @@ async function loadMateCouroBreakDayList() {
     }
     if (!response.ok) {
       setFb(true, 'Não foi possível carregar o registro.', true);
-      if (metaCount) metaCount.textContent = '—';
+      if (statusEl) statusEl.textContent = 'Falha';
+      lastMateTrocaDayItemsCount = null;
       renderMateCouroDayList(dayLabel, []);
+      updateMateCouroKpis();
       return;
     }
     const data = await response.json();
     const events = Array.isArray(data.events) ? data.events : [];
     const mateEvents = filterEventsMateCouro(events);
-    if (metaCount) metaCount.textContent = `${mateEvents.length}`;
+    lastMateTrocaDayItemsCount = mateEvents.length;
     const hadDelta = mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
+    const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    if (lastSyncEl) lastSyncEl.textContent = nowStr;
+    if (lastLoadKpi) lastLoadKpi.textContent = nowStr;
+    if (statusEl) statusEl.textContent = 'Pronto';
     if (hadDelta) {
       setFb(true, 'Novas quebras deste dia foram somadas ao pendente de troca.', false);
     } else if (mateEvents.length) {
@@ -3640,7 +3688,7 @@ async function loadMateCouroBreakDayList() {
     renderMateCouroPendingList();
   } catch {
     setFb(true, 'Sem conexão.', true);
-    if (metaCount) metaCount.textContent = '—';
+    if (statusEl) statusEl.textContent = 'Falha';
   }
 }
 
