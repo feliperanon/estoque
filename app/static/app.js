@@ -602,6 +602,7 @@ const PAGE_KEYS_BY_MODULE = {
     'break',
     'break-history',
     'mate-couro-troca',
+    'mate-couro-troca-trocas',
     'direct-sale',
     'validity',
     'validity-analysis',
@@ -971,6 +972,9 @@ function expandUserAllowedPagesForValidity(pages) {
   const arr = [...pages];
   if (arr.includes('validity')) {
     if (!arr.includes('validity-analysis')) arr.push('validity-analysis');
+  }
+  if (arr.includes('mate-couro-troca')) {
+    if (!arr.includes('mate-couro-troca-trocas')) arr.push('mate-couro-troca-trocas');
   }
   return arr;
 }
@@ -4209,7 +4213,7 @@ async function openMateTrocaPendingProductHistory(codRaw) {
   try {
     const params = new URLSearchParams();
     params.set('cod_produto', cod);
-    params.set('limit', '800');
+    params.set('limit', '500');
     const response = await apiFetch(`${API_MATE_TROCA_EVENTS}?${params.toString()}`, {
       headers: getAuthHeaders(),
       cache: 'no-store',
@@ -4519,6 +4523,50 @@ function bindMateCouroTrocaEvents() {
           renderMateCouroPendingList();
         }
       })();
+    });
+  }
+
+  const btnGoTrocas = document.getElementById('btn-mate-troca-go-trocas');
+  if (btnGoTrocas && !btnGoTrocas.dataset.mateTrocaNavBound) {
+    btnGoTrocas.dataset.mateTrocaNavBound = '1';
+    btnGoTrocas.addEventListener('click', () => setActiveModule('mate-couro-troca-trocas'));
+  }
+  const btnGoOps = document.getElementById('btn-mate-troca-go-operation');
+  if (btnGoOps && !btnGoOps.dataset.mateTrocaNavBound) {
+    btnGoOps.dataset.mateTrocaNavBound = '1';
+    btnGoOps.addEventListener('click', () => setActiveModule('mate-couro-troca'));
+  }
+  const btnBatchesReload = document.getElementById('btn-mate-troca-batches-reload');
+  if (btnBatchesReload && !btnBatchesReload.dataset.mateTrocaBatchBound) {
+    btnBatchesReload.dataset.mateTrocaBatchBound = '1';
+    btnBatchesReload.addEventListener('click', () => void loadMateTrocaTrocasPage());
+  }
+  const batchesUl = document.getElementById('mate-troca-batches-list');
+  if (batchesUl && batchesUl.dataset.mateBatchDelegate !== '1') {
+    batchesUl.dataset.mateBatchDelegate = '1';
+    batchesUl.addEventListener('click', (e) => {
+      const li = e.target.closest('.mate-troca-batch-item');
+      if (!li || !batchesUl.contains(li)) return;
+      const lid = li.getAttribute('data-close-log-id');
+      if (lid) void openMateTrocaBatchDetail(lid);
+    });
+    batchesUl.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const li = e.target.closest('.mate-troca-batch-item');
+      if (!li || !batchesUl.contains(li)) return;
+      e.preventDefault();
+      const lid = li.getAttribute('data-close-log-id');
+      if (lid) void openMateTrocaBatchDetail(lid);
+    });
+  }
+  const batchDlg = document.getElementById('mate-troca-batch-detail-dialog');
+  if (batchDlg && !batchDlg.dataset.mateBatchDlgBound) {
+    batchDlg.dataset.mateBatchDlgBound = '1';
+    batchDlg
+      .querySelector('.mate-troca-batch-detail-dialog-close')
+      ?.addEventListener('click', () => batchDlg.close());
+    batchDlg.addEventListener('click', (ev) => {
+      if (ev.target === batchDlg) batchDlg.close();
     });
   }
 }
