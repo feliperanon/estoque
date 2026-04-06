@@ -3838,7 +3838,7 @@ form#break-op-form.count-form {
   line-height: 1.25;
 }
 
-/* Contagem atual + pendente troca (Mate couro): total em destaque; parcela troca só em verde */
+/* Coluna Contagem: + pendente troca (Mate couro): total em destaque; parcela troca só em verde */
 .count-audit-cxu-pair--with-troca {
   gap: 0.22rem;
 }

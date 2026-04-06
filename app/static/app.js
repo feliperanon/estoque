@@ -7389,7 +7389,7 @@ function resolveMateCouroPendingEntry(pending, codProduto) {
 }
 
 /**
- * Alinha diferença CX/UN / |Dif| do meta com a mesma base usada em "Contagem atual"
+ * Alinha diferença CX/UN / |Dif| do meta com a mesma base usada em "Contagem:"
  * (sincronizado + pendente troca local). Evita mostrar +6 quando o total exibido é 373+1=374 vs base 367 (+7).
  */
 function reconcileCountAuditMetaDiffWithMergedCount(row) {
@@ -7946,7 +7946,7 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
         `</div>` +
         `<div class="count-audit-detail-grid">` +
           `<article class="count-audit-detail-metric"><span>Base / TXT</span><strong>${formatIntegerBR(Number(row.import_caixa) || 0)} CX / ${formatIntegerBR(Number(row.import_unidade) || 0)} UN</strong><small>${importInfo.id == null ? 'Fallback sem TXT' : (importInfo.file_name || 'Base importada')}</small></article>` +
-          `<article class="count-audit-detail-metric count-audit-detail-metric--current-cxu"><span>Contagem atual</span><div class="count-audit-detail-metric-cxu-wrap">${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div><small>${launches} lançamento(s) sincronizado(s)</small></article>` +
+          `<article class="count-audit-detail-metric count-audit-detail-metric--current-cxu"><span>Contagem:</span><div class="count-audit-detail-metric-cxu-wrap">${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div><small>${launches} lançamento(s) sincronizado(s)</small></article>` +
           `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(meta.diffCx ?? row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
           `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(meta.diffUn ?? row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
           `${trocaDetailArticle}` +
@@ -7990,7 +7990,7 @@ function renderCountAuditDesktopRowMarkup(row) {
           `</button>` +
         `</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span>${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem:</span>${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><div class="count-audit-diff-breakdown"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.diffCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.diffUn || 0)}</strong></div></div>` +
         `<div class="count-audit-cell count-audit-col-troca">${buildCountAuditTrocaColumnCellHtml(meta)}</div>` +
         `<div class="count-audit-cell count-audit-col-quebra">${buildCountAuditQuebraColumnCellHtml(meta)}</div>` +
