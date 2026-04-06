@@ -3680,7 +3680,6 @@ function updateMateCouroKpis() {
     sumUn += un;
     if (cx !== 0 || un !== 0) nProd += 1;
   }
-  const snapDays = Object.keys(state.daySnapshots || {}).length;
   const catalogLen = Array.isArray(mateCouroProductsCache) ? mateCouroProductsCache.length : 0;
 
   const setText = (id, text) => {
@@ -3696,7 +3695,6 @@ function updateMateCouroKpis() {
   setText('mate-troca-kpi-pend-cx', formatBreakIntegerBR(sumCx));
   setText('mate-troca-kpi-pend-un', formatBreakIntegerBR(sumUn));
   setText('mate-troca-kpi-catalog', catalogLen ? String(catalogLen) : '—');
-  setText('mate-troca-kpi-snap-days', String(snapDays));
   setText(
     'mate-troca-kpi-resume',
     nProd
@@ -3847,7 +3845,7 @@ function renderMateCouroPendingList() {
 async function loadMateCouroBreakDayList() {
   const dateEl = document.getElementById('mate-couro-troca-date');
   const list = document.getElementById('mate-couro-troca-day-list');
-  const lastLoadKpi = document.getElementById('mate-troca-kpi-last-load');
+  const lastSyncKpi = document.getElementById('mate-troca-kpi-last-sync');
 
   if (!list) return;
 
@@ -3891,7 +3889,7 @@ async function loadMateCouroBreakDayList() {
     lastMateTrocaDayItemsCount = mateEvents.length;
     mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    if (lastLoadKpi) lastLoadKpi.textContent = nowStr;
+    if (lastSyncKpi) lastSyncKpi.textContent = `${dayLabel} · ${nowStr}`;
     renderMateCouroDayList(dayLabel, mateEvents);
     renderMateCouroPendingList();
   } catch {
@@ -3961,6 +3959,7 @@ function renderMateTrocaBatchesList(batches) {
     const code = escapeHtml(String(b.batch_code || ''));
     const closed = b.closed_at ? mateTrocaHistoryDateTimeLabel(b.closed_at) : '—';
     const closing = escapeHtml(mateTrocaKindLabelPt(b.closing_kind));
+    const by = escapeHtml(String(b.closed_by || '—').trim() || '—');
     const li = document.createElement('li');
     li.className = 'mate-troca-batch-item count-audit-item';
     li.setAttribute('role', 'button');
@@ -3970,7 +3969,9 @@ function renderMateTrocaBatchesList(batches) {
       `<div class="mate-troca-batch-row">` +
       `<div><span class="count-audit-cell-label">Código da troca</span><strong class="mate-troca-batch-code">${code}</strong></div>` +
       `<div><span class="count-audit-cell-label">Produto</span><span>${desc}</span><div class="muted mate-troca-batch-cod">${cod}</div></div>` +
-      `<div><span class="count-audit-cell-label">Encerrou</span><span>${escapeHtml(closed)}</span><div class="muted">Tipo: ${closing}</div></div>` +
+      `<div><span class="count-audit-cell-label">Encerrou</span><span>${escapeHtml(closed)}</span>` +
+      `<div class="muted">Por quem: ${by}</div>` +
+      `<div class="muted">Tipo: ${closing}</div></div>` +
       `<div><span class="count-audit-cell-label">Lançamentos</span><span>${escapeHtml(String(b.event_count || 0))}</span>` +
       `<div class="muted">Σ entrada CX ${formatBreakIntegerBR(b.sum_qty_cx_in)} · UN ${formatBreakIntegerBR(b.sum_qty_un_in)}</div></div>` +
       `</div>`;
@@ -4009,7 +4010,10 @@ async function openMateTrocaBatchDetail(closeLogId) {
     const data = await response.json();
     const evs = Array.isArray(data.events) ? data.events : [];
     if (title) {
-      title.textContent = `Troca ${data.batch_code || ''} · ${data.cod_produto || ''}`;
+      const by = (data.closed_by && String(data.closed_by).trim()) || '';
+      title.textContent = by
+        ? `Troca ${data.batch_code || ''} · ${data.cod_produto || ''} · Encerrou: ${by}`
+        : `Troca ${data.batch_code || ''} · ${data.cod_produto || ''}`;
     }
     const parts = evs.map((ev) => {
       const kind = mateTrocaKindLabelPt(ev.kind);
@@ -4029,12 +4033,12 @@ async function openMateTrocaBatchDetail(closeLogId) {
         `<p class="mate-troca-pending-history-detail"><span class="count-audit-cell-label">Quando</span> ${when}</p>` +
         `<p class="mate-troca-pending-history-detail">${escapeHtml(mov)}</p>` +
         `<p class="mate-troca-pending-history-detail">${escapeHtml(pend)}</p>` +
-        `<p class="mate-troca-pending-history-actor muted"><span class="count-audit-cell-label">Nome</span> ${actor}</p>` +
+        `<p class="mate-troca-pending-history-actor muted"><span class="count-audit-cell-label">Por quem</span> ${actor}</p>` +
         `</li>`
       );
     });
     body.innerHTML =
-      `<p class="mate-troca-pending-history-lead muted">Lançamentos desta troca até o pendente zerar no servidor.</p>` +
+      `<p class="mate-troca-pending-history-lead muted">Lançamentos desta troca até o pendente zerar no servidor. Cada linha mostra por quem foi registrado.</p>` +
       `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
   } catch {
     body.innerHTML = '<p class="is-error">Sem conexão.</p>';
@@ -4099,7 +4103,7 @@ function renderMateTrocaServerLog(events) {
       `<span class="count-audit-cell-value">${escapeHtml(pendText)}</span>` +
       `</div>` +
       `<div class="count-audit-cell">` +
-      `<span class="count-audit-cell-label">Nome</span>` +
+      `<span class="count-audit-cell-label">Por quem</span>` +
       `<span class="count-audit-cell-value">${actor}</span>` +
       `</div>` +
       `</div>`;
@@ -4167,7 +4171,7 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
       `<p class="mate-troca-pending-history-detail">${escapeHtml(mov)}</p>` +
       `<p class="mate-troca-pending-history-detail">${escapeHtml(pend)}</p>` +
       `<p class="mate-troca-pending-history-actor muted">` +
-      `<span class="count-audit-cell-label">Nome</span> ` +
+      `<span class="count-audit-cell-label">Por quem</span> ` +
       `<span class="mate-troca-pending-history-actor-value">${actor}</span></p>` +
       `</li>`
     );

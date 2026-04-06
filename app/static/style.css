@@ -2667,8 +2667,8 @@ form#break-op-form.count-form {
 }
 
 #sub-mate-couro-troca .mate-troca-kpi-page-intro {
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
   border-bottom: 1px solid var(--audit-border);
 }
 
@@ -3077,127 +3077,79 @@ form#break-op-form.count-form {
 
 /* Base de Troca — painel de KPIs (layout próprio, não reutiliza placeholders da análise) */
 #sub-mate-couro-troca .mate-troca-kpi-shell {
-  padding: var(--audit-space-5) var(--audit-space-5);
-  background: linear-gradient(165deg, #ffffff 0%, #f0fdfa 38%, #f8fafc 100%);
-  border: 1px solid rgba(15, 118, 110, 0.2);
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06), 0 4px 20px rgba(15, 118, 110, 0.04);
-}
-
-#sub-mate-couro-troca .mate-troca-kpi-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 1.35rem;
-}
-
-#sub-mate-couro-troca .mate-troca-kpi-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  padding: 0.85rem 0.95rem;
-  border-radius: var(--audit-radius-sm);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(6px);
-}
-
-#sub-mate-couro-troca .mate-troca-kpi-group--ref {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: rgba(248, 250, 252, 0.9);
-}
-
-#sub-mate-couro-troca .mate-troca-kpi-group-title {
-  display: block;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--audit-subtle);
-  line-height: 1.2;
-}
-
-#sub-mate-couro-troca .mate-troca-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.65rem;
-  margin: 0;
-  padding: 0;
-}
-
-#sub-mate-couro-troca .mate-troca-kpi-tile {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 0.4rem;
-  min-width: 0;
-  min-height: 4.85rem;
-  padding: 0.85rem 0.9rem 0.9rem 1rem;
-  border-radius: 10px;
+  padding: var(--audit-space-4) var(--audit-space-5);
+  background: #fafbfc;
   border: 1px solid var(--audit-border);
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: none;
 }
 
-#sub-mate-couro-troca .mate-troca-kpi-tile::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.65rem;
-  bottom: 0.65rem;
-  width: 3px;
-  border-radius: 999px;
-  background: var(--audit-border-strong);
-  opacity: 0.85;
+/* Faixa única de KPIs — compacta, uma linha no desktop */
+#sub-mate-couro-troca .mate-troca-kpi-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0 0.85rem;
+  margin-top: 0.65rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-#sub-mate-couro-troca .mate-troca-kpi-tile--ops {
-  border-color: rgba(15, 118, 110, 0.22);
-  background: linear-gradient(145deg, #ffffff 0%, #f0fdfa 100%);
+#sub-mate-couro-troca .mate-troca-kpi-stat {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 0.35rem;
+  white-space: nowrap;
+  padding: 0.1rem 0;
 }
 
-#sub-mate-couro-troca .mate-troca-kpi-tile--ops::before {
-  background: linear-gradient(180deg, #0d9488 0%, #0f766e 100%);
+#sub-mate-couro-troca .mate-troca-kpi-stat:not(:first-child) {
+  padding-left: 0.85rem;
+  border-left: 1px solid rgba(148, 163, 184, 0.4);
 }
 
-#sub-mate-couro-troca .mate-troca-kpi-tile--ref {
-  background: #f8fafc;
-  border-color: #e2e8f0;
+#sub-mate-couro-troca .mate-troca-kpi-stat--grow {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-#sub-mate-couro-troca .mate-troca-kpi-tile--ref::before {
-  background: #94a3b8;
+#sub-mate-couro-troca .mate-troca-kpi-stat--grow .mate-troca-kpi-stat-val {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-#sub-mate-couro-troca .mate-troca-kpi-label {
-  font-size: 0.68rem;
+#sub-mate-couro-troca .mate-troca-kpi-stat-label {
+  font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--audit-muted);
-  line-height: 1.35;
-  padding-right: 0.25rem;
 }
 
-#sub-mate-couro-troca .mate-troca-kpi-num {
-  font-size: 1.28rem;
+#sub-mate-couro-troca .mate-troca-kpi-stat-val {
+  font-size: 0.875rem;
   font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  letter-spacing: -0.02em;
   color: var(--audit-ink);
   font-variant-numeric: tabular-nums;
-  word-break: break-word;
 }
 
-#sub-mate-couro-troca .mate-troca-kpi-tile--ops .mate-troca-kpi-num {
-  color: #0f172a;
-}
-
-#sub-mate-couro-troca .mate-troca-kpi-num--compact {
-  font-size: 1.02rem;
+#sub-mate-couro-troca .mate-troca-kpi-stat-val--soft {
   font-weight: 600;
-  line-height: 1.35;
+  font-size: 0.8125rem;
+  color: var(--audit-ink-secondary);
+}
+
+#sub-mate-couro-troca .mate-troca-kpi-stat-val--sync {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--audit-ink-secondary);
 }
 
 .count-audit-summary-placeholder,
@@ -4707,10 +4659,6 @@ body.count-audit-drawer-open {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  #sub-mate-couro-troca .mate-troca-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .count-audit-filter-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -4819,18 +4767,17 @@ body.count-audit-drawer-open {
     scroll-snap-type: x proximity;
   }
 
-  #sub-mate-couro-troca .mate-troca-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.55rem;
+  #sub-mate-couro-troca .mate-troca-kpi-strip {
+    gap: 0 0.55rem;
+    padding: 0.4rem 0.5rem;
   }
 
-  #sub-mate-couro-troca .mate-troca-kpi-tile {
-    min-height: 4.35rem;
-    padding: 0.75rem 0.8rem 0.8rem 0.9rem;
+  #sub-mate-couro-troca .mate-troca-kpi-stat:not(:first-child) {
+    padding-left: 0.65rem;
   }
 
-  #sub-mate-couro-troca .mate-troca-kpi-num {
-    font-size: 1.18rem;
+  #sub-mate-couro-troca .mate-troca-kpi-stat-label {
+    font-size: 0.6rem;
   }
 
   .count-audit-summary-placeholder,

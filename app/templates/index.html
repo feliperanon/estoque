@@ -520,6 +520,36 @@
                       <button type="button" id="btn-mate-couro-troca-load" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--primary count-audit-btn-refresh">Carregar</button>
                     </div>
                   </div>
+                  <div class="mate-troca-kpi-strip" role="group" aria-label="Indicadores da base de troca">
+                    <span class="mate-troca-kpi-stat">
+                      <span class="mate-troca-kpi-stat-label">Quebras (dia)</span>
+                      <strong class="mate-troca-kpi-stat-val" id="mate-troca-kpi-items-day">—</strong>
+                    </span>
+                    <span class="mate-troca-kpi-stat">
+                      <span class="mate-troca-kpi-stat-label">Pendentes</span>
+                      <strong class="mate-troca-kpi-stat-val" id="mate-troca-kpi-pending-count">0</strong>
+                    </span>
+                    <span class="mate-troca-kpi-stat">
+                      <span class="mate-troca-kpi-stat-label">CX pend.</span>
+                      <strong class="mate-troca-kpi-stat-val" id="mate-troca-kpi-pend-cx">0</strong>
+                    </span>
+                    <span class="mate-troca-kpi-stat">
+                      <span class="mate-troca-kpi-stat-label">UN pend.</span>
+                      <strong class="mate-troca-kpi-stat-val" id="mate-troca-kpi-pend-un">0</strong>
+                    </span>
+                    <span class="mate-troca-kpi-stat">
+                      <span class="mate-troca-kpi-stat-label">Catálogo</span>
+                      <strong class="mate-troca-kpi-stat-val" id="mate-troca-kpi-catalog">—</strong>
+                    </span>
+                    <span class="mate-troca-kpi-stat mate-troca-kpi-stat--grow">
+                      <span class="mate-troca-kpi-stat-label">Resumo</span>
+                      <strong class="mate-troca-kpi-stat-val mate-troca-kpi-stat-val--soft" id="mate-troca-kpi-resume">—</strong>
+                    </span>
+                    <span class="mate-troca-kpi-stat mate-troca-kpi-stat--sync">
+                      <span class="mate-troca-kpi-stat-label">Último carregar</span>
+                      <strong class="mate-troca-kpi-stat-val mate-troca-kpi-stat-val--sync" id="mate-troca-kpi-last-sync">—</strong>
+                    </span>
+                  </div>
                 </div>
               </section>
 
@@ -618,7 +648,7 @@
                   <span>Produto</span>
                   <span>Movimento</span>
                   <span>Pendente</span>
-                  <span>Nome</span>
+                  <span>Por quem</span>
                 </div>
                 <div class="count-audit-list-panel mate-troca-server-log-panel">
                   <ul id="mate-troca-server-log-list" class="count-audit-list-main" role="list" aria-label="Histórico de chegadas no servidor"></ul>

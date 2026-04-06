@@ -2228,6 +2228,7 @@ def list_mate_troca_batches(
                 "sum_qty_cx_in": sum_cx,
                 "sum_qty_un_in": sum_un,
                 "closing_kind": str(close.kind or "").strip(),
+                "_closing_actor_login": (close.actor_username or "").strip() or None,
             }
         )
     codes = sorted({s["cod_produto"] for s in summaries if s.get("cod_produto")})
@@ -2238,8 +2239,19 @@ def list_mate_troca_batches(
             cc = _normalize_item_code(p.cod_produto or "")
             if cc:
                 desc_map[cc] = (p.cod_grup_descricao or "").strip()
+    close_actor_logins = {
+        s["_closing_actor_login"]
+        for s in summaries
+        if s.get("_closing_actor_login")
+    }
+    close_name_map = _display_name_map_for_logins(session, close_actor_logins)
     for s in summaries:
         s["product_desc"] = desc_map.get(s["cod_produto"]) or None
+        lu = s.pop("_closing_actor_login", None)
+        if lu:
+            s["closed_by"] = close_name_map.get(lu, lu)
+        else:
+            s["closed_by"] = None
     return {"count": len(summaries), "batches": summaries}
 
 
@@ -2263,10 +2275,18 @@ def get_mate_troca_batch_by_close(
     if not segment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lote vazio.")
     events = _mate_logs_to_event_dicts(session, segment)
+    lu_close = (close.actor_username or "").strip()
+    cb_map = (
+        _display_name_map_for_logins(session, {lu_close})
+        if lu_close
+        else {}
+    )
+    closed_by = cb_map.get(lu_close, lu_close) if lu_close else None
     return {
         "batch_code": f"T-{int(close_log_id):06d}",
         "close_log_id": int(close_log_id),
         "cod_produto": str(close.cod_produto or ""),
         "event_count": len(events),
+        "closed_by": closed_by,
         "events": events,
     }
