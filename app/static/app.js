@@ -8,6 +8,17 @@ function getBrazilDateKey(d = new Date()) {
   }).format(d);
 }
 
+/** Primeiro e último dia do mês civil atual em America/Sao_Paulo (YYYY-MM-DD). */
+function getBrazilMonthBoundsDateKeys() {
+  const key = getBrazilDateKey();
+  const [ys, ms] = key.split('-');
+  const y = Number(ys);
+  const m = Number(ms);
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const pad2 = (n) => String(n).padStart(2, '0');
+  return { first: `${ys}-${ms}-01`, last: `${ys}-${ms}-${pad2(lastDay)}` };
+}
+
 function getActiveCountDateKey() {
   const el = document.getElementById('count-date');
   const v = (el && el.value || '').trim();
@@ -3287,7 +3298,7 @@ async function loadBreakHistoryList() {
         `<span class="count-audit-cell-value">${reason}</span>` +
         `</div>` +
         `<div class="count-audit-cell">` +
-        `<span class="count-audit-cell-label">Usuário</span>` +
+        `<span class="count-audit-cell-label">Nome</span>` +
         `<span class="count-audit-cell-value">${actor}</span>` +
         `</div>` +
         `</div>`;
@@ -3596,7 +3607,7 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(un)}</strong>` +
       `</div></div>` +
       `<div class="count-audit-cell">` +
-      `<span class="count-audit-cell-label">Usuário</span>` +
+      `<span class="count-audit-cell-label">Nome</span>` +
       `<span class="count-audit-cell-value">${actor}</span>` +
       `</div>` +
       `</div>`;
@@ -3679,24 +3690,14 @@ function renderMateCouroPendingList() {
 }
 
 async function loadMateCouroBreakDayList() {
-  const feedback = document.getElementById('mate-couro-troca-feedback');
   const dateEl = document.getElementById('mate-couro-troca-date');
   const list = document.getElementById('mate-couro-troca-day-list');
   const lastLoadKpi = document.getElementById('mate-troca-kpi-last-load');
-
-  const setFb = (visible, message, isError) => {
-    if (!feedback) return;
-    feedback.textContent = message || '';
-    feedback.style.display = visible ? '' : 'none';
-    feedback.classList.toggle('is-error', !!(visible && isError));
-    feedback.classList.toggle('is-info', !!(visible && !isError));
-  };
 
   if (!list) return;
 
   const token = getToken();
   if (!token) {
-    setFb(true, 'Faça login para carregar.', true);
     return;
   }
 
@@ -3709,7 +3710,6 @@ async function loadMateCouroBreakDayList() {
     dayLabel = d;
   }
 
-  setFb(true, 'Carregando...', false);
   await ensureMateCouroCatalogLoaded();
   updateMateCouroKpis();
   await loadServerBreakTotals();
@@ -3722,11 +3722,9 @@ async function loadMateCouroBreakDayList() {
       cache: 'no-store',
     });
     if (handleUnauthorizedResponse(response)) {
-      setFb(false, '', false);
       return;
     }
     if (!response.ok) {
-      setFb(true, 'Não foi possível carregar o registro.', true);
       lastMateTrocaDayItemsCount = null;
       renderMateCouroDayList(dayLabel, []);
       updateMateCouroKpis();
@@ -3736,20 +3734,12 @@ async function loadMateCouroBreakDayList() {
     const events = Array.isArray(data.events) ? data.events : [];
     const mateEvents = filterEventsMateCouro(events);
     lastMateTrocaDayItemsCount = mateEvents.length;
-    const hadDelta = mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
+    mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     if (lastLoadKpi) lastLoadKpi.textContent = nowStr;
-    if (hadDelta) {
-      setFb(true, 'Novas quebras deste dia foram somadas ao pendente de troca.', false);
-    } else if (mateEvents.length) {
-      setFb(true, 'Nenhuma alteração nas quebras deste dia desde o último Carregar.', false);
-    } else {
-      setFb(false, '', false);
-    }
     renderMateCouroDayList(dayLabel, mateEvents);
     renderMateCouroPendingList();
   } catch {
-    setFb(true, 'Sem conexão.', true);
     updateMateCouroKpis();
   }
 }
@@ -3820,7 +3810,7 @@ function renderMateTrocaServerLog(events) {
       `<span class="count-audit-cell-value">${escapeHtml(pendText)}</span>` +
       `</div>` +
       `<div class="count-audit-cell">` +
-      `<span class="count-audit-cell-label">Usuário</span>` +
+      `<span class="count-audit-cell-label">Nome</span>` +
       `<span class="count-audit-cell-value">${actor}</span>` +
       `</div>` +
       `</div>`;
@@ -3886,7 +3876,9 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
       `</div>` +
       `<p class="mate-troca-pending-history-detail">${escapeHtml(mov)}</p>` +
       `<p class="mate-troca-pending-history-detail">${escapeHtml(pend)}</p>` +
-      `<p class="mate-troca-pending-history-actor muted">${actor}</p>` +
+      `<p class="mate-troca-pending-history-actor muted">` +
+      `<span class="count-audit-cell-label">Nome</span> ` +
+      `<span class="mate-troca-pending-history-actor-value">${actor}</span></p>` +
       `</li>`
     );
   });
@@ -4010,6 +4002,14 @@ function parseMateCouroIntPrompt(label, def) {
 }
 
 function bindMateCouroTrocaEvents() {
+  const logFrom = document.getElementById('mate-troca-log-date-from');
+  const logTo = document.getElementById('mate-troca-log-date-to');
+  if (logFrom && logTo && !logFrom.value && !logTo.value) {
+    const bounds = getBrazilMonthBoundsDateKeys();
+    logFrom.value = bounds.first;
+    logTo.value = bounds.last;
+  }
+
   const dateEl = document.getElementById('mate-couro-troca-date');
   const btnLoad = document.getElementById('btn-mate-couro-troca-load');
   const btnClearAll = document.getElementById('btn-mate-couro-troca-clear-all');
@@ -5252,7 +5252,7 @@ function buildValidityDetailBodyHtml(row, todayBr) {
       </div>`
     : '';
 
-  return `${refMetrics}<p class="validity-detail-hint muted">Datas neste dia operacional</p><div class="validity-lines-table-wrap"><table class="validity-lines-table"><thead><tr><th>Vencimento</th><th>Faixa</th><th>Quem</th><th>Quando</th><th></th></tr></thead><tbody>${linesHtml}</tbody></table></div>${addBlock}`;
+  return `${refMetrics}<p class="validity-detail-hint muted">Datas neste dia operacional</p><div class="validity-lines-table-wrap"><table class="validity-lines-table"><thead><tr><th>Vencimento</th><th>Faixa</th><th>Nome</th><th>Quando</th><th></th></tr></thead><tbody>${linesHtml}</tbody></table></div>${addBlock}`;
 }
 
 function renderValidityAnalysisDetailPanel(row) {

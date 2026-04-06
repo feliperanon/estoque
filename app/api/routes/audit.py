@@ -207,6 +207,45 @@ def _normalize_item_code(value: str | None) -> str:
     return raw
 
 
+def _format_first_second_name(full_name: str | None, fallback_login: str | None) -> str:
+    """Primeiro e, se existir, segundo nome do cadastro; senão o login (e-mail)."""
+    fn = (full_name or "").strip()
+    if fn:
+        parts = fn.split()
+        if len(parts) >= 2:
+            return f"{parts[0]} {parts[1]}"
+        if parts:
+            return parts[0]
+    fb = (fallback_login or "").strip()
+    return fb if fb else "—"
+
+
+def _display_name_map_for_logins(session: Session, logins: set[str]) -> dict[str, str]:
+    """username (login) → rótulo para exibição (primeiro + segundo nome)."""
+    out: dict[str, str] = {}
+    clean = {x.strip() for x in logins if x and str(x).strip()}
+    if not clean:
+        return out
+    users = list(session.exec(select(User).where(User.username.in_(list(clean)))).all())
+    for u in users:
+        lu = (u.username or "").strip()
+        if lu:
+            out[lu] = _format_first_second_name(u.full_name, u.username)
+    for login in clean:
+        if login not in out:
+            out[login] = login
+    return out
+
+
+def _actor_csv_to_display_labels(actor_csv: str | None, name_map: dict[str, str]) -> str | None:
+    if actor_csv is None or not str(actor_csv).strip():
+        return None
+    parts = [p.strip() for p in re.split(r",\s*", str(actor_csv).strip()) if p.strip()]
+    if not parts:
+        return None
+    return ", ".join(name_map.get(p, p) for p in parts)
+
+
 def _extract_count_type(value: str | None) -> str:
     raw = (value or "").strip().upper()
     if raw.endswith("[UN]"):
@@ -1390,9 +1429,19 @@ def list_break_events(
             c = (p.cod_produto or "").strip()
             if c:
                 desc_map[c] = (p.cod_grup_descricao or "").strip()
+    break_logins: set[str] = set()
+    for r in rows:
+        ac = r.get("actor")
+        if ac and str(ac).strip():
+            break_logins.update(p.strip() for p in re.split(r",\s*", str(ac).strip()) if p.strip())
+    break_name_map = _display_name_map_for_logins(session, break_logins)
     for r in rows:
         c = str(r.get("cod_produto") or "")
         r["product_desc"] = desc_map.get(c) or None
+        ac = r.get("actor")
+        if ac:
+            disp = _actor_csv_to_display_labels(str(ac), break_name_map)
+            r["actor"] = disp if disp else ac
     return {"operational_date": d.isoformat(), "events": rows, "count": len(rows)}
 
 
@@ -1493,8 +1542,20 @@ def list_validity_lines(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao consultar validades: {exc}",
         ) from exc
+    v_logins = {
+        (r.actor_username or "").strip()
+        for r in rows
+        if r.actor_username and str(r.actor_username).strip()
+    }
+    v_name_map = _display_name_map_for_logins(session, v_logins)
     lines = []
     for r in rows:
+        au = r.actor_username
+        au_disp = (
+            v_name_map.get((au or "").strip(), au)
+            if au and str(au).strip()
+            else au
+        )
         lines.append(
             {
                 "id": r.id,
@@ -1507,7 +1568,7 @@ def list_validity_lines(
                 "operational_date": r.operational_date.isoformat(),
                 "observed_at": _validity_observed_at_iso(r.observed_at),
                 "device_name": r.device_name,
-                "actor_username": r.actor_username,
+                "actor_username": au_disp,
             }
         )
     return {"operational_date": d.isoformat(), "lines": lines}
@@ -1978,6 +2039,13 @@ def list_mate_troca_events(
             if cc:
                 desc_map[cc] = (p.cod_grup_descricao or "").strip()
 
+    mt_logins = {
+        (r.actor_username or "").strip()
+        for r in rows
+        if r.actor_username and str(r.actor_username).strip()
+    }
+    mt_name_map = _display_name_map_for_logins(session, mt_logins)
+
     def _iso(dt_val: datetime | None) -> str | None:
         if dt_val is None:
             return None
@@ -2003,7 +2071,11 @@ def list_mate_troca_events(
                 "excess_cx": int(r.excess_cx),
                 "excess_un": int(r.excess_un),
                 "device_name": r.device_name,
-                "actor_username": r.actor_username,
+                "actor_username": (
+                    mt_name_map.get((r.actor_username or "").strip(), r.actor_username)
+                    if r.actor_username
+                    else None
+                ),
                 "created_at": _iso(r.created_at),
             }
         )

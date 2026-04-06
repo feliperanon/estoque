@@ -2688,10 +2688,6 @@ form#break-op-form.count-form {
   padding-top: 0;
 }
 
-#sub-mate-couro-troca .mate-troca-kpi-page-intro .count-audit-feedback-block {
-  margin-top: 0.65rem;
-}
-
 #sub-mate-couro-troca .mate-troca-filters-actions-row {
   display: flex;
   flex-wrap: wrap;
@@ -3085,28 +3081,6 @@ form#break-op-form.count-form {
   background: linear-gradient(165deg, #ffffff 0%, #f0fdfa 38%, #f8fafc 100%);
   border: 1px solid rgba(15, 118, 110, 0.2);
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06), 0 4px 20px rgba(15, 118, 110, 0.04);
-}
-
-#sub-mate-couro-troca .mate-troca-kpi-head {
-  margin-bottom: var(--audit-space-5);
-}
-
-#sub-mate-couro-troca .mate-troca-kpi-head h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--audit-ink);
-  line-height: 1.25;
-}
-
-#sub-mate-couro-troca .mate-troca-kpi-lead {
-  margin: 0.35rem 0 0;
-  font-size: var(--audit-text-sm);
-  line-height: 1.45;
-  color: var(--audit-muted);
-  font-weight: 400;
-  max-width: 42rem;
 }
 
 #sub-mate-couro-troca .mate-troca-kpi-groups {
@@ -4773,8 +4747,7 @@ body.count-audit-drawer-open {
   .count-audit-meta-pill--soft,
   .count-audit-summary-placeholder--secondary,
   .count-audit-summary-item--secondary,
-  .count-audit-card-sub,
-  #sub-mate-couro-troca .mate-troca-kpi-lead {
+  .count-audit-card-sub {
     display: none;
   }
 
