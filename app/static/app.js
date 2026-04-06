@@ -4036,9 +4036,10 @@ async function openMateTrocaBatchDetail(closeLogId) {
       const dayOp = escapeHtml(mateTrocaHistoryDayLabel(ev));
       const when = escapeHtml(mateTrocaHistoryDateTimeLabel(ev.created_at));
       const actor = escapeHtml(String(ev.actor_username || '—'));
+      const chegouMaisPlain = mateTrocaChegouAMaisText(ev);
       const mov =
         String(ev.kind || '').trim() === 'chegada'
-          ? `Chegada: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`
+          ? `Chegada: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`
           : `${mateTrocaKindLabelPt(ev.kind)}: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
       const pend = `Pendente ${formatBreakIntegerBR(ev.pend_cx_before)}/${formatBreakIntegerBR(ev.pend_un_before)} → ${formatBreakIntegerBR(ev.pend_cx_after)}/${formatBreakIntegerBR(ev.pend_un_after)}`;
       return (
@@ -4048,6 +4049,9 @@ async function openMateTrocaBatchDetail(closeLogId) {
         `<span class="mate-troca-pending-history-kind">${escapeHtml(kind)}</span></div>` +
         `<p class="mate-troca-pending-history-detail"><span class="count-audit-cell-label">Quando</span> ${when}</p>` +
         `<p class="mate-troca-pending-history-detail">${escapeHtml(mov)}</p>` +
+        (chegouMaisPlain
+          ? `<p class="mate-troca-pending-history-detail mate-troca-chegou-a-mais">${escapeHtml(chegouMaisPlain)}</p>`
+          : '') +
         `<p class="mate-troca-pending-history-detail">${escapeHtml(pend)}</p>` +
         `<p class="mate-troca-pending-history-actor muted"><span class="count-audit-cell-label">Por quem</span> ${actor}</p>` +
         `</li>`

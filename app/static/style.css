@@ -7425,6 +7425,10 @@ details[open] > .validity-analytic-summary::after {
   line-height: 1.45;
   color: #334155;
 }
+.mate-troca-chegou-a-mais {
+  color: #9a3412;
+  font-weight: 500;
+}
 .mate-troca-pending-history-actor {
   margin: 0.35rem 0 0;
   font-size: 0.78rem;
