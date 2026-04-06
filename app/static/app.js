@@ -3653,8 +3653,9 @@ function renderMateCouroPendingList() {
     const li = document.createElement('li');
     li.className = 'count-audit-item mate-couro-pending-item';
     li.setAttribute('data-state', 'ok');
+    li.setAttribute('data-mate-pending-cod', r.cod);
     li.innerHTML =
-      `<div class="mate-couro-pending-audit-row">` +
+      `<div class="mate-couro-pending-audit-row mate-couro-pending-audit-row--clickable" role="presentation">` +
       `<div class="count-audit-cell count-audit-cell--product">` +
       `<div class="break-history-product-static">` +
       `<div class="count-audit-row-topline"><span class="count-audit-code-badge">${codEsc}</span></div>` +
@@ -3827,6 +3828,125 @@ function renderMateTrocaServerLog(events) {
   }
 }
 
+function mateTrocaHistoryEventSortKey(ev) {
+  const s = ev && ev.created_at ? String(ev.created_at) : '';
+  return s;
+}
+
+function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
+  const body = document.getElementById('mate-troca-pending-history-dialog-body');
+  const title = document.getElementById('mate-troca-pending-history-dialog-title');
+  if (!body) return;
+  const name = (productName || '').trim() || cod;
+  if (title) {
+    title.textContent = `Histórico · ${cod} · ${name}`;
+  }
+  if (!events.length) {
+    body.innerHTML =
+      `<p class="mate-troca-pending-history-empty muted">Nenhum lançamento sincronizado no servidor para este código ainda. ` +
+      `Após <strong>Registrar chegada</strong>, <strong>Definir saldo</strong>, <strong>Zerar</strong> ou <strong>Ajustar pendente</strong>, os registros aparecem aqui.</p>`;
+    return;
+  }
+  const sorted = [...events].sort((a, b) =>
+    mateTrocaHistoryEventSortKey(a).localeCompare(mateTrocaHistoryEventSortKey(b)),
+  );
+  const parts = sorted.map((ev) => {
+    let when = '—';
+    if (ev.created_at) {
+      try {
+        when = new Date(ev.created_at).toLocaleString('pt-BR', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+        });
+      } catch {
+        when = String(ev.created_at);
+      }
+    }
+    const kindRaw = String(ev.kind || '').trim();
+    const kind = mateTrocaKindLabelPt(ev.kind);
+    const extraTxt =
+      (Number(ev.excess_cx) > 0 || Number(ev.excess_un) > 0) && kindRaw === 'chegada'
+        ? ` · excedente CX ${formatBreakIntegerBR(ev.excess_cx)} UN ${formatBreakIntegerBR(ev.excess_un)}`
+        : '';
+    let mov = '';
+    if (kindRaw === 'chegada') {
+      mov = `Chegada (abatida do pendente): CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}${extraTxt}`;
+    } else if (kindRaw === 'zerar') {
+      mov = 'Pendente zerado neste aparelho.';
+    } else {
+      mov = `Quantidades informadas: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
+    }
+    const pend = `Pendente: ${formatBreakIntegerBR(ev.pend_cx_before)} CX / ${formatBreakIntegerBR(ev.pend_un_before)} UN → ${formatBreakIntegerBR(ev.pend_cx_after)} CX / ${formatBreakIntegerBR(ev.pend_un_after)} UN`;
+    const actor = escapeHtml(String(ev.actor_username || '—'));
+    return (
+      `<li class="mate-troca-pending-history-item">` +
+      `<div class="mate-troca-pending-history-item-head">` +
+      `<time class="mate-troca-pending-history-time" datetime="${escapeHtml(String(ev.created_at || ''))}">${escapeHtml(when)}</time>` +
+      `<span class="mate-troca-pending-history-kind">${escapeHtml(kind)}</span>` +
+      `</div>` +
+      `<p class="mate-troca-pending-history-detail">${escapeHtml(mov)}</p>` +
+      `<p class="mate-troca-pending-history-detail">${escapeHtml(pend)}</p>` +
+      `<p class="mate-troca-pending-history-actor muted">${actor}</p>` +
+      `</li>`
+    );
+  });
+  body.innerHTML =
+    `<p class="mate-troca-pending-history-lead muted">Ordem cronológica (mais antigo primeiro). Quantidades do servidor.</p>` +
+    `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
+}
+
+async function openMateTrocaPendingProductHistory(codRaw) {
+  const cod = normalizeItemCode(codRaw);
+  if (!cod) return;
+  const dlg = document.getElementById('mate-troca-pending-history-dialog');
+  const body = document.getElementById('mate-troca-pending-history-dialog-body');
+  if (!dlg || !body) return;
+
+  await ensureMateCouroCatalogLoaded();
+  const p = (mateCouroProductsCache || []).find(
+    (x) => normalizeItemCode(String(x.cod_produto || '')) === cod,
+  );
+  const desc = p ? String(p.cod_grup_descricao || '').trim() : '';
+
+  const dlgTitle = document.getElementById('mate-troca-pending-history-dialog-title');
+  if (dlgTitle) {
+    dlgTitle.textContent = desc ? `Histórico · ${cod} · ${desc}` : `Histórico · ${cod}`;
+  }
+  body.innerHTML = '<p class="muted mate-troca-pending-history-loading">Carregando histórico…</p>';
+  dlg.showModal();
+
+  const token = getToken();
+  if (!token) {
+    body.innerHTML =
+      '<p class="mate-troca-pending-history-empty is-error">Faça login para ver o histórico no servidor.</p>';
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.set('cod_produto', cod);
+    params.set('limit', '500');
+    const response = await apiFetch(`${API_MATE_TROCA_EVENTS}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) {
+      dlg.close();
+      return;
+    }
+    if (!response.ok) {
+      body.innerHTML =
+        '<p class="mate-troca-pending-history-empty is-error">Não foi possível carregar o histórico. Tente de novo.</p>';
+      return;
+    }
+    const data = await response.json();
+    const evs = Array.isArray(data.events) ? data.events : [];
+    renderMateTrocaPendingHistoryInDialog(evs, cod, desc);
+  } catch {
+    body.innerHTML = '<p class="mate-troca-pending-history-empty is-error">Sem conexão.</p>';
+  }
+}
+
 async function loadMateTrocaServerLogList() {
   const feedback = document.getElementById('mate-troca-server-log-feedback');
   const fromEl = document.getElementById('mate-troca-log-date-from');
@@ -3986,6 +4106,29 @@ function bindMateCouroTrocaEvents() {
     pendingSearch.dataset.mateTrocaBound = '1';
     pendingSearch.addEventListener('input', () => {
       renderMateCouroPendingList();
+    });
+  }
+
+  const mateTrocaHistDlg = document.getElementById('mate-troca-pending-history-dialog');
+  if (mateTrocaHistDlg && !mateTrocaHistDlg.dataset.mateTrocaHistBound) {
+    mateTrocaHistDlg.dataset.mateTrocaHistBound = '1';
+    mateTrocaHistDlg
+      .querySelector('.mate-troca-pending-history-dialog-close')
+      ?.addEventListener('click', () => mateTrocaHistDlg.close());
+    mateTrocaHistDlg.addEventListener('click', (ev) => {
+      if (ev.target === mateTrocaHistDlg) mateTrocaHistDlg.close();
+    });
+  }
+
+  if (pendingList && pendingList.dataset.matePendRowOpen !== '1') {
+    pendingList.dataset.matePendRowOpen = '1';
+    pendingList.addEventListener('click', (e) => {
+      if (e.target.closest('button') || e.target.closest('[data-mate-pend]')) return;
+      const li = e.target.closest('li.mate-couro-pending-item');
+      if (!li || !pendingList.contains(li)) return;
+      const cod = li.getAttribute('data-mate-pending-cod');
+      if (!cod) return;
+      void openMateTrocaPendingProductHistory(cod);
     });
   }
 

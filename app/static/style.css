@@ -7421,6 +7421,109 @@ details[open] > .validity-analytic-summary::after {
   max-height: calc(85vh - 80px);
 }
 
+/* Base de Troca — histórico ao tocar na linha do pendente */
+.mate-troca-pending-history-dialog {
+  width: min(100%, 560px);
+  max-width: calc(100vw - 24px);
+  max-height: min(88vh, 720px);
+  padding: 0;
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 22px 54px rgba(12, 37, 28, 0.35);
+}
+.mate-troca-pending-history-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+.mate-troca-pending-history-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.mate-troca-pending-history-dialog-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+}
+.mate-troca-pending-history-dialog-body {
+  padding: 12px 14px 18px;
+  overflow-y: auto;
+  max-height: calc(88vh - 88px);
+}
+.mate-troca-pending-history-lead {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+}
+.mate-troca-pending-history-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mate-troca-pending-history-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--audit-border, rgba(15, 23, 42, 0.1));
+  background: #fafbfc;
+}
+.mate-troca-pending-history-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.mate-troca-pending-history-time {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+.mate-troca-pending-history-kind {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0d5c56;
+  background: rgba(15, 118, 110, 0.1);
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+}
+.mate-troca-pending-history-detail {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #334155;
+}
+.mate-troca-pending-history-actor {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+}
+.mate-troca-pending-history-empty {
+  margin: 0;
+  line-height: 1.5;
+}
+.mate-troca-pending-history-empty.is-error {
+  color: #991b1b;
+}
+
+#sub-mate-couro-troca .mate-couro-pending-audit-row--clickable {
+  cursor: pointer;
+}
+#sub-mate-couro-troca .mate-couro-pending-audit-row--clickable .mate-couro-pending-actions {
+  cursor: default;
+}
+
 /* ── Análise de validades (desktop-first) ── */
 .validity-analysis-page .validity-analysis-hero {
   margin-bottom: 0;
