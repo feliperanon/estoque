@@ -112,19 +112,6 @@
         <!-- ── MÓDULO MÃE: CONTAGEM ── -->
         <section id="module-contagem" class="module-section">
           <div id="contagem-home" class="sub-section active">
-            <section class="card contagem-home-head">
-              <div>
-                <h2>Central de Operações de Estoque</h2>
-                <p class="muted">
-                  Fluxo rápido para rotina de inventário, validação, movimentação e prevenção de perdas.
-                </p>
-              </div>
-              <div class="contagem-status-row">
-                <span class="chip">Offline-first ativo</span>
-                <span class="chip">Sincronização automática</span>
-                <span class="chip">Rastreabilidade por usuário</span>
-              </div>
-            </section>
             <section class="contagem-kpi-grid">
               <article class="card mini-kpi-card">
                 <h3>Contagem do estoque</h3>
@@ -577,10 +564,8 @@
                   <div class="card-head count-audit-list-head">
                     <div>
                       <h3>Quebras do dia (Mate couro)</h3>
-                      <p class="count-audit-card-sub muted">Servidor — totais de quebra do dia (não confundir com pendente local)</p>
                     </div>
                     <div class="count-audit-list-head-meta">
-                      <span id="mate-couro-troca-day-chip" class="chip count-audit-total-chip" aria-live="polite">0</span>
                       <span id="mate-couro-troca-day-range-info" class="count-audit-range-info">Selecione o dia e carregue o registro.</span>
                     </div>
                   </div>
@@ -599,10 +584,8 @@
                   <div class="card-head count-audit-list-head">
                     <div>
                       <h3>Pendente de troca</h3>
-                      <p class="count-audit-card-sub muted">Acumulativo local (delta ao Carregar cada dia). Toque na linha do produto (fora dos botões) para ver o histórico de lançamentos (servidor e neste aparelho).</p>
                     </div>
                     <div class="count-audit-list-head-meta">
-                      <span id="mate-couro-troca-pending-chip" class="chip count-audit-total-chip" aria-live="polite">0</span>
                       <span id="mate-couro-troca-pending-range-info" class="count-audit-range-info">Nenhum produto com saldo pendente.</span>
                     </div>
                   </div>
@@ -680,31 +663,28 @@
 
           <!-- Sub: Trocas encerradas (consolidado Mate couro) -->
           <div id="sub-mate-couro-troca-trocas" class="sub-section count-audit-page mate-troca-page">
-            <section class="count-audit-shell mate-troca-shell" aria-labelledby="mate-couro-troca-trocas-title">
-              <section class="card mate-troca-kpi-shell">
-                <div class="mate-troca-kpi-page-intro">
-                  <h2 id="mate-couro-troca-trocas-title" class="count-audit-page-title">Trocas encerradas</h2>
-                  <p class="count-audit-page-subtitle mate-troca-page-subtitle">
-                    Cada linha é um ciclo em que o <strong>pendente chegou a zero</strong> no servidor (após chegada, definir saldo, zerar ou ajuste).
-                    O <strong>código da troca</strong> identifica o encerramento; toque para ver dia, quantidades e quem registrou.
+            <section class="count-audit-shell mate-troca-shell mate-troca-trocas-shell" aria-labelledby="mate-couro-troca-trocas-title">
+              <header class="mate-troca-trocas-hero">
+                <div class="mate-troca-trocas-hero__text">
+                  <h2 id="mate-couro-troca-trocas-title" class="mate-troca-trocas-title">Trocas encerradas</h2>
+                  <p class="mate-troca-trocas-lede">
+                    Cada linha é um ciclo em que o <strong>pendente chegou a zero</strong> no servidor (chegada, saldo, zerar ou ajuste).
+                    O <strong>código da troca</strong> identifica o encerramento — toque na linha para ver dia, quantidades e quem registrou.
                   </p>
-                  <div class="count-audit-header__toolbar mate-troca-kpi-toolbar" aria-label="Navegação trocas encerradas">
-                    <div class="count-audit-header__actions">
-                      <button type="button" id="btn-mate-troca-go-operation" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline">Voltar à operação</button>
-                      <button type="button" id="btn-mate-troca-batches-reload" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--primary">Atualizar lista</button>
-                    </div>
-                  </div>
                 </div>
-              </section>
-              <section class="card count-audit-list-card mate-troca-batches-card">
-                <div class="card-head count-audit-list-head">
-                  <div>
-                    <h3>Consolidado</h3>
-                    <p class="count-audit-card-sub muted">Últimos encerramentos (até ~12 mil eventos recentes no servidor). Toque na linha para abrir o detalhe.</p>
-                  </div>
+                <div class="mate-troca-trocas-hero__actions" aria-label="Navegação trocas encerradas">
+                  <button type="button" id="btn-mate-troca-go-operation" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline">Voltar à operação</button>
+                  <button type="button" id="btn-mate-troca-batches-reload" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--primary">Atualizar lista</button>
                 </div>
-                <div id="mate-troca-batches-feedback" class="field-feedback count-audit-feedback-block" style="display:none;" aria-live="polite"></div>
-                <div class="count-audit-list-panel">
+              </header>
+
+              <section class="card count-audit-list-card mate-troca-batches-card" aria-label="Lista de encerramentos">
+                <div class="mate-troca-trocas-list-bar">
+                  <span class="mate-troca-trocas-list-bar__label">Encerramentos recentes</span>
+                  <span class="mate-troca-trocas-list-bar__hint muted">Até ~12 mil eventos recentes no servidor · toque na linha para o detalhe</span>
+                </div>
+                <div id="mate-troca-batches-feedback" class="field-feedback count-audit-feedback-block mate-troca-trocas-feedback" style="display:none;" aria-live="polite"></div>
+                <div class="count-audit-list-panel mate-troca-trocas-list-panel">
                   <ul id="mate-troca-batches-list" class="count-audit-list-main" role="list" aria-label="Lista de trocas encerradas"></ul>
                 </div>
               </section>

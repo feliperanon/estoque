@@ -1723,6 +1723,20 @@ function estimateCountFinish(events, totalProducts) {
   return new Date(etaMs);
 }
 
+/** Previsão pelo ritmo médio (progresso / tempo desde o início) quando não há 2+ produtos com horário nos eventos locais. */
+function estimateCountFinishFromProgress(stats, startMs, nowMs) {
+  const total = stats.usesDimProgress ? stats.dimTotal : stats.total;
+  const done = stats.usesDimProgress ? stats.dimCompleted : stats.counted;
+  if (total <= 0 || done < 1 || total <= done) return null;
+  const elapsed = nowMs - startMs;
+  if (!Number.isFinite(elapsed) || elapsed < 1000) return null;
+  const rate = done / elapsed;
+  if (!(rate > 0)) return null;
+  const remaining = total - done;
+  const etaMs = nowMs + remaining / rate;
+  return new Date(etaMs);
+}
+
 function updateCountKpi(products = countProductsCache) {
   if (!kpiCountPercent || !kpiCountWindow || !kpiCountElapsed || !kpiCountEta) return;
   formatKpiCountUserLine();
@@ -1762,7 +1776,8 @@ function updateCountKpi(products = countProductsCache) {
   const lastMs = ends.length ? Math.max(startMs, ...ends) : startMs;
   const finished = total > 0 && percent >= 100;
   const endMs = finished ? lastMs : null;
-  const elapsedMs = (finished ? endMs : Date.now()) - startMs;
+  const nowMs = Date.now();
+  const elapsedMs = (finished ? endMs : nowMs) - startMs;
 
   kpiCountWindow.textContent = `Início: ${formatClock(startMs)} | Fim: ${finished ? formatClock(endMs) : '--:--'}`;
   kpiCountElapsed.textContent = `Tempo em andamento: ${formatDurationFromMs(elapsedMs)}`;
@@ -1772,10 +1787,27 @@ function updateCountKpi(products = countProductsCache) {
     return;
   }
 
-  const etaDate = estimateCountFinish(events, total);
-  kpiCountEta.textContent = etaDate
-    ? `Previsão de término: ${formatClock(etaDate)}`
-    : 'Previsão de término: coletando dados...';
+  let etaDate = estimateCountFinish(events, total);
+  if (!etaDate) {
+    etaDate = estimateCountFinishFromProgress(stats, startMs, nowMs);
+  }
+
+  if (etaDate) {
+    kpiCountEta.textContent = `Previsão de término: ${formatClock(etaDate)}`;
+    return;
+  }
+
+  const doneUnits = stats.usesDimProgress ? stats.dimCompleted : stats.counted;
+  const totalUnits = stats.usesDimProgress ? stats.dimTotal : stats.total;
+  if (totalUnits > 0 && doneUnits >= 1 && elapsedMs < 1000) {
+    kpiCountEta.textContent = 'Previsão de término: calculando…';
+  } else if (totalUnits > 0 && doneUnits >= 1) {
+    kpiCountEta.textContent =
+      'Previsão de término: indisponível (ritmo ainda irregular — continue lançando)';
+  } else {
+    kpiCountEta.textContent =
+      'Previsão de término: após o primeiro lançamento e ~1 min de operação';
+  }
 }
 
 function startCountKpiTicker() {
@@ -3727,10 +3759,8 @@ function updateMateCouroKpis() {
 
 function renderMateCouroDayList(dayLabel, mateEvents) {
   const list = document.getElementById('mate-couro-troca-day-list');
-  const chip = document.getElementById('mate-couro-troca-day-chip');
   const rangeInfo = document.getElementById('mate-couro-troca-day-range-info');
   if (!list) return;
-  if (chip) chip.textContent = `${mateEvents.length}`;
   if (rangeInfo) {
     rangeInfo.textContent = mateEvents.length
       ? `${mateEvents.length} produto(s) com lançamento Mate couro neste dia.`
@@ -3815,11 +3845,9 @@ function getMateCouroPendingRowsFiltered() {
 
 function renderMateCouroPendingList() {
   const ul = document.getElementById('mate-couro-troca-pending-list');
-  const chip = document.getElementById('mate-couro-troca-pending-chip');
   const rangeInfo = document.getElementById('mate-couro-troca-pending-range-info');
   if (!ul) return;
   const rows = getMateCouroPendingRowsFiltered();
-  if (chip) chip.textContent = `${rows.length}`;
   if (rangeInfo) {
     rangeInfo.textContent = rows.length
       ? `${rows.length} produto(s) com saldo pendente de troca.`
@@ -3988,14 +4016,26 @@ function renderMateTrocaBatchesList(batches) {
     li.tabIndex = 0;
     li.dataset.closeLogId = String(b.close_log_id || '');
     li.innerHTML =
-      `<div class="mate-troca-batch-row">` +
-      `<div><span class="count-audit-cell-label">Código da troca</span><strong class="mate-troca-batch-code">${code}</strong></div>` +
-      `<div><span class="count-audit-cell-label">Produto</span><span>${desc}</span><div class="muted mate-troca-batch-cod">${cod}</div></div>` +
-      `<div><span class="count-audit-cell-label">Encerrou</span><span>${escapeHtml(closed)}</span>` +
-      `<div class="muted">Por quem: ${by}</div>` +
-      `<div class="muted">Tipo: ${closing}</div></div>` +
-      `<div><span class="count-audit-cell-label">Lançamentos</span><span>${escapeHtml(String(b.event_count || 0))}</span>` +
-      `<div class="muted">Σ entrada CX ${formatBreakIntegerBR(b.sum_qty_cx_in)} · UN ${formatBreakIntegerBR(b.sum_qty_un_in)}</div></div>` +
+      `<div class="mate-troca-batch-row mate-troca-batch-row--trocas">` +
+      `<div class="mate-troca-batch-cell mate-troca-batch-cell--code">` +
+      `<span class="count-audit-cell-label">Código da troca</span>` +
+      `<strong class="mate-troca-batch-code">${code}</strong>` +
+      `</div>` +
+      `<div class="mate-troca-batch-cell mate-troca-batch-cell--product">` +
+      `<span class="count-audit-cell-label">Produto</span>` +
+      `<span class="mate-troca-batch-product">${desc}</span>` +
+      `<span class="muted mate-troca-batch-cod">${cod}</span>` +
+      `</div>` +
+      `<div class="mate-troca-batch-cell mate-troca-batch-cell--when">` +
+      `<span class="count-audit-cell-label">Encerrou</span>` +
+      `<span class="mate-troca-batch-when">${escapeHtml(closed)}</span>` +
+      `<span class="muted mate-troca-batch-who">${by} · ${closing}</span>` +
+      `</div>` +
+      `<div class="mate-troca-batch-cell mate-troca-batch-cell--move">` +
+      `<span class="count-audit-cell-label">Entrada (Σ)</span>` +
+      `<span class="mate-troca-batch-qty">CX ${formatBreakIntegerBR(b.sum_qty_cx_in)} · UN ${formatBreakIntegerBR(b.sum_qty_un_in)}</span>` +
+      `<span class="muted mate-troca-batch-events">${escapeHtml(String(b.event_count || 0))} lanç.</span>` +
+      `</div>` +
       `</div>`;
     ul.appendChild(li);
   }
