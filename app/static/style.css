@@ -2666,12 +2666,6 @@ form#break-op-form.count-form {
   gap: 1.35rem;
 }
 
-#sub-mate-couro-troca .mate-troca-kpi-shell {
-  background: linear-gradient(165deg, #ffffff 0%, #f0fdfa 38%, #f8fafc 100%);
-  border-color: rgba(15, 118, 110, 0.2);
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
-}
-
 #sub-mate-couro-troca .mate-troca-kpi-page-intro {
   padding-bottom: 1rem;
   margin-bottom: 1rem;
@@ -2690,6 +2684,8 @@ form#break-op-form.count-form {
 #sub-mate-couro-troca .mate-troca-kpi-toolbar {
   margin-top: 0.85rem;
   flex-wrap: wrap;
+  border-top: none;
+  padding-top: 0;
 }
 
 #sub-mate-couro-troca .mate-troca-kpi-page-intro .count-audit-feedback-block {
@@ -3086,9 +3082,9 @@ form#break-op-form.count-form {
 /* Base de Troca — painel de KPIs (layout próprio, não reutiliza placeholders da análise) */
 #sub-mate-couro-troca .mate-troca-kpi-shell {
   padding: var(--audit-space-5) var(--audit-space-5);
-  background: linear-gradient(165deg, #ffffff 0%, #f8fafc 52%, #ffffff 100%);
-  border: 1px solid var(--audit-border);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 20px rgba(15, 118, 110, 0.04);
+  background: linear-gradient(165deg, #ffffff 0%, #f0fdfa 38%, #f8fafc 100%);
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06), 0 4px 20px rgba(15, 118, 110, 0.04);
 }
 
 #sub-mate-couro-troca .mate-troca-kpi-head {
