@@ -21,6 +21,7 @@ from app.models.entities import (
     InventoryImportItem,
     RecountSignal,
     ValidityLine,
+    MateCouroTrocaLog,
 )
 
 __all__ = [
@@ -45,4 +46,5 @@ __all__ = [
     "InventoryImportItem",
     "RecountSignal",
     "ValidityLine",
+    "MateCouroTrocaLog",
 ]

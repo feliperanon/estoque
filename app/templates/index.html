@@ -636,6 +636,44 @@
                   </div>
                 </section>
               </div>
+
+              <section class="card count-audit-list-card mate-troca-server-log-card" aria-labelledby="mate-troca-server-log-title">
+                <div class="card-head count-audit-list-head">
+                  <div>
+                    <h3 id="mate-troca-server-log-title">Histórico de chegadas e ajustes (servidor)</h3>
+                    <p class="count-audit-card-sub muted">Registros sincronizados para todos os usuários — chegada, definir saldo, zerar e ajuste por código</p>
+                  </div>
+                </div>
+                <div class="mate-troca-server-log-toolbar count-audit-filters-panel">
+                  <div class="count-audit-search-row mate-troca-log-filters">
+                    <div class="count-audit-field count-audit-field--date">
+                      <label class="count-audit-label" for="mate-troca-log-date-from">De</label>
+                      <input id="mate-troca-log-date-from" name="mate-troca-log-date-from" type="date" class="search-input count-audit-date-input" aria-label="Histórico troca data inicial" />
+                    </div>
+                    <div class="count-audit-field count-audit-field--date">
+                      <label class="count-audit-label" for="mate-troca-log-date-to">Até</label>
+                      <input id="mate-troca-log-date-to" name="mate-troca-log-date-to" type="date" class="search-input count-audit-date-input" aria-label="Histórico troca data final" />
+                    </div>
+                    <div class="count-audit-field mate-troca-log-cod-field">
+                      <label class="count-audit-label" for="mate-troca-log-cod-filter">Código</label>
+                      <input id="mate-troca-log-cod-filter" class="search-input" type="text" inputmode="numeric" placeholder="Opcional" autocomplete="off" aria-label="Filtrar histórico por código do produto" />
+                    </div>
+                    <button type="button" id="btn-mate-troca-server-log-load" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--primary">Carregar histórico</button>
+                  </div>
+                  <div id="mate-troca-server-log-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
+                </div>
+                <div class="mate-troca-server-log-header" aria-hidden="true">
+                  <span>Quando</span>
+                  <span>Tipo</span>
+                  <span>Produto</span>
+                  <span>Movimento</span>
+                  <span>Pendente</span>
+                  <span>Usuário</span>
+                </div>
+                <div class="count-audit-list-panel mate-troca-server-log-panel">
+                  <ul id="mate-troca-server-log-list" class="count-audit-list-main" role="list" aria-label="Histórico de chegadas no servidor"></ul>
+                </div>
+              </section>
             </section>
           </div>
 

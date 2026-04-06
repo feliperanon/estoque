@@ -27,6 +27,7 @@ from app.models import (
     InventoryImport,
     InventoryImportItem,
     ValidityLine,
+    MateCouroTrocaLog,
     Product,
     ProductHistory,
     SourceMap,
@@ -53,6 +54,7 @@ _PURGE_MODELS: tuple[type, ...] = (
     InventoryImport,
     InventoryImportItem,
     ValidityLine,
+    MateCouroTrocaLog,
     ImportJob,
     SourceMap,
     EmployeeSnapshot,
@@ -108,6 +110,7 @@ def purge_all_except_users(session: Session) -> dict[str, Any]:
     run_delete(InventoryImportItem, "inventory_import_items")
     run_delete(InventoryImport, "inventory_imports")
     run_delete(ValidityLine, "validity_lines")
+    run_delete(MateCouroTrocaLog, "mate_couro_troca_logs")
 
     # 3) Produtos
     run_delete(ProductHistory, "product_history")

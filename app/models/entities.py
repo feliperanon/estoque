@@ -347,3 +347,26 @@ class RecountSignal(SQLModel, table=True):
     requested_by: str | None = Field(default=None, max_length=120)
     requested_at: datetime = Field(default_factory=utcnow)
 
+
+class MateCouroTrocaLog(SQLModel, table=True):
+    """Auditoria na Base de Troca (Mate couro): chegadas e ajustes de pendente."""
+
+    __tablename__ = "mate_couro_troca_logs"
+    __table_args__ = ({"schema": "app_core"},)
+
+    id: int | None = Field(default=None, primary_key=True)
+    client_event_id: str = Field(max_length=100, index=True, unique=True)
+    kind: str = Field(max_length=24, index=True)
+    cod_produto: str = Field(max_length=120, index=True)
+    qty_cx_in: int = Field(default=0)
+    qty_un_in: int = Field(default=0)
+    pend_cx_before: int = Field(default=0)
+    pend_un_before: int = Field(default=0)
+    pend_cx_after: int = Field(default=0)
+    pend_un_after: int = Field(default=0)
+    excess_cx: int = Field(default=0)
+    excess_un: int = Field(default=0)
+    device_name: str | None = Field(default=None, max_length=120)
+    actor_username: str | None = Field(default=None, max_length=120)
+    created_at: datetime = Field(default_factory=utcnow)
+
