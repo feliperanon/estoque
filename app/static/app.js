@@ -602,6 +602,7 @@ const PAGE_KEYS_BY_MODULE = {
     'break',
     'break-history',
     'mate-couro-troca',
+    'mate-couro-troca-historico',
     'mate-couro-troca-trocas',
     'direct-sale',
     'validity',
@@ -697,6 +698,7 @@ const SUB_MODULES = [
   'break',
   'break-history',
   'mate-couro-troca',
+  'mate-couro-troca-historico',
   'mate-couro-troca-trocas',
   'direct-sale',
   'validity',
@@ -723,6 +725,7 @@ const PAGE_TITLES = {
   break: 'Quebra',
   'break-history': 'Registro de quebras',
   'mate-couro-troca': 'Base de Troca',
+  'mate-couro-troca-historico': 'Histórico no servidor',
   'mate-couro-troca-trocas': 'Trocas encerradas',
   'direct-sale': 'Venda Direta',
   validity: 'Validade',
@@ -855,6 +858,8 @@ function setActiveSub(subKey) {
     loadBreakHistoryList();
   } else if (subKey === 'mate-couro-troca') {
     loadMateCouroTrocaPage();
+  } else if (subKey === 'mate-couro-troca-historico') {
+    /* Lista do histórico: carregamento explícito pelo usuário (Carregar histórico). */
   } else if (subKey === 'mate-couro-troca-trocas') {
     loadMateTrocaTrocasPage();
   } else if (subKey === 'count-audit') {
@@ -974,6 +979,7 @@ function expandUserAllowedPagesForValidity(pages) {
     if (!arr.includes('validity-analysis')) arr.push('validity-analysis');
   }
   if (arr.includes('mate-couro-troca')) {
+    if (!arr.includes('mate-couro-troca-historico')) arr.push('mate-couro-troca-historico');
     if (!arr.includes('mate-couro-troca-trocas')) arr.push('mate-couro-troca-trocas');
   }
   return arr;
@@ -988,7 +994,7 @@ function canAccessHash(hashKey) {
     return true;
   }
 
-  if (k === 'mate-couro-troca-trocas') {
+  if (k === 'mate-couro-troca-trocas' || k === 'mate-couro-troca-historico') {
     if (currentAllowedPages.length) {
       const expanded = expandUserAllowedPagesForValidity(currentAllowedPages);
       if (expanded.includes('mate-couro-troca')) return true;
@@ -3848,9 +3854,9 @@ function renderMateCouroPendingList() {
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
       `</div></div>` +
       `<div class="count-audit-cell mate-couro-pending-actions">` +
-      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--primary" data-mate-pend="recebeu" data-coderef="${codRef}">Registrar chegada</button>` +
-      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--outline" data-mate-pend="definir" data-coderef="${codRef}">Definir saldo</button>` +
-      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--muted" data-mate-pend="zerar" data-coderef="${codRef}">Zerar</button>` +
+      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--primary" data-mate-pend="recebeu" data-coderef="${codRef}" aria-label="Registrar chegada" title="Registrar chegada">Chegada</button>` +
+      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--outline" data-mate-pend="definir" data-coderef="${codRef}" aria-label="Definir saldo pendente" title="Definir saldo pendente">Saldo</button>` +
+      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--muted" data-mate-pend="zerar" data-coderef="${codRef}" aria-label="Zerar saldo pendente" title="Zerar saldo pendente">Zerar</button>` +
       `</div>` +
       `</div>`;
     ul.appendChild(li);
@@ -4146,7 +4152,7 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   if (!events.length) {
     body.innerHTML =
       `<p class="mate-troca-pending-history-empty muted">Nenhum lançamento para este código ainda ` +
-      `(servidor e histórico deste aparelho). Use <strong>Registrar chegada</strong>, <strong>Definir saldo</strong>, ` +
+      `(servidor e histórico deste aparelho). Use <strong>Chegada</strong>, <strong>Saldo</strong>, ` +
       `<strong>Zerar</strong> ou <strong>Ajustar pendente</strong> para gravar movimentos.</p>`;
     return;
   }
@@ -4549,10 +4555,29 @@ function bindMateCouroTrocaEvents() {
     });
   }
 
+  const btnGoHistorico = document.getElementById('btn-mate-troca-go-historico');
+  if (btnGoHistorico && !btnGoHistorico.dataset.mateTrocaNavHistoricoBound) {
+    btnGoHistorico.dataset.mateTrocaNavHistoricoBound = '1';
+    btnGoHistorico.addEventListener('click', () =>
+      setActiveModule('mate-couro-troca-historico'),
+    );
+  }
   const btnGoTrocas = document.getElementById('btn-mate-troca-go-trocas');
   if (btnGoTrocas && !btnGoTrocas.dataset.mateTrocaNavBound) {
     btnGoTrocas.dataset.mateTrocaNavBound = '1';
     btnGoTrocas.addEventListener('click', () => setActiveModule('mate-couro-troca-trocas'));
+  }
+  const btnHistGoOps = document.getElementById('btn-mate-troca-historico-go-operation');
+  if (btnHistGoOps && !btnHistGoOps.dataset.mateTrocaHistoricoNavBound) {
+    btnHistGoOps.dataset.mateTrocaHistoricoNavBound = '1';
+    btnHistGoOps.addEventListener('click', () => setActiveModule('mate-couro-troca'));
+  }
+  const btnHistGoTrocas = document.getElementById('btn-mate-troca-historico-go-trocas');
+  if (btnHistGoTrocas && !btnHistGoTrocas.dataset.mateTrocaHistoricoNavTrocasBound) {
+    btnHistGoTrocas.dataset.mateTrocaHistoricoNavTrocasBound = '1';
+    btnHistGoTrocas.addEventListener('click', () =>
+      setActiveModule('mate-couro-troca-trocas'),
+    );
   }
   const btnGoOps = document.getElementById('btn-mate-troca-go-operation');
   if (btnGoOps && !btnGoOps.dataset.mateTrocaNavBound) {

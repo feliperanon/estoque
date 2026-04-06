@@ -507,7 +507,7 @@
                   <p class="count-audit-page-subtitle mate-troca-page-subtitle">
                     A lista <strong>Quebras do dia</strong> mostra totais já lançados no servidor (não é o pendente).
                     O <strong>pendente de troca</strong> é acumulativo neste aparelho; use <strong>Carregar</strong> para somar deltas do dia.
-                    Chegadas e ajustes ficam no <strong>histórico no servidor</strong> (abaixo).
+                    Chegadas e ajustes sincronizados: abra <strong>Histórico no servidor</strong>.
                   </p>
                   <div class="count-audit-header__toolbar mate-troca-kpi-toolbar" aria-label="Ações da base de troca">
                     <div class="count-audit-field count-audit-field--date">
@@ -515,6 +515,7 @@
                       <input id="mate-couro-troca-date" name="mate-couro-troca-date" type="date" class="search-input count-audit-date-input" aria-label="Dia operacional da quebra" />
                     </div>
                     <div class="count-audit-header__actions">
+                      <button type="button" id="btn-mate-troca-go-historico" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline">Histórico no servidor</button>
                       <button type="button" id="btn-mate-troca-go-trocas" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline">Trocas encerradas</button>
                       <button type="button" id="btn-mate-couro-troca-load" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--primary count-audit-btn-refresh">Carregar</button>
                     </div>
@@ -567,7 +568,7 @@
                   <div class="count-audit-search-row">
                     <input id="mate-couro-troca-pending-search" class="search-input count-audit-search-input" type="search" placeholder="Buscar pendente por código ou produto…" autocomplete="off" aria-label="Buscar no pendente de troca" />
                   </div>
-                  <p class="count-audit-card-sub muted mate-troca-filters-hint">Ao receber a troca, use <strong>Registrar chegada</strong> ou <strong>Definir saldo</strong> na lista abaixo. Se o produto sumiu do pendente, use <strong>Ajustar pendente por código</strong>.</p>
+                  <p class="count-audit-card-sub muted mate-troca-filters-hint">Ao receber a troca, use <strong>Chegada</strong> ou <strong>Saldo</strong> na lista abaixo. Se o produto sumiu do pendente, use <strong>Ajustar pendente por código</strong>.</p>
                 </div>
               </section>
 
@@ -615,6 +616,27 @@
                   </div>
                 </section>
               </div>
+            </section>
+          </div>
+
+          <!-- Sub: Histórico de chegadas e ajustes (servidor) -->
+          <div id="sub-mate-couro-troca-historico" class="sub-section count-audit-page mate-troca-page">
+            <section class="count-audit-shell mate-troca-shell" aria-labelledby="mate-couro-troca-historico-title">
+              <section class="card mate-troca-kpi-shell">
+                <div class="mate-troca-kpi-page-intro">
+                  <h2 id="mate-couro-troca-historico-title" class="count-audit-page-title">Histórico no servidor</h2>
+                  <p class="count-audit-page-subtitle mate-troca-page-subtitle">
+                    Registros sincronizados para todos os usuários — chegada, definir saldo, zerar e ajuste por código.
+                    Filtre por período e código e use <strong>Carregar histórico</strong> na lista abaixo.
+                  </p>
+                  <div class="count-audit-header__toolbar mate-troca-kpi-toolbar" aria-label="Navegação histórico de troca">
+                    <div class="count-audit-header__actions">
+                      <button type="button" id="btn-mate-troca-historico-go-operation" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline">Voltar à operação</button>
+                      <button type="button" id="btn-mate-troca-historico-go-trocas" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline">Trocas encerradas</button>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
               <section class="card count-audit-list-card mate-troca-server-log-card" aria-labelledby="mate-troca-server-log-title">
                 <div class="card-head count-audit-list-head">
