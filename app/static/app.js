@@ -1571,16 +1571,14 @@ function computeCountProgressStats(products = countProductsCache) {
   const hasTxt = countImportBalancesState.hasTxt;
 
   /*
-   * Sem TXT: percent = produtos com algum lançamento / total produtos.
-   * Com TXT e linha no arquivo: cada produto vale 2 metades (CX + UN); só CX ou só UN = 50% desse item.
-   * Com TXT mas código fora do arquivo: 1 metade (há lançamento ou não).
+   * Sem TXT: percent = produtos com lançamento / total.
+   * Com TXT: percent (barra principal) = metades CX/UN que batem o import; productPercent/counted = produtos
+   * com qualquer lançamento (não só os já conferidos contra o TXT).
    */
   if (!hasTxt) {
     let counted = 0;
     for (const code of uniqueProducts) {
-      const cx = Number(getNetByProductAndType(code, 'caixa')) || 0;
-      const un = Number(getNetByProductAndType(code, 'unidade')) || 0;
-      if (cx > 0 || un > 0) counted += 1;
+      if (productHasAnyCountLaunch(code)) counted += 1;
     }
     const percent = total > 0 ? Math.min(100, Math.round((counted / total) * 100)) : 0;
     return {
@@ -1607,12 +1605,10 @@ function computeCountProgressStats(products = countProductsCache) {
       dimTotal += 2;
       if (dimCx === true) dimCompleted += 1;
       if (dimUn === true) dimCompleted += 1;
-      if (dimCx === true && dimUn === true) counted += 1;
+      if (productHasAnyCountLaunch(code)) counted += 1;
     } else {
       dimTotal += 1;
-      const cx = Number(netCx) || 0;
-      const un = Number(netUn) || 0;
-      if (cx > 0 || un > 0) {
+      if (productHasAnyCountLaunch(code)) {
         dimCompleted += 1;
         counted += 1;
       }
@@ -1645,14 +1641,11 @@ function countProgressDetailDimLabel(stats) {
   return `${counted} de ${total} produtos com lançamento`;
 }
 
-/** Descrição sob a barra de produtos (somente contagem “X de Y produtos”). */
+/** Descrição sob a barra de produtos: produtos com lançamento (não exige acerto com TXT). */
 function countProgressDetailProductsLabel(stats) {
-  const { total, counted, usesDimProgress, dimTotal } = stats;
+  const { total, counted } = stats;
   if (!total) return '0 de 0 produtos';
-  if (usesDimProgress && dimTotal > 0) {
-    return `${counted} de ${total} produtos`;
-  }
-  return `${counted} de ${total} produtos`;
+  return `${counted} de ${total} produtos com lançamento`;
 }
 
 function formatClock(dateValue) {
@@ -1723,10 +1716,10 @@ function estimateCountFinish(events, totalProducts) {
   return new Date(etaMs);
 }
 
-/** Previsão pelo ritmo médio (progresso / tempo desde o início) quando não há 2+ produtos com horário nos eventos locais. */
+/** Previsão pelo ritmo médio (produtos com lançamento / tempo desde o início). */
 function estimateCountFinishFromProgress(stats, startMs, nowMs) {
-  const total = stats.usesDimProgress ? stats.dimTotal : stats.total;
-  const done = stats.usesDimProgress ? stats.dimCompleted : stats.counted;
+  const total = stats.total;
+  const done = stats.counted;
   if (total <= 0 || done < 1 || total <= done) return null;
   const elapsed = nowMs - startMs;
   if (!Number.isFinite(elapsed) || elapsed < 1000) return null;
@@ -1810,8 +1803,8 @@ function updateCountKpi(products = countProductsCache) {
     return;
   }
 
-  const doneUnits = stats.usesDimProgress ? stats.dimCompleted : stats.counted;
-  const totalUnits = stats.usesDimProgress ? stats.dimTotal : stats.total;
+  const doneUnits = stats.counted;
+  const totalUnits = stats.total;
   if (totalUnits > 0 && doneUnits >= 1 && elapsedMs < 1000) {
     kpiCountEta.textContent = 'Previsão de término: calculando…';
   } else if (totalUnits > 0 && doneUnits >= 1) {
@@ -2332,6 +2325,14 @@ function hasAnyCountActivityForType(codRaw, countType) {
     if (v !== 0) return true;
   }
   return false;
+}
+
+/** Produto com ao menos uma dimensão contada (evento, servidor ou zero explícito). Não exige acerto com TXT. */
+function productHasAnyCountLaunch(codRaw) {
+  if (hasAnyCountActivityForType(codRaw, 'caixa') || hasAnyCountActivityForType(codRaw, 'unidade')) {
+    return true;
+  }
+  return countExplicitZeroStored(codRaw, 'caixa') || countExplicitZeroStored(codRaw, 'unidade');
 }
 
 async function loadImportBalancesForCount() {
