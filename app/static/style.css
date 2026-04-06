@@ -3781,6 +3781,18 @@ form#break-op-form.count-form {
   min-width: 0;
 }
 
+.count-audit-cell--troca-quebra {
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.count-audit-ops-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
 .count-audit-cell-label {
   font-size: 0.65rem;
   color: var(--audit-subtle);
@@ -4588,6 +4600,15 @@ body.count-audit-drawer-open {
   color: var(--audit-muted);
   font-size: 0.82rem;
   line-height: 1.45;
+}
+
+.count-audit-mobile-ops-wrap {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.count-audit-mobile-ops-wrap .count-audit-mobile-break-strip:first-child {
+  margin-top: 0;
 }
 
 .count-audit-mobile-break-strip {

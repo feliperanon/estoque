@@ -7842,6 +7842,77 @@ function buildCountAuditTrailHtml(row, meta, importInfo, actors, devices) {
   )).join('');
 }
 
+/** Pendente Base de Troca (local): só exibe bloco quando há saldo. */
+function countAuditHasTrocaPending(meta) {
+  const tCx = Math.max(0, Math.round(Number(meta?.trocaCx) || 0));
+  const tUn = Math.max(0, Math.round(Number(meta?.trocaUn) || 0));
+  return tCx > 0 || tUn > 0;
+}
+
+/** Quebra líquida no dia da análise: só exibe quando diferente de zero. */
+function countAuditHasBreakDay(meta) {
+  const bCx = Math.round(Number(meta?.breakCx) || 0);
+  const bUn = Math.round(Number(meta?.breakUn) || 0);
+  return bCx !== 0 || bUn !== 0;
+}
+
+/** Coluna desktop: blocos Troca e/ou Quebra; vazio se nenhum tiver rotina. */
+function buildCountAuditTrocaQuebraCellInnerHtml(meta) {
+  const parts = [];
+  if (countAuditHasTrocaPending(meta)) {
+    const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
+    const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
+    parts.push(
+      `<div class="count-audit-ops-block">` +
+        `<span class="count-audit-cell-label">Troca</span>` +
+        `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="Pendente acumulativo local (Base de Troca — CIA Mate couro); zerado ao limpar na Base de Troca">` +
+        `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(tCx)}</strong>` +
+        `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(tUn)}</strong>` +
+        `</div></div>`,
+    );
+  }
+  if (countAuditHasBreakDay(meta)) {
+    const bCx = Math.round(Number(meta.breakCx) || 0);
+    const bUn = Math.round(Number(meta.breakUn) || 0);
+    parts.push(
+      `<div class="count-audit-ops-block">` +
+        `<span class="count-audit-cell-label">Quebra</span>` +
+        `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da análise (mesma lógica da tela Quebra)">` +
+        `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(bCx)}</strong>` +
+        `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(bUn)}</strong>` +
+        `</div></div>`,
+    );
+  }
+  return parts.join('');
+}
+
+/** Resumo mobile: faixas Troca e/ou Quebra só quando houver valor. */
+function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
+  if (!countAuditHasTrocaPending(meta) && !countAuditHasBreakDay(meta)) return '';
+  const parts = [];
+  if (countAuditHasTrocaPending(meta)) {
+    const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
+    const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
+    parts.push(
+      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Pendente acumulativo local (Base de Troca — CIA Mate couro)">` +
+        `<span class="count-audit-mobile-break-label">Troca</span>` +
+        `<span class="count-audit-mobile-break-values">CX ${formatBreakIntegerBR(tCx)} · UN ${formatBreakIntegerBR(tUn)}</span>` +
+      `</div>`,
+    );
+  }
+  if (countAuditHasBreakDay(meta)) {
+    const bCx = Math.round(Number(meta.breakCx) || 0);
+    const bUn = Math.round(Number(meta.breakUn) || 0);
+    parts.push(
+      `<div class="count-audit-mobile-break-strip" title="Quebra no dia (mesma lógica da tela Quebra)">` +
+        `<span class="count-audit-mobile-break-label">Quebra</span>` +
+        `<span class="count-audit-mobile-break-values">CX ${formatBreakIntegerBR(bCx)} · UN ${formatBreakIntegerBR(bUn)}</span>` +
+      `</div>`,
+    );
+  }
+  return `<div class="count-audit-mobile-ops-wrap">${parts.join('')}</div>`;
+}
+
 /** Contagem sincronizada + pendente troca local: total em destaque; parcela troca em verde (sem rótulo). */
 function buildCountAuditMergedCurrentCxuHtml(row, meta) {
   const baseCx = Math.max(0, Math.round(Number(row.counted_caixa) || 0));
@@ -7890,6 +7961,12 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
   const expDetailLine = expIsoDetail
     ? `<div class="count-audit-detail-validity-line${expRiskDetail ? ` ${expRiskDetail}` : ''}">Validade (referência) · ${escapeHtml(formatDateBR(expIsoDetail))}</div>`
     : '';
+  const trocaDetailArticle = countAuditHasTrocaPending(meta)
+    ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (pendente local)</span><strong>${formatBreakIntegerBR(Math.max(0, Math.round(Number(meta.trocaCx) || 0)))} CX / ${formatBreakIntegerBR(Math.max(0, Math.round(Number(meta.trocaUn) || 0)))} UN</strong><small>Base de Troca — CIA Mate couro; zerado ao limpar no aparelho</small></article>`
+    : '';
+  const breakDetailArticle = countAuditHasBreakDay(meta)
+    ? `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatBreakIntegerBR(Math.round(Number(meta.breakCx) || 0))} CX / ${formatBreakIntegerBR(Math.round(Number(meta.breakUn) || 0))} UN</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>`
+    : '';
 
   return (
     `<div class="${shellClass}">` +
@@ -7910,7 +7987,8 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
           `<article class="count-audit-detail-metric count-audit-detail-metric--current-cxu"><span>Contagem atual</span><div class="count-audit-detail-metric-cxu-wrap">${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div><small>${launches} lançamento(s) sincronizado(s)</small></article>` +
           `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
           `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatBreakIntegerBR(meta.breakCx || 0)} CX / ${formatBreakIntegerBR(meta.breakUn || 0)} UN</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>` +
+          `${trocaDetailArticle}` +
+          `${breakDetailArticle}` +
         `</div>` +
       `</section>` +
       `${isLoading ? '<div class="count-audit-detail-loading">Carregando trilha detalhada deste item...</div>' : ''}` +
@@ -7952,7 +8030,7 @@ function renderCountAuditDesktopRowMarkup(row) {
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span>${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><div class="count-audit-diff-breakdown"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.diffCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.diffUn || 0)}</strong></div></div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Quebra</span><div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da análise (mesma lógica da tela Quebra)"><strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(meta.breakCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(meta.breakUn || 0)}</strong></div></div>` +
+        `<div class="count-audit-cell count-audit-cell--troca-quebra">${buildCountAuditTrocaQuebraCellInnerHtml(meta)}</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
         `<div class="count-audit-cell count-audit-cell--recount-live"><button type="button" class="count-audit-btn-recount-live" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button></div>` +
@@ -8003,10 +8081,7 @@ function renderCountAuditMobileRowMarkup(row) {
             `<strong class="count-audit-mobile-diff">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong>` +
             `<span class="count-audit-mobile-action">${escapeHtml(getCountAuditCompactActionLabel(meta))}</span>` +
           `</div>` +
-          `<div class="count-audit-mobile-break-strip" title="Quebra no dia (mesma lógica da tela Quebra)">` +
-            `<span class="count-audit-mobile-break-label">Quebra</span>` +
-            `<span class="count-audit-mobile-break-values">CX ${formatBreakIntegerBR(meta.breakCx || 0)} · UN ${formatBreakIntegerBR(meta.breakUn || 0)}</span>` +
-          `</div>` +
+          `${buildCountAuditMobileTrocaQuebraOpsHtml(meta)}` +
         `</button>` +
         `<button type="button" class="count-audit-mobile-recount-live-btn" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar em tempo real</button>` +
         `<button type="button" class="btn-secondary count-audit-mobile-detail-toggle" data-action="toggle" data-code="${encodeURIComponent(code)}">${isExpanded ? 'Ocultar detalhe' : 'Ver detalhe'}</button>` +
