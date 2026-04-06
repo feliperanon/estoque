@@ -696,6 +696,7 @@ const SUB_MODULES = [
   'break',
   'break-history',
   'mate-couro-troca',
+  'mate-couro-troca-trocas',
   'direct-sale',
   'validity',
   'validity-analysis',
@@ -721,6 +722,7 @@ const PAGE_TITLES = {
   break: 'Quebra',
   'break-history': 'Registro de quebras',
   'mate-couro-troca': 'Base de Troca',
+  'mate-couro-troca-trocas': 'Trocas encerradas',
   'direct-sale': 'Venda Direta',
   validity: 'Validade',
   'validity-analysis': 'Análise de Validades',
@@ -733,8 +735,10 @@ const PAGE_TITLES = {
 
 const PRODUCT_DEFAULTS_KEY = 'estoque_product_defaults_v1';
 /** Acumulativo de troca (Mate couro): pending + dias já incorporados — só neste aparelho. */
-const MATE_COURO_TROCA_STORAGE_KEY = 'estoque_mate_couro_troca_v2';
+const MATE_COURO_TROCA_STORAGE_KEY = 'estoque_mate_couro_troca_v3';
+const MATE_COURO_TROCA_STORAGE_PREV_KEY = 'estoque_mate_couro_troca_v2';
 const MATE_COURO_TROCA_STORAGE_LEGACY_KEY = 'estoque_mate_couro_troca_acum_v1';
+const API_MATE_TROCA_BATCHES = '/audit/mate-troca-batches';
 const MATE_COURO_CIA = 'Mate couro';
 const DEFAULT_PRODUCT_PARAMS = {
   cod_grup_sp: [],
@@ -850,6 +854,8 @@ function setActiveSub(subKey) {
     loadBreakHistoryList();
   } else if (subKey === 'mate-couro-troca') {
     loadMateCouroTrocaPage();
+  } else if (subKey === 'mate-couro-troca-trocas') {
+    loadMateTrocaTrocasPage();
   } else if (subKey === 'count-audit') {
     startCountAuditPolling();
   } else if (subKey === 'validity-analysis') {
@@ -978,6 +984,13 @@ function canAccessHash(hashKey) {
     return true;
   }
 
+  if (k === 'mate-couro-troca-trocas') {
+    if (currentAllowedPages.length) {
+      const expanded = expandUserAllowedPagesForValidity(currentAllowedPages);
+      if (expanded.includes('mate-couro-troca')) return true;
+    }
+    return canAccessHash('break');
+  }
   if (k === 'break-history' || k === 'mate-couro-troca') {
     return canAccessHash('break');
   }
@@ -3314,19 +3327,31 @@ async function loadBreakHistoryList() {
 function readMateCouroTrocaStorage() {
   try {
     let raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_KEY);
+    if (!raw) raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_PREV_KEY);
     if (!raw) raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_LEGACY_KEY);
-    if (!raw) return { pending: {}, daySnapshots: {} };
+    if (!raw) return { pending: {}, daySnapshots: {}, eventLog: [] };
     const o = JSON.parse(raw);
-    if (!o || typeof o !== 'object') return { pending: {}, daySnapshots: {} };
+    if (!o || typeof o !== 'object') return { pending: {}, daySnapshots: {}, eventLog: [] };
+    const eventLog = Array.isArray(o.eventLog)
+      ? o.eventLog.filter((e) => e && typeof e === 'object')
+      : [];
     if (o.pending && typeof o.pending === 'object') {
       return {
         pending: o.pending,
         daySnapshots: o.daySnapshots && typeof o.daySnapshots === 'object' ? o.daySnapshots : {},
+        eventLog,
       };
     }
     const pending = {};
     for (const [k, v] of Object.entries(o)) {
-      if (k === 'pending' || k === 'daySnapshots' || k === 'incorporatedDays') continue;
+      if (
+        k === 'pending' ||
+        k === 'daySnapshots' ||
+        k === 'incorporatedDays' ||
+        k === 'eventLog'
+      ) {
+        continue;
+      }
       if (v && typeof v === 'object' && ('cx' in v || 'un' in v)) {
         const base = normalizeItemCode(k);
         pending[base] = {
@@ -3335,9 +3360,9 @@ function readMateCouroTrocaStorage() {
         };
       }
     }
-    return { pending, daySnapshots: {} };
+    return { pending, daySnapshots: {}, eventLog };
   } catch {
-    return { pending: {}, daySnapshots: {} };
+    return { pending: {}, daySnapshots: {}, eventLog: [] };
   }
 }
 
@@ -3347,11 +3372,137 @@ function writeMateCouroTrocaStorage(state) {
       pending: state.pending && typeof state.pending === 'object' ? state.pending : {},
       daySnapshots:
         state.daySnapshots && typeof state.daySnapshots === 'object' ? state.daySnapshots : {},
+      eventLog: Array.isArray(state.eventLog) ? state.eventLog : [],
     };
     localStorage.setItem(MATE_COURO_TROCA_STORAGE_KEY, JSON.stringify(payload));
     localStorage.removeItem(MATE_COURO_TROCA_STORAGE_LEGACY_KEY);
+    localStorage.removeItem(MATE_COURO_TROCA_STORAGE_PREV_KEY);
   } catch (e) {
     console.warn(e);
+  }
+}
+
+function mateTrocaLocalActorLabel() {
+  const u = getUser();
+  return (u && (u.full_name || u.name || u.username)) || '—';
+}
+
+function markMateTrocaLocalEventsSynced(ids) {
+  const idset = new Set((ids || []).map((x) => String(x || '').trim()).filter(Boolean));
+  if (!idset.size) return;
+  const state = readMateCouroTrocaStorage();
+  if (!Array.isArray(state.eventLog)) return;
+  for (const e of state.eventLog) {
+    if (idset.has(String(e.client_event_id || '').trim())) e.synced = true;
+  }
+  writeMateCouroTrocaStorage(state);
+}
+
+async function syncMateTrocaEventsToServer(events) {
+  const arr = events || [];
+  if (!arr.length) return { ok: true };
+  const state = readMateCouroTrocaStorage();
+  if (!Array.isArray(state.eventLog)) state.eventLog = [];
+  const opDay = getBrazilDateKey();
+  const actor = mateTrocaLocalActorLabel();
+  const nowIso = new Date().toISOString();
+  for (const payload of arr) {
+    state.eventLog.push({
+      client_event_id: payload.client_event_id,
+      kind: payload.kind,
+      cod_produto: normalizeItemCode(String(payload.cod_produto || '')),
+      qty_cx_in: Math.round(Number(payload.qty_cx_in) || 0),
+      qty_un_in: Math.round(Number(payload.qty_un_in) || 0),
+      pend_cx_before: Math.round(Number(payload.pend_cx_before) || 0),
+      pend_un_before: Math.round(Number(payload.pend_un_before) || 0),
+      pend_cx_after: Math.round(Number(payload.pend_cx_after) || 0),
+      pend_un_after: Math.round(Number(payload.pend_un_after) || 0),
+      excess_cx: Math.round(Number(payload.excess_cx) || 0),
+      excess_un: Math.round(Number(payload.excess_un) || 0),
+      device_name: payload.device_name || null,
+      operational_date: opDay,
+      created_at_local: nowIso,
+      actor_label: actor,
+      synced: false,
+    });
+  }
+  while (state.eventLog.length > 500) state.eventLog.shift();
+  writeMateCouroTrocaStorage(state);
+  const res = await postMateTrocaEventsToServer(arr);
+  if (res.ok) {
+    markMateTrocaLocalEventsSynced(arr.map((e) => e.client_event_id));
+  }
+  return res;
+}
+
+function mergeMateTrocaHistoryForCod(cod, serverEvents) {
+  const base = normalizeItemCode(cod);
+  const byCid = new Map();
+  for (const ev of serverEvents || []) {
+    const cid = String(ev.client_event_id || '').trim();
+    if (cid) {
+      byCid.set(cid, { ...ev, _source: 'server' });
+    } else if (ev.id != null) {
+      byCid.set(`srv:${ev.id}`, { ...ev, _source: 'server' });
+    }
+  }
+  const state = readMateCouroTrocaStorage();
+  for (const ev of state.eventLog || []) {
+    if (normalizeItemCode(String(ev.cod_produto || '')) !== base) continue;
+    const cid = String(ev.client_event_id || '').trim();
+    if (!cid || byCid.has(cid)) continue;
+    byCid.set(cid, {
+      client_event_id: ev.client_event_id,
+      kind: ev.kind,
+      cod_produto: ev.cod_produto,
+      qty_cx_in: ev.qty_cx_in,
+      qty_un_in: ev.qty_un_in,
+      pend_cx_before: ev.pend_cx_before,
+      pend_un_before: ev.pend_un_before,
+      pend_cx_after: ev.pend_cx_after,
+      pend_un_after: ev.pend_un_after,
+      excess_cx: ev.excess_cx,
+      excess_un: ev.excess_un,
+      device_name: ev.device_name,
+      created_at: ev.created_at_local,
+      operational_date: ev.operational_date,
+      actor_username: ev.actor_label,
+      product_desc: null,
+      _pendingSync: !ev.synced,
+      _source: 'local',
+    });
+  }
+  return Array.from(byCid.values()).sort((a, b) => {
+    const ta = Date.parse(a.created_at || '') || 0;
+    const tb = Date.parse(b.created_at || '') || 0;
+    return ta - tb;
+  });
+}
+
+function mateTrocaHistoryDayLabel(ev) {
+  if (ev.operational_date) return formatDateBR(ev.operational_date);
+  const iso = ev.created_at;
+  if (!iso) return '—';
+  try {
+    return new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      dateStyle: 'short',
+    }).format(new Date(iso));
+  } catch {
+    return '—';
+  }
+}
+
+function mateTrocaHistoryDateTimeLabel(iso) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+  } catch {
+    return '—';
   }
 }
 
@@ -3752,6 +3903,140 @@ async function loadMateCouroTrocaPage() {
   await loadMateCouroBreakDayList();
 }
 
+async function loadMateTrocaTrocasPage() {
+  const ul = document.getElementById('mate-troca-batches-list');
+  const fb = document.getElementById('mate-troca-batches-feedback');
+  const setFb = (msg, isErr) => {
+    if (!fb) return;
+    fb.textContent = msg || '';
+    fb.style.display = msg ? '' : 'none';
+    fb.classList.toggle('is-error', !!isErr);
+  };
+  if (!ul) return;
+  const token = getToken();
+  if (!token) {
+    ul.innerHTML = '<li class="count-audit-empty"><span>Faça login.</span></li>';
+    setFb('Faça login para ver trocas encerradas.', true);
+    return;
+  }
+  setFb('Carregando…', false);
+  ul.innerHTML = '<li class="count-audit-empty"><span>Carregando…</span></li>';
+  try {
+    const response = await apiFetch(`${API_MATE_TROCA_BATCHES}?limit=200`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) {
+      setFb('Não foi possível carregar o consolidado.', true);
+      ul.innerHTML = '<li class="count-audit-empty"><span>Falha ao carregar.</span></li>';
+      return;
+    }
+    const data = await response.json();
+    const batches = Array.isArray(data.batches) ? data.batches : [];
+    setFb('', false);
+    renderMateTrocaBatchesList(batches);
+  } catch {
+    setFb('Sem conexão.', true);
+    ul.innerHTML = '<li class="count-audit-empty"><span>Sem conexão.</span></li>';
+  }
+}
+
+function renderMateTrocaBatchesList(batches) {
+  const ul = document.getElementById('mate-troca-batches-list');
+  if (!ul) return;
+  ul.innerHTML = '';
+  if (!batches.length) {
+    ul.innerHTML =
+      '<li class="count-audit-empty"><span>Nenhuma troca encerrada no período analisado (pendente zerado no servidor).</span></li>';
+    return;
+  }
+  for (const b of batches) {
+    const cod = escapeHtml(String(b.cod_produto || ''));
+    const desc = escapeHtml(String(b.product_desc || '').trim() || '—');
+    const code = escapeHtml(String(b.batch_code || ''));
+    const closed = b.closed_at ? mateTrocaHistoryDateTimeLabel(b.closed_at) : '—';
+    const closing = escapeHtml(mateTrocaKindLabelPt(b.closing_kind));
+    const li = document.createElement('li');
+    li.className = 'mate-troca-batch-item count-audit-item';
+    li.setAttribute('role', 'button');
+    li.tabIndex = 0;
+    li.dataset.closeLogId = String(b.close_log_id || '');
+    li.innerHTML =
+      `<div class="mate-troca-batch-row">` +
+      `<div><span class="count-audit-cell-label">Código da troca</span><strong class="mate-troca-batch-code">${code}</strong></div>` +
+      `<div><span class="count-audit-cell-label">Produto</span><span>${desc}</span><div class="muted mate-troca-batch-cod">${cod}</div></div>` +
+      `<div><span class="count-audit-cell-label">Encerrou</span><span>${escapeHtml(closed)}</span><div class="muted">Tipo: ${closing}</div></div>` +
+      `<div><span class="count-audit-cell-label">Lançamentos</span><span>${escapeHtml(String(b.event_count || 0))}</span>` +
+      `<div class="muted">Σ entrada CX ${formatBreakIntegerBR(b.sum_qty_cx_in)} · UN ${formatBreakIntegerBR(b.sum_qty_un_in)}</div></div>` +
+      `</div>`;
+    ul.appendChild(li);
+  }
+}
+
+async function openMateTrocaBatchDetail(closeLogId) {
+  const id = Number(closeLogId);
+  if (!Number.isFinite(id) || id < 1) return;
+  const dlg = document.getElementById('mate-troca-batch-detail-dialog');
+  const body = document.getElementById('mate-troca-batch-detail-dialog-body');
+  const title = document.getElementById('mate-troca-batch-detail-dialog-title');
+  if (!dlg || !body) return;
+  body.innerHTML = '<p class="muted">Carregando…</p>';
+  if (title) title.textContent = 'Detalhe da troca';
+  dlg.showModal();
+  const token = getToken();
+  if (!token) {
+    body.innerHTML = '<p class="is-error">Faça login.</p>';
+    return;
+  }
+  try {
+    const response = await apiFetch(`${API_MATE_TROCA_BATCHES}/by-close/${id}`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) {
+      dlg.close();
+      return;
+    }
+    if (!response.ok) {
+      body.innerHTML = '<p class="is-error">Não foi possível carregar.</p>';
+      return;
+    }
+    const data = await response.json();
+    const evs = Array.isArray(data.events) ? data.events : [];
+    if (title) {
+      title.textContent = `Troca ${data.batch_code || ''} · ${data.cod_produto || ''}`;
+    }
+    const parts = evs.map((ev) => {
+      const kind = mateTrocaKindLabelPt(ev.kind);
+      const dayOp = escapeHtml(mateTrocaHistoryDayLabel(ev));
+      const when = escapeHtml(mateTrocaHistoryDateTimeLabel(ev.created_at));
+      const actor = escapeHtml(String(ev.actor_username || '—'));
+      const mov =
+        String(ev.kind || '').trim() === 'chegada'
+          ? `Chegada: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`
+          : `${mateTrocaKindLabelPt(ev.kind)}: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
+      const pend = `Pendente ${formatBreakIntegerBR(ev.pend_cx_before)}/${formatBreakIntegerBR(ev.pend_un_before)} → ${formatBreakIntegerBR(ev.pend_cx_after)}/${formatBreakIntegerBR(ev.pend_un_after)}`;
+      return (
+        `<li class="mate-troca-pending-history-item">` +
+        `<div class="mate-troca-pending-history-item-head">` +
+        `<span class="mate-troca-pending-history-day"><span class="count-audit-cell-label">Dia</span> ${dayOp}</span>` +
+        `<span class="mate-troca-pending-history-kind">${escapeHtml(kind)}</span></div>` +
+        `<p class="mate-troca-pending-history-detail"><span class="count-audit-cell-label">Quando</span> ${when}</p>` +
+        `<p class="mate-troca-pending-history-detail">${escapeHtml(mov)}</p>` +
+        `<p class="mate-troca-pending-history-detail">${escapeHtml(pend)}</p>` +
+        `<p class="mate-troca-pending-history-actor muted"><span class="count-audit-cell-label">Nome</span> ${actor}</p>` +
+        `</li>`
+      );
+    });
+    body.innerHTML =
+      `<p class="mate-troca-pending-history-lead muted">Lançamentos desta troca até o pendente zerar no servidor.</p>` +
+      `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
+  } catch {
+    body.innerHTML = '<p class="is-error">Sem conexão.</p>';
+  }
+}
+
 function renderMateTrocaServerLog(events) {
   const ul = document.getElementById('mate-troca-server-log-list');
   if (!ul) return;
@@ -3833,47 +4118,48 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   }
   if (!events.length) {
     body.innerHTML =
-      `<p class="mate-troca-pending-history-empty muted">Nenhum lançamento sincronizado no servidor para este código ainda. ` +
-      `Após <strong>Registrar chegada</strong>, <strong>Definir saldo</strong>, <strong>Zerar</strong> ou <strong>Ajustar pendente</strong>, os registros aparecem aqui.</p>`;
+      `<p class="mate-troca-pending-history-empty muted">Nenhum lançamento para este código ainda ` +
+      `(servidor e histórico deste aparelho). Use <strong>Registrar chegada</strong>, <strong>Definir saldo</strong>, ` +
+      `<strong>Zerar</strong> ou <strong>Ajustar pendente</strong> para gravar movimentos.</p>`;
     return;
   }
   const sorted = [...events].sort((a, b) =>
     mateTrocaHistoryEventSortKey(a).localeCompare(mateTrocaHistoryEventSortKey(b)),
   );
   const parts = sorted.map((ev) => {
-    let when = '—';
-    if (ev.created_at) {
-      try {
-        when = new Date(ev.created_at).toLocaleString('pt-BR', {
-          dateStyle: 'short',
-          timeStyle: 'short',
-        });
-      } catch {
-        when = String(ev.created_at);
-      }
-    }
     const kindRaw = String(ev.kind || '').trim();
     const kind = mateTrocaKindLabelPt(ev.kind);
+    const dayOp = escapeHtml(mateTrocaHistoryDayLabel(ev));
+    const when = escapeHtml(mateTrocaHistoryDateTimeLabel(ev.created_at));
     const extraTxt =
       (Number(ev.excess_cx) > 0 || Number(ev.excess_un) > 0) && kindRaw === 'chegada'
         ? ` · excedente CX ${formatBreakIntegerBR(ev.excess_cx)} UN ${formatBreakIntegerBR(ev.excess_un)}`
         : '';
     let mov = '';
     if (kindRaw === 'chegada') {
-      mov = `Chegada (abatida do pendente): CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}${extraTxt}`;
+      mov = `Registro de chegada: entrada CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente)${extraTxt}`;
     } else if (kindRaw === 'zerar') {
-      mov = 'Pendente zerado neste aparelho.';
+      mov = 'Zerar: pendente levado a zero.';
+    } else if (kindRaw === 'definir') {
+      mov = `Definir saldo: informado CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
+    } else if (kindRaw === 'ajuste_pendente') {
+      mov = `Ajuste por código: informado CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
     } else {
-      mov = `Quantidades informadas: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
+      mov = `Quantidades: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
     }
     const pend = `Pendente: ${formatBreakIntegerBR(ev.pend_cx_before)} CX / ${formatBreakIntegerBR(ev.pend_un_before)} UN → ${formatBreakIntegerBR(ev.pend_cx_after)} CX / ${formatBreakIntegerBR(ev.pend_un_after)} UN`;
     const actor = escapeHtml(String(ev.actor_username || '—'));
+    const syncBadge = ev._pendingSync
+      ? `<span class="mate-troca-sync-pill" title="Ainda não confirmado no servidor">Aguardando sync</span>`
+      : '';
     return (
       `<li class="mate-troca-pending-history-item">` +
       `<div class="mate-troca-pending-history-item-head">` +
-      `<time class="mate-troca-pending-history-time" datetime="${escapeHtml(String(ev.created_at || ''))}">${escapeHtml(when)}</time>` +
+      `<span class="mate-troca-pending-history-day"><span class="count-audit-cell-label">Dia</span> ${dayOp}</span>` +
+      `${syncBadge}` +
       `<span class="mate-troca-pending-history-kind">${escapeHtml(kind)}</span>` +
       `</div>` +
+      `<p class="mate-troca-pending-history-detail"><span class="count-audit-cell-label">Quando</span> ${when}</p>` +
       `<p class="mate-troca-pending-history-detail">${escapeHtml(mov)}</p>` +
       `<p class="mate-troca-pending-history-detail">${escapeHtml(pend)}</p>` +
       `<p class="mate-troca-pending-history-actor muted">` +
@@ -3883,7 +4169,8 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     );
   });
   body.innerHTML =
-    `<p class="mate-troca-pending-history-lead muted">Ordem cronológica (mais antigo primeiro). Quantidades do servidor.</p>` +
+    `<p class="mate-troca-pending-history-lead muted">Ordem cronológica (mais antigo primeiro). ` +
+    `Inclui servidor e lançamentos feitos neste aparelho (incluindo antes da sincronização).</p>` +
     `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
 }
 
@@ -3909,15 +4196,20 @@ async function openMateTrocaPendingProductHistory(codRaw) {
 
   const token = getToken();
   if (!token) {
-    body.innerHTML =
-      '<p class="mate-troca-pending-history-empty is-error">Faça login para ver o histórico no servidor.</p>';
+    const mergedOffline = mergeMateTrocaHistoryForCod(cod, []);
+    if (!mergedOffline.length) {
+      body.innerHTML =
+        '<p class="mate-troca-pending-history-empty is-error">Faça login para ver o histórico no servidor ou registre um lançamento neste aparelho.</p>';
+      return;
+    }
+    renderMateTrocaPendingHistoryInDialog(mergedOffline, cod, desc);
     return;
   }
 
   try {
     const params = new URLSearchParams();
     params.set('cod_produto', cod);
-    params.set('limit', '500');
+    params.set('limit', '800');
     const response = await apiFetch(`${API_MATE_TROCA_EVENTS}?${params.toString()}`, {
       headers: getAuthHeaders(),
       cache: 'no-store',
@@ -3927,15 +4219,26 @@ async function openMateTrocaPendingProductHistory(codRaw) {
       return;
     }
     if (!response.ok) {
-      body.innerHTML =
-        '<p class="mate-troca-pending-history-empty is-error">Não foi possível carregar o histórico. Tente de novo.</p>';
+      const mergedErr = mergeMateTrocaHistoryForCod(cod, []);
+      if (mergedErr.length) {
+        renderMateTrocaPendingHistoryInDialog(mergedErr, cod, desc);
+      } else {
+        body.innerHTML =
+          '<p class="mate-troca-pending-history-empty is-error">Não foi possível carregar o histórico. Tente de novo.</p>';
+      }
       return;
     }
     const data = await response.json();
     const evs = Array.isArray(data.events) ? data.events : [];
-    renderMateTrocaPendingHistoryInDialog(evs, cod, desc);
+    const merged = mergeMateTrocaHistoryForCod(cod, evs);
+    renderMateTrocaPendingHistoryInDialog(merged, cod, desc);
   } catch {
-    body.innerHTML = '<p class="mate-troca-pending-history-empty is-error">Sem conexão.</p>';
+    const mergedCatch = mergeMateTrocaHistoryForCod(cod, []);
+    if (mergedCatch.length) {
+      renderMateTrocaPendingHistoryInDialog(mergedCatch, cod, desc);
+    } else {
+      body.innerHTML = '<p class="mate-troca-pending-history-empty is-error">Sem conexão.</p>';
+    }
   }
 }
 
@@ -4042,7 +4345,8 @@ function bindMateCouroTrocaEvents() {
       ) {
         return;
       }
-      writeMateCouroTrocaStorage({ pending: {}, daySnapshots: {} });
+      const _s = readMateCouroTrocaStorage();
+      writeMateCouroTrocaStorage({ ..._s, pending: {}, daySnapshots: {} });
       renderMateCouroPendingList();
     });
   }
@@ -4082,7 +4386,7 @@ function bindMateCouroTrocaEvents() {
           cxNew,
           unNew,
         );
-        const sync = await postMateTrocaEventsToServer([payload]);
+        const sync = await syncMateTrocaEventsToServer([payload]);
         if (!sync.ok) {
           window.alert(sync.message || 'Falha ao sincronizar.');
           return;
@@ -4156,7 +4460,7 @@ function bindMateCouroTrocaEvents() {
             0,
             0,
           );
-          const sync = await postMateTrocaEventsToServer([payload]);
+          const sync = await syncMateTrocaEventsToServer([payload]);
           if (!sync.ok) {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
@@ -4177,7 +4481,7 @@ function bindMateCouroTrocaEvents() {
             un: Math.max(0, cur.un - unIn),
           };
           const payload = buildMateTrocaServerPayload('chegada', cod, cur, next, cxIn, unIn);
-          const sync = await postMateTrocaEventsToServer([payload]);
+          const sync = await syncMateTrocaEventsToServer([payload]);
           if (!sync.ok) {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
@@ -4204,7 +4508,7 @@ function bindMateCouroTrocaEvents() {
             cxNew,
             unNew,
           );
-          const sync = await postMateTrocaEventsToServer([payload]);
+          const sync = await syncMateTrocaEventsToServer([payload]);
           if (!sync.ok) {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;

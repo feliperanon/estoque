@@ -2,6 +2,7 @@ import hashlib
 import re
 import logging
 from collections import defaultdict
+from itertools import groupby
 from datetime import date, datetime, time, timezone, timedelta
 from io import BytesIO
 from zoneinfo import ZoneInfo
@@ -208,12 +209,15 @@ def _normalize_item_code(value: str | None) -> str:
 
 
 def _format_first_second_name(full_name: str | None, fallback_login: str | None) -> str:
-    """Primeiro e, se existir, segundo nome do cadastro; senão o login (e-mail)."""
+    """Primeiro nome completo; se houver segundo token, só a inicial e ponto (ex.: Felipe R.). Senão login."""
     fn = (full_name or "").strip()
     if fn:
         parts = fn.split()
         if len(parts) >= 2:
-            return f"{parts[0]} {parts[1]}"
+            initial = (parts[1] or "")[:1]
+            if initial:
+                return f"{parts[0]} {initial.upper()}."
+            return parts[0]
         if parts:
             return parts[0]
     fb = (fallback_login or "").strip()
@@ -221,7 +225,7 @@ def _format_first_second_name(full_name: str | None, fallback_login: str | None)
 
 
 def _display_name_map_for_logins(session: Session, logins: set[str]) -> dict[str, str]:
-    """username (login) → rótulo para exibição (primeiro + segundo nome)."""
+    """username (login) → rótulo para exibição (primeiro nome + inicial do segundo)."""
     out: dict[str, str] = {}
     clean = {x.strip() for x in logins if x and str(x).strip()}
     if not clean:
@@ -1856,6 +1860,7 @@ def get_recount_signals(
 
 MATE_COURO_CIA = "Mate couro"
 _ALLOWED_MATE_TROCA_KINDS = frozenset({"chegada", "definir", "zerar", "ajuste_pendente"})
+MAX_MATE_TROCA_BATCH_SCAN = 12_000
 
 
 def _ensure_mate_couro_troca_logs_table() -> None:
@@ -2081,3 +2086,187 @@ def list_mate_troca_events(
         )
 
     return {"count": len(events), "events": events}
+
+
+def _mate_troca_iso_utc(dt_val: datetime | None) -> str | None:
+    if dt_val is None:
+        return None
+    u = dt_val if dt_val.tzinfo else dt_val.replace(tzinfo=timezone.utc)
+    return u.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _mate_troca_batch_events_backward(session: Session, close: MateCouroTrocaLog) -> list[MateCouroTrocaLog]:
+    if int(close.pend_cx_after or 0) != 0 or int(close.pend_un_after or 0) != 0:
+        return []
+    cod = str(close.cod_produto or "")
+    prior = list(
+        session.exec(
+            select(MateCouroTrocaLog)
+            .where(
+                MateCouroTrocaLog.cod_produto == cod,
+                MateCouroTrocaLog.created_at <= close.created_at,
+            )
+            .order_by(MateCouroTrocaLog.created_at.desc(), MateCouroTrocaLog.id.desc())
+        ).all()
+    )
+    segment_rev: list[MateCouroTrocaLog] = []
+    hit_close = False
+    for r in prior:
+        if not hit_close:
+            if r.id != close.id:
+                continue
+            segment_rev.append(r)
+            hit_close = True
+            continue
+        if int(r.pend_cx_after or 0) == 0 and int(r.pend_un_after or 0) == 0:
+            break
+        segment_rev.append(r)
+    return list(reversed(segment_rev))
+
+
+def _mate_logs_to_event_dicts(session: Session, rows: list[MateCouroTrocaLog]) -> list[dict]:
+    codes = list({str(r.cod_produto or "") for r in rows if r.cod_produto})
+    desc_map: dict[str, str] = {}
+    if codes:
+        prods = list(session.exec(select(Product).where(Product.cod_produto.in_(codes))).all())
+        for p in prods:
+            cc = _normalize_item_code(p.cod_produto or "")
+            if cc:
+                desc_map[cc] = (p.cod_grup_descricao or "").strip()
+    mt_logins = {
+        (r.actor_username or "").strip()
+        for r in rows
+        if r.actor_username and str(r.actor_username).strip()
+    }
+    mt_name_map = _display_name_map_for_logins(session, mt_logins)
+    out = []
+    for r in rows:
+        c = str(r.cod_produto or "")
+        out.append(
+            {
+                "id": r.id,
+                "client_event_id": r.client_event_id,
+                "kind": r.kind,
+                "cod_produto": c,
+                "product_desc": desc_map.get(c) or None,
+                "qty_cx_in": int(r.qty_cx_in),
+                "qty_un_in": int(r.qty_un_in),
+                "pend_cx_before": int(r.pend_cx_before),
+                "pend_un_before": int(r.pend_un_before),
+                "pend_cx_after": int(r.pend_cx_after),
+                "pend_un_after": int(r.pend_un_after),
+                "excess_cx": int(r.excess_cx),
+                "excess_un": int(r.excess_un),
+                "device_name": r.device_name,
+                "actor_username": (
+                    mt_name_map.get((r.actor_username or "").strip(), r.actor_username)
+                    if r.actor_username
+                    else None
+                ),
+                "created_at": _mate_troca_iso_utc(r.created_at),
+            }
+        )
+    return out
+
+
+@router.get("/mate-troca-batches")
+def list_mate_troca_batches(
+    limit: int = Query(150, ge=1, le=400),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Trocas encerradas (pendente zerado no servidor), por produto Mate couro."""
+    _ensure_mate_couro_troca_logs_table()
+    rows_raw = list(
+        session.exec(
+            select(MateCouroTrocaLog)
+            .order_by(MateCouroTrocaLog.created_at.desc(), MateCouroTrocaLog.id.desc())
+            .limit(MAX_MATE_TROCA_BATCH_SCAN)
+        ).all()
+    )
+    min_dt = datetime.min.replace(tzinfo=timezone.utc)
+
+    def _row_sort_key(r: MateCouroTrocaLog):
+        ca = r.created_at
+        if ca is None:
+            return (str(r.cod_produto or ""), min_dt, r.id or 0)
+        u = ca if ca.tzinfo else ca.replace(tzinfo=timezone.utc)
+        return (str(r.cod_produto or ""), u, r.id or 0)
+
+    rows_raw.sort(key=_row_sort_key)
+    closed_segments: list[list[MateCouroTrocaLog]] = []
+    for _cod, git in groupby(rows_raw, key=lambda r: str(r.cod_produto or "")):
+        cur: list[MateCouroTrocaLog] = []
+        for ev in git:
+            cur.append(ev)
+            if int(ev.pend_cx_after or 0) == 0 and int(ev.pend_un_after or 0) == 0:
+                closed_segments.append(cur)
+                cur = []
+    closed_segments.sort(
+        key=lambda seg: seg[-1].created_at or min_dt,
+        reverse=True,
+    )
+    closed_segments = closed_segments[:limit]
+    summaries = []
+    for seg in closed_segments:
+        close = seg[-1]
+        cid = close.id
+        if cid is None:
+            continue
+        c = str(close.cod_produto or "")
+        first = seg[0]
+        sum_cx = sum(int(e.qty_cx_in or 0) for e in seg)
+        sum_un = sum(int(e.qty_un_in or 0) for e in seg)
+        summaries.append(
+            {
+                "batch_code": f"T-{int(cid):06d}",
+                "close_log_id": int(cid),
+                "cod_produto": c,
+                "opened_at": _mate_troca_iso_utc(first.created_at),
+                "closed_at": _mate_troca_iso_utc(close.created_at),
+                "event_count": len(seg),
+                "sum_qty_cx_in": sum_cx,
+                "sum_qty_un_in": sum_un,
+                "closing_kind": str(close.kind or "").strip(),
+            }
+        )
+    codes = sorted({s["cod_produto"] for s in summaries if s.get("cod_produto")})
+    desc_map: dict[str, str] = {}
+    if codes:
+        prods = list(session.exec(select(Product).where(Product.cod_produto.in_(codes))).all())
+        for p in prods:
+            cc = _normalize_item_code(p.cod_produto or "")
+            if cc:
+                desc_map[cc] = (p.cod_grup_descricao or "").strip()
+    for s in summaries:
+        s["product_desc"] = desc_map.get(s["cod_produto"]) or None
+    return {"count": len(summaries), "batches": summaries}
+
+
+@router.get("/mate-troca-batches/by-close/{close_log_id}")
+def get_mate_troca_batch_by_close(
+    close_log_id: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Detalhe de uma troca encerrada (lançamentos até zerar o pendente)."""
+    _ensure_mate_couro_troca_logs_table()
+    close = session.get(MateCouroTrocaLog, close_log_id)
+    if close is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro nao encontrado.")
+    if int(close.pend_cx_after or 0) != 0 or int(close.pend_un_after or 0) != 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Este evento nao encerra pendente zerado.",
+        )
+    segment = _mate_troca_batch_events_backward(session, close)
+    if not segment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lote vazio.")
+    events = _mate_logs_to_event_dicts(session, segment)
+    return {
+        "batch_code": f"T-{int(close_log_id):06d}",
+        "close_log_id": int(close_log_id),
+        "cod_produto": str(close.cod_produto or ""),
+        "event_count": len(events),
+        "events": events,
+    }
