@@ -2,7 +2,7 @@ import hashlib
 import re
 import logging
 from collections import defaultdict
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, time, timezone, timedelta
 from io import BytesIO
 from zoneinfo import ZoneInfo
 
@@ -18,7 +18,16 @@ from sqlmodel import Session, SQLModel, select
 
 from app.api.deps import require_roles, require_stock_analysis_access
 from app.db.session import engine, get_session
-from app.models import ChangeLog, InventoryImport, InventoryImportItem, Product, RecountSignal, User, ValidityLine
+from app.models import (
+    ChangeLog,
+    InventoryImport,
+    InventoryImportItem,
+    MateCouroTrocaLog,
+    Product,
+    RecountSignal,
+    User,
+    ValidityLine,
+)
 from app.services.inventory_txt_parse import (
     extract_caixa_unidade_from_numeric_tail,
     extract_caixa_unidade_from_txt_tokens,
@@ -1782,3 +1791,221 @@ def get_recount_signals(
     rows = session.exec(select(RecountSignal).where(RecountSignal.operational_date == op_date)).all()
     codes = sorted({str(r.cod_produto) for r in rows})
     return RecountSignalsOut(operational_date=op_date, codes=codes)
+
+
+MATE_COURO_CIA = "Mate couro"
+_ALLOWED_MATE_TROCA_KINDS = frozenset({"chegada", "definir", "zerar", "ajuste_pendente"})
+
+
+def _ensure_mate_couro_troca_logs_table() -> None:
+    try:
+        SQLModel.metadata.create_all(engine, tables=[MateCouroTrocaLog.__table__], checkfirst=True)
+    except SQLAlchemyError:
+        logger.exception("Falha ao garantir tabela mate_couro_troca_logs")
+        raise
+
+
+class MateTrocaEventInput(BaseModel):
+    client_event_id: str = Field(min_length=8, max_length=100)
+    kind: str = Field(max_length=24)
+    cod_produto: str = Field(min_length=1, max_length=120)
+    qty_cx_in: int = Field(default=0, ge=0, le=500_000)
+    qty_un_in: int = Field(default=0, ge=0, le=500_000)
+    pend_cx_before: int = Field(ge=0, le=500_000)
+    pend_un_before: int = Field(ge=0, le=500_000)
+    pend_cx_after: int = Field(ge=0, le=500_000)
+    pend_un_after: int = Field(ge=0, le=500_000)
+    excess_cx: int = Field(default=0, ge=0, le=500_000)
+    excess_un: int = Field(default=0, ge=0, le=500_000)
+    device_name: str | None = Field(default=None, max_length=120)
+
+
+class MateTrocaEventsPayload(BaseModel):
+    events: list[MateTrocaEventInput]
+
+
+def _canonical_mate_couro_cod(session: Session, raw: str) -> str:
+    c = _normalize_item_code(raw)
+    if not c:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Codigo invalido.",
+        )
+    prod = session.exec(
+        select(Product).where(Product.cod_grup_cia == MATE_COURO_CIA, Product.cod_produto == c)
+    ).first()
+    if prod:
+        return _normalize_item_code(prod.cod_produto or c)
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Produto nao encontrado ou CIA diferente de {MATE_COURO_CIA}.",
+    )
+
+
+def _validate_mate_troca_payload(ev: MateTrocaEventInput) -> tuple[int, int]:
+    """Retorna (excess_cx, excess_un) gravados; para chegada usa o calculo do servidor."""
+    k = (ev.kind or "").strip()
+    if k == "chegada":
+        ex_cx = max(0, ev.qty_cx_in - ev.pend_cx_before)
+        ex_un = max(0, ev.qty_un_in - ev.pend_un_before)
+        if ev.pend_cx_after != max(0, ev.pend_cx_before - ev.qty_cx_in):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="pend_cx_after inconsistente com chegada.",
+            )
+        if ev.pend_un_after != max(0, ev.pend_un_before - ev.qty_un_in):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="pend_un_after inconsistente com chegada.",
+            )
+        return ex_cx, ex_un
+    if k in ("definir", "ajuste_pendente"):
+        if ev.pend_cx_after != ev.qty_cx_in or ev.pend_un_after != ev.qty_un_in:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Pendente apos ajuste deve coincidir com qty_cx_in / qty_un_in.",
+            )
+        return 0, 0
+    if k == "zerar":
+        if ev.qty_cx_in != 0 or ev.qty_un_in != 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="zerar exige quantidades de entrada zero.",
+            )
+        if ev.pend_cx_after != 0 or ev.pend_un_after != 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="zerar exige pendente apos zero.",
+            )
+        return 0, 0
+    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="kind invalido.")
+
+
+@router.post("/mate-troca-events")
+def ingest_mate_troca_events(
+    payload: MateTrocaEventsPayload,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Sincroniza log de chegadas/ajustes da Base de Troca (idempotente por client_event_id)."""
+    _ensure_mate_couro_troca_logs_table()
+    synced_ids: list[str] = []
+
+    try:
+        for ev in payload.events:
+            if (ev.kind or "").strip() not in _ALLOWED_MATE_TROCA_KINDS:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"kind invalido: {ev.kind}",
+                )
+            dup = session.exec(
+                select(MateCouroTrocaLog).where(MateCouroTrocaLog.client_event_id == ev.client_event_id)
+            ).first()
+            if dup:
+                synced_ids.append(ev.client_event_id)
+                continue
+
+            cod = _canonical_mate_couro_cod(session, ev.cod_produto)
+            ex_cx, ex_un = _validate_mate_troca_payload(ev)
+
+            row = MateCouroTrocaLog(
+                client_event_id=ev.client_event_id,
+                kind=(ev.kind or "").strip(),
+                cod_produto=cod,
+                qty_cx_in=int(ev.qty_cx_in),
+                qty_un_in=int(ev.qty_un_in),
+                pend_cx_before=int(ev.pend_cx_before),
+                pend_un_before=int(ev.pend_un_before),
+                pend_cx_after=int(ev.pend_cx_after),
+                pend_un_after=int(ev.pend_un_after),
+                excess_cx=int(ex_cx),
+                excess_un=int(ex_un),
+                device_name=(ev.device_name or "").strip() or None,
+                actor_username=user.username,
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(row)
+            synced_ids.append(ev.client_event_id)
+
+        session.commit()
+        return {"received": len(payload.events), "synced": len(synced_ids), "synced_ids": synced_ids}
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Falha ao sincronizar mate-troca-events")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Falha ao sincronizar base de troca: {exc}",
+        ) from exc
+
+
+@router.get("/mate-troca-events")
+def list_mate_troca_events(
+    date_from: str | None = Query(default=None, description="YYYY-MM-DD filtro em America/Sao_Paulo"),
+    date_to: str | None = Query(default=None, description="YYYY-MM-DD inclusive em America/Sao_Paulo"),
+    cod_produto: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Lista auditoria da Base de Troca (Mate couro), mais recentes primeiro."""
+    _ensure_mate_couro_troca_logs_table()
+    stmt = select(MateCouroTrocaLog).order_by(MateCouroTrocaLog.created_at.desc())
+
+    df = _parse_iso_date_arg(date_from) if date_from else None
+    dt = _parse_iso_date_arg(date_to) if date_to else None
+    if df is not None:
+        start_utc = datetime.combine(df, time.min, tzinfo=_BR).astimezone(timezone.utc)
+        stmt = stmt.where(MateCouroTrocaLog.created_at >= start_utc.replace(tzinfo=None))
+    if dt is not None:
+        end_br = dt + timedelta(days=1)
+        end_utc = datetime.combine(end_br, time.min, tzinfo=_BR).astimezone(timezone.utc)
+        stmt = stmt.where(MateCouroTrocaLog.created_at < end_utc.replace(tzinfo=None))
+
+    if (cod_produto or "").strip():
+        c = _normalize_item_code(cod_produto)
+        stmt = stmt.where(MateCouroTrocaLog.cod_produto == c)
+
+    rows = list(session.exec(stmt.limit(limit)).all())
+    codes = list({str(r.cod_produto or "") for r in rows if r.cod_produto})
+    desc_map: dict[str, str] = {}
+    if codes:
+        prods = list(session.exec(select(Product).where(Product.cod_produto.in_(codes))).all())
+        for p in prods:
+            cc = _normalize_item_code(p.cod_produto or "")
+            if cc:
+                desc_map[cc] = (p.cod_grup_descricao or "").strip()
+
+    def _iso(dt_val: datetime | None) -> str | None:
+        if dt_val is None:
+            return None
+        u = dt_val if dt_val.tzinfo else dt_val.replace(tzinfo=timezone.utc)
+        return u.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    events = []
+    for r in rows:
+        c = str(r.cod_produto or "")
+        events.append(
+            {
+                "id": r.id,
+                "client_event_id": r.client_event_id,
+                "kind": r.kind,
+                "cod_produto": c,
+                "product_desc": desc_map.get(c) or None,
+                "qty_cx_in": int(r.qty_cx_in),
+                "qty_un_in": int(r.qty_un_in),
+                "pend_cx_before": int(r.pend_cx_before),
+                "pend_un_before": int(r.pend_un_before),
+                "pend_cx_after": int(r.pend_cx_after),
+                "pend_un_after": int(r.pend_un_after),
+                "excess_cx": int(r.excess_cx),
+                "excess_un": int(r.excess_un),
+                "device_name": r.device_name,
+                "actor_username": r.actor_username,
+                "created_at": _iso(r.created_at),
+            }
+        )
+
+    return {"count": len(events), "events": events}

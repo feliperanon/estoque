@@ -316,6 +316,7 @@ const API_VALIDITY_LAST_LAUNCH = '/audit/validity-last-launch-by-product';
 const API_VALIDITY_DISPLAY_EXPIRY_BY_PRODUCT = '/audit/validity-display-expiry-by-product';
 const API_SYNC_BREAKS = '/audit/break-events';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
+const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
@@ -3352,6 +3353,79 @@ function mergePendingDelta(state, cod, dcx, dun) {
   else state.pending[base] = { cx: nx, un: nu };
 }
 
+function mateTrocaKindLabelPt(kind) {
+  const k = String(kind || '').trim();
+  if (k === 'chegada') return 'Chegada';
+  if (k === 'definir') return 'Definir saldo';
+  if (k === 'zerar') return 'Zerar';
+  if (k === 'ajuste_pendente') return 'Ajuste por código';
+  return k || '—';
+}
+
+function buildMateTrocaServerPayload(kind, cod, cur, next, qtyCxIn, qtyUnIn) {
+  const pendBeforeCx = Math.round(Number(cur.cx) || 0);
+  const pendBeforeUn = Math.round(Number(cur.un) || 0);
+  const pendAfterCx = Math.round(Number(next.cx) || 0);
+  const pendAfterUn = Math.round(Number(next.un) || 0);
+  const qcx = Math.round(Number(qtyCxIn) || 0);
+  const qun = Math.round(Number(qtyUnIn) || 0);
+  let excessCx = 0;
+  let excessUn = 0;
+  if (kind === 'chegada') {
+    excessCx = Math.max(0, qcx - pendBeforeCx);
+    excessUn = Math.max(0, qun - pendBeforeUn);
+  }
+  return {
+    client_event_id: makeEventId(),
+    kind,
+    cod_produto: cod,
+    qty_cx_in: qcx,
+    qty_un_in: qun,
+    pend_cx_before: pendBeforeCx,
+    pend_un_before: pendBeforeUn,
+    pend_cx_after: pendAfterCx,
+    pend_un_after: pendAfterUn,
+    excess_cx: excessCx,
+    excess_un: excessUn,
+    device_name: getDeviceName(),
+  };
+}
+
+async function postMateTrocaEventsToServer(events) {
+  const token = getToken();
+  if (!token) {
+    return { ok: false, message: 'Faça login para registrar no servidor.' };
+  }
+  try {
+    const response = await apiFetch(API_MATE_TROCA_EVENTS, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ events }),
+    });
+    if (handleUnauthorizedResponse(response)) {
+      return { ok: false, message: 'Sessão expirada. Faça login novamente.' };
+    }
+    if (!response.ok) {
+      let message = 'Não foi possível gravar no servidor.';
+      try {
+        const err = await response.json();
+        const d = err.detail;
+        if (typeof d === 'string') message = d;
+        else if (d != null) message = JSON.stringify(d);
+      } catch {
+        /* ignore */
+      }
+      return { ok: false, message };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, message: 'Sem conexão. Tente de novo.' };
+  }
+}
+
 function aggregateMateCouroEventsByCode(events) {
   const m = {};
   for (const ev of events || []) {
@@ -3498,13 +3572,12 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
     }
     cx = Math.round(cx);
     un = Math.round(un);
-    const reason = ev.reason ? escapeHtml(String(ev.reason)) : '—';
     const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
     const li = document.createElement('li');
     li.className = 'count-audit-item break-history-item';
     li.setAttribute('data-state', 'ok');
     li.innerHTML =
-      `<div class="break-history-audit-row">` +
+      `<div class="break-history-audit-row mate-troca-day-row">` +
       `<div class="count-audit-cell count-audit-cell--product">` +
       `<div class="break-history-product-static">` +
       `<div class="count-audit-row-topline">` +
@@ -3522,10 +3595,6 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
       `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(cx)}</strong>` +
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(un)}</strong>` +
       `</div></div>` +
-      `<div class="count-audit-cell">` +
-      `<span class="count-audit-cell-label">Motivo</span>` +
-      `<span class="count-audit-cell-value">${reason}</span>` +
-      `</div>` +
       `<div class="count-audit-cell">` +
       `<span class="count-audit-cell-label">Usuário</span>` +
       `<span class="count-audit-cell-value">${actor}</span>` +
@@ -3611,10 +3680,7 @@ function renderMateCouroPendingList() {
 async function loadMateCouroBreakDayList() {
   const feedback = document.getElementById('mate-couro-troca-feedback');
   const dateEl = document.getElementById('mate-couro-troca-date');
-  const metaDate = document.getElementById('mate-couro-troca-meta-date');
   const list = document.getElementById('mate-couro-troca-day-list');
-  const statusEl = document.getElementById('mate-troca-analysis-status');
-  const lastSyncEl = document.getElementById('mate-troca-last-sync');
   const lastLoadKpi = document.getElementById('mate-troca-kpi-last-load');
 
   const setFb = (visible, message, isError) => {
@@ -3630,7 +3696,6 @@ async function loadMateCouroBreakDayList() {
   const token = getToken();
   if (!token) {
     setFb(true, 'Faça login para carregar.', true);
-    if (statusEl) statusEl.textContent = 'Sem sessão';
     return;
   }
 
@@ -3642,10 +3707,8 @@ async function loadMateCouroBreakDayList() {
   } catch {
     dayLabel = d;
   }
-  if (metaDate) metaDate.textContent = dayLabel;
 
   setFb(true, 'Carregando...', false);
-  if (statusEl) statusEl.textContent = 'Carregando…';
   await ensureMateCouroCatalogLoaded();
   updateMateCouroKpis();
   await loadServerBreakTotals();
@@ -3663,7 +3726,6 @@ async function loadMateCouroBreakDayList() {
     }
     if (!response.ok) {
       setFb(true, 'Não foi possível carregar o registro.', true);
-      if (statusEl) statusEl.textContent = 'Falha';
       lastMateTrocaDayItemsCount = null;
       renderMateCouroDayList(dayLabel, []);
       updateMateCouroKpis();
@@ -3675,9 +3737,7 @@ async function loadMateCouroBreakDayList() {
     lastMateTrocaDayItemsCount = mateEvents.length;
     const hadDelta = mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    if (lastSyncEl) lastSyncEl.textContent = nowStr;
     if (lastLoadKpi) lastLoadKpi.textContent = nowStr;
-    if (statusEl) statusEl.textContent = 'Pronto';
     if (hadDelta) {
       setFb(true, 'Novas quebras deste dia foram somadas ao pendente de troca.', false);
     } else if (mateEvents.length) {
@@ -3689,7 +3749,6 @@ async function loadMateCouroBreakDayList() {
     renderMateCouroPendingList();
   } catch {
     setFb(true, 'Sem conexão.', true);
-    if (statusEl) statusEl.textContent = 'Falha';
     updateMateCouroKpis();
   }
 }
@@ -3700,6 +3759,126 @@ async function loadMateCouroTrocaPage() {
     dateEl.value = getBrazilDateKey();
   }
   await loadMateCouroBreakDayList();
+}
+
+function renderMateTrocaServerLog(events) {
+  const ul = document.getElementById('mate-troca-server-log-list');
+  if (!ul) return;
+  ul.innerHTML = '';
+  if (!events.length) {
+    ul.innerHTML =
+      '<li class="count-audit-empty"><span>Nenhum registro para o filtro.</span><strong>—</strong></li>';
+    return;
+  }
+  for (const ev of events) {
+    let when = '—';
+    if (ev.created_at) {
+      try {
+        when = new Date(ev.created_at).toLocaleString('pt-BR', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+        });
+      } catch {
+        when = String(ev.created_at);
+      }
+    }
+    const kind = mateTrocaKindLabelPt(ev.kind);
+    const cod = escapeHtml(String(ev.cod_produto || ''));
+    const nameRaw = String(ev.product_desc || '').trim();
+    const nameEsc = escapeHtml(nameRaw || ev.cod_produto || '');
+    const extraTxt =
+      (Number(ev.excess_cx) > 0 || Number(ev.excess_un) > 0) && String(ev.kind) === 'chegada'
+        ? ` (exced. CX ${formatBreakIntegerBR(ev.excess_cx)} UN ${formatBreakIntegerBR(ev.excess_un)})`
+        : '';
+    const movText = `CX ${formatBreakIntegerBR(ev.qty_cx_in)} / UN ${formatBreakIntegerBR(ev.qty_un_in)}${extraTxt}`;
+    const pendText = `${formatBreakIntegerBR(ev.pend_cx_before)}/${formatBreakIntegerBR(ev.pend_un_before)} → ${formatBreakIntegerBR(ev.pend_cx_after)}/${formatBreakIntegerBR(ev.pend_un_after)}`;
+    const actor = escapeHtml(String(ev.actor_username || '—'));
+    const li = document.createElement('li');
+    li.className = 'count-audit-item';
+    li.innerHTML =
+      `<div class="mate-troca-server-log-row">` +
+      `<div class="count-audit-cell">` +
+      `<span class="count-audit-cell-label">Quando</span>` +
+      `<strong class="count-audit-cell-value">${escapeHtml(when)}</strong>` +
+      `</div>` +
+      `<div class="count-audit-cell">` +
+      `<span class="count-audit-cell-label">Tipo</span>` +
+      `<span class="count-audit-cell-value">${escapeHtml(kind)}</span>` +
+      `</div>` +
+      `<div class="count-audit-cell count-audit-cell--product">` +
+      `<div class="break-history-product-static">` +
+      `<div class="count-audit-row-topline"><span class="count-audit-code-badge">${cod}</span></div>` +
+      `<span class="count-audit-row-name">${nameEsc}</span>` +
+      `</div></div>` +
+      `<div class="count-audit-cell">` +
+      `<span class="count-audit-cell-label">Movimento</span>` +
+      `<span class="count-audit-cell-value">${escapeHtml(movText)}</span>` +
+      `</div>` +
+      `<div class="count-audit-cell">` +
+      `<span class="count-audit-cell-label">Pendente</span>` +
+      `<span class="count-audit-cell-value">${escapeHtml(pendText)}</span>` +
+      `</div>` +
+      `<div class="count-audit-cell">` +
+      `<span class="count-audit-cell-label">Usuário</span>` +
+      `<span class="count-audit-cell-value">${actor}</span>` +
+      `</div>` +
+      `</div>`;
+    ul.appendChild(li);
+  }
+}
+
+async function loadMateTrocaServerLogList() {
+  const feedback = document.getElementById('mate-troca-server-log-feedback');
+  const fromEl = document.getElementById('mate-troca-log-date-from');
+  const toEl = document.getElementById('mate-troca-log-date-to');
+  const codEl = document.getElementById('mate-troca-log-cod-filter');
+
+  const setFb = (visible, message, isError) => {
+    if (!feedback) return;
+    feedback.textContent = message || '';
+    feedback.style.display = visible ? '' : 'none';
+    feedback.classList.toggle('is-error', !!(visible && isError));
+    feedback.classList.toggle('is-info', !!(visible && !isError));
+  };
+
+  const token = getToken();
+  if (!token) {
+    setFb(true, 'Faça login para carregar o histórico.', true);
+    renderMateTrocaServerLog([]);
+    return;
+  }
+
+  const params = new URLSearchParams();
+  const d0 = (fromEl && fromEl.value) || '';
+  const d1 = (toEl && toEl.value) || '';
+  if (d0) params.set('date_from', d0.slice(0, 10));
+  if (d1) params.set('date_to', d1.slice(0, 10));
+  const codF = ((codEl && codEl.value) || '').trim();
+  if (codF) params.set('cod_produto', normalizeItemCode(codF));
+
+  setFb(true, 'Carregando histórico...', false);
+  try {
+    const response = await apiFetch(`${API_MATE_TROCA_EVENTS}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) {
+      setFb(false, '', false);
+      return;
+    }
+    if (!response.ok) {
+      setFb(true, 'Não foi possível carregar o histórico.', true);
+      renderMateTrocaServerLog([]);
+      return;
+    }
+    const data = await response.json();
+    const evs = Array.isArray(data.events) ? data.events : [];
+    setFb(false, '', false);
+    renderMateTrocaServerLog(evs);
+  } catch {
+    setFb(true, 'Sem conexão.', true);
+    renderMateTrocaServerLog([]);
+  }
 }
 
 function parseMateCouroIntPrompt(label, def) {
@@ -3714,6 +3893,8 @@ function bindMateCouroTrocaEvents() {
   const dateEl = document.getElementById('mate-couro-troca-date');
   const btnLoad = document.getElementById('btn-mate-couro-troca-load');
   const btnClearAll = document.getElementById('btn-mate-couro-troca-clear-all');
+  const btnAdjust = document.getElementById('btn-mate-couro-troca-adjust-pending');
+  const btnLogLoad = document.getElementById('btn-mate-troca-server-log-load');
   const pendingSearch = document.getElementById('mate-couro-troca-pending-search');
   const pendingList = document.getElementById('mate-couro-troca-pending-list');
 
@@ -3746,6 +3927,61 @@ function bindMateCouroTrocaEvents() {
     });
   }
 
+  if (btnAdjust && !btnAdjust.dataset.mateTrocaBound) {
+    btnAdjust.dataset.mateTrocaBound = '1';
+    btnAdjust.addEventListener('click', () => {
+      void (async () => {
+        const rawCod = window.prompt('Código do produto (Mate couro):', '');
+        if (rawCod == null) return;
+        const cod = normalizeItemCode(rawCod);
+        if (!cod) {
+          window.alert('Código inválido.');
+          return;
+        }
+        await ensureMateCouroCatalogLoaded();
+        const inCatalog = (mateCouroProductsCache || []).some(
+          (x) => normalizeItemCode(String(x.cod_produto || '')) === cod,
+        );
+        if (!inCatalog) {
+          window.alert('Código não encontrado no catálogo Mate couro (ativos).');
+          return;
+        }
+        const state = readMateCouroTrocaStorage();
+        const cur = state.pending[cod] || { cx: 0, un: 0 };
+        const cxNew = parseMateCouroIntPrompt(`Novo pendente em CX para ${cod}:`, String(cur.cx));
+        if (cxNew === null) return;
+        const unNew = parseMateCouroIntPrompt(`Novo pendente em UN para ${cod}:`, String(cur.un));
+        if (unNew === null) return;
+        const next =
+          cxNew === 0 && unNew === 0 ? { cx: 0, un: 0 } : { cx: cxNew, un: unNew };
+        const payload = buildMateTrocaServerPayload(
+          'ajuste_pendente',
+          cod,
+          cur,
+          next,
+          cxNew,
+          unNew,
+        );
+        const sync = await postMateTrocaEventsToServer([payload]);
+        if (!sync.ok) {
+          window.alert(sync.message || 'Falha ao sincronizar.');
+          return;
+        }
+        if (cxNew === 0 && unNew === 0) delete state.pending[cod];
+        else state.pending[cod] = { cx: cxNew, un: unNew };
+        writeMateCouroTrocaStorage(state);
+        renderMateCouroPendingList();
+      })();
+    });
+  }
+
+  if (btnLogLoad && !btnLogLoad.dataset.mateTrocaBound) {
+    btnLogLoad.dataset.mateTrocaBound = '1';
+    btnLogLoad.addEventListener('click', () => {
+      void loadMateTrocaServerLogList();
+    });
+  }
+
   if (pendingSearch && !pendingSearch.dataset.mateTrocaBound) {
     pendingSearch.dataset.mateTrocaBound = '1';
     pendingSearch.addEventListener('input', () => {
@@ -3762,43 +3998,80 @@ function bindMateCouroTrocaEvents() {
       const codRef = btn.getAttribute('data-coderef') || '';
       const cod = normalizeItemCode(decodeURIComponent(codRef));
       if (!cod) return;
-      const state = readMateCouroTrocaStorage();
-      const cur = state.pending[cod] || { cx: 0, un: 0 };
 
-      if (action === 'zerar') {
-        if (!window.confirm(`Zerar pendente de troca para ${cod}?`)) return;
-        delete state.pending[cod];
-        writeMateCouroTrocaStorage(state);
-        renderMateCouroPendingList();
-        return;
-      }
+      void (async () => {
+        const state = readMateCouroTrocaStorage();
+        const cur = state.pending[cod] || { cx: 0, un: 0 };
 
-      if (action === 'recebeu') {
-        const cxIn = parseMateCouroIntPrompt('Quantidade em CX que chegou (abatida do pendente):', '0');
-        if (cxIn === null) return;
-        const unIn = parseMateCouroIntPrompt('Quantidade em UN que chegou (abatida do pendente):', '0');
-        if (unIn === null) return;
-        const next = {
-          cx: Math.max(0, cur.cx - cxIn),
-          un: Math.max(0, cur.un - unIn),
-        };
-        if (next.cx === 0 && next.un === 0) delete state.pending[cod];
-        else state.pending[cod] = next;
-        writeMateCouroTrocaStorage(state);
-        renderMateCouroPendingList();
-        return;
-      }
+        if (action === 'zerar') {
+          if (!window.confirm(`Zerar pendente de troca para ${cod}?`)) return;
+          const payload = buildMateTrocaServerPayload(
+            'zerar',
+            cod,
+            cur,
+            { cx: 0, un: 0 },
+            0,
+            0,
+          );
+          const sync = await postMateTrocaEventsToServer([payload]);
+          if (!sync.ok) {
+            window.alert(sync.message || 'Falha ao sincronizar.');
+            return;
+          }
+          delete state.pending[cod];
+          writeMateCouroTrocaStorage(state);
+          renderMateCouroPendingList();
+          return;
+        }
 
-      if (action === 'definir') {
-        const cxNew = parseMateCouroIntPrompt(`Novo pendente em CX para ${cod}:`, String(cur.cx));
-        if (cxNew === null) return;
-        const unNew = parseMateCouroIntPrompt(`Novo pendente em UN para ${cod}:`, String(cur.un));
-        if (unNew === null) return;
-        if (cxNew === 0 && unNew === 0) delete state.pending[cod];
-        else state.pending[cod] = { cx: cxNew, un: unNew };
-        writeMateCouroTrocaStorage(state);
-        renderMateCouroPendingList();
-      }
+        if (action === 'recebeu') {
+          const cxIn = parseMateCouroIntPrompt('Quantidade em CX que chegou (abatida do pendente):', '0');
+          if (cxIn === null) return;
+          const unIn = parseMateCouroIntPrompt('Quantidade em UN que chegou (abatida do pendente):', '0');
+          if (unIn === null) return;
+          const next = {
+            cx: Math.max(0, cur.cx - cxIn),
+            un: Math.max(0, cur.un - unIn),
+          };
+          const payload = buildMateTrocaServerPayload('chegada', cod, cur, next, cxIn, unIn);
+          const sync = await postMateTrocaEventsToServer([payload]);
+          if (!sync.ok) {
+            window.alert(sync.message || 'Falha ao sincronizar.');
+            return;
+          }
+          if (next.cx === 0 && next.un === 0) delete state.pending[cod];
+          else state.pending[cod] = next;
+          writeMateCouroTrocaStorage(state);
+          renderMateCouroPendingList();
+          return;
+        }
+
+        if (action === 'definir') {
+          const cxNew = parseMateCouroIntPrompt(`Novo pendente em CX para ${cod}:`, String(cur.cx));
+          if (cxNew === null) return;
+          const unNew = parseMateCouroIntPrompt(`Novo pendente em UN para ${cod}:`, String(cur.un));
+          if (unNew === null) return;
+          const next =
+            cxNew === 0 && unNew === 0 ? { cx: 0, un: 0 } : { cx: cxNew, un: unNew };
+          const payload = buildMateTrocaServerPayload(
+            'definir',
+            cod,
+            cur,
+            next,
+            cxNew,
+            unNew,
+          );
+          const sync = await postMateTrocaEventsToServer([payload]);
+          if (!sync.ok) {
+            window.alert(sync.message || 'Falha ao sincronizar.');
+            return;
+          }
+          if (cxNew === 0 && unNew === 0) delete state.pending[cod];
+          else state.pending[cod] = { cx: cxNew, un: unNew };
+          writeMateCouroTrocaStorage(state);
+          renderMateCouroPendingList();
+        }
+      })();
     });
   }
 }
