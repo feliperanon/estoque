@@ -7856,30 +7856,80 @@ function countAuditHasBreakDay(meta) {
   return bCx !== 0 || bUn !== 0;
 }
 
+/**
+ * Linhas CX/UN no breakdown: não mostra dimensão zerada.
+ * troca: só inteiros ≥ 0; quebra: qualquer ≠ 0 (pode ser negativo no líquido).
+ */
+function buildCountAuditDiffCxUnStrongs(cx, un, mode) {
+  const lines = [];
+  if (mode === 'troca') {
+    const tCx = Math.max(0, Math.round(Number(cx) || 0));
+    const tUn = Math.max(0, Math.round(Number(un) || 0));
+    if (tCx > 0) lines.push(`<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(tCx)}</strong>`);
+    if (tUn > 0) lines.push(`<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(tUn)}</strong>`);
+  } else {
+    const bCx = Math.round(Number(cx) || 0);
+    const bUn = Math.round(Number(un) || 0);
+    if (bCx !== 0) lines.push(`<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(bCx)}</strong>`);
+    if (bUn !== 0) lines.push(`<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(bUn)}</strong>`);
+  }
+  return lines.join('');
+}
+
+/** Texto compacto mobile (só dimensões não zeradas). */
+function formatCountAuditOpsMobileCxUn(cx, un, mode) {
+  const segs = [];
+  if (mode === 'troca') {
+    const tCx = Math.max(0, Math.round(Number(cx) || 0));
+    const tUn = Math.max(0, Math.round(Number(un) || 0));
+    if (tCx > 0) segs.push(`CX ${formatBreakIntegerBR(tCx)}`);
+    if (tUn > 0) segs.push(`UN ${formatBreakIntegerBR(tUn)}`);
+  } else {
+    const bCx = Math.round(Number(cx) || 0);
+    const bUn = Math.round(Number(un) || 0);
+    if (bCx !== 0) segs.push(`CX ${formatBreakIntegerBR(bCx)}`);
+    if (bUn !== 0) segs.push(`UN ${formatBreakIntegerBR(bUn)}`);
+  }
+  return segs.join(' · ');
+}
+
+/** Uma linha no detalhe (métricas): só partes não zeradas. */
+function formatCountAuditDetailOpsCxUnLine(cx, un, mode) {
+  const segs = [];
+  if (mode === 'troca') {
+    const tCx = Math.max(0, Math.round(Number(cx) || 0));
+    const tUn = Math.max(0, Math.round(Number(un) || 0));
+    if (tCx > 0) segs.push(`${formatBreakIntegerBR(tCx)} CX`);
+    if (tUn > 0) segs.push(`${formatBreakIntegerBR(tUn)} UN`);
+  } else {
+    const bCx = Math.round(Number(cx) || 0);
+    const bUn = Math.round(Number(un) || 0);
+    if (bCx !== 0) segs.push(`${formatBreakIntegerBR(bCx)} CX`);
+    if (bUn !== 0) segs.push(`${formatBreakIntegerBR(bUn)} UN`);
+  }
+  return segs.join(' · ');
+}
+
 /** Coluna desktop: blocos Troca e/ou Quebra; vazio se nenhum tiver rotina. */
 function buildCountAuditTrocaQuebraCellInnerHtml(meta) {
   const parts = [];
   if (countAuditHasTrocaPending(meta)) {
-    const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
-    const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
+    const inner = buildCountAuditDiffCxUnStrongs(meta.trocaCx, meta.trocaUn, 'troca');
     parts.push(
       `<div class="count-audit-ops-block">` +
         `<span class="count-audit-cell-label">Troca</span>` +
         `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="Pendente acumulativo local (Base de Troca — CIA Mate couro); zerado ao limpar na Base de Troca">` +
-        `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(tCx)}</strong>` +
-        `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(tUn)}</strong>` +
+        inner +
         `</div></div>`,
     );
   }
   if (countAuditHasBreakDay(meta)) {
-    const bCx = Math.round(Number(meta.breakCx) || 0);
-    const bUn = Math.round(Number(meta.breakUn) || 0);
+    const inner = buildCountAuditDiffCxUnStrongs(meta.breakCx, meta.breakUn, 'break');
     parts.push(
       `<div class="count-audit-ops-block">` +
         `<span class="count-audit-cell-label">Quebra</span>` +
         `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da análise (mesma lógica da tela Quebra)">` +
-        `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(bCx)}</strong>` +
-        `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(bUn)}</strong>` +
+        inner +
         `</div></div>`,
     );
   }
@@ -7891,22 +7941,20 @@ function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
   if (!countAuditHasTrocaPending(meta) && !countAuditHasBreakDay(meta)) return '';
   const parts = [];
   if (countAuditHasTrocaPending(meta)) {
-    const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
-    const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
+    const vals = formatCountAuditOpsMobileCxUn(meta.trocaCx, meta.trocaUn, 'troca');
     parts.push(
       `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Pendente acumulativo local (Base de Troca — CIA Mate couro)">` +
         `<span class="count-audit-mobile-break-label">Troca</span>` +
-        `<span class="count-audit-mobile-break-values">CX ${formatBreakIntegerBR(tCx)} · UN ${formatBreakIntegerBR(tUn)}</span>` +
+        `<span class="count-audit-mobile-break-values">${vals}</span>` +
       `</div>`,
     );
   }
   if (countAuditHasBreakDay(meta)) {
-    const bCx = Math.round(Number(meta.breakCx) || 0);
-    const bUn = Math.round(Number(meta.breakUn) || 0);
+    const vals = formatCountAuditOpsMobileCxUn(meta.breakCx, meta.breakUn, 'break');
     parts.push(
       `<div class="count-audit-mobile-break-strip" title="Quebra no dia (mesma lógica da tela Quebra)">` +
         `<span class="count-audit-mobile-break-label">Quebra</span>` +
-        `<span class="count-audit-mobile-break-values">CX ${formatBreakIntegerBR(bCx)} · UN ${formatBreakIntegerBR(bUn)}</span>` +
+        `<span class="count-audit-mobile-break-values">${vals}</span>` +
       `</div>`,
     );
   }
@@ -7962,10 +8010,10 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
     ? `<div class="count-audit-detail-validity-line${expRiskDetail ? ` ${expRiskDetail}` : ''}">Validade (referência) · ${escapeHtml(formatDateBR(expIsoDetail))}</div>`
     : '';
   const trocaDetailArticle = countAuditHasTrocaPending(meta)
-    ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (pendente local)</span><strong>${formatBreakIntegerBR(Math.max(0, Math.round(Number(meta.trocaCx) || 0)))} CX / ${formatBreakIntegerBR(Math.max(0, Math.round(Number(meta.trocaUn) || 0)))} UN</strong><small>Base de Troca — CIA Mate couro; zerado ao limpar no aparelho</small></article>`
+    ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (pendente local)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>Base de Troca — CIA Mate couro; zerado ao limpar no aparelho</small></article>`
     : '';
   const breakDetailArticle = countAuditHasBreakDay(meta)
-    ? `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatBreakIntegerBR(Math.round(Number(meta.breakCx) || 0))} CX / ${formatBreakIntegerBR(Math.round(Number(meta.breakUn) || 0))} UN</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>`
+    ? `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.breakCx, meta.breakUn, 'break')}</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>`
     : '';
 
   return (
