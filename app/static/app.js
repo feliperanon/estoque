@@ -328,6 +328,7 @@ const API_VALIDITY_DISPLAY_EXPIRY_BY_PRODUCT = '/audit/validity-display-expiry-b
 const API_SYNC_BREAKS = '/audit/break-events';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
+const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product';
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
@@ -7096,6 +7097,8 @@ const countAuditState = {
   breakDayBalances: {},
   /** Mapa normalizado cod_produto → YYYY-MM-DD (servidor, GET validity-display-expiry-by-product). */
   validityExpiryByCode: {},
+  /** Pendente troca por código conforme último evento no servidor (alinhamento entre navegadores). */
+  mateTrocaServerPending: {},
 };
 let countAuditDetailRequestSeq = 0;
 let countPrefillProductCode = null;
@@ -7404,14 +7407,20 @@ function reconcileCountAuditMetaDiffWithMergedCount(row) {
   meta.totalCount = countedCx + tCx + countedUn + tUn;
 }
 
-/** Sincroniza CX/UN do pendente local da Base de Troca (mate-couro-troca) em cada linha da análise. */
+/** Sincroniza CX/UN do pendente da Base de Troca em cada linha: localStorage tem prioridade; se zerado local, usa servidor. */
 function applyMateCouroTrocaPendingToCountAuditRows() {
   const rows = Array.isArray(countAuditState.rows) ? countAuditState.rows : [];
   if (!rows.length) return;
-  const pending = readMateCouroTrocaStorage().pending || {};
+  const localPending = readMateCouroTrocaStorage().pending || {};
+  const serverPending = countAuditState.mateTrocaServerPending && typeof countAuditState.mateTrocaServerPending === 'object'
+    ? countAuditState.mateTrocaServerPending
+    : {};
   for (const row of rows) {
     if (!row._auditMeta) continue;
-    const t = resolveMateCouroPendingEntry(pending, row.cod_produto);
+    const localT = resolveMateCouroPendingEntry(localPending, row.cod_produto);
+    const serverT = resolveMateCouroPendingEntry(serverPending, row.cod_produto);
+    const useLocal = localT.cx > 0 || localT.un > 0;
+    const t = useLocal ? localT : serverT;
     row._auditMeta.trocaCx = t.cx;
     row._auditMeta.trocaUn = t.un;
     reconcileCountAuditMetaDiffWithMergedCount(row);
@@ -8279,6 +8288,35 @@ async function loadCountAuditBreakDay(dayKey) {
   }
 }
 
+async function loadCountAuditMateTrocaServerPending() {
+  countAuditState.mateTrocaServerPending = {};
+  const token = getToken();
+  if (!token) return;
+  try {
+    const response = await apiFetch(API_MATE_TROCA_PENDING_BY_PRODUCT, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) return;
+    const data = await response.json();
+    const raw = data.pending && typeof data.pending === 'object' ? data.pending : {};
+    const norm = {};
+    for (const k of Object.keys(raw)) {
+      const c = normalizeItemCode(k);
+      if (!c) continue;
+      const v = raw[k];
+      norm[c] = {
+        cx: Math.max(0, Math.round(Number(v?.cx) || 0)),
+        un: Math.max(0, Math.round(Number(v?.un) || 0)),
+      };
+    }
+    countAuditState.mateTrocaServerPending = norm;
+  } catch {
+    countAuditState.mateTrocaServerPending = {};
+  }
+}
+
 async function loadCountAuditValidityExpiryMap() {
   countAuditState.validityExpiryByCode = {};
   const token = getToken();
@@ -8329,6 +8367,7 @@ async function loadCountAuditAnalysis() {
       countAuditState.breakDayOk = false;
       countAuditState.breakDayBalances = {};
       countAuditState.validityExpiryByCode = {};
+      countAuditState.mateTrocaServerPending = {};
       setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
       return;
     }
@@ -8344,6 +8383,7 @@ async function loadCountAuditAnalysis() {
       countAuditState.breakDayOk = false;
       countAuditState.breakDayBalances = {};
       countAuditState.validityExpiryByCode = {};
+      countAuditState.mateTrocaServerPending = {};
       countAuditState.detailCache.clear();
       renderCountAuditSummary({});
       renderCountAuditRows([]);
@@ -8354,7 +8394,11 @@ async function loadCountAuditAnalysis() {
     }
 
     const breakDayKey = referenceDate || String(info.reference_date || '').trim() || getBrazilDateKey();
-    await Promise.all([loadCountAuditBreakDay(breakDayKey), loadCountAuditValidityExpiryMap()]);
+    await Promise.all([
+      loadCountAuditBreakDay(breakDayKey),
+      loadCountAuditValidityExpiryMap(),
+      loadCountAuditMateTrocaServerPending(),
+    ]);
 
     countAuditSummaryFilterKey = null;
     countAuditState.rows = (payload.rows || []).map(enrichCountAuditRow);

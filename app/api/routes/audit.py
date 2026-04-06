@@ -2088,6 +2088,38 @@ def list_mate_troca_events(
     return {"count": len(events), "events": events}
 
 
+@router.get("/mate-troca-pending-by-product")
+def get_mate_troca_pending_by_product(
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Pendente CX/UN por produto a partir do último evento gravado no servidor.
+
+    O acumulativo local (localStorage) é por navegador; este snapshot alinha Chrome/Edge
+    quando os lançamentos já foram sincronizados com a API.
+    """
+    _ensure_mate_couro_troca_logs_table()
+    sub = (
+        select(MateCouroTrocaLog.cod_produto, func.max(MateCouroTrocaLog.id).label("mid"))
+        .group_by(MateCouroTrocaLog.cod_produto)
+    ).subquery()
+    stmt = select(MateCouroTrocaLog).join(
+        sub,
+        (MateCouroTrocaLog.cod_produto == sub.c.cod_produto) & (MateCouroTrocaLog.id == sub.c.mid),
+    )
+    rows = list(session.exec(stmt).all())
+    pending: dict[str, dict[str, int]] = {}
+    for r in rows:
+        cx = int(r.pend_cx_after or 0)
+        un = int(r.pend_un_after or 0)
+        if cx == 0 and un == 0:
+            continue
+        c = _normalize_item_code(str(r.cod_produto or ""))
+        if c:
+            pending[c] = {"cx": cx, "un": un}
+    return {"pending": pending}
+
+
 def _mate_troca_iso_utc(dt_val: datetime | None) -> str | None:
     if dt_val is None:
         return None
