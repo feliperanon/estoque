@@ -502,49 +502,25 @@
           <!-- Sub: Base de Troca — mesmo layout da Análise de Contagem (#count-audit) -->
           <div id="sub-mate-couro-troca" class="sub-section count-audit-page mate-troca-page">
             <section class="count-audit-shell mate-troca-shell" aria-labelledby="mate-couro-troca-title">
-              <header class="card count-audit-header mate-troca-header-card">
-                <div class="count-audit-header__row">
-                  <div class="count-audit-header__titles">
-                    <h2 id="mate-couro-troca-title" class="count-audit-page-title">Base de Troca</h2>
-                    <p class="count-audit-page-subtitle">Consulta de quebras (mesma API do Registro de quebras), filtro CIA Mate couro · delta por dia soma ao pendente · acumulativo só neste aparelho · America/Sao_Paulo</p>
+              <section class="card mate-troca-kpi-shell" id="mate-troca-summary" aria-label="Base de troca Mate couro — indicadores e consulta">
+                <div class="mate-troca-kpi-page-intro">
+                  <h2 id="mate-couro-troca-title" class="count-audit-page-title">Base de Troca</h2>
+                  <p class="count-audit-page-subtitle mate-troca-page-subtitle">
+                    A lista <strong>Quebras do dia</strong> mostra totais já lançados no servidor (não é o pendente).
+                    O <strong>pendente de troca</strong> é acumulativo neste aparelho; use <strong>Carregar</strong> para somar deltas do dia.
+                    Chegadas e ajustes ficam no <strong>histórico no servidor</strong> (abaixo).
+                  </p>
+                  <div class="count-audit-header__toolbar mate-troca-kpi-toolbar" aria-label="Ações da base de troca">
+                    <div class="count-audit-field count-audit-field--date">
+                      <label class="count-audit-label" for="mate-couro-troca-date">Consultar dia</label>
+                      <input id="mate-couro-troca-date" name="mate-couro-troca-date" type="date" class="search-input count-audit-date-input" aria-label="Dia operacional da quebra" />
+                    </div>
+                    <div class="count-audit-header__actions">
+                      <button type="button" id="btn-mate-couro-troca-load" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--primary count-audit-btn-refresh">Carregar</button>
+                    </div>
                   </div>
-                  <div class="count-audit-header__chips">
-                    <span class="chip count-audit-chip-ativo">CIA Mate couro</span>
-                    <span class="chip count-audit-chip-mode">Acumulativo local</span>
-                  </div>
+                  <div id="mate-couro-troca-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
                 </div>
-                <div class="count-audit-header__meta" role="list" aria-label="Contexto da base de troca">
-                  <article class="count-audit-meta-pill" role="listitem">
-                    <span class="count-audit-meta-label">Data operacional</span>
-                    <span id="mate-couro-troca-meta-date" class="count-audit-meta-value">--/--/----</span>
-                  </article>
-                  <article class="count-audit-meta-pill" role="listitem">
-                    <span class="count-audit-meta-label">Status</span>
-                    <span id="mate-troca-analysis-status" class="count-audit-meta-value">Aguardando carga</span>
-                  </article>
-                  <article class="count-audit-meta-pill count-audit-meta-pill--soft" role="listitem">
-                    <span class="count-audit-meta-label">Última sincronização</span>
-                    <span id="mate-troca-last-sync" class="count-audit-meta-value">--:--</span>
-                  </article>
-                  <article class="count-audit-meta-pill count-audit-meta-pill--soft" role="listitem">
-                    <span class="count-audit-meta-label">Escopo</span>
-                    <span id="mate-troca-scope-hint" class="count-audit-meta-value">Mate couro</span>
-                    <span class="count-audit-meta-hint">Quebra + pendente</span>
-                  </article>
-                </div>
-                <div class="count-audit-header__toolbar" aria-label="Ações da base de troca">
-                  <div class="count-audit-field count-audit-field--date">
-                    <label class="count-audit-label" for="mate-couro-troca-date">Consultar dia</label>
-                    <input id="mate-couro-troca-date" name="mate-couro-troca-date" type="date" class="search-input count-audit-date-input" aria-label="Dia operacional da quebra" />
-                  </div>
-                  <div class="count-audit-header__actions">
-                    <button type="button" id="btn-mate-couro-troca-load" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--primary count-audit-btn-refresh">Carregar</button>
-                  </div>
-                </div>
-                <div id="mate-couro-troca-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
-              </header>
-
-              <section class="card mate-troca-kpi-shell" id="mate-troca-summary" aria-labelledby="mate-troca-kpi-title">
                 <div class="mate-troca-kpi-head">
                   <div>
                     <h3 id="mate-troca-kpi-title">Indicadores</h3>
@@ -603,7 +579,8 @@
                     <h3>Filtros</h3>
                     <p class="count-audit-card-sub muted">Busca no pendente e limpeza do acumulativo</p>
                   </div>
-                  <div class="count-audit-filters-actions">
+                  <div class="count-audit-filters-actions mate-troca-filters-actions-row">
+                    <button type="button" id="btn-mate-couro-troca-adjust-pending" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline">Ajustar pendente por código</button>
                     <button type="button" id="btn-mate-couro-troca-clear-all" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline count-audit-btn-clear-all">Limpar acumulativo todo</button>
                   </div>
                 </div>
@@ -611,7 +588,7 @@
                   <div class="count-audit-search-row">
                     <input id="mate-couro-troca-pending-search" class="search-input count-audit-search-input" type="search" placeholder="Buscar pendente por código ou produto…" autocomplete="off" aria-label="Buscar no pendente de troca" />
                   </div>
-                  <p class="count-audit-card-sub muted mate-troca-filters-hint">Ao receber a troca, use <strong>Registrar chegada</strong> ou <strong>Definir saldo</strong> na lista abaixo, ou limpe o acumulativo.</p>
+                  <p class="count-audit-card-sub muted mate-troca-filters-hint">Ao receber a troca, use <strong>Registrar chegada</strong> ou <strong>Definir saldo</strong> na lista abaixo. Se o produto sumiu do pendente, use <strong>Ajustar pendente por código</strong>.</p>
                 </div>
               </section>
 
@@ -620,18 +597,17 @@
                   <div class="card-head count-audit-list-head">
                     <div>
                       <h3>Quebras do dia (Mate couro)</h3>
-                      <p class="count-audit-card-sub muted">Mesma origem do Registro de quebras — totais por produto no dia consultado</p>
+                      <p class="count-audit-card-sub muted">Servidor — totais de quebra do dia (não confundir com pendente local)</p>
                     </div>
                     <div class="count-audit-list-head-meta">
                       <span id="mate-couro-troca-day-chip" class="chip count-audit-total-chip" aria-live="polite">0</span>
                       <span id="mate-couro-troca-day-range-info" class="count-audit-range-info">Selecione o dia e carregue o registro.</span>
                     </div>
                   </div>
-                  <div class="break-history-list-header" aria-hidden="true">
+                  <div class="break-history-list-header mate-troca-break-day-header" aria-hidden="true">
                     <span>Produto</span>
                     <span>Dia</span>
                     <span>Quebra</span>
-                    <span>Motivo</span>
                     <span>Usuário</span>
                   </div>
                   <div class="count-audit-list-panel break-history-list-panel">
