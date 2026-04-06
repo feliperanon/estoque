@@ -7505,6 +7505,29 @@ function enrichCountAuditRow(row) {
   };
 }
 
+/**
+ * Pendente local de troca (Mate couro) para o código da linha da análise.
+ * Usa a chave normalizada; se não existir, tenta equivalente numérico (ex.: 030 vs 30).
+ */
+function resolveMateCouroPendingEntry(pending, codProduto) {
+  const p = pending && typeof pending === 'object' ? pending : {};
+  const base = normalizeItemCode(codProduto);
+  if (!base) return { cx: 0, un: 0 };
+  const normEntry = (t) => {
+    if (!t || typeof t !== 'object') return { cx: 0, un: 0 };
+    return {
+      cx: Math.max(0, Math.round(Number(t.cx) || 0)),
+      un: Math.max(0, Math.round(Number(t.un) || 0)),
+    };
+  };
+  if (Object.prototype.hasOwnProperty.call(p, base)) return normEntry(p[base]);
+  if (/^\d+$/.test(base)) {
+    const alt = normalizeItemCode(String(Number(base)));
+    if (alt && alt !== base && Object.prototype.hasOwnProperty.call(p, alt)) return normEntry(p[alt]);
+  }
+  return { cx: 0, un: 0 };
+}
+
 /** Sincroniza CX/UN do pendente local da Base de Troca (mate-couro-troca) em cada linha da análise. */
 function applyMateCouroTrocaPendingToCountAuditRows() {
   const rows = Array.isArray(countAuditState.rows) ? countAuditState.rows : [];
@@ -7512,10 +7535,9 @@ function applyMateCouroTrocaPendingToCountAuditRows() {
   const pending = readMateCouroTrocaStorage().pending || {};
   for (const row of rows) {
     if (!row._auditMeta) continue;
-    const base = normalizeItemCode(row.cod_produto);
-    const t = base && pending[base] ? pending[base] : { cx: 0, un: 0 };
-    row._auditMeta.trocaCx = Math.max(0, Math.round(Number(t.cx) || 0));
-    row._auditMeta.trocaUn = Math.max(0, Math.round(Number(t.un) || 0));
+    const t = resolveMateCouroPendingEntry(pending, row.cod_produto);
+    row._auditMeta.trocaCx = t.cx;
+    row._auditMeta.trocaUn = t.un;
   }
 }
 
