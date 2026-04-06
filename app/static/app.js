@@ -1743,8 +1743,21 @@ function updateCountKpi(products = countProductsCache) {
 
   const events = loadCountEvents();
   const stats = computeCountProgressStats(products);
-  const { total, percent } = stats;
-  kpiCountPercent.textContent = `${percent}%`;
+  const { total, percent, productPercent } = stats;
+  const showDimSub =
+    Boolean(stats.usesDimProgress && stats.dimTotal > 0 && countImportBalancesState.hasTxt);
+  const kpiDisplayPercent = showDimSub ? productPercent : percent;
+  kpiCountPercent.textContent = `${kpiDisplayPercent}%`;
+  const kpiSub = document.getElementById('kpi-count-percent-sub');
+  if (kpiSub) {
+    if (showDimSub) {
+      kpiSub.hidden = false;
+      kpiSub.textContent = `Metades CX/UN vs importação: ${percent}%`;
+    } else {
+      kpiSub.hidden = true;
+      kpiSub.textContent = '';
+    }
+  }
 
   const timestamps = events
     .map((e) => new Date(e.observed_at || '').getTime())
@@ -1766,7 +1779,7 @@ function updateCountKpi(products = countProductsCache) {
     kpiCountWindow.textContent = 'Início: --:-- | Fim: --:--';
     kpiCountElapsed.textContent = 'Tempo em andamento: 00:00:00';
     kpiCountEta.textContent =
-      percent > 0
+      kpiDisplayPercent > 0 || percent > 0
         ? 'Previsão de término: aguardando horários dos lançamentos sincronizados'
         : 'Previsão de término: --:--';
     return;
