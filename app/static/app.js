@@ -7010,149 +7010,6 @@ function renderCountAuditSummary(summary) {
   }
 }
 
-function getAuditStatusRank(status) {
-  const m = { missing_in_count: 0, divergent: 1, extra_in_count: 2, ok: 3 };
-  return m[status] ?? 9;
-}
-
-function compareAuditCodProduto(a, b) {
-  return String(a.cod_produto || '').localeCompare(String(b.cod_produto || ''), 'pt-BR', { numeric: true });
-}
-
-/** Ordenação da lista (select #count-audit-sort). */
-function sortCountAuditRowsForDisplay(list) {
-  const sortEl = document.getElementById('count-audit-sort');
-  const mode = (sortEl && sortEl.value) || 'status';
-
-  const tieCod = (a, b, primary) => {
-    const p = primary(a, b);
-    if (p !== 0) return p;
-    return compareAuditCodProduto(a, b);
-  };
-
-  switch (mode) {
-    case 'cod_asc':
-      list.sort(compareAuditCodProduto);
-      break;
-    case 'cod_desc':
-      list.sort((a, b) => compareAuditCodProduto(b, a));
-      break;
-    case 'nome_asc':
-      list.sort((a, b) =>
-        tieCod(a, b, (x, y) =>
-          String(x.descricao || '')
-            .toLowerCase()
-            .localeCompare(String(y.descricao || '').toLowerCase(), 'pt-BR'),
-        ),
-      );
-      break;
-    case 'nome_desc':
-      list.sort((a, b) =>
-        tieCod(a, b, (x, y) =>
-          String(y.descricao || '')
-            .toLowerCase()
-            .localeCompare(String(x.descricao || '').toLowerCase(), 'pt-BR'),
-        ),
-      );
-      break;
-    case 'grupo_asc':
-      list.sort((a, b) => {
-        const ga = (a.grupo || 'Sem grupo').toLowerCase();
-        const gb = (b.grupo || 'Sem grupo').toLowerCase();
-        const g = ga.localeCompare(gb, 'pt-BR');
-        if (g !== 0) return g;
-        return compareAuditCodProduto(a, b);
-      });
-      break;
-    case 'grupo_desc':
-      list.sort((a, b) => {
-        const ga = (a.grupo || 'Sem grupo').toLowerCase();
-        const gb = (b.grupo || 'Sem grupo').toLowerCase();
-        const g = gb.localeCompare(ga, 'pt-BR');
-        if (g !== 0) return g;
-        return compareAuditCodProduto(a, b);
-      });
-      break;
-    case 'diff_desc':
-      list.sort((a, b) => {
-        const d = (Number(b.difference_abs) || 0) - (Number(a.difference_abs) || 0);
-        if (d !== 0) return d;
-        return compareAuditCodProduto(a, b);
-      });
-      break;
-    case 'diff_asc':
-      list.sort((a, b) => {
-        const d = (Number(a.difference_abs) || 0) - (Number(b.difference_abs) || 0);
-        if (d !== 0) return d;
-        return compareAuditCodProduto(a, b);
-      });
-      break;
-    case 'saldo_cx_desc':
-      list.sort((a, b) => {
-        const d = (Number(b.import_caixa) || 0) - (Number(a.import_caixa) || 0);
-        if (d !== 0) return d;
-        return compareAuditCodProduto(a, b);
-      });
-      break;
-    case 'saldo_cx_asc':
-      list.sort((a, b) => {
-        const d = (Number(a.import_caixa) || 0) - (Number(b.import_caixa) || 0);
-        if (d !== 0) return d;
-        return compareAuditCodProduto(a, b);
-      });
-      break;
-    case 'saldo_un_desc':
-      list.sort((a, b) => {
-        const d = (Number(b.import_unidade) || 0) - (Number(a.import_unidade) || 0);
-        if (d !== 0) return d;
-        return compareAuditCodProduto(a, b);
-      });
-      break;
-    case 'saldo_un_asc':
-      list.sort((a, b) => {
-        const d = (Number(a.import_unidade) || 0) - (Number(b.import_unidade) || 0);
-        if (d !== 0) return d;
-        return compareAuditCodProduto(a, b);
-      });
-      break;
-    case 'status':
-    default:
-      list.sort((a, b) => {
-        const r = getAuditStatusRank(a.status) - getAuditStatusRank(b.status);
-        if (r !== 0) return r;
-        const da = Number(a.difference_abs) || 0;
-        const db = Number(b.difference_abs) || 0;
-        if (da !== db) return db - da;
-        const ga = (a.grupo || 'Sem grupo').toLowerCase();
-        const gb = (b.grupo || 'Sem grupo').toLowerCase();
-        if (ga !== gb) return ga.localeCompare(gb, 'pt-BR');
-        return compareAuditCodProduto(a, b);
-      });
-  }
-}
-
-function matchesCountAuditSummaryFilter(row, key) {
-  if (!key) return true;
-  const cx = Number(row.counted_caixa) || 0;
-  const un = Number(row.counted_unidade) || 0;
-  switch (key) {
-    case 'balance':
-      return row.status !== 'extra_in_count';
-    case 'counted':
-      return cx !== 0 || un !== 0;
-    case 'equal':
-      return row.status === 'ok';
-    case 'divergent':
-      return row.status === 'divergent';
-    case 'missing':
-      return row.status === 'missing_in_count';
-    case 'extra':
-      return row.status === 'extra_in_count';
-    default:
-      return true;
-  }
-}
-
 // Eventos para barra de pesquisa na análise de contagem
 const countAuditSearch = document.getElementById('count-audit-search');
 const countAuditClearSearch = document.getElementById('count-audit-clear-search');
@@ -7528,6 +7385,25 @@ function resolveMateCouroPendingEntry(pending, codProduto) {
   return { cx: 0, un: 0 };
 }
 
+/**
+ * Alinha diferença CX/UN / |Dif| do meta com a mesma base usada em "Contagem atual"
+ * (sincronizado + pendente troca local). Evita mostrar +6 quando o total exibido é 373+1=374 vs base 367 (+7).
+ */
+function reconcileCountAuditMetaDiffWithMergedCount(row) {
+  const meta = row && row._auditMeta;
+  if (!meta) return;
+  const importCx = Math.round(Number(row.import_caixa) || 0);
+  const importUn = Math.round(Number(row.import_unidade) || 0);
+  const countedCx = Math.round(Number(row.counted_caixa) || 0);
+  const countedUn = Math.round(Number(row.counted_unidade) || 0);
+  const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
+  const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
+  meta.diffCx = countedCx + tCx - importCx;
+  meta.diffUn = countedUn + tUn - importUn;
+  meta.diffAbs = Math.abs(meta.diffCx) + Math.abs(meta.diffUn);
+  meta.totalCount = countedCx + tCx + countedUn + tUn;
+}
+
 /** Sincroniza CX/UN do pendente local da Base de Troca (mate-couro-troca) em cada linha da análise. */
 function applyMateCouroTrocaPendingToCountAuditRows() {
   const rows = Array.isArray(countAuditState.rows) ? countAuditState.rows : [];
@@ -7538,6 +7414,7 @@ function applyMateCouroTrocaPendingToCountAuditRows() {
     const t = resolveMateCouroPendingEntry(pending, row.cod_produto);
     row._auditMeta.trocaCx = t.cx;
     row._auditMeta.trocaUn = t.un;
+    reconcileCountAuditMetaDiffWithMergedCount(row);
   }
 }
 
@@ -7852,7 +7729,7 @@ function buildCountAuditHistoryHtml(history) {
 function buildCountAuditTrailHtml(row, meta, importInfo, actors, devices) {
   return [
     ['Base de comparação', importInfo.id == null ? 'Saldo sintético / fallback sem TXT' : `${formatDateBR(importInfo.reference_date || '')} · ${importInfo.file_name || 'TXT'}`],
-    ['Divergência calculada', `CX ${formatSignedIntegerBR(row.difference_caixa)} · UN ${formatSignedIntegerBR(row.difference_unidade)} · |Dif| ${formatIntegerBR(meta.diffAbs || 0)}`],
+    ['Divergência calculada', `CX ${formatSignedIntegerBR(meta.diffCx ?? row.difference_caixa)} · UN ${formatSignedIntegerBR(meta.diffUn ?? row.difference_unidade)} · |Dif| ${formatIntegerBR(meta.diffAbs || 0)}`],
     ['Observação automática', meta.insight || 'Sem observação automática.'],
     ['Quem lançou', actors.length ? actors.join(', ') : 'Sem ator identificado'],
     ['Dispositivos', devices.length ? devices.join(', ') : 'Sem dispositivo identificado'],
@@ -7932,30 +7809,36 @@ function formatCountAuditDetailOpsCxUnLine(cx, un, mode) {
   return segs.join(' · ');
 }
 
-/** Coluna desktop: blocos Troca e/ou Quebra; vazio se nenhum tiver rotina. */
-function buildCountAuditTrocaQuebraCellInnerHtml(meta) {
-  const parts = [];
+/**
+ * Análise de Contagem — desktop: duas colunas separadas (Troca | Quebra).
+ * Troca: pendente acumulativo local (Base de Troca Mate couro). Quebra: líquido do dia operacional.
+ */
+/** Coluna desktop Troca: pendente local (Mate couro); traço quando sem saldo. */
+function buildCountAuditTrocaColumnCellHtml(meta) {
   if (countAuditHasTrocaPending(meta)) {
     const inner = buildCountAuditDiffCxUnStrongs(meta.trocaCx, meta.trocaUn, 'troca');
-    parts.push(
-      `<div class="count-audit-ops-block">` +
-        `<span class="count-audit-cell-label">Troca</span>` +
-        `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="Pendente acumulativo local (Base de Troca — CIA Mate couro); zerado ao limpar na Base de Troca">` +
-        inner +
-        `</div></div>`,
+    return (
+      `<span class="count-audit-cell-label">Troca</span>` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="Pendente acumulativo local (Base de Troca — CIA Mate couro); zerado ao limpar na Base de Troca">` +
+      inner +
+      `</div>`
     );
   }
+  return `<span class="count-audit-cell-label">Troca</span><span class="count-audit-cell-value">—</span>`;
+}
+
+/** Coluna desktop Quebra: dia operacional da análise; traço quando líquido zero. */
+function buildCountAuditQuebraColumnCellHtml(meta) {
   if (countAuditHasBreakDay(meta)) {
     const inner = buildCountAuditDiffCxUnStrongs(meta.breakCx, meta.breakUn, 'break');
-    parts.push(
-      `<div class="count-audit-ops-block">` +
-        `<span class="count-audit-cell-label">Quebra</span>` +
-        `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da análise (mesma lógica da tela Quebra)">` +
-        inner +
-        `</div></div>`,
+    return (
+      `<span class="count-audit-cell-label">Quebra</span>` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da análise (mesma lógica da tela Quebra)">` +
+      inner +
+      `</div>`
     );
   }
-  return parts.join('');
+  return `<span class="count-audit-cell-label">Quebra</span><span class="count-audit-cell-value">—</span>`;
 }
 
 /** Resumo mobile: faixas Troca e/ou Quebra só quando houver valor. */
@@ -8055,8 +7938,8 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
         `<div class="count-audit-detail-grid">` +
           `<article class="count-audit-detail-metric"><span>Base / TXT</span><strong>${formatIntegerBR(Number(row.import_caixa) || 0)} CX / ${formatIntegerBR(Number(row.import_unidade) || 0)} UN</strong><small>${importInfo.id == null ? 'Fallback sem TXT' : (importInfo.file_name || 'Base importada')}</small></article>` +
           `<article class="count-audit-detail-metric count-audit-detail-metric--current-cxu"><span>Contagem atual</span><div class="count-audit-detail-metric-cxu-wrap">${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div><small>${launches} lançamento(s) sincronizado(s)</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
+          `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(meta.diffCx ?? row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
+          `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(meta.diffUn ?? row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
           `${trocaDetailArticle}` +
           `${breakDetailArticle}` +
         `</div>` +
@@ -8100,11 +7983,14 @@ function renderCountAuditDesktopRowMarkup(row) {
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span>${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><div class="count-audit-diff-breakdown"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.diffCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.diffUn || 0)}</strong></div></div>` +
-        `<div class="count-audit-cell count-audit-cell--troca-quebra">${buildCountAuditTrocaQuebraCellInnerHtml(meta)}</div>` +
+        `<div class="count-audit-cell count-audit-col-troca">${buildCountAuditTrocaColumnCellHtml(meta)}</div>` +
+        `<div class="count-audit-cell count-audit-col-quebra">${buildCountAuditQuebraColumnCellHtml(meta)}</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
-        `<div class="count-audit-cell count-audit-cell--recount-live"><button type="button" class="count-audit-btn-recount-live" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button></div>` +
-        `<div class="count-audit-cell count-audit-cell--detail"><button type="button" class="count-audit-detail-btn" data-action="detail" data-code="${encodeURIComponent(code)}">Detalhe</button></div>` +
+        `<div class="count-audit-cell count-audit-cell--actions">` +
+          `<button type="button" class="count-audit-btn-recount-live" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button>` +
+          `<button type="button" class="count-audit-detail-btn" data-action="detail" data-code="${encodeURIComponent(code)}">Detalhe</button>` +
+        `</div>` +
       `</div>` +
     `</li>`
   );

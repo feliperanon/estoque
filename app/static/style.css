@@ -3440,7 +3440,7 @@ form#break-op-form.count-form {
 
 .count-audit-list-header {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) repeat(4, minmax(0, 0.78fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) 4.6rem 4.6rem;
+  grid-template-columns: minmax(0, 2.1fr) repeat(5, minmax(0, 0.72fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) minmax(4.75rem, 5rem);
   gap: var(--audit-space-2);
   align-items: center;
   padding: 0 0.35rem var(--audit-space-2);
@@ -3449,6 +3449,15 @@ form#break-op-form.count-form {
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* Análise de Contagem: separar visualmente o bloco Troca | Quebra do restante da grade (como colunas próprias). */
+#sub-count-audit .count-audit-list-header .count-audit-h-troca,
+#sub-count-audit .count-audit-row .count-audit-col-troca {
+  padding-left: 0.5rem;
+  margin-left: -0.05rem;
+  border-left: 1px solid var(--audit-border);
+  box-sizing: border-box;
 }
 
 #sub-count-audit .count-audit-list-panel,
@@ -3767,7 +3776,7 @@ form#break-op-form.count-form {
 
 .count-audit-row {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) repeat(4, minmax(0, 0.78fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) 4.6rem 4.6rem;
+  grid-template-columns: minmax(0, 2.1fr) repeat(5, minmax(0, 0.72fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) minmax(4.75rem, 5rem);
   gap: var(--audit-space-2);
   align-items: stretch;
   padding: 0.55rem 0.65rem 0.55rem 0.85rem;
@@ -3778,18 +3787,6 @@ form#break-op-form.count-form {
   flex-direction: column;
   justify-content: center;
   gap: 0.25rem;
-  min-width: 0;
-}
-
-.count-audit-cell--troca-quebra {
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.count-audit-ops-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.22rem;
   min-width: 0;
 }
 
@@ -4066,9 +4063,24 @@ form#break-op-form.count-form {
   font-weight: 400;
 }
 
-.count-audit-cell--recount-live {
+.count-audit-h-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.count-audit-h-actions__line {
+  display: block;
+}
+
+.count-audit-cell--actions {
   align-items: stretch;
   justify-content: center;
+  gap: 0.32rem;
 }
 
 .count-audit-btn-recount-live {
@@ -4095,10 +4107,6 @@ form#break-op-form.count-form {
 .count-audit-btn-recount-live:focus-visible {
   outline: 2px solid #7c3aed;
   outline-offset: 2px;
-}
-
-.count-audit-cell--detail {
-  align-items: flex-end;
 }
 
 .count-audit-detail-action-btn {
