@@ -3286,7 +3286,6 @@ async function loadBreakHistoryList() {
       }
       cx = Math.round(cx);
       un = Math.round(un);
-      const reason = ev.reason ? escapeHtml(String(ev.reason)) : '—';
       const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
       const li = document.createElement('li');
       li.className = 'count-audit-item break-history-item';
@@ -3310,10 +3309,6 @@ async function loadBreakHistoryList() {
         `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(cx)}</strong>` +
         `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(un)}</strong>` +
         `</div></div>` +
-        `<div class="count-audit-cell">` +
-        `<span class="count-audit-cell-label">Motivo</span>` +
-        `<span class="count-audit-cell-value">${reason}</span>` +
-        `</div>` +
         `<div class="count-audit-cell">` +
         `<span class="count-audit-cell-label">Nome</span>` +
         `<span class="count-audit-cell-value">${actor}</span>` +
@@ -3526,6 +3521,27 @@ function mateTrocaKindLabelPt(kind) {
   if (k === 'zerar') return 'Zerar';
   if (k === 'ajuste_pendente') return 'Ajuste por código';
   return k || '—';
+}
+
+/** Texto claro quando a chegada ultrapassa o pendente (por CX e por UN). */
+function mateTrocaChegouAMaisText(ev) {
+  if (String(ev.kind || '').trim() !== 'chegada') return '';
+  const exCx = Number(ev.excess_cx) || 0;
+  const exUn = Number(ev.excess_un) || 0;
+  if (exCx <= 0 && exUn <= 0) return '';
+  const pbc = Number(ev.pend_cx_before) || 0;
+  const pbu = Number(ev.pend_un_before) || 0;
+  const qcx = Number(ev.qty_cx_in) || 0;
+  const qun = Number(ev.qty_un_in) || 0;
+  const exParts = [];
+  if (exCx > 0) exParts.push(`${formatBreakIntegerBR(exCx)} CX`);
+  if (exUn > 0) exParts.push(`${formatBreakIntegerBR(exUn)} UN`);
+  const exHuman = exParts.join(' e ');
+  return (
+    `Chegou a mais: o pendente de troca era ${formatBreakIntegerBR(pbc)} CX / ${formatBreakIntegerBR(pbu)} UN; ` +
+    `registraram chegada de ${formatBreakIntegerBR(qcx)} CX / ${formatBreakIntegerBR(qun)} UN ` +
+    `(houve ${exHuman} a mais do que o necessário para só abater o pendente).`
+  );
 }
 
 function buildMateTrocaServerPayload(kind, cod, cur, next, qtyCxIn, qtyUnIn) {
@@ -4070,11 +4086,10 @@ function renderMateTrocaServerLog(events) {
     const cod = escapeHtml(String(ev.cod_produto || ''));
     const nameRaw = String(ev.product_desc || '').trim();
     const nameEsc = escapeHtml(nameRaw || ev.cod_produto || '');
-    const extraTxt =
-      (Number(ev.excess_cx) > 0 || Number(ev.excess_un) > 0) && String(ev.kind) === 'chegada'
-        ? ` (exced. CX ${formatBreakIntegerBR(ev.excess_cx)} UN ${formatBreakIntegerBR(ev.excess_un)})`
-        : '';
-    const movText = `CX ${formatBreakIntegerBR(ev.qty_cx_in)} / UN ${formatBreakIntegerBR(ev.qty_un_in)}${extraTxt}`;
+    const chegouMais = mateTrocaChegouAMaisText(ev);
+    const movText = chegouMais
+      ? `CX ${formatBreakIntegerBR(ev.qty_cx_in)} / UN ${formatBreakIntegerBR(ev.qty_un_in)}. ${chegouMais}`
+      : `CX ${formatBreakIntegerBR(ev.qty_cx_in)} / UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
     const pendText = `${formatBreakIntegerBR(ev.pend_cx_before)}/${formatBreakIntegerBR(ev.pend_un_before)} → ${formatBreakIntegerBR(ev.pend_cx_after)}/${formatBreakIntegerBR(ev.pend_un_after)}`;
     const actor = escapeHtml(String(ev.actor_username || '—'));
     const li = document.createElement('li');
@@ -4139,13 +4154,10 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     const kind = mateTrocaKindLabelPt(ev.kind);
     const dayOp = escapeHtml(mateTrocaHistoryDayLabel(ev));
     const when = escapeHtml(mateTrocaHistoryDateTimeLabel(ev.created_at));
-    const extraTxt =
-      (Number(ev.excess_cx) > 0 || Number(ev.excess_un) > 0) && kindRaw === 'chegada'
-        ? ` · excedente CX ${formatBreakIntegerBR(ev.excess_cx)} UN ${formatBreakIntegerBR(ev.excess_un)}`
-        : '';
+    const chegouMaisPlain = mateTrocaChegouAMaisText(ev);
     let mov = '';
     if (kindRaw === 'chegada') {
-      mov = `Registro de chegada: entrada CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente)${extraTxt}`;
+      mov = `Registro de chegada: entrada CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`;
     } else if (kindRaw === 'zerar') {
       mov = 'Zerar: pendente levado a zero.';
     } else if (kindRaw === 'definir') {
@@ -4169,6 +4181,9 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
       `</div>` +
       `<p class="mate-troca-pending-history-detail"><span class="count-audit-cell-label">Quando</span> ${when}</p>` +
       `<p class="mate-troca-pending-history-detail">${escapeHtml(mov)}</p>` +
+      (chegouMaisPlain
+        ? `<p class="mate-troca-pending-history-detail mate-troca-chegou-a-mais">${escapeHtml(chegouMaisPlain)}</p>`
+        : '') +
       `<p class="mate-troca-pending-history-detail">${escapeHtml(pend)}</p>` +
       `<p class="mate-troca-pending-history-actor muted">` +
       `<span class="count-audit-cell-label">Por quem</span> ` +

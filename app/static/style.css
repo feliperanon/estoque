@@ -3668,10 +3668,10 @@ form#break-op-form.count-form {
   }
 }
 
-/* Registro de quebras (#sub-break-history) — fila no mesmo grid da análise (5 colunas) */
+/* Registro de quebras (#sub-break-history) — fila: Produto, Dia, Quebra, Nome (4 colunas) */
 #sub-break-history .break-history-list-header {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) 5.5rem minmax(0, 0.95fr) minmax(0, 1.05fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 2.2fr) 5.5rem minmax(0, 1.05fr) minmax(0, 1fr);
   gap: var(--audit-space-2);
   align-items: center;
   padding: 0 0.35rem var(--audit-space-2);
@@ -3684,7 +3684,7 @@ form#break-op-form.count-form {
 
 #sub-break-history .break-history-audit-row {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) 5.5rem minmax(0, 0.95fr) minmax(0, 1.05fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 2.2fr) 5.5rem minmax(0, 1.05fr) minmax(0, 1fr);
   gap: var(--audit-space-2);
   align-items: stretch;
   padding: 0.55rem 0.65rem 0.55rem 0.85rem;
@@ -3704,7 +3704,7 @@ form#break-op-form.count-form {
 
 #sub-break-history .break-history-list-header,
 #sub-break-history .break-history-audit-row {
-  min-width: 560px;
+  min-width: 480px;
 }
 
 #sub-break-history .break-history-audit-row .count-audit-cell-value {
