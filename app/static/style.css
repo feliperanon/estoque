@@ -3440,7 +3440,7 @@ form#break-op-form.count-form {
 
 .count-audit-list-header {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) repeat(5, minmax(0, 0.78fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) 4.6rem 4.6rem;
+  grid-template-columns: minmax(0, 2.1fr) repeat(4, minmax(0, 0.78fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) 4.6rem 4.6rem;
   gap: var(--audit-space-2);
   align-items: center;
   padding: 0 0.35rem var(--audit-space-2);
@@ -3767,7 +3767,7 @@ form#break-op-form.count-form {
 
 .count-audit-row {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) repeat(5, minmax(0, 0.78fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) 4.6rem 4.6rem;
+  grid-template-columns: minmax(0, 2.1fr) repeat(4, minmax(0, 0.78fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) 4.6rem 4.6rem;
   gap: var(--audit-space-2);
   align-items: stretch;
   padding: 0.55rem 0.65rem 0.55rem 0.85rem;
@@ -3827,6 +3827,47 @@ form#break-op-form.count-form {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
+}
+
+/* Contagem atual + pendente troca (Mate couro): total em destaque; parcela troca só em verde */
+.count-audit-cxu-pair--with-troca {
+  gap: 0.22rem;
+}
+
+.count-audit-cxu-pair--with-troca .count-audit-cx-val,
+.count-audit-cxu-pair--with-troca .count-audit-un-val {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.06rem;
+  line-height: 1.2;
+}
+
+.count-audit-cxu-sumline {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.count-audit-cxu-sum {
+  font-weight: 700;
+}
+
+.count-audit-cxu-troca-mix {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--audit-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.count-audit-troca-delta {
+  color: #047857;
+  font-weight: 600;
+}
+
+.count-audit-detail-metric-cxu-wrap .count-audit-cxu-pair {
+  margin-top: 0.15rem;
 }
 
 .count-audit-cell--product {

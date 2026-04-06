@@ -7842,6 +7842,35 @@ function buildCountAuditTrailHtml(row, meta, importInfo, actors, devices) {
   )).join('');
 }
 
+/** Contagem sincronizada + pendente troca local: total em destaque; parcela troca em verde (sem rótulo). */
+function buildCountAuditMergedCurrentCxuHtml(row, meta) {
+  const baseCx = Math.max(0, Math.round(Number(row.counted_caixa) || 0));
+  const baseUn = Math.max(0, Math.round(Number(row.counted_unidade) || 0));
+  const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
+  const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
+  const sumCx = baseCx + tCx;
+  const sumUn = baseUn + tUn;
+  const hasTroca = tCx > 0 || tUn > 0;
+  const title = hasTroca
+    ? 'Total = contagem sincronizada + pendente troca local (Mate couro). A soma em verde integra ao total acima.'
+    : '';
+  const pairClass = `count-audit-cxu-pair${hasTroca ? ' count-audit-cxu-pair--with-troca' : ''}`;
+  const pairOpen = title
+    ? `<div class="${pairClass}" aria-label="Caixa e unidade contagem" title="${escapeHtml(title)}">`
+    : `<div class="${pairClass}" aria-label="Caixa e unidade contagem">`;
+
+  const cxInner =
+    tCx > 0
+      ? `<span class="count-audit-cxu-sumline">CX <span class="count-audit-cxu-sum">${formatIntegerBR(sumCx)}</span></span><span class="count-audit-cxu-troca-mix" aria-hidden="true"><span class="count-audit-cxu-base">${formatIntegerBR(baseCx)}</span><span class="count-audit-troca-delta">+${formatIntegerBR(tCx)}</span></span>`
+      : `CX ${formatIntegerBR(baseCx)}`;
+  const unInner =
+    tUn > 0
+      ? `<span class="count-audit-cxu-sumline">UN <span class="count-audit-cxu-sum">${formatIntegerBR(sumUn)}</span></span><span class="count-audit-cxu-troca-mix" aria-hidden="true"><span class="count-audit-cxu-base">${formatIntegerBR(baseUn)}</span><span class="count-audit-troca-delta">+${formatIntegerBR(tUn)}</span></span>`
+      : `UN ${formatIntegerBR(baseUn)}`;
+
+  return `${pairOpen}<strong class="count-audit-cx-val">${cxInner}</strong><strong class="count-audit-un-val">${unInner}</strong></div>`;
+}
+
 function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = false) {
   const meta = row._auditMeta || {};
   const importInfo = detail?.import || countAuditState.importInfo || {};
@@ -7878,11 +7907,10 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
         `</div>` +
         `<div class="count-audit-detail-grid">` +
           `<article class="count-audit-detail-metric"><span>Base / TXT</span><strong>${formatIntegerBR(Number(row.import_caixa) || 0)} CX / ${formatIntegerBR(Number(row.import_unidade) || 0)} UN</strong><small>${importInfo.id == null ? 'Fallback sem TXT' : (importInfo.file_name || 'Base importada')}</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Contagem atual</span><strong>${formatIntegerBR(Number(row.counted_caixa) || 0)} CX / ${formatIntegerBR(Number(row.counted_unidade) || 0)} UN</strong><small>${launches} lançamento(s) sincronizado(s)</small></article>` +
+          `<article class="count-audit-detail-metric count-audit-detail-metric--current-cxu"><span>Contagem atual</span><div class="count-audit-detail-metric-cxu-wrap">${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div><small>${launches} lançamento(s) sincronizado(s)</small></article>` +
           `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
           `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
           `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatBreakIntegerBR(meta.breakCx || 0)} CX / ${formatBreakIntegerBR(meta.breakUn || 0)} UN</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Troca (acum.)</span><strong>${formatBreakIntegerBR(meta.trocaCx || 0)} CX / ${formatBreakIntegerBR(meta.trocaUn || 0)} UN</strong><small>Pendente local — Base de Troca (CIA Mate couro)</small></article>` +
         `</div>` +
       `</section>` +
       `${isLoading ? '<div class="count-audit-detail-loading">Carregando trilha detalhada deste item...</div>' : ''}` +
@@ -7922,10 +7950,9 @@ function renderCountAuditDesktopRowMarkup(row) {
           `</button>` +
         `</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade contagem"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.counted_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.counted_unidade) || 0)}</strong></div></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem atual</span>${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><div class="count-audit-diff-breakdown"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.diffCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.diffUn || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Quebra</span><div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da análise (mesma lógica da tela Quebra)"><strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(meta.breakCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(meta.breakUn || 0)}</strong></div></div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Troca</span><div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="Pendente acumulativo local (Base de Troca — CIA Mate couro); zerado ao limpar na Base de Troca"><strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(meta.trocaCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(meta.trocaUn || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
         `<div class="count-audit-cell count-audit-cell--recount-live"><button type="button" class="count-audit-btn-recount-live" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button></div>` +
@@ -7979,10 +8006,6 @@ function renderCountAuditMobileRowMarkup(row) {
           `<div class="count-audit-mobile-break-strip" title="Quebra no dia (mesma lógica da tela Quebra)">` +
             `<span class="count-audit-mobile-break-label">Quebra</span>` +
             `<span class="count-audit-mobile-break-values">CX ${formatBreakIntegerBR(meta.breakCx || 0)} · UN ${formatBreakIntegerBR(meta.breakUn || 0)}</span>` +
-          `</div>` +
-          `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Pendente acumulativo local (Base de Troca — CIA Mate couro)">` +
-            `<span class="count-audit-mobile-break-label">Troca</span>` +
-            `<span class="count-audit-mobile-break-values">CX ${formatBreakIntegerBR(meta.trocaCx || 0)} · UN ${formatBreakIntegerBR(meta.trocaUn || 0)}</span>` +
           `</div>` +
         `</button>` +
         `<button type="button" class="count-audit-mobile-recount-live-btn" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar em tempo real</button>` +
