@@ -1574,11 +1574,16 @@ def list_break_events(
     dt_r = _parse_iso_date_arg(date_to) if date_to else None
     cod_q = (cod_produto or "").strip()
 
-    if df_r is not None or dt_r is not None or cod_q:
-        if df_r is None or dt_r is None or not cod_q:
+    if (df_r is not None) ^ (dt_r is not None):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Informe date_from e date_to juntos (YYYY-MM-DD).",
+        )
+    if df_r is not None and dt_r is not None:
+        if not cod_q:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Para consultar intervalo, informe date_from, date_to e cod_produto.",
+                detail="Consulta por intervalo exige cod_produto.",
             )
         d0, d1 = df_r, dt_r
         if d0 > d1:
@@ -1600,7 +1605,9 @@ def list_break_events(
         alt_cod = _normalize_item_code(cod_q)
         if alt_cod:
             codes_lookup.add(alt_cod)
-        prod_rows = list(session.exec(select(Product).where(Product.cod_produto.in_(codes_lookup))).all())
+        prod_rows = list(
+            session.exec(select(Product).where(Product.cod_produto.in_(list(codes_lookup)))).all()
+        )
         for p in prod_rows:
             cc = _normalize_numeric_product_code_key(str(p.cod_produto or ""))
             if cc:

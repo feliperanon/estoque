@@ -4203,7 +4203,10 @@ function filterEventsMateCouro(events) {
 /** Converte linhas GET /audit/break-events (intervalo + cod) em eventos para o diálogo de histórico da Base de Troca. */
 function breakScreenEventsToMateTrocaOverlay(events) {
   const out = [];
-  for (const r of filterEventsMateCouro(events || [])) {
+  const set = getMateCouroCodSet();
+  const rawList = events || [];
+  const listIn = set.size === 0 ? rawList : filterEventsMateCouro(rawList);
+  for (const r of listIn) {
     const { cx, un } = parseAuditBreakCxUn(r);
     if (cx === 0 && un === 0) continue;
     const canon =
