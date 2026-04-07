@@ -3542,11 +3542,10 @@ async function fetchMateTrocaPendingByProductMap() {
       const c = normalizeNumericProductCodeKey(k);
       if (!c) continue;
       const v = raw[k];
-      const cx = Math.max(0, Math.round(Number(v?.cx) || 0));
-      const un = Math.max(0, Math.round(Number(v?.un) || 0));
-      if (!norm[c]) norm[c] = { cx: 0, un: 0 };
-      norm[c].cx += cx;
-      norm[c].un += un;
+      norm[c] = {
+        cx: Math.max(0, Math.round(Number(v?.cx) || 0)),
+        un: Math.max(0, Math.round(Number(v?.un) || 0)),
+      };
     }
     return norm;
   } catch {
@@ -3559,9 +3558,11 @@ function mirrorMateTrocaPendingToLocalStorage(serverMap) {
   const state = readMateCouroTrocaStorage();
   state.pending = {};
   for (const [k, v] of Object.entries(serverMap || {})) {
+    const ck = normalizeNumericProductCodeKey(k);
+    if (!ck) continue;
     const cx = Math.max(0, Math.round(Number(v?.cx) || 0));
     const un = Math.max(0, Math.round(Number(v?.un) || 0));
-    if (cx || un) state.pending[k] = { cx, un };
+    if (cx || un) state.pending[ck] = { cx, un };
   }
   writeMateCouroTrocaStorage(state);
 }
@@ -3898,6 +3899,22 @@ function mateTrocaSignedCxUnParts(dcx, dun) {
   return [cxPart, unPart].filter(Boolean).join(' · ') || '0 CX · 0 UN';
 }
 
+/** Snapshot por dia: unifica chaves numéricas (010 vs 10) somando se houver colisão legada. */
+function canonicalizeMateTrocaDaySnapshot(snap) {
+  if (!snap || typeof snap !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(snap)) {
+    const ck = normalizeNumericProductCodeKey(k);
+    if (!ck) continue;
+    const cx = Math.max(0, Math.round(Number(v?.cx) || 0));
+    const un = Math.max(0, Math.round(Number(v?.un) || 0));
+    if (!out[ck]) out[ck] = { cx: 0, un: 0 };
+    out[ck].cx += cx;
+    out[ck].un += un;
+  }
+  return out;
+}
+
 /**
  * Aplica delta de quebra Mate couro do dia no **servidor** (incorporacao_quebra), idempotente por
  * dia+código+delta. Atualiza snapshots locais só após POST ok; espelha pending do GET em seguida.
@@ -3906,14 +3923,16 @@ async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
   const state = readMateCouroTrocaStorage();
   if (!state.daySnapshots) state.daySnapshots = {};
   if (!Array.isArray(state.eventLog)) state.eventLog = [];
-  const agg = aggregateMateCouroEventsByCode(mateEvents);
-  const prev = state.daySnapshots[dayKey] || {};
+  const agg = canonicalizeMateTrocaDaySnapshot(aggregateMateCouroEventsByCode(mateEvents));
+  const prev = canonicalizeMateTrocaDaySnapshot(state.daySnapshots[dayKey] || {});
   const codes = new Set([...Object.keys(agg), ...Object.keys(prev)]);
 
   const serverMap = await fetchMateTrocaPendingByProductMap();
   const work = {};
   for (const k of Object.keys(serverMap)) {
-    work[k] = { cx: serverMap[k].cx, un: serverMap[k].un };
+    const ck = normalizeNumericProductCodeKey(k);
+    if (!ck) continue;
+    work[ck] = { cx: serverMap[k].cx, un: serverMap[k].un };
   }
 
   const payloads = [];
@@ -3927,7 +3946,7 @@ async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
     const dun = a.un - p.un;
     if (dcx === 0 && dun === 0) continue;
 
-    const base = normalizeItemCode(cod);
+    const base = normalizeNumericProductCodeKey(cod) || normalizeItemCode(cod);
     if (!base) continue;
 
     const cur = work[base] || { cx: 0, un: 0 };
@@ -7749,13 +7768,13 @@ function enrichCountAuditRow(row) {
 }
 
 /**
- * Pendente local de troca (Mate couro) para o código da linha da análise.
- * Usa a chave normalizada; se não existir, tenta equivalente numérico (ex.: 030 vs 30).
+ * Pendente Mate couro na análise: chave canônica numérica (010 ≡ 10) e fallback à forma bruta do TXT.
  */
 function resolveMateCouroPendingEntry(pending, codProduto) {
   const p = pending && typeof pending === 'object' ? pending : {};
-  const base = normalizeItemCode(codProduto);
-  if (!base) return { cx: 0, un: 0 };
+  const raw = normalizeItemCode(codProduto);
+  if (!raw) return { cx: 0, un: 0 };
+  const canon = normalizeNumericProductCodeKey(codProduto);
   const normEntry = (t) => {
     if (!t || typeof t !== 'object') return { cx: 0, un: 0 };
     return {
@@ -7763,11 +7782,8 @@ function resolveMateCouroPendingEntry(pending, codProduto) {
       un: Math.max(0, Math.round(Number(t.un) || 0)),
     };
   };
-  if (Object.prototype.hasOwnProperty.call(p, base)) return normEntry(p[base]);
-  if (/^\d+$/.test(base)) {
-    const alt = normalizeItemCode(String(Number(base)));
-    if (alt && alt !== base && Object.prototype.hasOwnProperty.call(p, alt)) return normEntry(p[alt]);
-  }
+  if (canon && Object.prototype.hasOwnProperty.call(p, canon)) return normEntry(p[canon]);
+  if (Object.prototype.hasOwnProperty.call(p, raw)) return normEntry(p[raw]);
   return { cx: 0, un: 0 };
 }
 
