@@ -1869,7 +1869,9 @@ def get_recount_signals(
 
 
 MATE_COURO_CIA = "Mate couro"
-_ALLOWED_MATE_TROCA_KINDS = frozenset({"chegada", "definir", "zerar", "ajuste_pendente"})
+_ALLOWED_MATE_TROCA_KINDS = frozenset(
+    {"chegada", "definir", "zerar", "ajuste_pendente", "incorporacao_quebra"}
+)
 MAX_MATE_TROCA_BATCH_SCAN = 12_000
 
 
@@ -1885,8 +1887,8 @@ class MateTrocaEventInput(BaseModel):
     client_event_id: str = Field(min_length=8, max_length=100)
     kind: str = Field(max_length=24)
     cod_produto: str = Field(min_length=1, max_length=120)
-    qty_cx_in: int = Field(default=0, ge=0, le=500_000)
-    qty_un_in: int = Field(default=0, ge=0, le=500_000)
+    qty_cx_in: int = Field(default=0, ge=-500_000, le=500_000)
+    qty_un_in: int = Field(default=0, ge=-500_000, le=500_000)
     pend_cx_before: int = Field(ge=0, le=500_000)
     pend_un_before: int = Field(ge=0, le=500_000)
     pend_cx_after: int = Field(ge=0, le=500_000)
@@ -1922,6 +1924,11 @@ def _validate_mate_troca_payload(ev: MateTrocaEventInput) -> tuple[int, int]:
     """Retorna (excess_cx, excess_un) gravados; para chegada usa o calculo do servidor."""
     k = (ev.kind or "").strip()
     if k == "chegada":
+        if ev.qty_cx_in < 0 or ev.qty_un_in < 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="chegada exige quantidades nao negativas.",
+            )
         ex_cx = max(0, ev.qty_cx_in - ev.pend_cx_before)
         ex_un = max(0, ev.qty_un_in - ev.pend_un_before)
         if ev.pend_cx_after != max(0, ev.pend_cx_before - ev.qty_cx_in):
@@ -1936,6 +1943,11 @@ def _validate_mate_troca_payload(ev: MateTrocaEventInput) -> tuple[int, int]:
             )
         return ex_cx, ex_un
     if k in ("definir", "ajuste_pendente"):
+        if ev.qty_cx_in < 0 or ev.qty_un_in < 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="definir/ajuste exige quantidades nao negativas.",
+            )
         if ev.pend_cx_after != ev.qty_cx_in or ev.pend_un_after != ev.qty_un_in:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -1952,6 +1964,15 @@ def _validate_mate_troca_payload(ev: MateTrocaEventInput) -> tuple[int, int]:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="zerar exige pendente apos zero.",
+            )
+        return 0, 0
+    if k == "incorporacao_quebra":
+        exp_cx = max(0, int(ev.pend_cx_before) + int(ev.qty_cx_in))
+        exp_un = max(0, int(ev.pend_un_before) + int(ev.qty_un_in))
+        if int(ev.pend_cx_after) != exp_cx or int(ev.pend_un_after) != exp_un:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Pendente apos incorporacao_quebra inconsistente com delta.",
             )
         return 0, 0
     raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="kind invalido.")
@@ -2105,8 +2126,7 @@ def get_mate_troca_pending_by_product(
 ) -> dict:
     """Pendente CX/UN por produto a partir do último evento gravado no servidor.
 
-    O acumulativo por “Carregar dia” na Base de Troca fica no localStorage até sincronizar
-    chegadas/ajustes via POST; este endpoint reflete o log persistido na API.
+    Inclui chegadas, ajustes, zeramentos e incorporacao_quebra (Carregar dia na Base de Troca).
     """
     _ensure_mate_couro_troca_logs_table()
     sub = (
