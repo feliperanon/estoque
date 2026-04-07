@@ -1326,9 +1326,8 @@ def _aggregate_break_events_all_time_by_code(session: Session) -> dict[str, dict
     return out
 
 
-def _mate_couro_break_totals_all_time(session: Session) -> dict[str, dict[str, int]]:
-    """Total de quebra CX/UN (servidor) apenas produtos CIA Mate couro; chave numérica canônica."""
-    raw = _aggregate_break_events_all_time_by_code(session)
+def _mate_couro_allowed_product_codes(session: Session) -> set[str]:
+    """Códigos canônicos (numéricos) dos produtos da CIA Mate couro."""
     rows = list(
         session.exec(select(Product.cod_produto).where(Product.cod_grup_cia == MATE_COURO_CIA)).all()
     )
@@ -1337,6 +1336,42 @@ def _mate_couro_break_totals_all_time(session: Session) -> dict[str, dict[str, i
         c = _normalize_numeric_product_code_key(str(r or ""))
         if c:
             allowed.add(c)
+    return allowed
+
+
+def _mate_couro_break_totals_date_range(session: Session, d_from: date, d_to: date) -> dict[str, dict[str, int]]:
+    """Soma CX/UN de quebras (ChangeLog) no intervalo inclusive, só produtos CIA Mate couro."""
+    if d_from > d_to:
+        d_from, d_to = d_to, d_from
+    if (d_to - d_from).days > 366:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Intervalo maximo 366 dias para acumulado Mate couro.",
+        )
+    allowed = _mate_couro_allowed_product_codes(session)
+    out: dict[str, dict[str, int]] = {}
+    cur = d_from
+    while cur <= d_to:
+        agg = _aggregate_break_events_by_code(session, cur)
+        for code, rec in agg.items():
+            if code not in allowed:
+                continue
+            cx = int(rec.get("caixa", 0) or 0)
+            un = int(rec.get("unidade", 0) or 0)
+            if cx == 0 and un == 0:
+                continue
+            if code not in out:
+                out[code] = {"cx": 0, "un": 0}
+            out[code]["cx"] += cx
+            out[code]["un"] += un
+        cur += timedelta(days=1)
+    return {k: v for k, v in out.items() if v["cx"] or v["un"]}
+
+
+def _mate_couro_break_totals_all_time(session: Session) -> dict[str, dict[str, int]]:
+    """Total de quebra CX/UN (servidor) apenas produtos CIA Mate couro; chave numérica canônica."""
+    raw = _aggregate_break_events_all_time_by_code(session)
+    allowed = _mate_couro_allowed_product_codes(session)
     out: dict[str, dict[str, int]] = {}
     for code, rec in raw.items():
         if code not in allowed:
@@ -2442,6 +2477,14 @@ class MateTrocaReconcileFromBreaksBody(BaseModel):
 
 @router.get("/mate-troca-pending-by-product")
 def get_mate_troca_pending_by_product(
+    date_from: str | None = Query(
+        default=None,
+        description="Início do intervalo (YYYY-MM-DD) para break_totals_period, inclusive.",
+    ),
+    date_to: str | None = Query(
+        default=None,
+        description="Fim do intervalo (YYYY-MM-DD) para break_totals_period, inclusive.",
+    ),
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> dict:
@@ -2451,14 +2494,33 @@ def get_mate_troca_pending_by_product(
     Usa o evento mais recente em ``created_at`` (desempate por ``id``), não só ``max(id)``,
     para refletir a ordem operacional mesmo se houver inserções fora de sequência.
 
-    ``break_totals`` é a soma histórica global (todas as datas) de quebras no ChangeLog para CIA Mate couro;
-    o cliente usa isso para incluir na lista produtos com quebra no servidor mesmo sem saldo na troca e
-    para exibir referência separada do pendente operacional (não confundir com o total do dia consultado).
-    Os valores de **pendente de troca** vêm exclusivamente de ``pending``.
+    ``break_totals`` permanece como soma histórica global (ChangeLog, CIA Mate couro) para usos internos
+    (ex.: análise de contagem). **Não** deve ser o número principal na Base de Troca.
+
+    ``break_totals_period`` é a soma das quebras no intervalo informado (ou mês civil atual até hoje em
+    America/Sao_Paulo se ``date_from``/``date_to`` forem omitidos). É o acumulado operacional correto
+    para exibir na Base de Troca (ex.: 06/04 + 07/04 → soma CX/UN).
     """
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    df_q = _parse_iso_date_arg(date_from) if date_from else None
+    dt_q = _parse_iso_date_arg(date_to) if date_to else None
+    if (df_q is None) ^ (dt_q is None):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Informe date_from e date_to juntos (YYYY-MM-DD) ou omita ambos.",
+        )
+    if df_q is None and dt_q is None:
+        d0 = date(br_today.year, br_today.month, 1)
+        d1 = br_today
+    else:
+        d0, d1 = df_q, dt_q
+        if d0 > d1:
+            d0, d1 = d1, d0
+    break_totals_period = _mate_couro_break_totals_date_range(session, d0, d1)
     return {
         "pending": _mate_troca_pending_product_map(session),
         "break_totals": _mate_couro_break_totals_all_time(session),
+        "break_totals_period": break_totals_period,
     }
 
 
