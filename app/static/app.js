@@ -3612,11 +3612,47 @@ async function fetchMateTrocaPendingPayload() {
   }
 }
 
-/** Payload limpo da Base de Troca: só ``pending`` + códigos com quebra no período (sem totais de quebra). */
-async function fetchMateTrocaBaseScreenPayload() {
+function hydrateMateTrocaBaseV2LastValidFromDiskOnce() {
+  if (mateTrocaBaseV2LastValidHydrated) return;
+  mateTrocaBaseV2LastValidHydrated = true;
+  try {
+    const raw = localStorage.getItem(MATE_TROCA_BASE_V2_LAST_VALID_KEY);
+    if (!raw) return;
+    const o = JSON.parse(raw);
+    if (!o || typeof o !== 'object') return;
+    const next = {};
+    for (const [k, v] of Object.entries(o)) {
+      const ck = normalizeNumericProductCodeKey(k);
+      if (!ck || !v || typeof v !== 'object') continue;
+      next[ck] = {
+        cod: ck,
+        desc: String(v.desc || ''),
+        cx: Math.max(0, Math.round(Number(v.cx) || 0)),
+        un: Math.max(0, Math.round(Number(v.un) || 0)),
+        balanceOrigin: String(v.balanceOrigin || 'preserved'),
+        updatedAt: Math.max(0, Number(v.updatedAt) || 0),
+        saldoKnown: v.saldoKnown !== false,
+        explicitZero: !!v.explicitZero,
+      };
+    }
+    mateTrocaBaseLastValidStateV2 = next;
+  } catch {
+    /* ignore */
+  }
+}
+
+function persistMateTrocaBaseV2LastValidToDisk() {
+  try {
+    localStorage.setItem(MATE_TROCA_BASE_V2_LAST_VALID_KEY, JSON.stringify(mateTrocaBaseLastValidStateV2));
+  } catch {
+    /* ignore */
+  }
+}
+
+async function fetchMateTrocaBaseV2() {
   const token = getToken();
-  const empty = { pending: {}, discovery_codes: [] };
-  if (!token) return empty;
+  const fail = { ok: false, discovery_codes: [], balances: {}, raw: null };
+  if (!token) return fail;
   try {
     ensureMateTrocaAcumuladoRangeDefaults();
     const params = new URLSearchParams();
@@ -3629,43 +3665,274 @@ async function fetchMateTrocaBaseScreenPayload() {
       params.set('date_to', d1);
     }
     const qs = params.toString();
-    const url = qs ? `${API_MATE_TROCA_BASE}?${qs}` : API_MATE_TROCA_BASE;
+    const url = qs ? `${API_MATE_TROCA_BASE_V2}?${qs}` : API_MATE_TROCA_BASE_V2;
     const response = await apiFetch(url, {
       headers: getAuthHeaders(),
       cache: 'no-store',
     });
-    if (handleUnauthorizedResponse(response)) return empty;
-    if (!response.ok) return empty;
+    if (handleUnauthorizedResponse(response)) return fail;
+    if (!response.ok) return fail;
     const data = await response.json();
     const rawList = data.discovery_codes;
     const discovery_codes = Array.isArray(rawList) ? rawList.map((x) => String(x || '').trim()).filter(Boolean) : [];
+    const balances = {};
+    const rawBal = data.balances;
+    if (rawBal && typeof rawBal === 'object') {
+      for (const [k, v] of Object.entries(rawBal)) {
+        const ck = normalizeNumericProductCodeKey(k);
+        if (!ck) continue;
+        const cxRaw = Number(v?.cx);
+        const unRaw = Number(v?.un);
+        const cx = Number.isFinite(cxRaw) ? Math.max(0, Math.round(cxRaw)) : 0;
+        const un = Number.isFinite(unRaw) ? Math.max(0, Math.round(unRaw)) : 0;
+        balances[ck] = { cx, un };
+      }
+    }
     return {
-      pending: normalizeMateTrocaCxUnMap(data.pending),
+      ok: true,
       discovery_codes,
+      balances,
+      period_from: data.period_from,
+      period_to: data.period_to,
+      raw: data,
     };
   } catch {
-    return empty;
+    return fail;
   }
+}
+
+function composeMateTrocaBaseBalanceRowsV2(
+  serverBalances,
+  lastValidMap,
+  discoverySet,
+  catalog,
+  searchTerm,
+  flags,
+) {
+  const fetchFailed = !!(flags && flags.fetchFailed);
+  const codeSet = new Set();
+  if (serverBalances && typeof serverBalances === 'object') {
+    for (const k of Object.keys(serverBalances)) {
+      const ck = normalizeNumericProductCodeKey(k);
+      if (ck) codeSet.add(ck);
+    }
+  }
+  if (discoverySet instanceof Set) {
+    for (const c of discoverySet) {
+      const ck = normalizeNumericProductCodeKey(String(c || ''));
+      if (ck) codeSet.add(ck);
+    }
+  }
+  if (lastValidMap && typeof lastValidMap === 'object') {
+    for (const k of Object.keys(lastValidMap)) {
+      const ck = normalizeNumericProductCodeKey(k);
+      if (ck) codeSet.add(ck);
+    }
+  }
+  const term = (searchTerm || '').trim().toLowerCase();
+  const rows = [];
+  for (const cod of codeSet) {
+    const hasServer =
+      serverBalances &&
+      typeof serverBalances === 'object' &&
+      Object.prototype.hasOwnProperty.call(serverBalances, cod);
+    let cx = null;
+    let un = null;
+    let saldoKnown = false;
+    let balanceOrigin = 'unknown';
+
+    if (hasServer) {
+      const b = serverBalances[cod];
+      cx = Math.max(0, Math.round(Number(b?.cx) || 0));
+      un = Math.max(0, Math.round(Number(b?.un) || 0));
+      saldoKnown = true;
+      balanceOrigin = 'server_v2';
+    } else if (lastValidMap && lastValidMap[cod] && lastValidMap[cod].saldoKnown !== false) {
+      if (fetchFailed || !hasServer) {
+        const lv = lastValidMap[cod];
+        cx = Math.max(0, Math.round(Number(lv.cx) || 0));
+        un = Math.max(0, Math.round(Number(lv.un) || 0));
+        saldoKnown = true;
+        balanceOrigin = fetchFailed ? 'preserved_fetch_failed' : 'preserved';
+      }
+    }
+
+    if (!saldoKnown) {
+      cx = null;
+      un = null;
+      balanceOrigin = 'unknown';
+    }
+
+    const p = (catalog || []).find(
+      (x) => normalizeNumericProductCodeKey(String(x.cod_produto || '')) === cod,
+    );
+    const desc = p ? String(p.cod_grup_descricao || '').trim() : (lastValidMap[cod]?.desc || '');
+    if (term) {
+      const ok =
+        cod.toLowerCase().includes(term) || String(desc || '').toLowerCase().includes(term);
+      if (!ok) continue;
+    }
+    const explicitZero = saldoKnown && cx === 0 && un === 0 && balanceOrigin === 'server_v2';
+    rows.push({
+      cod,
+      desc,
+      cx,
+      un,
+      saldoKnown,
+      balanceOrigin,
+      explicitZero,
+    });
+  }
+  rows.sort((a, b) => compareAuditCodProduto({ cod_produto: a.cod }, { cod_produto: b.cod }));
+  return rows;
+}
+
+function renderMateTrocaBaseBalanceCardV2(mergedRows) {
+  const ul = document.getElementById('mate-couro-troca-balance-list-v2');
+  const countEl = document.getElementById('mate-couro-troca-balance-v2-count');
+  const rangeEl = document.getElementById('mate-couro-troca-balance-v2-range');
+  if (!ul) return;
+  console.log('[MATE TROCA V2] render final', mergedRows);
+  if (countEl) {
+    countEl.textContent = mergedRows.length ? `${mergedRows.length} produto(s)` : '0 produtos';
+  }
+  const fromEl = document.getElementById('mate-couro-troca-acum-from');
+  const toEl = document.getElementById('mate-couro-troca-acum-to');
+  if (rangeEl) {
+    const dr =
+      fromEl && toEl && fromEl.value && toEl.value
+        ? `${formatDateBR(fromEl.value)} – ${formatDateBR(toEl.value)}`
+        : '';
+    rangeEl.textContent = dr ? `Período lista: ${dr}` : '';
+  }
+  ul.innerHTML = '';
+  if (!mergedRows.length) {
+    ul.innerHTML =
+      '<li class="count-audit-empty"><span>Sem itens no período ou busca. Ajuste <strong>De</strong>/<strong>Até</strong>, <strong>Atualizar lista</strong> ou <strong>Carregar</strong> o dia.</span><strong>—</strong></li>';
+    return;
+  }
+  for (const r of mergedRows) {
+    const codEsc = escapeHtml(r.cod);
+    const nameEsc = escapeHtml(r.desc || r.cod);
+    const codRef = encodeURIComponent(r.cod);
+    const saldoHtml = r.saldoKnown
+      ? `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
+        `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>`
+      : `<span class="mate-troca-balance-v2-unknown" title="Saldo ainda não confirmado no servidor nesta sessão">CX — · UN —</span>`;
+    const li = document.createElement('li');
+    li.className = 'count-audit-item mate-couro-pending-item mate-troca-balance-v2-item';
+    li.setAttribute('data-state', 'ok');
+    li.setAttribute('data-mate-pending-cod', r.cod);
+    li.setAttribute('data-mate-balance-known', r.saldoKnown ? '1' : '0');
+    li.innerHTML =
+      `<div class="mate-couro-pending-audit-row mate-couro-pending-audit-row--clickable mate-troca-balance-v2-row" role="presentation">` +
+      `<div class="count-audit-cell count-audit-cell--product">` +
+      `<div class="break-history-product-static">` +
+      `<div class="count-audit-row-topline"><span class="count-audit-code-badge">${codEsc}</span></div>` +
+      `<span class="count-audit-row-name">${nameEsc}</span>` +
+      `</div></div>` +
+      `<div class="count-audit-cell mate-couro-pending-saldo-cell">` +
+      `<span class="count-audit-cell-label">Saldo acumulado</span>` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-acc mate-troca-balance-v2-saldo">${saldoHtml}</div>` +
+      `</div>` +
+      `<div class="count-audit-cell mate-couro-pending-actions">` +
+      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--primary" data-mate-pend-v2="recebeu" data-coderef="${codRef}" aria-label="Registrar chegada" title="Registrar chegada">Chegada</button>` +
+      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--outline" data-mate-pend-v2="definir" data-coderef="${codRef}" aria-label="Definir saldo pendente" title="Definir saldo pendente">Saldo</button>` +
+      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--muted" data-mate-pend-v2="zerar" data-coderef="${codRef}" aria-label="Zerar saldo pendente" title="Zerar saldo pendente">Zerar</button>` +
+      `</div>` +
+      `</div>`;
+    ul.appendChild(li);
+  }
+}
+
+function renderMateTrocaBaseBalanceCardV2FromCache() {
+  hydrateMateTrocaBaseV2LastValidFromDiskOnce();
+  const searchEl = document.getElementById('mate-couro-troca-pending-search');
+  const term = ((searchEl && searchEl.value) || '').trim().toLowerCase();
+  const mergedRows = composeMateTrocaBaseBalanceRowsV2(
+    mateTrocaBaseBalanceCacheV2,
+    mateTrocaBaseLastValidStateV2,
+    mateTrocaBaseDiscoveryCodesV2,
+    mateCouroProductsCache,
+    term,
+    { fetchFailed: false },
+  );
+  mateTrocaBaseV2LastMergedRows = mergedRows;
+  console.log('[MATE TROCA V2] merged rows (cache)', mergedRows);
+  renderMateTrocaBaseBalanceCardV2(mergedRows);
+  updateMateCouroKpis();
+}
+
+async function refreshMateTrocaBaseBalanceCardV2() {
+  hydrateMateTrocaBaseV2LastValidFromDiskOnce();
+  const payload = await fetchMateTrocaBaseV2();
+  console.log('[MATE TROCA V2] payload bruto', payload.raw != null ? payload.raw : payload);
+  console.log('[MATE TROCA V2] last valid state (antes merge)', { ...mateTrocaBaseLastValidStateV2 });
+
+  const searchEl = document.getElementById('mate-couro-troca-pending-search');
+  const term = ((searchEl && searchEl.value) || '').trim().toLowerCase();
+
+  if (payload.ok) {
+    mateTrocaBaseDiscoveryCodesV2 = new Set();
+    for (const c of payload.discovery_codes) {
+      const ck = normalizeNumericProductCodeKey(c);
+      if (ck) mateTrocaBaseDiscoveryCodesV2.add(ck);
+    }
+    mateTrocaBaseBalanceCacheV2 = { ...payload.balances };
+    mateTrocaDiscoveryCodesCache = new Set(mateTrocaBaseDiscoveryCodesV2);
+
+    const catalog = mateCouroProductsCache || [];
+    for (const [ck, b] of Object.entries(payload.balances)) {
+      const p = catalog.find(
+        (x) => normalizeNumericProductCodeKey(String(x.cod_produto || '')) === ck,
+      );
+      const desc = p ? String(p.cod_grup_descricao || '').trim() : '';
+      mateTrocaBaseLastValidStateV2[ck] = {
+        cod: ck,
+        desc,
+        cx: b.cx,
+        un: b.un,
+        balanceOrigin: 'server_v2',
+        updatedAt: Date.now(),
+        saldoKnown: true,
+        explicitZero: b.cx === 0 && b.un === 0,
+      };
+    }
+    persistMateTrocaBaseV2LastValidToDisk();
+
+    mateTrocaServerPendingCache = { ...payload.balances };
+    countAuditState.mateTrocaServerPending = { ...mateTrocaServerPendingCache };
+    mirrorMateTrocaPendingToLocalStorage(mateTrocaServerPendingCache);
+  }
+
+  const serverPatch = payload.ok ? payload.balances : {};
+  const mergedRows = composeMateTrocaBaseBalanceRowsV2(
+    serverPatch,
+    mateTrocaBaseLastValidStateV2,
+    mateTrocaBaseDiscoveryCodesV2,
+    mateCouroProductsCache,
+    term,
+    { fetchFailed: !payload.ok },
+  );
+  mateTrocaBaseV2LastMergedRows = mergedRows;
+  console.log('[MATE TROCA V2] merged rows', mergedRows);
+  renderMateTrocaBaseBalanceCardV2(mergedRows);
+  updateMateCouroKpis();
+  return mateTrocaServerPendingCache;
 }
 
 async function fetchMateTrocaPendingByProductMap() {
-  const { pending } = await fetchMateTrocaBaseScreenPayload();
-  return pending;
+  const r = await fetchMateTrocaBaseV2();
+  if (r.ok) return { ...r.balances };
+  return mateTrocaBaseBalanceCacheV2 && Object.keys(mateTrocaBaseBalanceCacheV2).length
+    ? { ...mateTrocaBaseBalanceCacheV2 }
+    : {};
 }
 
-/** Atualiza caches da Base de Troca a partir do endpoint dedicado (sem break_totals no payload). */
+/** Atualiza caches da Base de Troca (card V2 + espelhos para análise de contagem). */
 async function refreshMateTrocaBaseScreenData() {
-  const { pending, discovery_codes } = await fetchMateTrocaBaseScreenPayload();
-  mateTrocaServerPendingCache = pending;
-  const disc = new Set();
-  for (const c of discovery_codes) {
-    const ck = normalizeNumericProductCodeKey(c);
-    if (ck) disc.add(ck);
-  }
-  mateTrocaDiscoveryCodesCache = disc;
-  countAuditState.mateTrocaServerPending = { ...pending };
-  mirrorMateTrocaPendingToLocalStorage(pending);
-  return pending;
+  await refreshMateTrocaBaseBalanceCardV2();
+  return mateTrocaServerPendingCache;
 }
 
 /**
@@ -4418,13 +4685,23 @@ function updateMateCouroKpis() {
   let sumCx = 0;
   let sumUn = 0;
   let nProd = 0;
-  const server = mateTrocaServerPendingCache || {};
-  const codeSet = collectMateCouroBaseProductCodes(server, mateTrocaDiscoveryCodesCache);
-  for (const cod of codeSet) {
-    const sv = resolveMateCouroPendingEntry(server, cod);
-    sumCx += sv.cx;
-    sumUn += sv.un;
-    nProd += 1;
+  const v2rows = Array.isArray(mateTrocaBaseV2LastMergedRows) ? mateTrocaBaseV2LastMergedRows : [];
+  if (v2rows.length) {
+    nProd = v2rows.length;
+    for (const r of v2rows) {
+      if (!r.saldoKnown) continue;
+      sumCx += r.cx;
+      sumUn += r.un;
+    }
+  } else {
+    const server = mateTrocaServerPendingCache || {};
+    const codeSet = collectMateCouroBaseProductCodes(server, mateTrocaDiscoveryCodesCache);
+    for (const cod of codeSet) {
+      const sv = resolveMateCouroPendingEntry(server, cod);
+      sumCx += sv.cx;
+      sumUn += sv.un;
+      nProd += 1;
+    }
   }
   const catalogLen = Array.isArray(mateCouroProductsCache) ? mateCouroProductsCache.length : 0;
 
