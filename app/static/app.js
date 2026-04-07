@@ -420,8 +420,12 @@ const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product'
 const API_MATE_TROCA_RECONCILE_FROM_BREAKS = '/audit/mate-troca-reconcile-from-breaks';
 /** Pendente Mate couro no servidor — mesma lista/KPI/análise em todos os aparelhos. */
 let mateTrocaServerPendingCache = {};
-/** Soma de quebras (ChangeLog) CIA Mate couro, todos os dias — exibição do acumulativo real na Base de Troca. */
+/** Soma de quebras (ChangeLog) CIA Mate couro em todas as datas — referência global; não confundir com pendente nem com o dia consultado. */
 let mateTrocaBreakTotalsCache = {};
+/** Agregado CX/UN das quebras Mate couro no último dia carregado com sucesso em Base de Troca (card «Quebras do dia»). Chave canônica numérica. */
+let lastMateTrocaDayBreakAgg = {};
+/** Rótulo do dia consultado (pt-BR) alinhado ao último carregamento da lista do dia. */
+let lastMateTrocaDayConsultLabel = '';
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
@@ -3899,6 +3903,18 @@ async function syncMateTrocaEventsToServer(events) {
   return res;
 }
 
+/** Soma CX/UN dos eventos `quebra_operacional` em uma lista (ex.: histórico mesclado do produto). */
+function sumMateTrocaQuebraOperacionalInList(events) {
+  let cx = 0;
+  let un = 0;
+  for (const ev of events || []) {
+    if (String(ev.kind || '').trim() !== 'quebra_operacional') continue;
+    cx += Math.max(0, Math.round(Number(ev.qty_cx_in) || 0));
+    un += Math.max(0, Math.round(Number(ev.qty_un_in) || 0));
+  }
+  return { cx, un };
+}
+
 function mergeMateTrocaHistoryForCod(cod, serverEvents, overlayEvents) {
   const base = normalizeItemCode(cod);
   const byCid = new Map();
@@ -4369,6 +4385,8 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
       '<li class="count-audit-empty"><span>Nenhuma quebra Mate couro registrada neste dia.</span><strong>—</strong></li>';
     return;
   }
+  let totalCx = 0;
+  let totalUn = 0;
   for (const ev of mateEvents) {
     const codRaw = String(ev.cod_produto || '');
     const cod = escapeHtml(codRaw);
@@ -4376,6 +4394,8 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
     const descEsc = escapeHtml(descRaw);
     const nameHtml = descRaw ? descEsc : cod;
     const { cx, un } = parseAuditBreakCxUn(ev);
+    totalCx += cx;
+    totalUn += un;
     const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
     const li = document.createElement('li');
     li.className = 'count-audit-item break-history-item';
@@ -4406,6 +4426,25 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
       `</div>`;
     list.appendChild(li);
   }
+  const foot = document.createElement('li');
+  foot.className = 'count-audit-item mate-troca-day-total-row';
+  foot.setAttribute('data-mate-day-total', '1');
+  foot.innerHTML =
+    `<div class="break-history-audit-row mate-troca-day-row mate-troca-day-row--total" role="presentation">` +
+    `<div class="count-audit-cell count-audit-cell--product">` +
+    `<span class="count-audit-cell-label">Total no dia</span>` +
+    `<strong class="count-audit-cell-value mate-troca-day-total-label">${escapeHtml(dayLabel)}</strong>` +
+    `</div>` +
+    `<div class="count-audit-cell">` +
+    `<span class="count-audit-cell-label">Soma das linhas</span>` +
+    `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Soma das quebras CX/UN de todos os produtos listados acima para este dia operacional.">` +
+    `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(totalCx)}</strong>` +
+    `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(totalUn)}</strong>` +
+    `</div></div>` +
+    `<div class="count-audit-cell mate-troca-day-total-filler" aria-hidden="true"></div>` +
+    `<div class="count-audit-cell mate-troca-day-total-filler" aria-hidden="true"></div>` +
+    `</div>`;
+  list.appendChild(foot);
 }
 
 function getMateCouroPendingRowsFiltered() {
@@ -4427,11 +4466,20 @@ function getMateCouroPendingRowsFiltered() {
       const ok = cod.toLowerCase().includes(term) || desc.toLowerCase().includes(term);
       if (!ok) continue;
     }
+    const dayEnt =
+      lastMateTrocaDayBreakAgg && typeof lastMateTrocaDayBreakAgg === 'object'
+        ? lastMateTrocaDayBreakAgg[cod] || { cx: 0, un: 0 }
+        : { cx: 0, un: 0 };
+    const hist = resolveMateCouroPendingEntry(breaks, cod);
     rows.push({
       cod,
       cx,
       un,
       desc,
+      dayCx: dayEnt.cx,
+      dayUn: dayEnt.un,
+      histCx: hist.cx,
+      histUn: hist.un,
     });
   }
   rows.sort((a, b) => compareAuditCodProduto({ cod_produto: a.cod }, { cod_produto: b.cod }));
@@ -4459,6 +4507,27 @@ function renderMateCouroPendingList() {
     const codEsc = escapeHtml(r.cod);
     const nameEsc = escapeHtml(r.desc || r.cod);
     const codRef = encodeURIComponent(r.cod);
+    const dayLabelEsc = escapeHtml((lastMateTrocaDayConsultLabel || '').trim() || 'o dia em Consultar dia');
+    const dayBlock =
+      r.dayCx > 0 || r.dayUn > 0
+        ? `<span class="count-audit-cell-label mate-couro-pending-sub">Quebra no dia consultado (${dayLabelEsc})</span>` +
+          `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-day" title="Total deste produto no card Quebras do dia para a data selecionada (após Carregar). Soma das linhas visíveis daquele card para este código.">` +
+          `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.dayCx)}</strong>` +
+          `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.dayUn)}</strong>` +
+          `</div>`
+        : '';
+    const histBlock =
+      r.histCx > 0 || r.histUn > 0
+        ? `<span class="count-audit-cell-label mate-couro-pending-sub">Histórico acumulado (todas as datas no servidor)</span>` +
+          `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-acc" title="Soma de todas as quebras Mate couro registradas no servidor (ChangeLog), independente do dia consultado. Não é o pendente de troca nem o total só das linhas do dia.">` +
+          `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.histCx)}</strong>` +
+          `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.histUn)}</strong>` +
+          `</div>`
+        : '';
+    const saldoHint =
+      r.cx === 0 && r.un === 0 && (r.histCx > 0 || r.histUn > 0)
+        ? `<p class="mate-couro-pending-saldo-hint muted">Pendente zerado no histórico de troca, mas há quebra acumulada no servidor — use <strong>Carregar</strong> no dia da quebra para incorporar ao pendente (ou reconciliação administrativa).</p>`
+        : '';
     const li = document.createElement('li');
     li.className = 'count-audit-item mate-couro-pending-item';
     li.setAttribute('data-state', 'ok');
@@ -4471,10 +4540,14 @@ function renderMateCouroPendingList() {
       `<span class="count-audit-row-name">${nameEsc}</span>` +
       `</div></div>` +
       `<div class="count-audit-cell mate-couro-pending-saldo-cell">` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-acc" title="Pendente de troca no servidor (chegadas, definir saldo, zerar, incorporação ao Carregar). Atualiza ao sincronizar; Zerar zera este valor, não a soma histórica de quebras.">` +
+      `<span class="count-audit-cell-label">Pendente de troca (servidor)</span>` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-pendente" title="Saldo operacional no servidor: Chegada, Saldo, Zerar, Ajustar e incorporação ao Carregar. Atualiza ao sincronizar. Não é a soma automática das quebras.">` +
       `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
       `</div>` +
+      dayBlock +
+      histBlock +
+      saldoHint +
       `</div>` +
       `<div class="count-audit-cell mate-couro-pending-actions">` +
       `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--primary" data-mate-pend="recebeu" data-coderef="${codRef}" aria-label="Registrar chegada" title="Registrar chegada">Chegada</button>` +
@@ -4507,6 +4580,8 @@ async function loadMateCouroBreakDayList() {
   } catch {
     dayLabel = d;
   }
+  lastMateTrocaDayConsultLabel = dayLabel;
+  lastMateTrocaDayBreakAgg = {};
 
   await ensureMateCouroCatalogLoaded();
   await refreshMateTrocaServerPendingDisplay();
@@ -4526,7 +4601,9 @@ async function loadMateCouroBreakDayList() {
     }
     if (!response.ok) {
       lastMateTrocaDayItemsCount = null;
+      lastMateTrocaDayBreakAgg = {};
       renderMateCouroDayList(dayLabel, []);
+      renderMateCouroPendingList();
       updateMateCouroKpis();
       return;
     }
@@ -4534,6 +4611,9 @@ async function loadMateCouroBreakDayList() {
     const events = Array.isArray(data.events) ? data.events : [];
     const mateEvents = filterEventsMateCouro(events);
     lastMateTrocaDayItemsCount = mateEvents.length;
+    lastMateTrocaDayBreakAgg = canonicalizeMateTrocaDaySnapshot(
+      aggregateMateCouroEventsByCode(mateEvents),
+    );
     const incorporacaoOk = await mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     if (lastSyncKpi) {
@@ -4544,6 +4624,10 @@ async function loadMateCouroBreakDayList() {
     renderMateCouroDayList(dayLabel, mateEvents);
     renderMateCouroPendingList();
   } catch {
+    lastMateTrocaDayItemsCount = null;
+    lastMateTrocaDayBreakAgg = {};
+    renderMateCouroDayList(lastMateTrocaDayConsultLabel || dayLabel, []);
+    renderMateCouroPendingList();
     updateMateCouroKpis();
   }
 }
@@ -4803,6 +4887,26 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   const sorted = [...events].sort((a, b) =>
     mateTrocaHistoryEventSortKey(a).localeCompare(mateTrocaHistoryEventSortKey(b)),
   );
+  const listQuebraSum = sumMateTrocaQuebraOperacionalInList(sorted);
+  const pendNow = resolveMateCouroPendingEntry(mateTrocaServerPendingCache, cod);
+  const histAll = resolveMateCouroPendingEntry(mateTrocaBreakTotalsCache, cod);
+  const summaryHtml =
+    `<div class="mate-troca-pending-history-summary" role="region" aria-label="Resumo: pendente, quebras nesta lista e acumulado histórico">` +
+    `<p class="mate-troca-pending-history-summary-line">` +
+    `<span class="count-audit-cell-label">Pendente de troca agora (servidor)</span> ` +
+    `<strong>CX ${formatBreakIntegerBR(pendNow.cx)} / UN ${formatBreakIntegerBR(pendNow.un)}</strong>` +
+    `</p>` +
+    `<p class="mate-troca-pending-history-summary-line">` +
+    `<span class="count-audit-cell-label">Total das quebras nesta lista</span> ` +
+    `<strong>CX ${formatBreakIntegerBR(listQuebraSum.cx)} / UN ${formatBreakIntegerBR(listQuebraSum.un)}</strong> ` +
+    `<span class="muted mate-troca-pending-history-summary-hint">(soma dos lançamentos tipo «Quebra» abaixo; vários dias somam aqui)</span>` +
+    `</p>` +
+    `<p class="mate-troca-pending-history-summary-line mate-troca-pending-history-summary-line--global muted">` +
+    `<span class="count-audit-cell-label">Histórico acumulado no servidor</span> ` +
+    `<strong>CX ${formatBreakIntegerBR(histAll.cx)} / UN ${formatBreakIntegerBR(histAll.un)}</strong> ` +
+    `<span class="muted">(todas as datas — ChangeLog; não é só esta lista)</span>` +
+    `</p>` +
+    `</div>`;
   const parts = sorted.map((ev) => {
     const kindRaw = String(ev.kind || '').trim();
     const kind = mateTrocaKindLabelPt(ev.kind);
@@ -4853,6 +4957,7 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     );
   });
   body.innerHTML =
+    summaryHtml +
     `<p class="mate-troca-pending-history-lead muted">Ordem cronológica (mais antigo primeiro). ` +
     `Inclui Base de Troca no servidor, quebra na tela Quebra (últimos 120 dias) e lançamentos neste aparelho ainda não sincronizados.</p>` +
     `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
@@ -4866,6 +4971,9 @@ async function openMateTrocaPendingProductHistory(codRaw) {
   if (!dlg || !body) return;
 
   await ensureMateCouroCatalogLoaded();
+  if (getToken()) {
+    await refreshMateTrocaServerPendingDisplay();
+  }
   const p = (mateCouroProductsCache || []).find(
     (x) => normalizeItemCode(String(x.cod_produto || '')) === cod,
   );
