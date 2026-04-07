@@ -71,11 +71,13 @@ function isProductOnBreakMateCouroAllowlist(product) {
   return !!key && BREAK_MATE_COURO_DESC_NORMALIZED.has(key);
 }
 
-/** Linha Mate couro na quebra: lista operacional fixa + qualquer descrição que contenha "MATE COURO" (novos SKUs). */
+/** Linha Mate couro na quebra: lista fixa + descrição com "MATE COURO" + linha Nick (mesma CIA operacional no negócio). */
 function isProductBreakMateCouroLine(product) {
   if (isProductOnBreakMateCouroAllowlist(product)) return true;
   const norm = normalizeBreakProductDescForScope(product?.cod_grup_descricao);
-  return norm.includes('MATE COURO');
+  if (norm.includes('MATE COURO')) return true;
+  if (norm.startsWith('NICK ')) return true;
+  return false;
 }
 
 function filterBreakCatalogByScope(products, scope) {
