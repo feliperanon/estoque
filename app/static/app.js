@@ -417,13 +417,14 @@ const API_SYNC_BREAKS = '/audit/break-events';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
 const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product';
+const API_MATE_TROCA_BASE = '/audit/mate-troca-base';
 const API_MATE_TROCA_RECONCILE_FROM_BREAKS = '/audit/mate-troca-reconcile-from-breaks';
-/** Saldo de troca no servidor — única fonte de verdade da lista e dos botões Chegada/Saldo/Zerar. */
+/** Saldo de troca no servidor — única fonte de verdade exibida e alterada na Base de Troca. */
 let mateTrocaServerPendingCache = {};
-/** Soma global ChangeLog (CIA Mate couro) — só análise de contagem / fallback interno; nunca o número do card. */
+/** Soma global ChangeLog (CIA Mate couro) — só análise de contagem; preenchido pelo GET completo, nunca pelo card. */
 let mateTrocaBreakTotalsCache = {};
-/** Quebras no intervalo De–Até — só para incluir código na lista quando há quebra no período e saldo 0 (ex.: falta Carregar). */
-let mateTrocaTrocaAcumuladoCache = {};
+/** Códigos com quebra Mate couro no período De–Até (só presença) — para listar produto com saldo 0. */
+let mateTrocaDiscoveryCodesCache = new Set();
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
@@ -3564,6 +3565,7 @@ function ensureMateTrocaAcumuladoRangeDefaults() {
   if (!String(fromEl.value || '').trim()) fromEl.value = bounds.first;
 }
 
+/** GET completo (pending + break_totals + período) — apenas análise de contagem / compat. */
 async function fetchMateTrocaPendingPayload() {
   const token = getToken();
   const empty = { pending: {}, break_totals: {}, break_totals_period: {} };
@@ -3598,8 +3600,59 @@ async function fetchMateTrocaPendingPayload() {
   }
 }
 
+/** Payload limpo da Base de Troca: só ``pending`` + códigos com quebra no período (sem totais de quebra). */
+async function fetchMateTrocaBaseScreenPayload() {
+  const token = getToken();
+  const empty = { pending: {}, discovery_codes: [] };
+  if (!token) return empty;
+  try {
+    ensureMateTrocaAcumuladoRangeDefaults();
+    const params = new URLSearchParams();
+    const fromEl = document.getElementById('mate-couro-troca-acum-from');
+    const toEl = document.getElementById('mate-couro-troca-acum-to');
+    const d0 = String((fromEl && fromEl.value) || '').trim().slice(0, 10);
+    const d1 = String((toEl && toEl.value) || '').trim().slice(0, 10);
+    if (d0 && d1) {
+      params.set('date_from', d0);
+      params.set('date_to', d1);
+    }
+    const qs = params.toString();
+    const url = qs ? `${API_MATE_TROCA_BASE}?${qs}` : API_MATE_TROCA_BASE;
+    const response = await apiFetch(url, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) return empty;
+    if (!response.ok) return empty;
+    const data = await response.json();
+    const rawList = data.discovery_codes;
+    const discovery_codes = Array.isArray(rawList) ? rawList.map((x) => String(x || '').trim()).filter(Boolean) : [];
+    return {
+      pending: normalizeMateTrocaCxUnMap(data.pending),
+      discovery_codes,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 async function fetchMateTrocaPendingByProductMap() {
-  const { pending } = await fetchMateTrocaPendingPayload();
+  const { pending } = await fetchMateTrocaBaseScreenPayload();
+  return pending;
+}
+
+/** Atualiza caches da Base de Troca a partir do endpoint dedicado (sem break_totals no payload). */
+async function refreshMateTrocaBaseScreenData() {
+  const { pending, discovery_codes } = await fetchMateTrocaBaseScreenPayload();
+  mateTrocaServerPendingCache = pending;
+  const disc = new Set();
+  for (const c of discovery_codes) {
+    const ck = normalizeNumericProductCodeKey(c);
+    if (ck) disc.add(ck);
+  }
+  mateTrocaDiscoveryCodesCache = disc;
+  countAuditState.mateTrocaServerPending = { ...pending };
+  mirrorMateTrocaPendingToLocalStorage(pending);
   return pending;
 }
 
@@ -3636,12 +3689,11 @@ function mirrorMateTrocaPendingToLocalStorage(serverMap) {
   writeMateCouroTrocaStorage(state);
 }
 
-/** Atualiza cache global, estado da análise e espelho local após GET pending. */
+/** Atualiza pending + break_totals (análise de contagem). Não usar na renderização principal da Base de Troca. */
 async function refreshMateTrocaServerPendingDisplay() {
-  const { pending, break_totals, break_totals_period } = await fetchMateTrocaPendingPayload();
+  const { pending, break_totals } = await fetchMateTrocaPendingPayload();
   mateTrocaServerPendingCache = pending;
   mateTrocaBreakTotalsCache = break_totals;
-  mateTrocaTrocaAcumuladoCache = break_totals_period;
   countAuditState.mateTrocaServerPending = { ...pending };
   mirrorMateTrocaPendingToLocalStorage(pending);
   return pending;

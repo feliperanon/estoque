@@ -2524,6 +2524,61 @@ def get_mate_troca_pending_by_product(
     }
 
 
+def _mate_troca_base_period_bounds(
+    date_from: str | None,
+    date_to: str | None,
+) -> tuple[date, date]:
+    """Mesmos limites do GET mate-troca-pending-by-product para período de descoberta."""
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    df_q = _parse_iso_date_arg(date_from) if date_from else None
+    dt_q = _parse_iso_date_arg(date_to) if date_to else None
+    if (df_q is None) ^ (dt_q is None):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Informe date_from e date_to juntos (YYYY-MM-DD) ou omita ambos.",
+        )
+    if df_q is None and dt_q is None:
+        d0 = date(br_today.year, br_today.month, 1)
+        d1 = br_today
+    else:
+        d0, d1 = df_q, dt_q
+        if d0 > d1:
+            d0, d1 = d1, d0
+    return d0, d1
+
+
+@router.get("/mate-troca-base")
+def get_mate_troca_base(
+    date_from: str | None = Query(
+        default=None,
+        description="Início do intervalo para descoberta de códigos com quebra (YYYY-MM-DD), inclusive.",
+    ),
+    date_to: str | None = Query(
+        default=None,
+        description="Fim do intervalo para descoberta de códigos com quebra (YYYY-MM-DD), inclusive.",
+    ),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Payload enxuto para a tela **Base de Troca** (operacional).
+
+    - ``pending``: única fonte de verdade do saldo CX/UN que Chegada / Saldo / Zerar alteram.
+    - ``discovery_codes``: códigos canônicos com quebra Mate couro no período (só presença no intervalo),
+      para incluir na lista produtos com saldo 0 que ainda precisam de **Carregar** — **sem** expor
+      totais de quebra neste endpoint.
+    """
+    d0, d1 = _mate_troca_base_period_bounds(date_from, date_to)
+    pending = _mate_troca_pending_product_map(session)
+    period_map = _mate_couro_break_totals_date_range(session, d0, d1)
+    discovery_codes = sorted(period_map.keys())
+    return {
+        "pending": pending,
+        "discovery_codes": discovery_codes,
+        "period_from": d0.isoformat(),
+        "period_to": d1.isoformat(),
+    }
+
+
 @router.post("/mate-troca-reconcile-from-breaks")
 def mate_troca_reconcile_pending_from_break_sum(
     body: MateTrocaReconcileFromBreaksBody,
