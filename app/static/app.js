@@ -8219,6 +8219,23 @@ function countAuditHasBreakDay(meta) {
 }
 
 /**
+ * Contraste textual: pendente servidor (acumulativo) vs quebra só do dia — sem mudar o valor da coluna Troca.
+ */
+function buildCountAuditTrocaBreakContrastNoteHtml(meta) {
+  if (!meta || meta.trocaFallbackFromBreak) return '';
+  if (!countAuditHasTrocaPending(meta) || !countAuditHasBreakDay(meta)) return '';
+  const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
+  const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
+  const bCx = Math.round(Number(meta.breakCx) || 0);
+  const bUn = Math.round(Number(meta.breakUn) || 0);
+  if (tCx === bCx && tUn === bUn) return '';
+  const tip =
+    'A coluna Troca usa o pendente acumulativo no servidor. A quebra é só o dia operacional desta análise. Se divergirem, corrija na Base de Troca (Zerar + Carregar os dias ou Saldo).';
+  const line = `Quebra (dia da análise) CX ${formatBreakIntegerBR(bCx)} · UN ${formatBreakIntegerBR(bUn)} — servidor CX ${formatBreakIntegerBR(tCx)} · UN ${formatBreakIntegerBR(tUn)}`;
+  return `<span class="count-audit-troca-mismatch-note" title="${escapeHtml(tip)}">${escapeHtml(line)}</span>`;
+}
+
+/**
  * Linhas CX/UN no breakdown: não mostra dimensão zerada.
  * troca: só inteiros ≥ 0; quebra: qualquer ≠ 0 (pode ser negativo no líquido).
  */
@@ -8282,10 +8299,12 @@ function buildCountAuditTrocaColumnCellHtml(meta) {
     const title = meta.trocaFallbackFromBreak
       ? 'Reflexo da quebra positiva do dia (CIA Mate couro), quando não há pendente no servidor na Base de Troca.'
       : 'Pendente na Base de Troca no servidor (CIA Mate couro); mesma visão para todos; zerado ao limpar ou encerrar no fluxo de troca.';
+    const contrast = buildCountAuditTrocaBreakContrastNoteHtml(meta);
     return (
       `<span class="count-audit-cell-label">Troca</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="${escapeHtml(title)}">` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca count-audit-troca-cell-wrap" title="${escapeHtml(title)}">` +
       inner +
+      contrast +
       `</div>`
     );
   }
@@ -8312,10 +8331,12 @@ function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
   const parts = [];
   if (countAuditHasTrocaPending(meta)) {
     const vals = formatCountAuditOpsMobileCxUn(meta.trocaCx, meta.trocaUn, 'troca');
+    const contrastM = buildCountAuditTrocaBreakContrastNoteHtml(meta);
     parts.push(
       `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Pendente da Base de Troca no servidor (CIA Mate couro)">` +
         `<span class="count-audit-mobile-break-label">Troca</span>` +
         `<span class="count-audit-mobile-break-values">${vals}</span>` +
+        (contrastM || '') +
       `</div>`,
     );
   }
