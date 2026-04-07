@@ -6608,49 +6608,54 @@ async function importBackup(file) {
  */
 let countAdjustGestureGeneration = 0;
 
-function getAdjustTargetInput(btn) {
-  if (!btn || typeof btn.closest !== 'function') return null;
-  const row = btn.closest('.count-control-row');
-  const rowInput = row?.querySelector('input.count-product-qty, input[type="number"], input[inputmode="numeric"]');
-  if (rowInput) return rowInput;
-
-  const codRef = btn.getAttribute('data-coderef') || '';
-  const countType = btn.getAttribute('data-count-type') || '';
-  if (!codRef) return null;
-
-  const candidates = document.querySelectorAll('input.count-product-qty, input[type="number"], input[inputmode="numeric"]');
-  for (const inp of candidates) {
-    if (inp.getAttribute('data-coderef') !== codRef) continue;
-    if (countType && inp.getAttribute('data-count-type') !== countType) continue;
-    return inp;
-  }
-  return null;
-}
-
 function bindGlobalAdjustButtonKeyboardRetention() {
   if (document.documentElement.dataset.adjustKeyboardBound === '1') return;
   document.documentElement.dataset.adjustKeyboardBound = '1';
 
+  /**
+   * Mobile (Safari/Chrome): `preventDefault` em `pointerdown` costuma cancelar o `click` nativo,
+   * gerando corrida com `focusout` do input e disparando o “+ automático” em duplicidade.
+   * Em `touchstart` com `passive: false` o teclado tende a permanecer; em `touchend` disparamos
+   * `click()` sintético para reutilizar a delegação existente.
+   */
+  let touchAdjustStartBtn = null;
+
   document.addEventListener(
-    'pointerdown',
+    'touchstart',
     (e) => {
       const btn = e.target.closest?.('.btn-count-adjust');
-      if (!btn) return;
-      if (e.pointerType === 'touch') {
-        // Evita blur no input numérico em mobile ao tocar em +/-.
-        e.preventDefault();
-      }
+      if (!btn || btn.disabled) return;
+      touchAdjustStartBtn = btn;
+      countAdjustGestureGeneration += 1;
+      e.preventDefault();
     },
-    true,
+    { capture: true, passive: false },
   );
 
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest?.('.btn-count-adjust');
-    if (!btn) return;
-    const inp = getAdjustTargetInput(btn);
-    if (!inp || inp.disabled || inp.readOnly) return;
-    if (typeof inp.focus === 'function') inp.focus({ preventScroll: true });
-  });
+  document.addEventListener(
+    'touchcancel',
+    () => {
+      touchAdjustStartBtn = null;
+    },
+    { capture: true },
+  );
+
+  document.addEventListener(
+    'touchend',
+    (e) => {
+      const btn = e.target.closest?.('.btn-count-adjust');
+      const start = touchAdjustStartBtn;
+      if (!start) return;
+      if (!btn || btn !== start) {
+        touchAdjustStartBtn = null;
+        return;
+      }
+      touchAdjustStartBtn = null;
+      e.preventDefault();
+      if (typeof start.click === 'function') start.click();
+    },
+    { capture: true, passive: false },
+  );
 }
 
 function bindCountEvents() {
@@ -6714,10 +6719,6 @@ function bindCountEvents() {
       (e) => {
         const btn = e.target.closest('.btn-count-adjust');
         if (!btn || !countShell.contains(btn)) return;
-        if (e.pointerType === 'touch') {
-          // Mantém o foco no input numérico no mobile para não fechar o teclado.
-          e.preventDefault();
-        }
         countAdjustGestureGeneration += 1;
       },
       true,
@@ -6756,6 +6757,16 @@ function bindCountEvents() {
         return;
       }
       const runDeferredAutoPlus = () => {
+        const ae = document.activeElement;
+        if (
+          ae &&
+          typeof ae.closest === 'function' &&
+          ae.closest('.btn-count-adjust') &&
+          countShell.contains(ae)
+        ) {
+          refreshCountListAfterEdit();
+          return;
+        }
         if (countAdjustGestureGeneration > genAtBlur) {
           refreshCountListAfterEdit();
           return;
@@ -6764,7 +6775,9 @@ function bindCountEvents() {
         refreshCountListAfterEdit();
       };
       window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(runDeferredAutoPlus);
+        window.requestAnimationFrame(() => {
+          window.setTimeout(runDeferredAutoPlus, 0);
+        });
       });
     });
     countShell.addEventListener('keydown', (e) => {
