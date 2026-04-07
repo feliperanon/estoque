@@ -418,11 +418,11 @@ const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
 const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product';
 const API_MATE_TROCA_RECONCILE_FROM_BREAKS = '/audit/mate-troca-reconcile-from-breaks';
-/** Pendente Mate couro no servidor — usado pelos botões Chegada/Saldo/Zerar (não é o número principal na lista). */
+/** Saldo de troca no servidor — única fonte de verdade da lista e dos botões Chegada/Saldo/Zerar. */
 let mateTrocaServerPendingCache = {};
-/** Soma global ChangeLog (CIA Mate couro) — apenas para análise de contagem / fallback interno. */
+/** Soma global ChangeLog (CIA Mate couro) — só análise de contagem / fallback interno; nunca o número do card. */
 let mateTrocaBreakTotalsCache = {};
-/** Acumulado de quebras no intervalo De–Até (servidor) — único total exibido na Base de Troca. */
+/** Quebras no intervalo De–Até — só para incluir código na lista quando há quebra no período e saldo 0 (ex.: falta Carregar). */
 let mateTrocaTrocaAcumuladoCache = {};
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
@@ -4354,9 +4354,9 @@ function updateMateCouroKpis() {
   const acum = mateTrocaTrocaAcumuladoCache || {};
   const codeSet = collectMateCouroTrocaCodeUnion(server, acum);
   for (const cod of codeSet) {
-    const av = resolveMateCouroPendingEntry(acum, cod);
-    sumCx += av.cx;
-    sumUn += av.un;
+    const sv = resolveMateCouroPendingEntry(server, cod);
+    sumCx += sv.cx;
+    sumUn += sv.un;
     nProd += 1;
   }
   const catalogLen = Array.isArray(mateCouroProductsCache) ? mateCouroProductsCache.length : 0;
@@ -4444,9 +4444,9 @@ function getMateCouroPendingRowsFiltered() {
   const codeSet = collectMateCouroTrocaCodeUnion(server, acum);
   const rows = [];
   for (const cod of codeSet) {
-    const av = resolveMateCouroPendingEntry(acum, cod);
-    const cx = av.cx;
-    const un = av.un;
+    const sv = resolveMateCouroPendingEntry(server, cod);
+    const cx = sv.cx;
+    const un = sv.un;
     const p = (mateCouroProductsCache || []).find(
       (x) => normalizeNumericProductCodeKey(String(x.cod_produto || '')) === cod,
     );
@@ -4479,13 +4479,13 @@ function renderMateCouroPendingList() {
       : '';
   if (rangeInfo) {
     rangeInfo.textContent = rows.length
-      ? `${rows.length} produto(s) · acumulado ${dr || 'no período'}`
-      : `Nenhum produto no período${dr ? ` (${dr})` : ''}.`;
+      ? `${rows.length} produto(s) · saldo servidor${dr ? ` · quebra no período ${dr}` : ''}`
+      : `Nenhum produto${dr ? ` (período ${dr})` : ''}. Use <strong>De/Até</strong> + <strong>Atualizar</strong> ou <strong>Carregar</strong> o dia.`;
   }
   ul.innerHTML = '';
   if (!rows.length) {
     ul.innerHTML =
-      '<li class="count-audit-empty"><span>Ajuste <strong>De</strong> e <strong>Até</strong> e use <strong>Atualizar acumulado</strong>, ou <strong>Carregar</strong> o dia para incorporar quebras ao servidor.</span><strong>—</strong></li>';
+      '<li class="count-audit-empty"><span>Sem itens. Ajuste <strong>De</strong>/<strong>Até</strong> e <strong>Atualizar</strong>, ou <strong>Carregar</strong> o dia para incorporar quebras ao saldo.</span><strong>—</strong></li>';
     updateMateCouroKpis();
     return;
   }
