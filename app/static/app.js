@@ -2107,6 +2107,36 @@ function getUnsyncedNetBreakByProductAndTypeForDate(productCode, countType, dayK
 }
 
 /**
+ * Totais de quebra no mapa do servidor (break-day-totals) para o código da linha.
+ * Tenta equivalente numérico (ex.: 030 vs 30), como no pendente Mate troca, para não zerar a coluna Quebra
+ * quando o TXT e o ChangeLog divergem só na forma do código — caso em que Troca (servidor) podia mostrar UN
+ * e Quebra parecia vazia.
+ */
+function resolveBreakDayBalanceEntry(balancesMap, productCode) {
+  const base = normalizeItemCode(productCode);
+  const empty = { caixa: 0, unidade: 0 };
+  if (!base || !balancesMap || typeof balancesMap !== 'object') return empty;
+  const pick = (key) => {
+    const b = balancesMap[key];
+    if (!b || typeof b !== 'object') return null;
+    return {
+      caixa: Math.round(Number(b.caixa) || 0),
+      unidade: Math.round(Number(b.unidade) || 0),
+    };
+  };
+  const direct = pick(base);
+  if (direct) return direct;
+  if (/^\d+$/.test(base)) {
+    const alt = normalizeItemCode(String(Number(base)));
+    if (alt && alt !== base) {
+      const v = pick(alt);
+      if (v) return v;
+    }
+  }
+  return empty;
+}
+
+/**
  * Total de quebra CX/UN no dia (servidor + pendente local), alinhado ao readout da tela Quebra.
  * @param {boolean} serverOk - GET break-day-totals ok para este dia
  * @param {Record<string, {caixa?: number, unidade?: number}>} balancesMap - mapa código → totais do servidor
@@ -2116,8 +2146,8 @@ function getNetBreakByProductAndTypeForOperationalDay(productCode, countType, da
   const ct = normalizeCountType(countType);
   const unsynced = getUnsyncedNetBreakByProductAndTypeForDate(productCode, countType, dayKey);
   if (serverOk && balancesMap && typeof balancesMap === 'object') {
-    const b = balancesMap[base];
-    const server = ct === 'unidade' ? Number(b?.unidade) || 0 : Number(b?.caixa) || 0;
+    const b = resolveBreakDayBalanceEntry(balancesMap, productCode);
+    const server = ct === 'unidade' ? b.unidade : b.caixa;
     return server + unsynced;
   }
   let sum = 0;
@@ -2131,11 +2161,9 @@ function getNetBreakByProductAndTypeForOperationalDay(productCode, countType, da
 
 function getServerNetBreakForProductAndType(productCode, countType) {
   if (!breakServerBreakState.ok) return 0;
-  const base = normalizeItemCode(productCode);
   const ct = normalizeCountType(countType);
-  const b = breakServerBreakState.balances[base];
-  if (!b) return 0;
-  return ct === 'unidade' ? Number(b.unidade) || 0 : Number(b.caixa) || 0;
+  const b = resolveBreakDayBalanceEntry(breakServerBreakState.balances, productCode);
+  return ct === 'unidade' ? b.unidade : b.caixa;
 }
 
 /**
