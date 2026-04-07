@@ -4240,29 +4240,36 @@ function breakScreenEventsToMateTrocaOverlay(events) {
   return out;
 }
 
+/** União de códigos com pendente de troca ou quebra acumulada no servidor; chave canônica (010 ≡ 10). */
+function collectMateCouroTrocaCodeUnion(server, breaks) {
+  const codeSet = new Set();
+  const ingest = (map) => {
+    if (!map || typeof map !== 'object') return;
+    for (const k of Object.keys(map)) {
+      const t = map[k];
+      const cx = Math.round(Number(t?.cx) || 0);
+      const un = Math.round(Number(t?.un) || 0);
+      if (!cx && !un) continue;
+      const canon = normalizeNumericProductCodeKey(k);
+      if (canon) codeSet.add(canon);
+    }
+  };
+  ingest(server);
+  ingest(breaks);
+  return codeSet;
+}
+
 function updateMateCouroKpis() {
   let sumCx = 0;
   let sumUn = 0;
   let nProd = 0;
   const server = mateTrocaServerPendingCache || {};
   const breaks = mateTrocaBreakTotalsCache || {};
-  const codeSet = new Set();
-  for (const k of Object.keys(server)) {
-    const cx = Math.round(Number(server[k]?.cx) || 0);
-    const un = Math.round(Number(server[k]?.un) || 0);
-    if (cx || un) codeSet.add(k);
-  }
-  for (const k of Object.keys(breaks)) {
-    const cx = Math.round(Number(breaks[k]?.cx) || 0);
-    const un = Math.round(Number(breaks[k]?.un) || 0);
-    if (cx || un) codeSet.add(k);
-  }
+  const codeSet = collectMateCouroTrocaCodeUnion(server, breaks);
   for (const cod of codeSet) {
-    const sv = server[cod] || { cx: 0, un: 0 };
-    const dcx = Math.round(Number(sv.cx) || 0);
-    const dun = Math.round(Number(sv.un) || 0);
-    sumCx += dcx;
-    sumUn += dun;
+    const sv = resolveMateCouroPendingEntry(server, cod);
+    sumCx += sv.cx;
+    sumUn += sv.un;
     nProd += 1;
   }
   const catalogLen = Array.isArray(mateCouroProductsCache) ? mateCouroProductsCache.length : 0;
@@ -4347,39 +4354,24 @@ function getMateCouroPendingRowsFiltered() {
   const term = ((searchEl && searchEl.value) || '').trim().toLowerCase();
   const server = mateTrocaServerPendingCache || {};
   const breaks = mateTrocaBreakTotalsCache || {};
-  const codeSet = new Set();
-  for (const k of Object.keys(server)) {
-    const cx = Math.round(Number(server[k]?.cx) || 0);
-    const un = Math.round(Number(server[k]?.un) || 0);
-    if (cx || un) codeSet.add(k);
-  }
-  for (const k of Object.keys(breaks)) {
-    const cx = Math.round(Number(breaks[k]?.cx) || 0);
-    const un = Math.round(Number(breaks[k]?.un) || 0);
-    if (cx || un) codeSet.add(k);
-  }
+  const codeSet = collectMateCouroTrocaCodeUnion(server, breaks);
   const rows = [];
   for (const cod of codeSet) {
-    const sv = server[cod] || { cx: 0, un: 0 };
-    const cx = Math.round(Number(sv.cx) || 0);
-    const un = Math.round(Number(sv.un) || 0);
+    const sv = resolveMateCouroPendingEntry(server, cod);
+    const cx = sv.cx;
+    const un = sv.un;
     const p = (mateCouroProductsCache || []).find(
-      (x) => normalizeItemCode(String(x.cod_produto || '')) === cod,
+      (x) => normalizeNumericProductCodeKey(String(x.cod_produto || '')) === cod,
     );
     const desc = p ? String(p.cod_grup_descricao || '').trim() : '';
     if (term) {
       const ok = cod.toLowerCase().includes(term) || desc.toLowerCase().includes(term);
       if (!ok) continue;
     }
-    const br = resolveMateCouroPendingEntry(breaks, cod);
-    const breakCx = Math.round(Number(br.cx) || 0);
-    const breakUn = Math.round(Number(br.un) || 0);
     rows.push({
       cod,
       cx,
       un,
-      breakCx,
-      breakUn,
       desc,
     });
   }
@@ -4412,21 +4404,6 @@ function renderMateCouroPendingList() {
     li.className = 'count-audit-item mate-couro-pending-item';
     li.setAttribute('data-state', 'ok');
     li.setAttribute('data-mate-pending-cod', r.cod);
-    const brCx = Math.round(Number(r.breakCx) || 0);
-    const brUn = Math.round(Number(r.breakUn) || 0);
-    const hasBreakAcc = brCx > 0 || brUn > 0;
-    const pendZeroButBreaks = r.cx === 0 && r.un === 0 && hasBreakAcc;
-    const breakBlock =
-      hasBreakAcc
-        ? `<span class="count-audit-cell-label mate-couro-pending-sub">Quebras acum. no servidor</span>` +
-          `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-acc" title="Soma das quebras Mate couro já registradas no servidor (todas as datas). Não é o pendente de troca até você incorporar com Carregar no dia ou reconciliar.">` +
-          `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(brCx)}</strong>` +
-          `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(brUn)}</strong>` +
-          `</div>`
-        : '';
-    const hintBlock = pendZeroButBreaks
-      ? `<p class="mate-couro-pending-saldo-hint muted">Pendente 0 no histórico de troca, mas há quebra acumulada — use <strong>Carregar</strong> no dia da quebra para somar ao pendente (ou reconciliação admin).</p>`
-      : '';
     li.innerHTML =
       `<div class="mate-couro-pending-audit-row mate-couro-pending-audit-row--clickable" role="presentation">` +
       `<div class="count-audit-cell count-audit-cell--product">` +
@@ -4435,13 +4412,10 @@ function renderMateCouroPendingList() {
       `<span class="count-audit-row-name">${nameEsc}</span>` +
       `</div></div>` +
       `<div class="count-audit-cell mate-couro-pending-saldo-cell">` +
-      `<span class="count-audit-cell-label">Pendente troca</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Pendente no histórico de troca no servidor (chegadas, definir saldo, zerar, incorporação ao Carregar). É o valor que os botões usam.">` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-acc" title="Pendente de troca no servidor (chegadas, definir saldo, zerar, incorporação ao Carregar). Atualiza ao sincronizar; Zerar zera este valor, não a soma histórica de quebras.">` +
       `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
       `</div>` +
-      breakBlock +
-      hintBlock +
       `</div>` +
       `<div class="count-audit-cell mate-couro-pending-actions">` +
       `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--primary" data-mate-pend="recebeu" data-coderef="${codRef}" aria-label="Registrar chegada" title="Registrar chegada">Chegada</button>` +
@@ -5058,7 +5032,7 @@ function bindMateCouroTrocaEvents() {
           return;
         }
         await refreshMateTrocaServerPendingDisplay();
-        const cur = mateTrocaServerPendingCache[cod] || { cx: 0, un: 0 };
+        const cur = resolveMateCouroPendingEntry(mateTrocaServerPendingCache, cod);
         const cxNew = parseMateCouroIntPrompt(`Novo pendente em CX para ${cod}:`, String(cur.cx));
         if (cxNew === null) return;
         const unNew = parseMateCouroIntPrompt(`Novo pendente em UN para ${cod}:`, String(cur.un));
@@ -5133,7 +5107,7 @@ function bindMateCouroTrocaEvents() {
 
       void (async () => {
         await refreshMateTrocaServerPendingDisplay();
-        const cur = mateTrocaServerPendingCache[cod] || { cx: 0, un: 0 };
+        const cur = resolveMateCouroPendingEntry(mateTrocaServerPendingCache, cod);
 
         if (action === 'zerar') {
           if (
