@@ -3202,6 +3202,7 @@ function bindBreakEvents() {
       const row = btn.closest('.count-control-row');
       const inp = row ? row.querySelector('input.count-product-qty') : null;
       applyBreakRowOperation(codRefEnc, countType, inp, deltaBtn);
+      if (inp && typeof inp.focus === 'function') inp.focus({ preventScroll: true });
       refreshAfter();
     });
     breakShell.addEventListener('focusout', (e) => {
@@ -4958,7 +4959,7 @@ function buildValidityRowForProduct(p) {
   return { product: p, cod, lines };
 }
 
-async function loadValidityLinesFromServer() {
+async function loadValidityLinesFromServer(includeAllDays = false) {
   const token = getToken();
   if (!token) {
     validityServerLines = [];
@@ -4975,7 +4976,11 @@ async function loadValidityLinesFromServer() {
   }
   try {
     const params = new URLSearchParams();
-    params.set('operational_date', getActiveValidityOpDateKey());
+    if (includeAllDays) {
+      params.set('include_all_days', 'true');
+    } else {
+      params.set('operational_date', getActiveValidityOpDateKey());
+    }
     const response = await apiFetch(`${API_VALIDITY_LINES}?${params.toString()}`, {
       headers: getAuthHeaders(),
     });
@@ -5180,6 +5185,11 @@ function buildValidityOperationalRowModel(p, opKey, todayBr, launchPairs) {
     ? formatDateBrFromIso(String(anchor.expiration_date || '').slice(0, 10))
     : '—';
   const pair = (launchPairs && launchPairs[cod]) || { atual: null, anterior: null };
+  const snap = getValidityLastCountSnapshot(cod);
+  const contagemLabel = snap
+    ? `${formatIntegerBR(snap.cx)} CX | ${formatIntegerBR(snap.un)} UN`
+    : '—';
+  const lastLaunchLabel = lastLaunch ? formatDateBrFromIso(lastLaunch) : '—';
   const logAtualLabel = pair.atual ? formatDateTimeBr(pair.atual.observed_at) : '—';
   const logAnteriorLabel = pair.anterior ? formatDateTimeBr(pair.anterior.observed_at) : '—';
   let hintLine = '';
@@ -5210,6 +5220,8 @@ function buildValidityOperationalRowModel(p, opKey, todayBr, launchPairs) {
     noHistory,
     isOverdueStrict,
     isBacklog,
+    contagemLabel,
+    lastLaunchLabel,
     validadeLabel,
     logAtualLabel,
     logAnteriorLabel,
@@ -5296,6 +5308,8 @@ function renderValidityOperationalView() {
         </div>
         <div class="validity-op-badges-row">${row.badgeHtml}</div>
         <div class="validity-op-meta">
+          <div class="validity-op-meta-line"><span class="validity-op-meta-k">Contagem</span><span class="validity-op-meta-v">${escapeHtml(row.contagemLabel)}</span></div>
+          <div class="validity-op-meta-line"><span class="validity-op-meta-k">Último lançamento</span><span class="validity-op-meta-v">${escapeHtml(row.lastLaunchLabel)}</span></div>
           <div class="validity-op-meta-line"><span class="validity-op-meta-k">Validade</span><span class="validity-op-meta-v">${escapeHtml(row.validadeLabel)}</span></div>
           <div class="validity-op-meta-line"><span class="validity-op-meta-k">Log atual</span><span class="validity-op-meta-v">${escapeHtml(row.logAtualLabel)}</span></div>
           <div class="validity-op-meta-line"><span class="validity-op-meta-k">Log anterior</span><span class="validity-op-meta-v">${escapeHtml(row.logAnteriorLabel)}</span></div>
@@ -5435,7 +5449,7 @@ async function loadValidityOperationalModule() {
   scrollDashboardToTop();
   await loadValidityProductsCatalog();
   await loadValidityLastLaunchFromServer();
-  await loadValidityLinesFromServer();
+  await loadValidityLinesFromServer(false);
   renderValidityOperationalView();
   updateValidityPendingBadges();
   scrollDashboardToTop();
@@ -5649,18 +5663,36 @@ function buildValidityDetailBodyHtml(row, todayBr) {
   const p = row.product;
   const cod = row.cod;
   const lines = row.lines || [];
+  const opKey = getActiveValidityOpDateKey();
+  const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
   const enc = encodeURIComponent;
   const snap = getValidityLastCountSnapshot(cod);
+  const contagemLabel = snap
+    ? `${formatIntegerBR(snap.cx)} CX | ${formatIntegerBR(snap.un)} UN`
+    : '—';
+  const lastLaunchIso = mergedLastValidityLaunchDateIso(cod);
+  const lastLaunchLabel = lastLaunchIso ? formatDateBrFromIso(lastLaunchIso) : '—';
+  const launchPairs = buildValidityOpLaunchPairsByCode();
+  const pair = (launchPairs && launchPairs[cod]) || { atual: null, anterior: null };
+  const logAtualLabel = pair.atual ? formatDateTimeBr(pair.atual.observed_at) : '—';
+  const logAnteriorLabel = pair.anterior ? formatDateTimeBr(pair.anterior.observed_at) : '—';
   const baseOld = !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
   const ageDays = snap ? countBaseAgeDays(snap.countDate, todayBr) : null;
   const ageLabel = snap ? formatCountBaseAgeLabel(ageDays) : '—';
   const ageClass = baseOld ? ' validity-metric-v--alert' : '';
-  const anchorLn = operationalAnchorLine(lines, todayBr);
+  const anchorLn = linesOp.length ? operationalAnchorLine(linesOp, todayBr) : null;
   const nextBr = anchorLn
     ? formatDateBrFromIso(String(anchorLn.expiration_date || '').slice(0, 10))
     : lines.length > 0
       ? 'Vencidos'
       : '—';
+  const resumoOperacional = `<div class="validity-analytic-metrics validity-analytic-metrics--expanded">
+      <div class="validity-metric"><span class="validity-metric-k">Contagem</span><span class="validity-metric-v">${contagemLabel}</span></div>
+      <div class="validity-metric"><span class="validity-metric-k">Último lançamento</span><span class="validity-metric-v">${lastLaunchLabel}</span></div>
+      <div class="validity-metric"><span class="validity-metric-k">Validade</span><span class="validity-metric-v">${nextBr}</span></div>
+      <div class="validity-metric"><span class="validity-metric-k">Log atual</span><span class="validity-metric-v">${logAtualLabel}</span></div>
+      <div class="validity-metric"><span class="validity-metric-k">Log anterior</span><span class="validity-metric-v">${logAnteriorLabel}</span></div>
+    </div>`;
 
   const refMetrics = snap
     ? `<div class="validity-analytic-metrics validity-analytic-metrics--expanded">
@@ -5709,7 +5741,7 @@ function buildValidityDetailBodyHtml(row, todayBr) {
       </div>`
     : '';
 
-  return `${refMetrics}<p class="validity-detail-hint muted">Datas neste dia operacional</p><div class="validity-lines-table-wrap"><table class="validity-lines-table"><thead><tr><th>Vencimento</th><th>Faixa</th><th>Nome</th><th>Quando</th><th></th></tr></thead><tbody>${linesHtml}</tbody></table></div>${addBlock}`;
+  return `${resumoOperacional}${refMetrics}<p class="validity-detail-hint muted">Datas neste dia operacional</p><div class="validity-lines-table-wrap"><table class="validity-lines-table"><thead><tr><th>Vencimento</th><th>Faixa</th><th>Nome</th><th>Quando</th><th></th></tr></thead><tbody>${linesHtml}</tbody></table></div>${addBlock}`;
 }
 
 function renderValidityAnalysisDetailPanel(row) {
@@ -5852,7 +5884,7 @@ function scrollDashboardToTop() {
 
 async function loadValidityShared() {
   await loadLastCountPerProduct();
-  await loadValidityLinesFromServer();
+  await loadValidityLinesFromServer(getActiveValiditySubKey() === 'validity-analysis');
   await loadValidityProductsCatalog();
 }
 
@@ -5983,7 +6015,7 @@ async function syncValidityPending() {
     if (changed) saveValidityBucketRaw(b);
     touchValidityLastSync();
     setValidityFeedback(`Sincronizado: ${synced.size} lancamento(s).`);
-    await loadValidityLinesFromServer();
+    await loadValidityLinesFromServer(getActiveValiditySubKey() === 'validity-analysis');
     await loadValidityLastLaunchFromServer();
     refreshValidityUiAfterMutation();
     updateValidityPendingBadges();
@@ -6021,7 +6053,7 @@ async function removeValidityLine(lineId, clientId, codRaw) {
       setValidityFeedback('Nao foi possivel remover no servidor.', true);
       return;
     }
-    await loadValidityLinesFromServer();
+    await loadValidityLinesFromServer(getActiveValiditySubKey() === 'validity-analysis');
     refreshValidityUiAfterMutation();
     setValidityFeedback('Linha removida.');
     return;
@@ -6490,6 +6522,51 @@ async function importBackup(file) {
  */
 let countAdjustGestureGeneration = 0;
 
+function getAdjustTargetInput(btn) {
+  if (!btn || typeof btn.closest !== 'function') return null;
+  const row = btn.closest('.count-control-row');
+  const rowInput = row?.querySelector('input.count-product-qty, input[type="number"], input[inputmode="numeric"]');
+  if (rowInput) return rowInput;
+
+  const codRef = btn.getAttribute('data-coderef') || '';
+  const countType = btn.getAttribute('data-count-type') || '';
+  if (!codRef) return null;
+
+  const candidates = document.querySelectorAll('input.count-product-qty, input[type="number"], input[inputmode="numeric"]');
+  for (const inp of candidates) {
+    if (inp.getAttribute('data-coderef') !== codRef) continue;
+    if (countType && inp.getAttribute('data-count-type') !== countType) continue;
+    return inp;
+  }
+  return null;
+}
+
+function bindGlobalAdjustButtonKeyboardRetention() {
+  if (document.documentElement.dataset.adjustKeyboardBound === '1') return;
+  document.documentElement.dataset.adjustKeyboardBound = '1';
+
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      const btn = e.target.closest?.('.btn-count-adjust');
+      if (!btn) return;
+      if (e.pointerType === 'touch') {
+        // Evita blur no input numérico em mobile ao tocar em +/-.
+        e.preventDefault();
+      }
+    },
+    true,
+  );
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest?.('.btn-count-adjust');
+    if (!btn) return;
+    const inp = getAdjustTargetInput(btn);
+    if (!inp || inp.disabled || inp.readOnly) return;
+    if (typeof inp.focus === 'function') inp.focus({ preventScroll: true });
+  });
+}
+
 function bindCountEvents() {
   if (countForm) {
     countForm.addEventListener('submit', (event) => {
@@ -6551,6 +6628,10 @@ function bindCountEvents() {
       (e) => {
         const btn = e.target.closest('.btn-count-adjust');
         if (!btn || !countShell.contains(btn)) return;
+        if (e.pointerType === 'touch') {
+          // Mantém o foco no input numérico no mobile para não fechar o teclado.
+          e.preventDefault();
+        }
         countAdjustGestureGeneration += 1;
       },
       true,
@@ -6568,6 +6649,7 @@ function bindCountEvents() {
       const row = btn.closest('.count-control-row');
       const inp = row ? row.querySelector('input.count-product-qty') : null;
       applyCountRowOperation(codRefEnc, countType, inp, deltaBtn);
+      if (inp && typeof inp.focus === 'function') inp.focus({ preventScroll: true });
       refreshCountListAfterEdit();
     });
     countShell.addEventListener('focusout', (e) => {
@@ -10198,6 +10280,7 @@ if (moduleNav) {
 // ── Inicialização ───────────────────────────────────────────────
 (async function init() {
   applyProductDefaultsToForms();
+  bindGlobalAdjustButtonKeyboardRetention();
   bindCountEvents();
   bindValidityEvents();
   bindCountAuditEvents();

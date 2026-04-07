@@ -1524,6 +1524,10 @@ def list_validity_lines(
         default=None,
         description="YYYY-MM-DD do dia operacional (America/Sao_Paulo). Padrão: hoje.",
     ),
+    include_all_days: bool = Query(
+        default=False,
+        description="Quando true, retorna linhas de todas as datas operacionais.",
+    ),
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> dict:
@@ -1533,11 +1537,17 @@ def list_validity_lines(
     if d is None:
         d = br_today
     try:
+        stmt = select(ValidityLine)
+        if not include_all_days:
+            stmt = stmt.where(ValidityLine.operational_date == d)
         rows = list(
             session.exec(
-                select(ValidityLine)
-                .where(ValidityLine.operational_date == d)
-                .order_by(ValidityLine.cod_produto, ValidityLine.expiration_date, ValidityLine.id)
+                stmt.order_by(
+                    ValidityLine.cod_produto,
+                    ValidityLine.operational_date,
+                    ValidityLine.expiration_date,
+                    ValidityLine.id,
+                )
             ).all()
         )
     except SQLAlchemyError as exc:
