@@ -3668,6 +3668,27 @@ form#break-op-form.count-form {
   padding-bottom: 0.25rem;
 }
 
+#mate-couro-troca-balance-card-v2 .mate-couro-troca-balance-v2-lede {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  max-width: 36rem;
+}
+
+#mate-couro-troca-balance-card-v2 .mate-couro-troca-balance-v2-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+  text-align: right;
+}
+
+#sub-mate-couro-troca .mate-troca-balance-v2-unknown {
+  font-weight: 600;
+  color: var(--audit-subtle, #6b7280);
+  letter-spacing: 0.02em;
+}
+
 .mate-troca-pending-op-hint {
   margin: 0.35rem 0 0;
   font-size: 0.7rem;

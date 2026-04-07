@@ -417,7 +417,6 @@ const API_SYNC_BREAKS = '/audit/break-events';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
 const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product';
-const API_MATE_TROCA_BASE = '/audit/mate-troca-base';
 const API_MATE_TROCA_BASE_V2 = '/audit/mate-troca-base-v2';
 const API_MATE_TROCA_RECONCILE_FROM_BREAKS = '/audit/mate-troca-reconcile-from-breaks';
 /** Último estado confiável da Base de Troca V2 (persistido) — evita 0/0 fantasma em refresh parcial. */
@@ -9465,6 +9464,9 @@ async function loadCountAuditAnalysis() {
       mateTrocaServerPendingCache = {};
       mateTrocaBreakTotalsCache = {};
       mateTrocaDiscoveryCodesCache = new Set();
+      mateTrocaBaseBalanceCacheV2 = {};
+      mateTrocaBaseDiscoveryCodesV2 = new Set();
+      mateTrocaBaseV2LastMergedRows = [];
       setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
       return;
     }
@@ -9484,6 +9486,9 @@ async function loadCountAuditAnalysis() {
       mateTrocaServerPendingCache = {};
       mateTrocaBreakTotalsCache = {};
       mateTrocaDiscoveryCodesCache = new Set();
+      mateTrocaBaseBalanceCacheV2 = {};
+      mateTrocaBaseDiscoveryCodesV2 = new Set();
+      mateTrocaBaseV2LastMergedRows = [];
       countAuditState.detailCache.clear();
       renderCountAuditSummary({});
       renderCountAuditRows([]);
@@ -10814,6 +10819,7 @@ function clearLocalOperationalCaches() {
     localStorage.removeItem(BREAK_EVENTS_BUCKET_KEY);
     localStorage.removeItem(MATE_COURO_TROCA_STORAGE_KEY);
     localStorage.removeItem(MATE_COURO_TROCA_STORAGE_LEGACY_KEY);
+    localStorage.removeItem(MATE_TROCA_BASE_V2_LAST_VALID_KEY);
     localStorage.removeItem(PRODUCT_DEFAULTS_KEY);
     for (const mod of EXTRA_MODULES) {
       localStorage.removeItem(mod.storageKey);
