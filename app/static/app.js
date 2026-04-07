@@ -409,6 +409,7 @@ const API_SYNC_BREAKS = '/audit/break-events';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
 const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product';
+const API_MATE_TROCA_RECONCILE_FROM_BREAKS = '/audit/mate-troca-reconcile-from-breaks';
 /** Pendente Mate couro no servidor — mesma lista/KPI/análise em todos os aparelhos. */
 let mateTrocaServerPendingCache = {};
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
@@ -3576,6 +3577,90 @@ async function refreshMateTrocaServerPendingDisplay() {
   return m;
 }
 
+function updateMateTrocaReconcileFromBreaksButton() {
+  const btn = document.getElementById('btn-mate-couro-reconcile-from-breaks');
+  if (!btn) return;
+  btn.hidden = !['administrativo', 'admin'].includes(currentRole);
+}
+
+/** Administrativo/Admin: POST soma das quebras no intervalo → evento definir no servidor. */
+async function runMateTrocaReconcileFromBreaks() {
+  const token = getToken();
+  if (!token) {
+    window.alert('Faça login.');
+    return;
+  }
+  const rawCod = window.prompt('Código do produto (Mate couro):', '10');
+  if (rawCod == null) return;
+  const cod = normalizeNumericProductCodeKey(rawCod) || normalizeItemCode(rawCod);
+  if (!cod) {
+    window.alert('Código inválido.');
+    return;
+  }
+  const defDay = getBrazilDateKey();
+  const d0 = window.prompt('Data inicial das quebras (AAAA-MM-DD):', defDay);
+  if (d0 == null) return;
+  const d0c = String(d0).trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d0c)) {
+    window.alert('Data inicial inválida.');
+    return;
+  }
+  const d1 = window.prompt('Data final (AAAA-MM-DD), inclusive:', d0c);
+  if (d1 == null) return;
+  const d1c = String(d1).trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d1c)) {
+    window.alert('Data final inválida.');
+    return;
+  }
+  if (
+    !window.confirm(
+      `Definir o pendente do código ${cod} como a SOMA das quebras de ${d0c} a ${d1c}?\n\n` +
+        `Isso não desconta chegadas já registradas na Base de Troca — use para corrigir pendente incoerente com as quebras.\n\n` +
+        `Grava um evento "definir" no servidor para todos os usuários.`,
+    )
+  ) {
+    return;
+  }
+  try {
+    const response = await apiFetch(API_MATE_TROCA_RECONCILE_FROM_BREAKS, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        cod_produto: cod,
+        date_from: d0c,
+        date_to: d1c,
+      }),
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) {
+      let msg = 'Não foi possível repor o pendente.';
+      try {
+        const err = await response.json();
+        if (typeof err.detail === 'string') msg = err.detail;
+      } catch {
+        /* ignore */
+      }
+      window.alert(msg);
+      return;
+    }
+    const data = await response.json();
+    const tgt = data.pending_target_from_breaks || {};
+    window.alert(
+      data.skipped
+        ? data.message || 'Já estava correto.'
+        : `Pronto. Pendente definido: CX ${formatBreakIntegerBR(Number(tgt.cx) || 0)} · UN ${formatBreakIntegerBR(Number(tgt.un) || 0)}.`,
+    );
+    await refreshMateTrocaServerPendingDisplay();
+    renderMateCouroPendingList();
+    updateMateCouroKpis();
+  } catch {
+    window.alert('Sem conexão.');
+  }
+}
+
 /**
  * Id da incorporação ao Carregar dia: inclui geração global (Limpar snapshots) e revisão por código
  * (Zerar pendente daquele produto) para permitir reenviar o mesmo delta após zerar — o servidor ignora
@@ -4311,6 +4396,7 @@ async function loadMateCouroTrocaPage() {
   if (dateEl && !dateEl.value) {
     dateEl.value = getBrazilDateKey();
   }
+  updateMateTrocaReconcileFromBreaksButton();
   await loadMateCouroBreakDayList();
 }
 
@@ -4769,6 +4855,13 @@ function bindMateCouroTrocaEvents() {
       loadMateCouroBreakDayList();
     });
   }
+
+  const btnReconcileBreaks = document.getElementById('btn-mate-couro-reconcile-from-breaks');
+  if (btnReconcileBreaks && !btnReconcileBreaks.dataset.mateReconcileBound) {
+    btnReconcileBreaks.dataset.mateReconcileBound = '1';
+    btnReconcileBreaks.addEventListener('click', () => void runMateTrocaReconcileFromBreaks());
+  }
+  updateMateTrocaReconcileFromBreaksButton();
 
   if (btnClearAll && !btnClearAll.dataset.mateTrocaBound) {
     btnClearAll.dataset.mateTrocaBound = '1';
@@ -10579,6 +10672,7 @@ function initDashboard(user) {
   if (adminPurgeSection) {
     adminPurgeSection.style.display = currentRole === 'admin' ? 'block' : 'none';
   }
+  updateMateTrocaReconcileFromBreaksButton();
   showDashboard();
 }
 
