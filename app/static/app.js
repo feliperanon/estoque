@@ -4327,7 +4327,7 @@ function breakScreenEventsToMateTrocaOverlay(events) {
   return out;
 }
 
-/** União de códigos com pendente de troca ou quebra acumulada no servidor; chave canônica (010 ≡ 10). */
+/** União de códigos com pendente de troca no servidor ou quebra no período (acumulado); chave canônica (010 ≡ 10). */
 function collectMateCouroTrocaCodeUnion(server, breaks) {
   const codeSet = new Set();
   const ingest = (map) => {
@@ -4351,12 +4351,12 @@ function updateMateCouroKpis() {
   let sumUn = 0;
   let nProd = 0;
   const server = mateTrocaServerPendingCache || {};
-  const breaks = mateTrocaBreakTotalsCache || {};
-  const codeSet = collectMateCouroTrocaCodeUnion(server, breaks);
+  const acum = mateTrocaTrocaAcumuladoCache || {};
+  const codeSet = collectMateCouroTrocaCodeUnion(server, acum);
   for (const cod of codeSet) {
-    const sv = resolveMateCouroPendingEntry(server, cod);
-    sumCx += sv.cx;
-    sumUn += sv.un;
+    const av = resolveMateCouroPendingEntry(acum, cod);
+    sumCx += av.cx;
+    sumUn += av.un;
     nProd += 1;
   }
   const catalogLen = Array.isArray(mateCouroProductsCache) ? mateCouroProductsCache.length : 0;
@@ -4397,8 +4397,6 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
       '<li class="count-audit-empty"><span>Nenhuma quebra Mate couro registrada neste dia.</span><strong>—</strong></li>';
     return;
   }
-  let totalCx = 0;
-  let totalUn = 0;
   for (const ev of mateEvents) {
     const codRaw = String(ev.cod_produto || '');
     const cod = escapeHtml(codRaw);
@@ -4406,8 +4404,6 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
     const descEsc = escapeHtml(descRaw);
     const nameHtml = descRaw ? descEsc : cod;
     const { cx, un } = parseAuditBreakCxUn(ev);
-    totalCx += cx;
-    totalUn += un;
     const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
     const li = document.createElement('li');
     li.className = 'count-audit-item break-history-item';
