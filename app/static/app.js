@@ -4677,16 +4677,19 @@ function bindMateCouroTrocaEvents() {
   if (btnClearAll && !btnClearAll.dataset.mateTrocaBound) {
     btnClearAll.dataset.mateTrocaBound = '1';
     btnClearAll.addEventListener('click', () => {
-      if (
-        !window.confirm(
-          'Zerar todo o acumulativo de troca e o histórico de snapshots por dia neste aparelho? As quebras no servidor não serão alteradas.',
-        )
-      ) {
-        return;
-      }
-      const _s = readMateCouroTrocaStorage();
-      writeMateCouroTrocaStorage({ ..._s, pending: {}, daySnapshots: {} });
-      renderMateCouroPendingList();
+      void (async () => {
+        if (
+          !window.confirm(
+            'Limpar neste aparelho só os snapshots de “Carregar dia”? O pendente no servidor não é apagado; com rede, use Carregar de novo para reaplicar deltas se precisar.',
+          )
+        ) {
+          return;
+        }
+        const _s = readMateCouroTrocaStorage();
+        writeMateCouroTrocaStorage({ ..._s, daySnapshots: {} });
+        await refreshMateTrocaServerPendingDisplay();
+        renderMateCouroPendingList();
+      })();
     });
   }
 
@@ -4709,8 +4712,8 @@ function bindMateCouroTrocaEvents() {
           window.alert('Código não encontrado no catálogo Mate couro (ativos).');
           return;
         }
-        const state = readMateCouroTrocaStorage();
-        const cur = state.pending[cod] || { cx: 0, un: 0 };
+        await refreshMateTrocaServerPendingDisplay();
+        const cur = mateTrocaServerPendingCache[cod] || { cx: 0, un: 0 };
         const cxNew = parseMateCouroIntPrompt(`Novo pendente em CX para ${cod}:`, String(cur.cx));
         if (cxNew === null) return;
         const unNew = parseMateCouroIntPrompt(`Novo pendente em UN para ${cod}:`, String(cur.un));
@@ -4730,9 +4733,7 @@ function bindMateCouroTrocaEvents() {
           window.alert(sync.message || 'Falha ao sincronizar.');
           return;
         }
-        if (cxNew === 0 && unNew === 0) delete state.pending[cod];
-        else state.pending[cod] = { cx: cxNew, un: unNew };
-        writeMateCouroTrocaStorage(state);
+        await refreshMateTrocaServerPendingDisplay();
         renderMateCouroPendingList();
       })();
     });
@@ -4786,8 +4787,8 @@ function bindMateCouroTrocaEvents() {
       if (!cod) return;
 
       void (async () => {
-        const state = readMateCouroTrocaStorage();
-        const cur = state.pending[cod] || { cx: 0, un: 0 };
+        await refreshMateTrocaServerPendingDisplay();
+        const cur = mateTrocaServerPendingCache[cod] || { cx: 0, un: 0 };
 
         if (action === 'zerar') {
           if (!window.confirm(`Zerar pendente de troca para ${cod}?`)) return;
@@ -4804,8 +4805,7 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          delete state.pending[cod];
-          writeMateCouroTrocaStorage(state);
+          await refreshMateTrocaServerPendingDisplay();
           renderMateCouroPendingList();
           return;
         }
@@ -4825,9 +4825,7 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          if (next.cx === 0 && next.un === 0) delete state.pending[cod];
-          else state.pending[cod] = next;
-          writeMateCouroTrocaStorage(state);
+          await refreshMateTrocaServerPendingDisplay();
           renderMateCouroPendingList();
           return;
         }
@@ -4852,9 +4850,7 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          if (cxNew === 0 && unNew === 0) delete state.pending[cod];
-          else state.pending[cod] = { cx: cxNew, un: unNew };
-          writeMateCouroTrocaStorage(state);
+          await refreshMateTrocaServerPendingDisplay();
           renderMateCouroPendingList();
         }
       })();
@@ -8722,6 +8718,7 @@ async function loadCountAuditAnalysis() {
       countAuditState.breakDayBalances = {};
       countAuditState.validityExpiryByCode = {};
       countAuditState.mateTrocaServerPending = {};
+      mateTrocaServerPendingCache = {};
       countAuditState.detailCache.clear();
       renderCountAuditSummary({});
       renderCountAuditRows([]);
@@ -8899,16 +8896,6 @@ function openCountAuditRecount(code) {
 }
 
 function bindCountAuditEvents() {
-  if (!countAuditMateTrocaStorageBound) {
-    countAuditMateTrocaStorageBound = true;
-    window.addEventListener('storage', (e) => {
-      if (e.key !== MATE_COURO_TROCA_STORAGE_KEY && e.key !== MATE_COURO_TROCA_STORAGE_LEGACY_KEY) return;
-      const sub = document.getElementById('sub-count-audit');
-      if (!sub?.classList.contains('active')) return;
-      applyMateCouroTrocaPendingToCountAuditRows();
-      renderCountAuditRows(getCountAuditRowsFromState());
-    });
-  }
   if (!countAuditVisibilityBound) {
     countAuditVisibilityBound = true;
     document.addEventListener('visibilitychange', () => {
