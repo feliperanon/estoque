@@ -3775,7 +3775,7 @@ async function runMateTrocaReconcileFromBreaks() {
         ? data.message || 'Já estava correto.'
         : `Pronto. Pendente definido: CX ${formatBreakIntegerBR(Number(tgt.cx) || 0)} · UN ${formatBreakIntegerBR(Number(tgt.un) || 0)}.`,
     );
-    await refreshMateTrocaServerPendingDisplay();
+    await refreshMateTrocaBaseScreenData();
     renderMateCouroPendingList();
     updateMateCouroKpis();
   } catch {
@@ -4293,7 +4293,7 @@ async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
   while (state.eventLog.length > 500) state.eventLog.shift();
   writeMateCouroTrocaStorage(state);
 
-  await refreshMateTrocaServerPendingDisplay();
+  await refreshMateTrocaBaseScreenData();
   return true;
 }
 
@@ -4379,10 +4379,10 @@ function breakScreenEventsToMateTrocaOverlay(events) {
   return out;
 }
 
-/** União de códigos com pendente de troca no servidor ou quebra no período (acumulado); chave canônica (010 ≡ 10). */
-function collectMateCouroTrocaCodeUnion(server, breaks) {
+/** Códigos na Base de Troca: ``pending`` > 0 OU presença em ``discoverySet`` (quebra no período De/Até). O saldo exibido vem só de ``pending``. */
+function collectMateCouroBaseProductCodes(pendingMap, discoverySet) {
   const codeSet = new Set();
-  const ingest = (map) => {
+  const ingestPending = (map) => {
     if (!map || typeof map !== 'object') return;
     for (const k of Object.keys(map)) {
       const t = map[k];
@@ -4393,8 +4393,12 @@ function collectMateCouroTrocaCodeUnion(server, breaks) {
       if (canon) codeSet.add(canon);
     }
   };
-  ingest(server);
-  ingest(breaks);
+  ingestPending(pendingMap);
+  if (discoverySet instanceof Set) {
+    for (const c of discoverySet) {
+      if (c) codeSet.add(String(c));
+    }
+  }
   return codeSet;
 }
 
@@ -4403,8 +4407,7 @@ function updateMateCouroKpis() {
   let sumUn = 0;
   let nProd = 0;
   const server = mateTrocaServerPendingCache || {};
-  const acum = mateTrocaTrocaAcumuladoCache || {};
-  const codeSet = collectMateCouroTrocaCodeUnion(server, acum);
+  const codeSet = collectMateCouroBaseProductCodes(server, mateTrocaDiscoveryCodesCache);
   for (const cod of codeSet) {
     const sv = resolveMateCouroPendingEntry(server, cod);
     sumCx += sv.cx;
@@ -4492,8 +4495,7 @@ function getMateCouroPendingRowsFiltered() {
   const searchEl = document.getElementById('mate-couro-troca-pending-search');
   const term = ((searchEl && searchEl.value) || '').trim().toLowerCase();
   const server = mateTrocaServerPendingCache || {};
-  const acum = mateTrocaTrocaAcumuladoCache || {};
-  const codeSet = collectMateCouroTrocaCodeUnion(server, acum);
+  const codeSet = collectMateCouroBaseProductCodes(server, mateTrocaDiscoveryCodesCache);
   const rows = [];
   for (const cod of codeSet) {
     const sv = resolveMateCouroPendingEntry(server, cod);
@@ -4531,13 +4533,13 @@ function renderMateCouroPendingList() {
       : '';
   if (rangeInfo) {
     rangeInfo.textContent = rows.length
-      ? `${rows.length} produto(s) · saldo servidor${dr ? ` · quebra no período ${dr}` : ''}`
-      : `Nenhum produto${dr ? ` (período ${dr})` : ''}. Use <strong>De/Até</strong> + <strong>Atualizar</strong> ou <strong>Carregar</strong> o dia.`;
+      ? `${rows.length} produto(s) · saldo = pendente no servidor${dr ? ` · lista inclui códigos com quebra em ${dr}` : ''}`
+      : `Nenhum produto${dr ? ` (período ${dr})` : ''}. Use <strong>De/Até</strong> + <strong>Atualizar lista</strong> ou <strong>Carregar</strong> o dia.`;
   }
   ul.innerHTML = '';
   if (!rows.length) {
     ul.innerHTML =
-      '<li class="count-audit-empty"><span>Sem itens. Ajuste <strong>De</strong>/<strong>Até</strong> e <strong>Atualizar</strong>, ou <strong>Carregar</strong> o dia para incorporar quebras ao saldo.</span><strong>—</strong></li>';
+      '<li class="count-audit-empty"><span>Sem itens. Ajuste <strong>De</strong>/<strong>Até</strong> e <strong>Atualizar lista</strong>, ou <strong>Carregar</strong> o dia para incorporar quebras ao pendente.</span><strong>—</strong></li>';
     updateMateCouroKpis();
     return;
   }
@@ -4557,7 +4559,7 @@ function renderMateCouroPendingList() {
       `<span class="count-audit-row-name">${nameEsc}</span>` +
       `</div></div>` +
       `<div class="count-audit-cell mate-couro-pending-saldo-cell">` +
-      `<span class="count-audit-cell-label">Acumulado para troca</span>` +
+      `<span class="count-audit-cell-label">Saldo atual para troca</span>` +
       `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-acc">` +
       `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
@@ -4596,7 +4598,7 @@ async function loadMateCouroBreakDayList() {
   }
 
   await ensureMateCouroCatalogLoaded();
-  await refreshMateTrocaServerPendingDisplay();
+  await refreshMateTrocaBaseScreenData();
   updateMateCouroKpis();
   renderMateCouroPendingList();
   await loadServerBreakTotals();
@@ -4959,7 +4961,7 @@ async function openMateTrocaPendingProductHistory(codRaw) {
 
   await ensureMateCouroCatalogLoaded();
   if (getToken()) {
-    await refreshMateTrocaServerPendingDisplay();
+    await refreshMateTrocaBaseScreenData();
   }
   const p = (mateCouroProductsCache || []).find(
     (x) => normalizeItemCode(String(x.cod_produto || '')) === cod,
@@ -5143,7 +5145,7 @@ function bindMateCouroTrocaEvents() {
   const btnAcumRefresh = document.getElementById('btn-mate-couro-troca-acum-refresh');
   const runMateTrocaAcumRefresh = () => {
     void (async () => {
-      await refreshMateTrocaServerPendingDisplay();
+      await refreshMateTrocaBaseScreenData();
       renderMateCouroPendingList();
       updateMateCouroKpis();
     })();
@@ -5183,7 +5185,7 @@ function bindMateCouroTrocaEvents() {
         _s.daySnapshots = {};
         _s.incorpGen = Math.max(0, Math.round(Number(_s.incorpGen) || 0)) + 1;
         writeMateCouroTrocaStorage(_s);
-        await refreshMateTrocaServerPendingDisplay();
+        await refreshMateTrocaBaseScreenData();
         renderMateCouroPendingList();
       })();
     });
@@ -5208,7 +5210,7 @@ function bindMateCouroTrocaEvents() {
           window.alert('Código não encontrado no catálogo Mate couro (ativos).');
           return;
         }
-        await refreshMateTrocaServerPendingDisplay();
+        await refreshMateTrocaBaseScreenData();
         const cur = resolveMateCouroPendingEntry(mateTrocaServerPendingCache, cod);
         const cxNew = parseMateCouroIntPrompt(`Novo pendente em CX para ${cod}:`, String(cur.cx));
         if (cxNew === null) return;
@@ -5229,7 +5231,7 @@ function bindMateCouroTrocaEvents() {
           window.alert(sync.message || 'Falha ao sincronizar.');
           return;
         }
-        await refreshMateTrocaServerPendingDisplay();
+        await refreshMateTrocaBaseScreenData();
         renderMateCouroPendingList();
       })();
     });
@@ -5283,7 +5285,7 @@ function bindMateCouroTrocaEvents() {
       if (!cod) return;
 
       void (async () => {
-        await refreshMateTrocaServerPendingDisplay();
+        await refreshMateTrocaBaseScreenData();
         const cur = resolveMateCouroPendingEntry(mateTrocaServerPendingCache, cod);
 
         if (action === 'zerar') {
@@ -5308,7 +5310,7 @@ function bindMateCouroTrocaEvents() {
             return;
           }
           bumpMateTrocaIncorpRevForCod(cod);
-          await refreshMateTrocaServerPendingDisplay();
+          await refreshMateTrocaBaseScreenData();
           renderMateCouroPendingList();
           return;
         }
@@ -5328,7 +5330,7 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          await refreshMateTrocaServerPendingDisplay();
+          await refreshMateTrocaBaseScreenData();
           renderMateCouroPendingList();
           return;
         }
@@ -5353,7 +5355,7 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          await refreshMateTrocaServerPendingDisplay();
+          await refreshMateTrocaBaseScreenData();
           renderMateCouroPendingList();
         }
       })();
@@ -9253,7 +9255,7 @@ async function loadCountAuditAnalysis() {
       countAuditState.mateTrocaServerPending = {};
       mateTrocaServerPendingCache = {};
       mateTrocaBreakTotalsCache = {};
-      mateTrocaTrocaAcumuladoCache = {};
+      mateTrocaDiscoveryCodesCache = new Set();
       setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
       return;
     }
@@ -9272,7 +9274,7 @@ async function loadCountAuditAnalysis() {
       countAuditState.mateTrocaServerPending = {};
       mateTrocaServerPendingCache = {};
       mateTrocaBreakTotalsCache = {};
-      mateTrocaTrocaAcumuladoCache = {};
+      mateTrocaDiscoveryCodesCache = new Set();
       countAuditState.detailCache.clear();
       renderCountAuditSummary({});
       renderCountAuditRows([]);

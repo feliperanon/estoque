@@ -2475,6 +2475,29 @@ class MateTrocaReconcileFromBreaksBody(BaseModel):
     date_to: str = Field(min_length=10, max_length=10)
 
 
+def _mate_troca_base_period_bounds(
+    date_from: str | None,
+    date_to: str | None,
+) -> tuple[date, date]:
+    """Limites De/Até para ``break_totals_period`` e para descoberta em ``mate-troca-base``."""
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    df_q = _parse_iso_date_arg(date_from) if date_from else None
+    dt_q = _parse_iso_date_arg(date_to) if date_to else None
+    if (df_q is None) ^ (dt_q is None):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Informe date_from e date_to juntos (YYYY-MM-DD) ou omita ambos.",
+        )
+    if df_q is None and dt_q is None:
+        d0 = date(br_today.year, br_today.month, 1)
+        d1 = br_today
+    else:
+        d0, d1 = df_q, dt_q
+        if d0 > d1:
+            d0, d1 = d1, d0
+    return d0, d1
+
+
 @router.get("/mate-troca-pending-by-product")
 def get_mate_troca_pending_by_product(
     date_from: str | None = Query(
@@ -2501,50 +2524,13 @@ def get_mate_troca_pending_by_product(
     use apenas em telas que precisem desse agregado ou em clientes legados. A Base de Troca operacional deve
     usar ``GET /audit/mate-troca-base`` (``pending`` + ``discovery_codes``).
     """
-    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
-    df_q = _parse_iso_date_arg(date_from) if date_from else None
-    dt_q = _parse_iso_date_arg(date_to) if date_to else None
-    if (df_q is None) ^ (dt_q is None):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Informe date_from e date_to juntos (YYYY-MM-DD) ou omita ambos.",
-        )
-    if df_q is None and dt_q is None:
-        d0 = date(br_today.year, br_today.month, 1)
-        d1 = br_today
-    else:
-        d0, d1 = df_q, dt_q
-        if d0 > d1:
-            d0, d1 = d1, d0
+    d0, d1 = _mate_troca_base_period_bounds(date_from, date_to)
     break_totals_period = _mate_couro_break_totals_date_range(session, d0, d1)
     return {
         "pending": _mate_troca_pending_product_map(session),
         "break_totals": _mate_couro_break_totals_all_time(session),
         "break_totals_period": break_totals_period,
     }
-
-
-def _mate_troca_base_period_bounds(
-    date_from: str | None,
-    date_to: str | None,
-) -> tuple[date, date]:
-    """Mesmos limites do GET mate-troca-pending-by-product para período de descoberta."""
-    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
-    df_q = _parse_iso_date_arg(date_from) if date_from else None
-    dt_q = _parse_iso_date_arg(date_to) if date_to else None
-    if (df_q is None) ^ (dt_q is None):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Informe date_from e date_to juntos (YYYY-MM-DD) ou omita ambos.",
-        )
-    if df_q is None and dt_q is None:
-        d0 = date(br_today.year, br_today.month, 1)
-        d1 = br_today
-    else:
-        d0, d1 = df_q, dt_q
-        if d0 > d1:
-            d0, d1 = d1, d0
-    return d0, d1
 
 
 @router.get("/mate-troca-base")

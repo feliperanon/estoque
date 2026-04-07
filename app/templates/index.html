@@ -510,21 +510,21 @@
                 <div class="mate-troca-kpi-page-intro">
                   <h2 id="mate-couro-troca-title" class="count-audit-page-title">Base de Troca</h2>
                   <p class="count-audit-page-subtitle mate-troca-page-subtitle">
-                    O número do card é o <strong>saldo de troca no servidor</strong> (o mesmo que <strong>Chegada</strong>, <strong>Saldo</strong> e <strong>Zerar</strong> alteram).
-                    <strong>De / Até</strong> + <strong>Atualizar</strong> inclui na lista produtos com quebra nesse intervalo mesmo com saldo 0.
-                    <strong>Carregar</strong> soma a quebra do dia ao saldo.
+                    O número do card é só o <strong>pendente no servidor</strong> (o que <strong>Chegada</strong>, <strong>Saldo</strong> e <strong>Zerar</strong> alteram).
+                    <strong>De / Até</strong> + <strong>Atualizar lista</strong> só define quais códigos aparecem (ex.: tiveram quebra no período); não substitui o pendente exibido.
+                    <strong>Carregar</strong> envia a quebra do dia ao servidor e atualiza o pendente.
                   </p>
                   <div class="count-audit-header__toolbar mate-troca-kpi-toolbar" aria-label="Ações da base de troca">
                     <div class="count-audit-field count-audit-field--date">
                       <label class="count-audit-label" for="mate-couro-troca-acum-from">De</label>
-                      <input id="mate-couro-troca-acum-from" name="mate-couro-troca-acum-from" type="date" class="search-input count-audit-date-input" aria-label="Início do acumulado para troca" />
+                      <input id="mate-couro-troca-acum-from" name="mate-couro-troca-acum-from" type="date" class="search-input count-audit-date-input" aria-label="Início do período para montar a lista" />
                     </div>
                     <div class="count-audit-field count-audit-field--date">
                       <label class="count-audit-label" for="mate-couro-troca-acum-to">Até</label>
-                      <input id="mate-couro-troca-acum-to" name="mate-couro-troca-acum-to" type="date" class="search-input count-audit-date-input" aria-label="Fim do acumulado para troca" />
+                      <input id="mate-couro-troca-acum-to" name="mate-couro-troca-acum-to" type="date" class="search-input count-audit-date-input" aria-label="Fim do período para montar a lista" />
                     </div>
                     <div class="count-audit-header__actions mate-troca-kpi-toolbar-acum-actions">
-                      <button type="button" id="btn-mate-couro-troca-acum-refresh" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline">Atualizar acumulado</button>
+                      <button type="button" id="btn-mate-couro-troca-acum-refresh" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline">Atualizar lista</button>
                     </div>
                     <div class="count-audit-field count-audit-field--date">
                       <label class="count-audit-label" for="mate-couro-troca-date">Consultar dia</label>
@@ -583,7 +583,7 @@
                 </div>
                 <div id="mate-troca-filters-panel" class="count-audit-filters-panel">
                   <div class="count-audit-search-row">
-                    <input id="mate-couro-troca-pending-search" class="search-input count-audit-search-input" type="search" placeholder="Buscar por código ou nome…" autocomplete="off" aria-label="Buscar na lista de acumulado" />
+                    <input id="mate-couro-troca-pending-search" class="search-input count-audit-search-input" type="search" placeholder="Buscar por código ou nome…" autocomplete="off" aria-label="Buscar na lista de saldo pendente" />
                   </div>
                   <p class="count-audit-card-sub muted mate-troca-filters-hint"><strong>Chegada</strong>, <strong>Saldo</strong> e <strong>Zerar</strong> atuam no servidor. Produto fora da lista: <strong>Ajustar pendente por código</strong>.</p>
                 </div>
@@ -613,19 +613,19 @@
                 <section class="card count-audit-list-card mate-couro-pending-card">
                   <div class="card-head count-audit-list-head">
                     <div>
-                      <h3>Acumulado para troca</h3>
+                      <h3>Saldo pendente (troca)</h3>
                     </div>
                     <div class="count-audit-list-head-meta">
-                      <span id="mate-couro-troca-pending-range-info" class="count-audit-range-info">Defina De/Até e atualize.</span>
+                      <span id="mate-couro-troca-pending-range-info" class="count-audit-range-info">Defina De/Até e use Atualizar lista.</span>
                     </div>
                   </div>
                   <div class="mate-couro-pending-list-header" aria-hidden="true">
                     <span>Produto</span>
-                    <span>Acumulado</span>
+                    <span>Saldo</span>
                     <span>Ações</span>
                   </div>
                   <div class="count-audit-list-panel mate-couro-pending-list-panel">
-                    <ul id="mate-couro-troca-pending-list" class="count-audit-list-main" role="list" aria-label="Acumulado para troca Mate couro"></ul>
+                    <ul id="mate-couro-troca-pending-list" class="count-audit-list-main" role="list" aria-label="Saldo pendente de troca Mate couro"></ul>
                   </div>
                 </section>
               </div>
