@@ -672,7 +672,6 @@ let countAuditPollingTimer = null;
 /** Intervalo da Análise de Contagem: atualização quase em tempo real (outros dispositivos / servidor). */
 const COUNT_AUDIT_POLL_MS = 8000;
 let countAuditVisibilityBound = false;
-let countAuditMateTrocaStorageBound = false;
 
 const PAGE_KEYS_BY_MODULE = {
   contagem: [
@@ -7630,7 +7629,7 @@ function resolveMateCouroPendingEntry(pending, codProduto) {
 
 /**
  * Alinha diferença CX/UN / |Dif| do meta com a mesma base usada em "Contagem:"
- * (sincronizado + pendente troca local). Evita mostrar +6 quando o total exibido é 373+1=374 vs base 367 (+7).
+ * (sincronizado + pendente troca da análise: servidor e, se aplicável, reflexo da quebra Mate couro).
  */
 function reconcileCountAuditMetaDiffWithMergedCount(row) {
   const meta = row && row._auditMeta;
@@ -7648,15 +7647,14 @@ function reconcileCountAuditMetaDiffWithMergedCount(row) {
 }
 
 /**
- * Sincroniza CX/UN do pendente da Base de Troca em cada linha:
- * localStorage tem prioridade; se zerado local, usa servidor;
- * se ainda zerado e o produto é Mate couro (catálogo), reflexo da quebra positiva do dia
- * (alinha Chrome sem localStorage ao Edge onde só existia pendente local).
+ * Sincroniza CX/UN do pendente da Base de Troca em cada linha **apenas com o servidor**,
+ * para a Análise de Contagem ser a mesma em todos os navegadores. O localStorage continua
+ * valendo na tela Base de Troca (operacional por aparelho). Se servidor zerado e o produto é
+ * Mate couro (catálogo), usa reflexo da quebra positiva do dia (inalterado).
  */
 function applyMateCouroTrocaPendingToCountAuditRows() {
   const rows = Array.isArray(countAuditState.rows) ? countAuditState.rows : [];
   if (!rows.length) return;
-  const localPending = readMateCouroTrocaStorage().pending || {};
   const serverPending = countAuditState.mateTrocaServerPending && typeof countAuditState.mateTrocaServerPending === 'object'
     ? countAuditState.mateTrocaServerPending
     : {};
@@ -7664,12 +7662,10 @@ function applyMateCouroTrocaPendingToCountAuditRows() {
   for (const row of rows) {
     if (!row._auditMeta) continue;
     row._auditMeta.trocaFallbackFromBreak = false;
-    const localT = resolveMateCouroPendingEntry(localPending, row.cod_produto);
     const serverT = resolveMateCouroPendingEntry(serverPending, row.cod_produto);
-    const useLocal = localT.cx > 0 || localT.un > 0;
-    let tCx = useLocal ? localT.cx : serverT.cx;
-    let tUn = useLocal ? localT.un : serverT.un;
-    if (!useLocal && tCx === 0 && tUn === 0 && mateSet.has(normalizeItemCode(row.cod_produto))) {
+    let tCx = serverT.cx;
+    let tUn = serverT.un;
+    if (tCx === 0 && tUn === 0 && mateSet.has(normalizeItemCode(row.cod_produto))) {
       const brCx = Math.round(Number(row._auditMeta.breakCx) || 0);
       const brUn = Math.round(Number(row._auditMeta.breakUn) || 0);
       if (brCx > 0) tCx = brCx;
@@ -8075,15 +8071,14 @@ function formatCountAuditDetailOpsCxUnLine(cx, un, mode) {
 
 /**
  * Análise de Contagem — desktop: duas colunas separadas (Troca | Quebra).
- * Troca: pendente acumulativo local (Base de Troca Mate couro). Quebra: líquido do dia operacional.
+ * Troca: pendente no servidor (Base de Troca Mate couro) ou reflexo da quebra. Quebra: líquido do dia operacional.
  */
-/** Coluna desktop Troca: pendente Base de Troca (local/servidor) ou reflexo da quebra no dia (Mate couro). */
 function buildCountAuditTrocaColumnCellHtml(meta) {
   if (countAuditHasTrocaPending(meta)) {
     const inner = buildCountAuditDiffCxUnStrongs(meta.trocaCx, meta.trocaUn, 'troca');
     const title = meta.trocaFallbackFromBreak
-      ? 'Reflexo da quebra positiva do dia (CIA Mate couro), quando não há pendente local nem no servidor na Base de Troca.'
-      : 'Pendente na Base de Troca (local e/ou servidor — CIA Mate couro); zerado ao limpar ou encerrar no fluxo de troca.';
+      ? 'Reflexo da quebra positiva do dia (CIA Mate couro), quando não há pendente registrado no servidor na Base de Troca.'
+      : 'Pendente na Base de Troca no servidor (CIA Mate couro); mesma visão para todos na análise; zerado ao limpar ou encerrar no fluxo de troca.';
     return (
       `<span class="count-audit-cell-label">Troca</span>` +
       `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="${escapeHtml(title)}">` +
@@ -8115,7 +8110,7 @@ function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
   if (countAuditHasTrocaPending(meta)) {
     const vals = formatCountAuditOpsMobileCxUn(meta.trocaCx, meta.trocaUn, 'troca');
     parts.push(
-      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Pendente acumulativo local (Base de Troca — CIA Mate couro)">` +
+      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Pendente da Base de Troca no servidor (CIA Mate couro) — mesma visão para todos na análise">` +
         `<span class="count-audit-mobile-break-label">Troca</span>` +
         `<span class="count-audit-mobile-break-values">${vals}</span>` +
       `</div>`,
@@ -8133,7 +8128,7 @@ function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
   return `<div class="count-audit-mobile-ops-wrap">${parts.join('')}</div>`;
 }
 
-/** Contagem sincronizada + componente troca (local/servidor ou reflexo quebra Mate): total em destaque; parcela em verde. */
+/** Contagem sincronizada + componente troca (servidor ou reflexo quebra Mate): total em destaque; parcela em verde. */
 function buildCountAuditMergedCurrentCxuHtml(row, meta) {
   const baseCx = Math.max(0, Math.round(Number(row.counted_caixa) || 0));
   const baseUn = Math.max(0, Math.round(Number(row.counted_unidade) || 0));
@@ -8144,8 +8139,8 @@ function buildCountAuditMergedCurrentCxuHtml(row, meta) {
   const hasTroca = tCx > 0 || tUn > 0;
   const title = hasTroca
     ? (meta.trocaFallbackFromBreak
-      ? 'Total = contagem sincronizada + reflexo da quebra do dia (Mate couro), usado quando não há pendente na Base de Troca neste navegador.'
-      : 'Total = contagem sincronizada + pendente Base de Troca (Mate couro). A soma em verde integra ao total acima.')
+      ? 'Total = contagem sincronizada + reflexo da quebra do dia (Mate couro), usado quando não há pendente da Base de Troca no servidor.'
+      : 'Total = contagem sincronizada + pendente da Base de Troca no servidor (Mate couro). A soma em verde integra ao total acima.')
     : '';
   const pairClass = `count-audit-cxu-pair${hasTroca ? ' count-audit-cxu-pair--with-troca' : ''}`;
   const pairOpen = title
@@ -8185,8 +8180,8 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
     : '';
   const trocaDetailArticle = countAuditHasTrocaPending(meta)
     ? (meta.trocaFallbackFromBreak
-      ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (reflexo da quebra)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro: sem pendente na Base de Troca neste navegador; valores espelham a quebra positiva do dia para alinhar a coluna Contagem.</small></article>`
-      : `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro — pendente local e/ou servidor; zerado ao limpar ou encerrar no fluxo de troca</small></article>`)
+      ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (reflexo da quebra)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro: sem pendente da Base de Troca no servidor; valores espelham a quebra positiva do dia para alinhar a coluna Contagem.</small></article>`
+      : `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro — pendente no servidor (mesma visão para todos na análise); zerado ao limpar ou encerrar no fluxo de troca</small></article>`)
     : '';
   const breakDetailArticle = countAuditHasBreakDay(meta)
     ? `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.breakCx, meta.breakUn, 'break')}</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>`
@@ -8823,16 +8818,6 @@ function openCountAuditRecount(code) {
 }
 
 function bindCountAuditEvents() {
-  if (!countAuditMateTrocaStorageBound) {
-    countAuditMateTrocaStorageBound = true;
-    window.addEventListener('storage', (e) => {
-      if (e.key !== MATE_COURO_TROCA_STORAGE_KEY && e.key !== MATE_COURO_TROCA_STORAGE_LEGACY_KEY) return;
-      const sub = document.getElementById('sub-count-audit');
-      if (!sub?.classList.contains('active')) return;
-      applyMateCouroTrocaPendingToCountAuditRows();
-      renderCountAuditRows(getCountAuditRowsFromState());
-    });
-  }
   if (!countAuditVisibilityBound) {
     countAuditVisibilityBound = true;
     document.addEventListener('visibilitychange', () => {
