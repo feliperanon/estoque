@@ -13,7 +13,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from pydantic import BaseModel, Field
-from sqlalchemy import func
+from sqlalchemy import desc, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, SQLModel, select
 
@@ -2127,16 +2127,25 @@ def get_mate_troca_pending_by_product(
     """Pendente CX/UN por produto a partir do último evento gravado no servidor.
 
     Inclui chegadas, ajustes, zeramentos e incorporacao_quebra (Carregar dia na Base de Troca).
+    Usa o evento mais recente em ``created_at`` (desempate por ``id``), não só ``max(id)``,
+    para refletir a ordem operacional mesmo se houver inserções fora de sequência.
     """
     _ensure_mate_couro_troca_logs_table()
-    sub = (
-        select(MateCouroTrocaLog.cod_produto, func.max(MateCouroTrocaLog.id).label("mid"))
-        .group_by(MateCouroTrocaLog.cod_produto)
-    ).subquery()
-    stmt = select(MateCouroTrocaLog).join(
-        sub,
-        (MateCouroTrocaLog.cod_produto == sub.c.cod_produto) & (MateCouroTrocaLog.id == sub.c.mid),
+    rn = (
+        func.row_number()
+        .over(
+            partition_by=MateCouroTrocaLog.cod_produto,
+            order_by=(desc(MateCouroTrocaLog.created_at), desc(MateCouroTrocaLog.id)),
+        )
+        .label("rn")
     )
+    sub = select(
+        MateCouroTrocaLog.cod_produto,
+        MateCouroTrocaLog.pend_cx_after,
+        MateCouroTrocaLog.pend_un_after,
+        rn,
+    ).subquery()
+    stmt = select(sub.c.cod_produto, sub.c.pend_cx_after, sub.c.pend_un_after).where(sub.c.rn == 1)
     rows = list(session.exec(stmt).all())
     pending: dict[str, dict[str, int]] = {}
     for r in rows:
