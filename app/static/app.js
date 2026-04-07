@@ -2005,6 +2005,26 @@ function normalizeCountType(value) {
   return (value || '').trim().toLowerCase() === 'unidade' ? 'unidade' : 'caixa';
 }
 
+/** CX/UN de evento de quebra (API /audit/break-events): evita perder um eixo quando só um vem no JSON. */
+function parseAuditBreakCxUn(ev) {
+  if (!ev || typeof ev !== 'object') return { cx: 0, un: 0 };
+  const rawCx = Number(ev.cx);
+  const rawUn = Number(ev.un);
+  const finCx = Number.isFinite(rawCx);
+  const finUn = Number.isFinite(rawUn);
+  if (finCx && finUn) {
+    return { cx: Math.round(rawCx), un: Math.round(rawUn) };
+  }
+  if (finCx) return { cx: Math.round(rawCx), un: 0 };
+  if (finUn) return { cx: 0, un: Math.round(rawUn) };
+  const qty = Number(ev.quantity) || 0;
+  const tipo = ev.qty_type === 'unidade' ? 'unidade' : 'caixa';
+  return {
+    cx: tipo === 'caixa' ? Math.round(qty) : 0,
+    un: tipo === 'unidade' ? Math.round(qty) : 0,
+  };
+}
+
 function makeCountTotalKey(itemCode, countType) {
   return `${normalizeItemCode(itemCode)}::${normalizeCountType(countType)}`;
 }
@@ -3431,16 +3451,7 @@ async function loadBreakHistoryList() {
       const descRaw = String(ev.product_desc || '').trim();
       const descEsc = escapeHtml(descRaw);
       const nameHtml = descRaw ? descEsc : cod;
-      let cx = Number(ev.cx);
-      let un = Number(ev.un);
-      if (!Number.isFinite(cx) || !Number.isFinite(un)) {
-        const qty = Number(ev.quantity) || 0;
-        const tipo = ev.qty_type === 'unidade' ? 'unidade' : 'caixa';
-        cx = tipo === 'caixa' ? qty : 0;
-        un = tipo === 'unidade' ? qty : 0;
-      }
-      cx = Math.round(cx);
-      un = Math.round(un);
+      const { cx, un } = parseAuditBreakCxUn(ev);
       const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
       const li = document.createElement('li');
       li.className = 'count-audit-item break-history-item';
@@ -3827,16 +3838,7 @@ function aggregateMateCouroEventsByCode(events) {
   for (const ev of events || []) {
     const code = normalizeItemCode(String(ev.cod_produto || ''));
     if (!code) continue;
-    let cx = Number(ev.cx);
-    let un = Number(ev.un);
-    if (!Number.isFinite(cx) || !Number.isFinite(un)) {
-      const qty = Number(ev.quantity) || 0;
-      const tipo = ev.qty_type === 'unidade' ? 'unidade' : 'caixa';
-      cx = tipo === 'caixa' ? qty : 0;
-      un = tipo === 'unidade' ? qty : 0;
-    }
-    cx = Math.round(cx);
-    un = Math.round(un);
+    const { cx, un } = parseAuditBreakCxUn(ev);
     if (!m[code]) m[code] = { cx: 0, un: 0 };
     m[code].cx += cx;
     m[code].un += un;
@@ -4036,16 +4038,7 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
     const descRaw = String(ev.product_desc || '').trim();
     const descEsc = escapeHtml(descRaw);
     const nameHtml = descRaw ? descEsc : cod;
-    let cx = Number(ev.cx);
-    let un = Number(ev.un);
-    if (!Number.isFinite(cx) || !Number.isFinite(un)) {
-      const qty = Number(ev.quantity) || 0;
-      const tipo = ev.qty_type === 'unidade' ? 'unidade' : 'caixa';
-      cx = tipo === 'caixa' ? qty : 0;
-      un = tipo === 'unidade' ? qty : 0;
-    }
-    cx = Math.round(cx);
-    un = Math.round(un);
+    const { cx, un } = parseAuditBreakCxUn(ev);
     const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
     const li = document.createElement('li');
     li.className = 'count-audit-item break-history-item';
@@ -4134,7 +4127,7 @@ function renderMateCouroPendingList() {
       `</div></div>` +
       `<div class="count-audit-cell">` +
       `<span class="count-audit-cell-label">Acumulativo</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Pendente no servidor (Base de Troca — mesma visão em todos os aparelhos)">` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Pendente acumulativo no servidor (quebras incorporadas, chegadas e ajustes até zerar; não é só o dia selecionado acima).">` +
       `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
       `</div></div>` +

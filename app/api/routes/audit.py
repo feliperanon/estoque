@@ -2148,12 +2148,13 @@ def get_mate_troca_pending_by_product(
     stmt = select(sub.c.cod_produto, sub.c.pend_cx_after, sub.c.pend_un_after).where(sub.c.rn == 1)
     rows = list(session.exec(stmt).all())
     pending: dict[str, dict[str, int]] = {}
-    for r in rows:
-        cx = int(r.pend_cx_after or 0)
-        un = int(r.pend_un_after or 0)
+    for row in rows:
+        cod_raw, pcx, pun = row[0], row[1], row[2]
+        cx = int(pcx or 0)
+        un = int(pun or 0)
         if cx == 0 and un == 0:
             continue
-        c = _normalize_item_code(str(r.cod_produto or ""))
+        c = _normalize_item_code(str(cod_raw or ""))
         if c:
             pending[c] = {"cx": cx, "un": un}
     return {"pending": pending}
