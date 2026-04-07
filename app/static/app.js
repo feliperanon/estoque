@@ -4471,15 +4471,21 @@ function renderMateCouroPendingList() {
   const rangeInfo = document.getElementById('mate-couro-troca-pending-range-info');
   if (!ul) return;
   const rows = getMateCouroPendingRowsFiltered();
+  const fromEl = document.getElementById('mate-couro-troca-acum-from');
+  const toEl = document.getElementById('mate-couro-troca-acum-to');
+  const dr =
+    fromEl && toEl && fromEl.value && toEl.value
+      ? `${formatDateBR(fromEl.value)} – ${formatDateBR(toEl.value)}`
+      : '';
   if (rangeInfo) {
     rangeInfo.textContent = rows.length
-      ? `${rows.length} produto(s) com saldo na base de troca e/ou quebra Mate couro registrada no servidor.`
-      : 'Nenhum produto com quebra Mate couro no histórico ou saldo de troca.';
+      ? `${rows.length} produto(s) · acumulado ${dr || 'no período'}`
+      : `Nenhum produto no período${dr ? ` (${dr})` : ''}.`;
   }
   ul.innerHTML = '';
   if (!rows.length) {
     ul.innerHTML =
-      '<li class="count-audit-empty"><span>Nenhuma quebra Mate couro encontrada no servidor e nenhum saldo no histórico de troca. Use <strong>Carregar</strong> nos dias com quebra (com rede) para incorporar ao histórico — todos verão o mesmo.</span><strong>—</strong></li>';
+      '<li class="count-audit-empty"><span>Ajuste <strong>De</strong> e <strong>Até</strong> e use <strong>Atualizar acumulado</strong>, ou <strong>Carregar</strong> o dia para incorporar quebras ao servidor.</span><strong>—</strong></li>';
     updateMateCouroKpis();
     return;
   }
@@ -4487,27 +4493,6 @@ function renderMateCouroPendingList() {
     const codEsc = escapeHtml(r.cod);
     const nameEsc = escapeHtml(r.desc || r.cod);
     const codRef = encodeURIComponent(r.cod);
-    const dayLabelEsc = escapeHtml((lastMateTrocaDayConsultLabel || '').trim() || 'o dia em Consultar dia');
-    const dayBlock =
-      r.dayCx > 0 || r.dayUn > 0
-        ? `<span class="count-audit-cell-label mate-couro-pending-sub">Quebra no dia consultado (${dayLabelEsc})</span>` +
-          `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-day" title="Total deste produto no card Quebras do dia para a data selecionada (após Carregar). Soma das linhas visíveis daquele card para este código.">` +
-          `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.dayCx)}</strong>` +
-          `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.dayUn)}</strong>` +
-          `</div>`
-        : '';
-    const histBlock =
-      r.histCx > 0 || r.histUn > 0
-        ? `<span class="count-audit-cell-label mate-couro-pending-sub">Histórico acumulado (todas as datas no servidor)</span>` +
-          `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-acc" title="Soma de todas as quebras Mate couro registradas no servidor (ChangeLog), independente do dia consultado. Não é o pendente de troca nem o total só das linhas do dia.">` +
-          `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.histCx)}</strong>` +
-          `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.histUn)}</strong>` +
-          `</div>`
-        : '';
-    const saldoHint =
-      r.cx === 0 && r.un === 0 && (r.histCx > 0 || r.histUn > 0)
-        ? `<p class="mate-couro-pending-saldo-hint muted">Pendente zerado no histórico de troca, mas há quebra acumulada no servidor — use <strong>Carregar</strong> no dia da quebra para incorporar ao pendente (ou reconciliação administrativa).</p>`
-        : '';
     const li = document.createElement('li');
     li.className = 'count-audit-item mate-couro-pending-item';
     li.setAttribute('data-state', 'ok');
@@ -4520,14 +4505,11 @@ function renderMateCouroPendingList() {
       `<span class="count-audit-row-name">${nameEsc}</span>` +
       `</div></div>` +
       `<div class="count-audit-cell mate-couro-pending-saldo-cell">` +
-      `<span class="count-audit-cell-label">Pendente de troca (servidor)</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-pendente" title="Saldo operacional no servidor: Chegada, Saldo, Zerar, Ajustar e incorporação ao Carregar. Atualiza ao sincronizar. Não é a soma automática das quebras.">` +
+      `<span class="count-audit-cell-label">Acumulado para troca</span>` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-acc">` +
       `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
       `</div>` +
-      dayBlock +
-      histBlock +
-      saldoHint +
       `</div>` +
       `<div class="count-audit-cell mate-couro-pending-actions">` +
       `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--primary" data-mate-pend="recebeu" data-coderef="${codRef}" aria-label="Registrar chegada" title="Registrar chegada">Chegada</button>` +
@@ -4560,8 +4542,6 @@ async function loadMateCouroBreakDayList() {
   } catch {
     dayLabel = d;
   }
-  lastMateTrocaDayConsultLabel = dayLabel;
-  lastMateTrocaDayBreakAgg = {};
 
   await ensureMateCouroCatalogLoaded();
   await refreshMateTrocaServerPendingDisplay();
@@ -4581,7 +4561,6 @@ async function loadMateCouroBreakDayList() {
     }
     if (!response.ok) {
       lastMateTrocaDayItemsCount = null;
-      lastMateTrocaDayBreakAgg = {};
       renderMateCouroDayList(dayLabel, []);
       renderMateCouroPendingList();
       updateMateCouroKpis();
@@ -4591,9 +4570,6 @@ async function loadMateCouroBreakDayList() {
     const events = Array.isArray(data.events) ? data.events : [];
     const mateEvents = filterEventsMateCouro(events);
     lastMateTrocaDayItemsCount = mateEvents.length;
-    lastMateTrocaDayBreakAgg = canonicalizeMateTrocaDaySnapshot(
-      aggregateMateCouroEventsByCode(mateEvents),
-    );
     const incorporacaoOk = await mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     if (lastSyncKpi) {
@@ -4605,8 +4581,7 @@ async function loadMateCouroBreakDayList() {
     renderMateCouroPendingList();
   } catch {
     lastMateTrocaDayItemsCount = null;
-    lastMateTrocaDayBreakAgg = {};
-    renderMateCouroDayList(lastMateTrocaDayConsultLabel || dayLabel, []);
+    renderMateCouroDayList(dayLabel, []);
     renderMateCouroPendingList();
     updateMateCouroKpis();
   }
@@ -4867,26 +4842,6 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   const sorted = [...events].sort((a, b) =>
     mateTrocaHistoryEventSortKey(a).localeCompare(mateTrocaHistoryEventSortKey(b)),
   );
-  const listQuebraSum = sumMateTrocaQuebraOperacionalInList(sorted);
-  const pendNow = resolveMateCouroPendingEntry(mateTrocaServerPendingCache, cod);
-  const histAll = resolveMateCouroPendingEntry(mateTrocaBreakTotalsCache, cod);
-  const summaryHtml =
-    `<div class="mate-troca-pending-history-summary" role="region" aria-label="Resumo: pendente, quebras nesta lista e acumulado histórico">` +
-    `<p class="mate-troca-pending-history-summary-line">` +
-    `<span class="count-audit-cell-label">Pendente de troca agora (servidor)</span> ` +
-    `<strong>CX ${formatBreakIntegerBR(pendNow.cx)} / UN ${formatBreakIntegerBR(pendNow.un)}</strong>` +
-    `</p>` +
-    `<p class="mate-troca-pending-history-summary-line">` +
-    `<span class="count-audit-cell-label">Total das quebras nesta lista</span> ` +
-    `<strong>CX ${formatBreakIntegerBR(listQuebraSum.cx)} / UN ${formatBreakIntegerBR(listQuebraSum.un)}</strong> ` +
-    `<span class="muted mate-troca-pending-history-summary-hint">(soma dos lançamentos tipo «Quebra» abaixo; vários dias somam aqui)</span>` +
-    `</p>` +
-    `<p class="mate-troca-pending-history-summary-line mate-troca-pending-history-summary-line--global muted">` +
-    `<span class="count-audit-cell-label">Histórico acumulado no servidor</span> ` +
-    `<strong>CX ${formatBreakIntegerBR(histAll.cx)} / UN ${formatBreakIntegerBR(histAll.un)}</strong> ` +
-    `<span class="muted">(todas as datas — ChangeLog; não é só esta lista)</span>` +
-    `</p>` +
-    `</div>`;
   const parts = sorted.map((ev) => {
     const kindRaw = String(ev.kind || '').trim();
     const kind = mateTrocaKindLabelPt(ev.kind);
@@ -4937,7 +4892,6 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     );
   });
   body.innerHTML =
-    summaryHtml +
     `<p class="mate-troca-pending-history-lead muted">Ordem cronológica (mais antigo primeiro). ` +
     `Inclui Base de Troca no servidor, quebra na tela Quebra (últimos 120 dias) e lançamentos neste aparelho ainda não sincronizados.</p>` +
     `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
