@@ -423,8 +423,6 @@ const API_MATE_TROCA_RECONCILE_FROM_BREAKS = '/audit/mate-troca-reconcile-from-b
 const MATE_TROCA_BASE_V2_LAST_VALID_KEY = 'estoque_mate_troca_base_v2_last_valid_v1';
 /** Saldo de troca no servidor — espelho para análise de contagem / espelho local; preenchido pelo fluxo V2. */
 let mateTrocaServerPendingCache = {};
-/** Soma global ChangeLog (CIA Mate couro) — só análise de contagem; preenchido pelo GET completo, nunca pelo card. */
-let mateTrocaBreakTotalsCache = {};
 /** Códigos com quebra Mate couro no período De–Até (só presença) — espelho do V2 para compat. */
 let mateTrocaDiscoveryCodesCache = new Set();
 /** Base de Troca V2 — saldos explícitos do último GET ok (inclui 0/0 do servidor). */
@@ -3576,41 +3574,6 @@ function ensureMateTrocaAcumuladoRangeDefaults() {
   if (!String(fromEl.value || '').trim()) fromEl.value = bounds.first;
 }
 
-/** GET completo (pending + break_totals + período) — apenas análise de contagem / compat. */
-async function fetchMateTrocaPendingPayload() {
-  const token = getToken();
-  const empty = { pending: {}, break_totals: {}, break_totals_period: {} };
-  if (!token) return empty;
-  try {
-    ensureMateTrocaAcumuladoRangeDefaults();
-    const params = new URLSearchParams();
-    const fromEl = document.getElementById('mate-couro-troca-acum-from');
-    const toEl = document.getElementById('mate-couro-troca-acum-to');
-    const d0 = String((fromEl && fromEl.value) || '').trim().slice(0, 10);
-    const d1 = String((toEl && toEl.value) || '').trim().slice(0, 10);
-    if (d0 && d1) {
-      params.set('date_from', d0);
-      params.set('date_to', d1);
-    }
-    const qs = params.toString();
-    const url = qs ? `${API_MATE_TROCA_PENDING_BY_PRODUCT}?${qs}` : API_MATE_TROCA_PENDING_BY_PRODUCT;
-    const response = await apiFetch(url, {
-      headers: getAuthHeaders(),
-      cache: 'no-store',
-    });
-    if (handleUnauthorizedResponse(response)) return empty;
-    if (!response.ok) return empty;
-    const data = await response.json();
-    return {
-      pending: normalizeMateTrocaCxUnMap(data.pending),
-      break_totals: normalizeMateTrocaCxUnMap(data.break_totals),
-      break_totals_period: normalizeMateTrocaCxUnMap(data.break_totals_period),
-    };
-  } catch {
-    return empty;
-  }
-}
-
 function hydrateMateTrocaBaseV2LastValidFromDiskOnce() {
   if (mateTrocaBaseV2LastValidHydrated) return;
   mateTrocaBaseV2LastValidHydrated = true;
@@ -3988,16 +3951,6 @@ function mirrorMateTrocaPendingToLocalStorage(serverMap) {
   }
   state.serverMirroredPendingKeys = Array.from(incomingKeys);
   writeMateCouroTrocaStorage(state);
-}
-
-/** Atualiza pending + break_totals (análise de contagem). Não usar na renderização principal da Base de Troca. */
-async function refreshMateTrocaServerPendingDisplay() {
-  const { pending, break_totals } = await fetchMateTrocaPendingPayload();
-  mateTrocaServerPendingCache = pending;
-  mateTrocaBreakTotalsCache = break_totals;
-  countAuditState.mateTrocaServerPending = { ...pending };
-  mirrorMateTrocaPendingToLocalStorage(pending);
-  return pending;
 }
 
 function updateMateTrocaReconcileFromBreaksButton() {
@@ -8443,9 +8396,10 @@ function enrichCountAuditRow(row) {
       breakUn,
       trocaCx: 0,
       trocaUn: 0,
-      trocaFallbackFromBreak: false,
-      /** true quando o reflexo vem da soma de quebras Mate couro no servidor (todas as datas), não só do dia da análise */
-      trocaFallbackAllTimeBreaks: false,
+      /** CIA Mate couro: produto do catálogo Mate (coluna Troca / composição). */
+      trocaMateCouro: false,
+      /** Saldo da Base de Troca V2 já conhecido (GET ok ou último estado válido em disco). */
+      trocaSaldoKnown: false,
     },
   };
 }
@@ -8472,7 +8426,7 @@ function resolveMateCouroPendingEntry(pending, codProduto) {
 
 /**
  * Alinha diferença CX/UN / |Dif| do meta com a mesma base usada em "Contagem:"
- * (sincronizado + pendente troca no servidor, ou reflexo quebra Mate).
+ * (sincronizado + saldo atual da Base de Troca V2 para produtos Mate couro).
  */
 function reconcileCountAuditMetaDiffWithMergedCount(row) {
   const meta = row && row._auditMeta;
@@ -8490,45 +8444,28 @@ function reconcileCountAuditMetaDiffWithMergedCount(row) {
 }
 
 /**
- * Troca na análise: **pendente do servidor**; se zerado e Mate couro, fallback com soma global de quebras
- * (`break_totals` all-time do GET mate-troca-pending-by-product — não é o acumulado por período da Base de Troca).
- * Se esse mapa não tiver dado, cai na quebra só do dia da análise.
+ * Troca na análise: mesmo saldo CX/UN da Base de Troca V2 (GET /audit/mate-troca-base-v2 + último válido em disco),
+ * alinhado ao card "Saldo acumulado" — sem break_totals, sem soma histórica de quebra e sem reflexo do dia.
  */
 function applyMateCouroTrocaPendingToCountAuditRows() {
   const rows = Array.isArray(countAuditState.rows) ? countAuditState.rows : [];
   if (!rows.length) return;
-  const serverPending = countAuditState.mateTrocaServerPending && typeof countAuditState.mateTrocaServerPending === 'object'
-    ? countAuditState.mateTrocaServerPending
-    : {};
-  const breakTotals = mateTrocaBreakTotalsCache && typeof mateTrocaBreakTotalsCache === 'object'
-    ? mateTrocaBreakTotalsCache
-    : {};
   const mateSet = getMateCouroCodSet();
   for (const row of rows) {
     if (!row._auditMeta) continue;
-    row._auditMeta.trocaFallbackFromBreak = false;
-    row._auditMeta.trocaFallbackAllTimeBreaks = false;
-    const serverT = resolveMateCouroPendingEntry(serverPending, row.cod_produto);
-    let tCx = serverT.cx;
-    let tUn = serverT.un;
-    if (tCx === 0 && tUn === 0 && mateSet.has(normalizeItemCode(row.cod_produto))) {
-      const acc = resolveMateCouroPendingEntry(breakTotals, row.cod_produto);
-      let brCx = acc.cx;
-      let brUn = acc.un;
-      let fromAllTime = brCx > 0 || brUn > 0;
-      if (!fromAllTime) {
-        brCx = Math.round(Number(row._auditMeta.breakCx) || 0);
-        brUn = Math.round(Number(row._auditMeta.breakUn) || 0);
-      }
-      if (brCx > 0) tCx = brCx;
-      if (brUn > 0) tUn = brUn;
-      if (tCx > 0 || tUn > 0) {
-        row._auditMeta.trocaFallbackFromBreak = true;
-        row._auditMeta.trocaFallbackAllTimeBreaks = fromAllTime;
-      }
+    const cod = row.cod_produto;
+    const isMate = mateCouroCatalogHasCode(mateSet, cod);
+    row._auditMeta.trocaMateCouro = isMate;
+    if (isMate) {
+      row._auditMeta.trocaSaldoKnown = mateTrocaV2SaldoKnownForCod(cod);
+      const bal = getMateTrocaV2CurForPayload(cod);
+      row._auditMeta.trocaCx = bal.cx;
+      row._auditMeta.trocaUn = bal.un;
+    } else {
+      row._auditMeta.trocaSaldoKnown = false;
+      row._auditMeta.trocaCx = 0;
+      row._auditMeta.trocaUn = 0;
     }
-    row._auditMeta.trocaCx = tCx;
-    row._auditMeta.trocaUn = tUn;
     reconcileCountAuditMetaDiffWithMergedCount(row);
   }
 }
@@ -8856,11 +8793,12 @@ function buildCountAuditTrailHtml(row, meta, importInfo, actors, devices) {
   )).join('');
 }
 
-/** Pendente Base de Troca (local/servidor/reflexo): só exibe bloco quando há saldo. */
+/** Base de Troca V2: exibe coluna/resumo quando há saldo > 0 ou saldo 0/0 já conhecido (ex.: zerado no servidor). */
 function countAuditHasTrocaPending(meta) {
   const tCx = Math.max(0, Math.round(Number(meta?.trocaCx) || 0));
   const tUn = Math.max(0, Math.round(Number(meta?.trocaUn) || 0));
-  return tCx > 0 || tUn > 0;
+  if (tCx > 0 || tUn > 0) return true;
+  return !!(meta?.trocaMateCouro && meta?.trocaSaldoKnown);
 }
 
 /** Quebra líquida no dia da análise: só exibe quando diferente de zero. */
@@ -8915,6 +8853,7 @@ function formatCountAuditDetailOpsCxUnLine(cx, un, mode) {
     const tUn = Math.max(0, Math.round(Number(un) || 0));
     if (tCx > 0) segs.push(`${formatBreakIntegerBR(tCx)} CX`);
     if (tUn > 0) segs.push(`${formatBreakIntegerBR(tUn)} UN`);
+    if (!segs.length) segs.push('0 CX', '0 UN');
   } else {
     const bCx = Math.round(Number(cx) || 0);
     const bUn = Math.round(Number(un) || 0);
@@ -8925,22 +8864,32 @@ function formatCountAuditDetailOpsCxUnLine(cx, un, mode) {
 }
 
 /**
- * Análise de Contagem — desktop: duas colunas separadas (Troca | Quebra).
- * Troca: pendente no servidor (Carregar grava incorporacao_quebra) ou reflexo acumulativo / do dia das quebras Mate couro.
+ * Análise de Contagem — desktop: coluna Troca = saldo atual da Base de Troca V2 (mesmo dado do card Saldo acumulado).
  */
 function buildCountAuditTrocaColumnCellHtml(meta) {
   if (countAuditHasTrocaPending(meta)) {
-    const inner = buildCountAuditDiffCxUnStrongs(meta.trocaCx, meta.trocaUn, 'troca');
-    const title = meta.trocaFallbackFromBreak
-      ? (meta.trocaFallbackAllTimeBreaks
-        ? 'Reflexo da soma de todas as quebras positivas CIA Mate couro no servidor (mesmo total da Base de Troca), quando não há pendente na Base de Troca.'
-        : 'Reflexo da quebra positiva do dia (CIA Mate couro), quando não há pendente no servidor na Base de Troca e o acumulativo servidor não está disponível.')
-      : 'Pendente na Base de Troca no servidor (CIA Mate couro); mesma visão para todos; zerado ao limpar ou encerrar no fluxo de troca.';
+    const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
+    const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
+    const inner =
+      tCx > 0 || tUn > 0
+        ? buildCountAuditDiffCxUnStrongs(meta.trocaCx, meta.trocaUn, 'troca')
+        : `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(0)}</strong>` +
+          `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(0)}</strong>`;
+    const title =
+      'Saldo atual da Base de Troca (CIA Mate couro), mesma fonte do card na tela Base de Troca; altera com Chegada, Saldo, Zerar ou Carregar.';
     return (
       `<span class="count-audit-cell-label">Troca</span>` +
       `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="${escapeHtml(title)}">` +
       inner +
       `</div>`
+    );
+  }
+  if (meta.trocaMateCouro && !meta.trocaSaldoKnown) {
+    const title =
+      'Saldo da Base de Troca ainda não carregado nesta sessão. Abra a Base de Troca e use Atualizar lista, ou recarregue a análise.';
+    return (
+      `<span class="count-audit-cell-label">Troca</span>` +
+      `<span class="count-audit-cell-value mate-troca-balance-v2-unknown" title="${escapeHtml(title)}">CX — · UN —</span>`
     );
   }
   return `<span class="count-audit-cell-label">Troca</span><span class="count-audit-cell-value">—</span>`;
@@ -8962,14 +8911,23 @@ function buildCountAuditQuebraColumnCellHtml(meta) {
 
 /** Resumo mobile: faixas Troca e/ou Quebra só quando houver valor. */
 function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
-  if (!countAuditHasTrocaPending(meta) && !countAuditHasBreakDay(meta)) return '';
+  const trocaUnknownMate = !!(meta.trocaMateCouro && !meta.trocaSaldoKnown);
+  if (!countAuditHasTrocaPending(meta) && !countAuditHasBreakDay(meta) && !trocaUnknownMate) return '';
   const parts = [];
   if (countAuditHasTrocaPending(meta)) {
-    const vals = formatCountAuditOpsMobileCxUn(meta.trocaCx, meta.trocaUn, 'troca');
+    let vals = formatCountAuditOpsMobileCxUn(meta.trocaCx, meta.trocaUn, 'troca');
+    if (!vals) vals = 'CX 0 · UN 0';
     parts.push(
-      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Pendente da Base de Troca no servidor (CIA Mate couro)">` +
+      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo atual da Base de Troca (CIA Mate couro), mesma fonte do card na Base de Troca">` +
         `<span class="count-audit-mobile-break-label">Troca</span>` +
         `<span class="count-audit-mobile-break-values">${vals}</span>` +
+      `</div>`,
+    );
+  } else if (trocaUnknownMate) {
+    parts.push(
+      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo da Base de Troca ainda não carregado — atualize na Base de Troca ou recarregue a análise">` +
+        `<span class="count-audit-mobile-break-label">Troca</span>` +
+        `<span class="count-audit-mobile-break-values mate-troca-balance-v2-unknown">CX — · UN —</span>` +
       `</div>`,
     );
   }
@@ -8985,7 +8943,7 @@ function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
   return `<div class="count-audit-mobile-ops-wrap">${parts.join('')}</div>`;
 }
 
-/** Contagem sincronizada + componente troca (servidor ou reflexo quebra Mate): total em destaque; parcela em verde. */
+/** Contagem sincronizada + saldo atual da Base de Troca V2 (Mate couro): total em destaque; parcela em verde. */
 function buildCountAuditMergedCurrentCxuHtml(row, meta) {
   const baseCx = Math.max(0, Math.round(Number(row.counted_caixa) || 0));
   const baseUn = Math.max(0, Math.round(Number(row.counted_unidade) || 0));
@@ -8995,11 +8953,7 @@ function buildCountAuditMergedCurrentCxuHtml(row, meta) {
   const sumUn = baseUn + tUn;
   const hasTroca = tCx > 0 || tUn > 0;
   const title = hasTroca
-    ? (meta.trocaFallbackFromBreak
-      ? (meta.trocaFallbackAllTimeBreaks
-        ? 'Total = contagem sincronizada + soma acumulada das quebras Mate couro no servidor, quando não há pendente da Base de Troca.'
-        : 'Total = contagem sincronizada + reflexo da quebra do dia (Mate couro), usado quando não há pendente da Base de Troca no servidor.')
-      : 'Total = contagem sincronizada + pendente da Base de Troca no servidor (Mate couro). A soma em verde integra ao total acima.')
+    ? 'Total = contagem sincronizada + saldo atual da Base de Troca para este produto.'
     : '';
   const pairClass = `count-audit-cxu-pair${hasTroca ? ' count-audit-cxu-pair--with-troca' : ''}`;
   const pairOpen = title
@@ -9038,12 +8992,10 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
     ? `<div class="count-audit-detail-validity-line${expRiskDetail ? ` ${expRiskDetail}` : ''}">Validade (referência) · ${escapeHtml(formatDateBR(expIsoDetail))}</div>`
     : '';
   const trocaDetailArticle = countAuditHasTrocaPending(meta)
-    ? (meta.trocaFallbackFromBreak
-      ? (meta.trocaFallbackAllTimeBreaks
-        ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (reflexo acumulativo)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro: sem pendente no servidor; valores espelham a soma de todas as quebras registradas (igual ao acumulativo da Base de Troca).</small></article>`
-        : `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (reflexo da quebra)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro: sem pendente no servidor; valores espelham a quebra positiva do dia para alinhar a coluna Contagem.</small></article>`)
-      : `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro — pendente no servidor (mesma visão para todos); zerado ao limpar ou encerrar no fluxo de troca</small></article>`)
-    : '';
+    ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>Saldo atual da Base de Troca V2 (mesmo dado do card Saldo acumulado); altera com Chegada, Saldo, Zerar ou Carregar.</small></article>`
+    : meta.trocaMateCouro && !meta.trocaSaldoKnown
+      ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>—</strong><small>Saldo ainda não carregado nesta sessão. Atualize a lista na Base de Troca ou recarregue a análise.</small></article>`
+      : '';
   const breakDetailArticle = countAuditHasBreakDay(meta)
     ? `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.breakCx, meta.breakUn, 'break')}</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>`
     : '';
@@ -9407,7 +9359,7 @@ async function loadCountAuditBreakDay(dayKey) {
 }
 
 async function loadCountAuditMateTrocaServerPending() {
-  await refreshMateTrocaServerPendingDisplay();
+  await refreshMateTrocaBaseBalanceCardV2();
 }
 
 async function loadCountAuditValidityExpiryMap() {
@@ -9462,7 +9414,6 @@ async function loadCountAuditAnalysis() {
       countAuditState.validityExpiryByCode = {};
       countAuditState.mateTrocaServerPending = {};
       mateTrocaServerPendingCache = {};
-      mateTrocaBreakTotalsCache = {};
       mateTrocaDiscoveryCodesCache = new Set();
       mateTrocaBaseBalanceCacheV2 = {};
       mateTrocaBaseDiscoveryCodesV2 = new Set();
@@ -9484,7 +9435,6 @@ async function loadCountAuditAnalysis() {
       countAuditState.validityExpiryByCode = {};
       countAuditState.mateTrocaServerPending = {};
       mateTrocaServerPendingCache = {};
-      mateTrocaBreakTotalsCache = {};
       mateTrocaDiscoveryCodesCache = new Set();
       mateTrocaBaseBalanceCacheV2 = {};
       mateTrocaBaseDiscoveryCodesV2 = new Set();
