@@ -4434,38 +4434,19 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
       `</div>`;
     list.appendChild(li);
   }
-  const foot = document.createElement('li');
-  foot.className = 'count-audit-item mate-troca-day-total-row';
-  foot.setAttribute('data-mate-day-total', '1');
-  foot.innerHTML =
-    `<div class="break-history-audit-row mate-troca-day-row mate-troca-day-row--total" role="presentation">` +
-    `<div class="count-audit-cell count-audit-cell--product">` +
-    `<span class="count-audit-cell-label">Total no dia</span>` +
-    `<strong class="count-audit-cell-value mate-troca-day-total-label">${escapeHtml(dayLabel)}</strong>` +
-    `</div>` +
-    `<div class="count-audit-cell">` +
-    `<span class="count-audit-cell-label">Soma das linhas</span>` +
-    `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Soma das quebras CX/UN de todos os produtos listados acima para este dia operacional.">` +
-    `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(totalCx)}</strong>` +
-    `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(totalUn)}</strong>` +
-    `</div></div>` +
-    `<div class="count-audit-cell mate-troca-day-total-filler" aria-hidden="true"></div>` +
-    `<div class="count-audit-cell mate-troca-day-total-filler" aria-hidden="true"></div>` +
-    `</div>`;
-  list.appendChild(foot);
 }
 
 function getMateCouroPendingRowsFiltered() {
   const searchEl = document.getElementById('mate-couro-troca-pending-search');
   const term = ((searchEl && searchEl.value) || '').trim().toLowerCase();
   const server = mateTrocaServerPendingCache || {};
-  const breaks = mateTrocaBreakTotalsCache || {};
-  const codeSet = collectMateCouroTrocaCodeUnion(server, breaks);
+  const acum = mateTrocaTrocaAcumuladoCache || {};
+  const codeSet = collectMateCouroTrocaCodeUnion(server, acum);
   const rows = [];
   for (const cod of codeSet) {
-    const sv = resolveMateCouroPendingEntry(server, cod);
-    const cx = sv.cx;
-    const un = sv.un;
+    const av = resolveMateCouroPendingEntry(acum, cod);
+    const cx = av.cx;
+    const un = av.un;
     const p = (mateCouroProductsCache || []).find(
       (x) => normalizeNumericProductCodeKey(String(x.cod_produto || '')) === cod,
     );
@@ -4474,20 +4455,11 @@ function getMateCouroPendingRowsFiltered() {
       const ok = cod.toLowerCase().includes(term) || desc.toLowerCase().includes(term);
       if (!ok) continue;
     }
-    const dayEnt =
-      lastMateTrocaDayBreakAgg && typeof lastMateTrocaDayBreakAgg === 'object'
-        ? lastMateTrocaDayBreakAgg[cod] || { cx: 0, un: 0 }
-        : { cx: 0, un: 0 };
-    const hist = resolveMateCouroPendingEntry(breaks, cod);
     rows.push({
       cod,
       cx,
       un,
       desc,
-      dayCx: dayEnt.cx,
-      dayUn: dayEnt.un,
-      histCx: hist.cx,
-      histUn: hist.un,
     });
   }
   rows.sort((a, b) => compareAuditCodProduto({ cod_produto: a.cod }, { cod_produto: b.cod }));
