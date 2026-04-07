@@ -3576,13 +3576,31 @@ async function refreshMateTrocaServerPendingDisplay() {
   return m;
 }
 
-/** Idempotente: mesmo delta/dia/código → mesmo id (vários PCs não duplicam no servidor). */
+/**
+ * Id da incorporação ao Carregar dia: inclui geração global (Limpar snapshots) e revisão por código
+ * (Zerar pendente daquele produto) para permitir reenviar o mesmo delta após zerar — o servidor ignora
+ * client_event_id duplicado, sem isso o Carregar não refaz o lançamento.
+ */
 function mateTrocaIncorporacaoClientEventId(dayKey, codBase, dcx, dun) {
+  const st = readMateCouroTrocaStorage();
+  const gen = Math.max(0, Math.round(Number(st.incorpGen) || 0));
+  const b =
+    normalizeNumericProductCodeKey(codBase) || normalizeItemCode(String(codBase || '')) || String(codBase || '').trim();
+  const revMap = st.incorpRevByCod && typeof st.incorpRevByCod === 'object' ? st.incorpRevByCod : {};
+  const rev = Math.max(0, Math.round(Number(revMap[b]) || 0));
   const d = String(dayKey || '').slice(0, 10);
-  const b = String(codBase || '').trim();
   const x = String(Math.round(Number(dcx) || 0));
   const u = String(Math.round(Number(dun) || 0));
-  return `incorp-v1|${d}|${b}|${x}|${u}`;
+  return `incorp-v1|g${gen}|r${rev}|${d}|${b}|${x}|${u}`;
+}
+
+function bumpMateTrocaIncorpRevForCod(cod) {
+  const ck = normalizeNumericProductCodeKey(cod) || normalizeItemCode(String(cod || ''));
+  if (!ck) return;
+  const st = readMateCouroTrocaStorage();
+  if (!st.incorpRevByCod || typeof st.incorpRevByCod !== 'object') st.incorpRevByCod = {};
+  st.incorpRevByCod[ck] = Math.max(0, Math.round(Number(st.incorpRevByCod[ck]) || 0)) + 1;
+  writeMateCouroTrocaStorage(st);
 }
 
 function readMateCouroTrocaStorage() {
@@ -3590,17 +3608,30 @@ function readMateCouroTrocaStorage() {
     let raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_KEY);
     if (!raw) raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_PREV_KEY);
     if (!raw) raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_LEGACY_KEY);
-    if (!raw) return { pending: {}, daySnapshots: {}, eventLog: [] };
+    if (!raw) return { pending: {}, daySnapshots: {}, eventLog: [], incorpGen: 0, incorpRevByCod: {} };
     const o = JSON.parse(raw);
-    if (!o || typeof o !== 'object') return { pending: {}, daySnapshots: {}, eventLog: [] };
+    if (!o || typeof o !== 'object') {
+      return { pending: {}, daySnapshots: {}, eventLog: [], incorpGen: 0, incorpRevByCod: {} };
+    }
     const eventLog = Array.isArray(o.eventLog)
       ? o.eventLog.filter((e) => e && typeof e === 'object')
       : [];
+    const incorpGen = Math.max(0, Math.round(Number(o.incorpGen) || 0));
+    const incorpRevByCod = {};
+    if (o.incorpRevByCod && typeof o.incorpRevByCod === 'object') {
+      for (const [k, v] of Object.entries(o.incorpRevByCod)) {
+        const ck = normalizeNumericProductCodeKey(k) || normalizeItemCode(k);
+        if (!ck) continue;
+        incorpRevByCod[ck] = Math.max(0, Math.round(Number(v) || 0));
+      }
+    }
     if (o.pending && typeof o.pending === 'object') {
       return {
         pending: o.pending,
         daySnapshots: o.daySnapshots && typeof o.daySnapshots === 'object' ? o.daySnapshots : {},
         eventLog,
+        incorpGen,
+        incorpRevByCod,
       };
     }
     const pending = {};
@@ -3609,7 +3640,9 @@ function readMateCouroTrocaStorage() {
         k === 'pending' ||
         k === 'daySnapshots' ||
         k === 'incorporatedDays' ||
-        k === 'eventLog'
+        k === 'eventLog' ||
+        k === 'incorpGen' ||
+        k === 'incorpRevByCod'
       ) {
         continue;
       }
@@ -3621,9 +3654,9 @@ function readMateCouroTrocaStorage() {
         };
       }
     }
-    return { pending, daySnapshots: {}, eventLog };
+    return { pending, daySnapshots: {}, eventLog, incorpGen, incorpRevByCod };
   } catch {
-    return { pending: {}, daySnapshots: {}, eventLog: [] };
+    return { pending: {}, daySnapshots: {}, eventLog: [], incorpGen: 0, incorpRevByCod: {} };
   }
 }
 
@@ -3634,6 +3667,9 @@ function writeMateCouroTrocaStorage(state) {
       daySnapshots:
         state.daySnapshots && typeof state.daySnapshots === 'object' ? state.daySnapshots : {},
       eventLog: Array.isArray(state.eventLog) ? state.eventLog : [],
+      incorpGen: Math.max(0, Math.round(Number(state.incorpGen) || 0)),
+      incorpRevByCod:
+        state.incorpRevByCod && typeof state.incorpRevByCod === 'object' ? state.incorpRevByCod : {},
     };
     localStorage.setItem(MATE_COURO_TROCA_STORAGE_KEY, JSON.stringify(payload));
     localStorage.removeItem(MATE_COURO_TROCA_STORAGE_LEGACY_KEY);
@@ -4740,13 +4776,15 @@ function bindMateCouroTrocaEvents() {
       void (async () => {
         if (
           !window.confirm(
-            'Limpar neste aparelho só os snapshots de “Carregar dia”? O pendente no servidor não é apagado; com rede, use Carregar de novo para reaplicar deltas se precisar.',
+            'Limpar neste aparelho os snapshots de “Carregar dia”? O pendente no servidor não é apagado. Ao Carregar cada dia de novo, as incorporações ganham novo id neste aparelho e o servidor volta a aceitar os deltas (útil após zerar ou corrigir).',
           )
         ) {
           return;
         }
         const _s = readMateCouroTrocaStorage();
-        writeMateCouroTrocaStorage({ ..._s, daySnapshots: {} });
+        _s.daySnapshots = {};
+        _s.incorpGen = Math.max(0, Math.round(Number(_s.incorpGen) || 0)) + 1;
+        writeMateCouroTrocaStorage(_s);
         await refreshMateTrocaServerPendingDisplay();
         renderMateCouroPendingList();
       })();
@@ -4851,7 +4889,13 @@ function bindMateCouroTrocaEvents() {
         const cur = mateTrocaServerPendingCache[cod] || { cx: 0, un: 0 };
 
         if (action === 'zerar') {
-          if (!window.confirm(`Zerar pendente de troca para ${cod}?`)) return;
+          if (
+            !window.confirm(
+              `Zerar pendente de troca para ${cod}? Em seguida use Carregar nos dias de quebra neste aparelho: as incorporações serão aceitas de novo (novo id).`,
+            )
+          ) {
+            return;
+          }
           const payload = buildMateTrocaServerPayload(
             'zerar',
             cod,
@@ -4865,6 +4909,7 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
+          bumpMateTrocaIncorpRevForCod(cod);
           await refreshMateTrocaServerPendingDisplay();
           renderMateCouroPendingList();
           return;
