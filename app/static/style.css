@@ -4142,31 +4142,6 @@ form#break-op-form.count-form {
   color: #0f766e;
 }
 
-.count-audit-troca-cell-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
-}
-
-.count-audit-troca-mismatch-note {
-  display: block;
-  max-width: 18rem;
-  font-size: var(--audit-text-sm, 0.78rem);
-  font-weight: 400;
-  line-height: 1.4;
-  color: var(--audit-muted);
-}
-
-.count-audit-mobile-break-strip--troca .count-audit-troca-mismatch-note {
-  flex: 1 1 100%;
-  margin-top: 0.2rem;
-}
-
-.count-audit-troca-mismatch-note--detail {
-  margin: 0.5rem 0 0;
-}
-
 .count-audit-recommendation {
   color: var(--audit-ink);
   font-size: var(--audit-text-sm);
