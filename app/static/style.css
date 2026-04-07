@@ -3669,7 +3669,7 @@ form#break-op-form.count-form {
 
 #sub-mate-couro-troca .mate-couro-pending-list-header, #sub-mate-couro-troca-trocas .mate-couro-pending-list-header, #sub-mate-couro-troca-historico .mate-couro-pending-list-header{
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) minmax(0, 1.45fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.45fr) minmax(0, 1.45fr);
   gap: var(--audit-space-2);
   align-items: center;
   padding: 0 0.35rem var(--audit-space-2);
@@ -3682,7 +3682,7 @@ form#break-op-form.count-form {
 
 #sub-mate-couro-troca .mate-couro-pending-audit-row, #sub-mate-couro-troca-trocas .mate-couro-pending-audit-row, #sub-mate-couro-troca-historico .mate-couro-pending-audit-row{
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) minmax(0, 1.45fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.45fr) minmax(0, 1.45fr);
   gap: var(--audit-space-2);
   align-items: stretch;
   padding: 0.55rem 0.65rem 0.55rem 0.85rem;
@@ -3698,6 +3698,27 @@ form#break-op-form.count-form {
   -webkit-overflow-scrolling: touch;
 }
 
+#sub-mate-couro-troca .mate-couro-pending-saldo-cell,
+#sub-mate-couro-troca-trocas .mate-couro-pending-saldo-cell,
+#sub-mate-couro-troca-historico .mate-couro-pending-saldo-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+#sub-mate-couro-troca .mate-couro-pending-sub,
+#sub-mate-couro-troca-trocas .mate-couro-pending-sub,
+#sub-mate-couro-troca-historico .mate-couro-pending-sub {
+  margin-top: 0.15rem;
+}
+#sub-mate-couro-troca .mate-couro-pending-saldo-hint,
+#sub-mate-couro-troca-trocas .mate-couro-pending-saldo-hint,
+#sub-mate-couro-troca-historico .mate-couro-pending-saldo-hint {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  max-width: 24rem;
+}
 #sub-mate-couro-troca .mate-couro-pending-actions, #sub-mate-couro-troca-trocas .mate-couro-pending-actions, #sub-mate-couro-troca-historico .mate-couro-pending-actions{
   display: flex;
   flex-direction: row;

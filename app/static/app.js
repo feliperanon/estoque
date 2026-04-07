@@ -4371,10 +4371,15 @@ function getMateCouroPendingRowsFiltered() {
       const ok = cod.toLowerCase().includes(term) || desc.toLowerCase().includes(term);
       if (!ok) continue;
     }
+    const br = resolveMateCouroPendingEntry(breaks, cod);
+    const breakCx = Math.round(Number(br.cx) || 0);
+    const breakUn = Math.round(Number(br.un) || 0);
     rows.push({
       cod,
       cx,
       un,
+      breakCx,
+      breakUn,
       desc,
     });
   }
@@ -4407,6 +4412,21 @@ function renderMateCouroPendingList() {
     li.className = 'count-audit-item mate-couro-pending-item';
     li.setAttribute('data-state', 'ok');
     li.setAttribute('data-mate-pending-cod', r.cod);
+    const brCx = Math.round(Number(r.breakCx) || 0);
+    const brUn = Math.round(Number(r.breakUn) || 0);
+    const hasBreakAcc = brCx > 0 || brUn > 0;
+    const pendZeroButBreaks = r.cx === 0 && r.un === 0 && hasBreakAcc;
+    const breakBlock =
+      hasBreakAcc
+        ? `<span class="count-audit-cell-label mate-couro-pending-sub">Quebras acum. no servidor</span>` +
+          `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-acc" title="Soma das quebras Mate couro já registradas no servidor (todas as datas). Não é o pendente de troca até você incorporar com Carregar no dia ou reconciliar.">` +
+          `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(brCx)}</strong>` +
+          `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(brUn)}</strong>` +
+          `</div>`
+        : '';
+    const hintBlock = pendZeroButBreaks
+      ? `<p class="mate-couro-pending-saldo-hint muted">Pendente 0 no histórico de troca, mas há quebra acumulada — use <strong>Carregar</strong> no dia da quebra para somar ao pendente (ou reconciliação admin).</p>`
+      : '';
     li.innerHTML =
       `<div class="mate-couro-pending-audit-row mate-couro-pending-audit-row--clickable" role="presentation">` +
       `<div class="count-audit-cell count-audit-cell--product">` +
@@ -4414,12 +4434,14 @@ function renderMateCouroPendingList() {
       `<div class="count-audit-row-topline"><span class="count-audit-code-badge">${codEsc}</span></div>` +
       `<span class="count-audit-row-name">${nameEsc}</span>` +
       `</div></div>` +
-      `<div class="count-audit-cell">` +
-      `<span class="count-audit-cell-label">Saldo</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Saldo pendente no histórico de troca no servidor. Chegada, Saldo e Zerar alteram estes valores.">` +
+      `<div class="count-audit-cell mate-couro-pending-saldo-cell">` +
+      `<span class="count-audit-cell-label">Pendente troca</span>` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Pendente no histórico de troca no servidor (chegadas, definir saldo, zerar, incorporação ao Carregar). É o valor que os botões usam.">` +
       `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
       `</div>` +
+      breakBlock +
+      hintBlock +
       `</div>` +
       `<div class="count-audit-cell mate-couro-pending-actions">` +
       `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--primary" data-mate-pend="recebeu" data-coderef="${codRef}" aria-label="Registrar chegada" title="Registrar chegada">Chegada</button>` +
