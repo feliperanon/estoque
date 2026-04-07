@@ -208,6 +208,16 @@ def _normalize_item_code(value: str | None) -> str:
     return raw
 
 
+def _normalize_numeric_product_code_key(value: str | None) -> str:
+    """Unifica chaves só numéricas (ex.: 010 → 10) em quebra e pendente Mate couro."""
+    c = _normalize_item_code(value)
+    if not c:
+        return ""
+    if c.isdigit():
+        return str(int(c))
+    return c
+
+
 def _format_first_second_name(full_name: str | None, fallback_login: str | None) -> str:
     """Primeiro nome completo; se houver segundo token, só a inicial e ponto (ex.: Felipe R.). Senão login."""
     fn = (full_name or "").strip()
@@ -1259,7 +1269,7 @@ def _aggregate_break_events_by_code(session: Session, operational_date: date) ->
             if br_d is None or br_d != operational_date:
                 continue
         item_code = str(payload.get("item_code") or "")
-        code = _normalize_item_code(item_code)
+        code = _normalize_numeric_product_code_key(item_code)
         if not code:
             continue
         try:
@@ -1360,7 +1370,7 @@ def _break_event_rows_for_operational_day(session: Session, operational_date: da
             if br_d is None or br_d != operational_date:
                 continue
         item_code = str(payload.get("item_code") or "")
-        code = _normalize_item_code(item_code)
+        code = _normalize_numeric_product_code_key(item_code)
         if not code:
             continue
         try:
@@ -1914,6 +1924,13 @@ def _canonical_mate_couro_cod(session: Session, raw: str) -> str:
     ).first()
     if prod:
         return _normalize_item_code(prod.cod_produto or c)
+    if c.isdigit():
+        alt = str(int(c))
+        prod2 = session.exec(
+            select(Product).where(Product.cod_grup_cia == MATE_COURO_CIA, Product.cod_produto == alt)
+        ).first()
+        if prod2:
+            return _normalize_item_code(prod2.cod_produto or alt)
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail=f"Produto nao encontrado ou CIA diferente de {MATE_COURO_CIA}.",
@@ -2143,20 +2160,48 @@ def get_mate_troca_pending_by_product(
         MateCouroTrocaLog.cod_produto,
         MateCouroTrocaLog.pend_cx_after,
         MateCouroTrocaLog.pend_un_after,
+        MateCouroTrocaLog.created_at,
+        MateCouroTrocaLog.id,
         rn,
     ).subquery()
-    stmt = select(sub.c.cod_produto, sub.c.pend_cx_after, sub.c.pend_un_after).where(sub.c.rn == 1)
+    stmt = select(
+        sub.c.cod_produto,
+        sub.c.pend_cx_after,
+        sub.c.pend_un_after,
+        sub.c.created_at,
+        sub.c.id,
+    ).where(sub.c.rn == 1)
     rows = list(session.exec(stmt).all())
     pending: dict[str, dict[str, int]] = {}
+    best_row: dict[str, tuple[int, int, datetime | None, int | None]] = {}
     for row in rows:
-        cod_raw, pcx, pun = row[0], row[1], row[2]
+        cod_raw, pcx, pun, cr_at, rid = row[0], row[1], row[2], row[3], row[4]
         cx = int(pcx or 0)
         un = int(pun or 0)
         if cx == 0 and un == 0:
             continue
-        c = _normalize_item_code(str(cod_raw or ""))
-        if c:
-            pending[c] = {"cx": cx, "un": un}
+        c = _normalize_numeric_product_code_key(str(cod_raw or ""))
+        if not c:
+            continue
+        cur = best_row.get(c)
+        cand = (cx, un, cr_at, rid)
+        if cur is None:
+            best_row[c] = cand
+            continue
+        _, _, cur_at, cur_id = cur
+        newer = False
+        if cr_at is not None and cur_at is not None:
+            newer = cr_at > cur_at or (cr_at == cur_at and (rid or 0) > (cur_id or 0))
+        elif cr_at is not None and cur_at is None:
+            newer = True
+        elif cr_at is None and cur_at is None:
+            newer = (rid or 0) > (cur_id or 0)
+        if newer:
+            best_row[c] = cand
+    for c, (cx, un, _, _) in best_row.items():
+        if cx == 0 and un == 0:
+            continue
+        pending[c] = {"cx": cx, "un": un}
     return {"pending": pending}
 
 

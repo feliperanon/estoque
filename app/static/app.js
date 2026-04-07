@@ -2001,6 +2001,14 @@ function normalizeItemCode(value) {
   return raw.toUpperCase();
 }
 
+/** Mesma regra do servidor: códigos só numéricos viram uma chave única (010 ≡ 10). */
+function normalizeNumericProductCodeKey(code) {
+  const base = normalizeItemCode(code);
+  if (!base) return '';
+  if (/^\d+$/.test(base)) return normalizeItemCode(String(Number(base)));
+  return base;
+}
+
 function normalizeCountType(value) {
   return (value || '').trim().toLowerCase() === 'unidade' ? 'unidade' : 'caixa';
 }
@@ -3531,13 +3539,14 @@ async function fetchMateTrocaPendingByProductMap() {
     const raw = data.pending && typeof data.pending === 'object' ? data.pending : {};
     const norm = {};
     for (const k of Object.keys(raw)) {
-      const c = normalizeItemCode(k);
+      const c = normalizeNumericProductCodeKey(k);
       if (!c) continue;
       const v = raw[k];
-      norm[c] = {
-        cx: Math.max(0, Math.round(Number(v?.cx) || 0)),
-        un: Math.max(0, Math.round(Number(v?.un) || 0)),
-      };
+      const cx = Math.max(0, Math.round(Number(v?.cx) || 0));
+      const un = Math.max(0, Math.round(Number(v?.un) || 0));
+      if (!norm[c]) norm[c] = { cx: 0, un: 0 };
+      norm[c].cx += cx;
+      norm[c].un += un;
     }
     return norm;
   } catch {
@@ -3864,7 +3873,7 @@ async function postMateTrocaEventsToServer(events) {
 function aggregateMateCouroEventsByCode(events) {
   const m = {};
   for (const ev of events || []) {
-    const code = normalizeItemCode(String(ev.cod_produto || ''));
+    const code = normalizeNumericProductCodeKey(String(ev.cod_produto || ''));
     if (!code) continue;
     const { cx, un } = parseAuditBreakCxUn(ev);
     if (!m[code]) m[code] = { cx: 0, un: 0 };
@@ -4006,9 +4015,20 @@ function getMateCouroCodSet() {
   return s;
 }
 
+function mateCouroCatalogHasCode(set, evCod) {
+  const raw = normalizeItemCode(String(evCod || ''));
+  if (!raw) return false;
+  if (set.has(raw)) return true;
+  if (/^\d+$/.test(raw)) {
+    const compact = normalizeNumericProductCodeKey(raw);
+    if (compact && set.has(compact)) return true;
+  }
+  return false;
+}
+
 function filterEventsMateCouro(events) {
   const set = getMateCouroCodSet();
-  return (events || []).filter((ev) => set.has(normalizeItemCode(String(ev.cod_produto || ''))));
+  return (events || []).filter((ev) => mateCouroCatalogHasCode(set, ev.cod_produto));
 }
 
 function updateMateCouroKpis() {
