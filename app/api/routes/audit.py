@@ -2497,9 +2497,9 @@ def get_mate_troca_pending_by_product(
     ``break_totals`` permanece como soma histórica global (ChangeLog, CIA Mate couro) para usos internos
     (ex.: análise de contagem). **Não** deve ser o número principal na Base de Troca.
 
-    ``break_totals_period`` é a soma das quebras no intervalo informado (ou mês civil atual até hoje em
-    America/Sao_Paulo se ``date_from``/``date_to`` forem omitidos). É o acumulado operacional correto
-    para exibir na Base de Troca (ex.: 06/04 + 07/04 → soma CX/UN).
+    ``break_totals_period`` é a soma das quebras no intervalo (ChangeLog) — **não** é o saldo da Base de Troca;
+    use apenas em telas que precisem desse agregado ou em clientes legados. A Base de Troca operacional deve
+    usar ``GET /audit/mate-troca-base`` (``pending`` + ``discovery_codes``).
     """
     br_today = datetime.now(timezone.utc).astimezone(_BR).date()
     df_q = _parse_iso_date_arg(date_from) if date_from else None
