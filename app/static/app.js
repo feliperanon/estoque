@@ -5362,7 +5362,7 @@ function bindMateCouroTrocaEvents() {
   const btnAdjust = document.getElementById('btn-mate-couro-troca-adjust-pending');
   const btnLogLoad = document.getElementById('btn-mate-troca-server-log-load');
   const pendingSearch = document.getElementById('mate-couro-troca-pending-search');
-  const pendingList = document.getElementById('mate-couro-troca-pending-list');
+  const pendingListV2 = document.getElementById('mate-couro-troca-balance-list-v2');
 
   if (dateEl && !dateEl.dataset.mateTrocaBound) {
     dateEl.dataset.mateTrocaBound = '1';
@@ -5382,11 +5382,7 @@ function bindMateCouroTrocaEvents() {
   const acumTo = document.getElementById('mate-couro-troca-acum-to');
   const btnAcumRefresh = document.getElementById('btn-mate-couro-troca-acum-refresh');
   const runMateTrocaAcumRefresh = () => {
-    void (async () => {
-      await refreshMateTrocaBaseScreenData();
-      renderMateCouroPendingList();
-      updateMateCouroKpis();
-    })();
+    void refreshMateTrocaBaseScreenData();
   };
   if (acumFrom && !acumFrom.dataset.mateTrocaAcumBound) {
     acumFrom.dataset.mateTrocaAcumBound = '1';
@@ -5424,7 +5420,6 @@ function bindMateCouroTrocaEvents() {
         _s.incorpGen = Math.max(0, Math.round(Number(_s.incorpGen) || 0)) + 1;
         writeMateCouroTrocaStorage(_s);
         await refreshMateTrocaBaseScreenData();
-        renderMateCouroPendingList();
       })();
     });
   }
@@ -5448,8 +5443,8 @@ function bindMateCouroTrocaEvents() {
           window.alert('Código não encontrado no catálogo Mate couro (ativos).');
           return;
         }
-        await refreshMateTrocaBaseScreenData();
-        const cur = resolveMateCouroPendingEntry(mateTrocaServerPendingCache, cod);
+        await refreshMateTrocaBaseBalanceCardV2();
+        const cur = getMateTrocaV2CurForPayload(cod);
         const cxNew = parseMateCouroIntPrompt(`Novo pendente em CX para ${cod}:`, String(cur.cx));
         if (cxNew === null) return;
         const unNew = parseMateCouroIntPrompt(`Novo pendente em UN para ${cod}:`, String(cur.un));
@@ -5469,8 +5464,7 @@ function bindMateCouroTrocaEvents() {
           window.alert(sync.message || 'Falha ao sincronizar.');
           return;
         }
-        await refreshMateTrocaBaseScreenData();
-        renderMateCouroPendingList();
+        await refreshMateTrocaBaseBalanceCardV2();
       })();
     });
   }
@@ -5485,7 +5479,7 @@ function bindMateCouroTrocaEvents() {
   if (pendingSearch && !pendingSearch.dataset.mateTrocaBound) {
     pendingSearch.dataset.mateTrocaBound = '1';
     pendingSearch.addEventListener('input', () => {
-      renderMateCouroPendingList();
+      renderMateTrocaBaseBalanceCardV2FromCache();
     });
   }
 
@@ -5500,31 +5494,39 @@ function bindMateCouroTrocaEvents() {
     });
   }
 
-  if (pendingList && pendingList.dataset.matePendRowOpen !== '1') {
-    pendingList.dataset.matePendRowOpen = '1';
-    pendingList.addEventListener('click', (e) => {
-      if (e.target.closest('button') || e.target.closest('[data-mate-pend]')) return;
-      const li = e.target.closest('li.mate-couro-pending-item');
-      if (!li || !pendingList.contains(li)) return;
+  if (pendingListV2 && pendingListV2.dataset.matePendV2RowOpen !== '1') {
+    pendingListV2.dataset.matePendV2RowOpen = '1';
+    pendingListV2.addEventListener('click', (e) => {
+      if (e.target.closest('button') || e.target.closest('[data-mate-pend-v2]')) return;
+      const li = e.target.closest('li.mate-troca-balance-v2-item');
+      if (!li || !pendingListV2.contains(li)) return;
       const cod = li.getAttribute('data-mate-pending-cod');
       if (!cod) return;
       void openMateTrocaPendingProductHistory(cod);
     });
   }
 
-  if (pendingList && pendingList.dataset.matePendDelegates !== '1') {
-    pendingList.dataset.matePendDelegates = '1';
-    pendingList.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-mate-pend]');
-      if (!btn || !pendingList.contains(btn)) return;
-      const action = btn.getAttribute('data-mate-pend');
+  if (pendingListV2 && pendingListV2.dataset.matePendV2Delegates !== '1') {
+    pendingListV2.dataset.matePendV2Delegates = '1';
+    pendingListV2.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-mate-pend-v2]');
+      if (!btn || !pendingListV2.contains(btn)) return;
+      const action = btn.getAttribute('data-mate-pend-v2');
       const codRef = btn.getAttribute('data-coderef') || '';
       const cod = normalizeItemCode(decodeURIComponent(codRef));
       if (!cod) return;
 
       void (async () => {
-        await refreshMateTrocaBaseScreenData();
-        const cur = resolveMateCouroPendingEntry(mateTrocaServerPendingCache, cod);
+        await refreshMateTrocaBaseBalanceCardV2();
+
+        if (action === 'recebeu' && !mateTrocaV2SaldoKnownForCod(cod)) {
+          window.alert(
+            'Saldo deste código ainda não está confirmado no servidor. Use Atualizar lista ou defina o saldo antes da chegada.',
+          );
+          return;
+        }
+
+        const cur = getMateTrocaV2CurForPayload(cod);
 
         if (action === 'zerar') {
           if (
@@ -5548,8 +5550,7 @@ function bindMateCouroTrocaEvents() {
             return;
           }
           bumpMateTrocaIncorpRevForCod(cod);
-          await refreshMateTrocaBaseScreenData();
-          renderMateCouroPendingList();
+          await refreshMateTrocaBaseBalanceCardV2();
           return;
         }
 
@@ -5568,8 +5569,7 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          await refreshMateTrocaBaseScreenData();
-          renderMateCouroPendingList();
+          await refreshMateTrocaBaseBalanceCardV2();
           return;
         }
 
@@ -5593,8 +5593,7 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          await refreshMateTrocaBaseScreenData();
-          renderMateCouroPendingList();
+          await refreshMateTrocaBaseBalanceCardV2();
         }
       })();
     });
