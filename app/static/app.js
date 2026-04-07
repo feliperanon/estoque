@@ -8218,10 +8218,8 @@ function countAuditHasBreakDay(meta) {
   return bCx !== 0 || bUn !== 0;
 }
 
-/**
- * Contraste textual: pendente servidor (acumulativo) vs quebra só do dia — sem mudar o valor da coluna Troca.
- */
-function buildCountAuditTrocaBreakContrastNoteHtml(meta) {
+/** Uma linha de texto: quebra do dia vs pendente servidor (Mate couro); vazio se iguais ou sem dados. */
+function getCountAuditTrocaBreakContrastLine(meta) {
   if (!meta || meta.trocaFallbackFromBreak) return '';
   if (!countAuditHasTrocaPending(meta) || !countAuditHasBreakDay(meta)) return '';
   const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
@@ -8229,10 +8227,17 @@ function buildCountAuditTrocaBreakContrastNoteHtml(meta) {
   const bCx = Math.round(Number(meta.breakCx) || 0);
   const bUn = Math.round(Number(meta.breakUn) || 0);
   if (tCx === bCx && tUn === bUn) return '';
-  const tip =
-    'A coluna Troca usa o pendente acumulativo no servidor. A quebra é só o dia operacional desta análise. Se divergirem, corrija na Base de Troca (Zerar + Carregar os dias ou Saldo).';
-  const line = `Quebra (dia da análise) CX ${formatBreakIntegerBR(bCx)} · UN ${formatBreakIntegerBR(bUn)} — servidor CX ${formatBreakIntegerBR(tCx)} · UN ${formatBreakIntegerBR(tUn)}`;
-  return `<span class="count-audit-troca-mismatch-note" title="${escapeHtml(tip)}">${escapeHtml(line)}</span>`;
+  return `Quebra (dia da análise) CX ${formatBreakIntegerBR(bCx)} · UN ${formatBreakIntegerBR(bUn)} — servidor CX ${formatBreakIntegerBR(tCx)} · UN ${formatBreakIntegerBR(tUn)}`;
+}
+
+const COUNT_AUDIT_TROCA_CONTRAST_TIP =
+  'A coluna Troca usa o pendente acumulativo no servidor. A quebra é só o dia operacional desta análise. Se divergirem, corrija na Base de Troca (Zerar + Carregar os dias ou Saldo).';
+
+/** Contraste textual na lista — não altera o valor numérico da Troca. */
+function buildCountAuditTrocaBreakContrastNoteHtml(meta) {
+  const line = getCountAuditTrocaBreakContrastLine(meta);
+  if (!line) return '';
+  return `<span class="count-audit-troca-mismatch-note" title="${escapeHtml(COUNT_AUDIT_TROCA_CONTRAST_TIP)}">${escapeHtml(line)}</span>`;
 }
 
 /**
@@ -8402,10 +8407,11 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
   const expDetailLine = expIsoDetail
     ? `<div class="count-audit-detail-validity-line${expRiskDetail ? ` ${expRiskDetail}` : ''}">Validade (referência) · ${escapeHtml(formatDateBR(expIsoDetail))}</div>`
     : '';
+  const trocaContrastLine = getCountAuditTrocaBreakContrastLine(meta);
   const trocaDetailArticle = countAuditHasTrocaPending(meta)
     ? (meta.trocaFallbackFromBreak
       ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (reflexo da quebra)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro: sem pendente no servidor; valores espelham a quebra positiva do dia para alinhar a coluna Contagem.</small></article>`
-      : `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro — pendente no servidor (mesma visão para todos); zerado ao limpar ou encerrar no fluxo de troca</small></article>`)
+      : `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro — pendente no servidor (mesma visão para todos); zerado ao limpar ou encerrar no fluxo de troca</small>${trocaContrastLine ? `<p class="count-audit-troca-mismatch-note count-audit-troca-mismatch-note--detail" title="${escapeHtml(COUNT_AUDIT_TROCA_CONTRAST_TIP)}">${escapeHtml(trocaContrastLine)}</p>` : ''}</article>`)
     : '';
   const breakDetailArticle = countAuditHasBreakDay(meta)
     ? `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.breakCx, meta.breakUn, 'break')}</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>`
