@@ -2147,17 +2147,8 @@ def list_mate_troca_events(
     return {"count": len(events), "events": events}
 
 
-@router.get("/mate-troca-pending-by-product")
-def get_mate_troca_pending_by_product(
-    session: Session = Depends(get_session),
-    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
-) -> dict:
-    """Pendente CX/UN por produto a partir do último evento gravado no servidor.
-
-    Inclui chegadas, ajustes, zeramentos e incorporacao_quebra (Carregar dia na Base de Troca).
-    Usa o evento mais recente em ``created_at`` (desempate por ``id``), não só ``max(id)``,
-    para refletir a ordem operacional mesmo se houver inserções fora de sequência.
-    """
+def _mate_troca_pending_product_map(session: Session) -> dict[str, dict[str, int]]:
+    """Pendente CX/UN por código canônico (último evento por produto, aliases numéricos unificados)."""
     _ensure_mate_couro_troca_logs_table()
     rn = (
         func.row_number()
@@ -2222,7 +2213,138 @@ def get_mate_troca_pending_by_product(
         if cx == 0 and un == 0:
             continue
         pending[c] = {"cx": cx, "un": un}
-    return {"pending": pending}
+    return pending
+
+
+def _sum_break_caixa_un_for_code_date_range(
+    session: Session, canon_code: str, d_from: date, d_to: date
+) -> tuple[int, int]:
+    """Soma totais de quebra (caixa/unidade) no intervalo inclusive, chave numérica canônica."""
+    c = _normalize_numeric_product_code_key(canon_code)
+    if not c:
+        return 0, 0
+    if d_from > d_to:
+        return 0, 0
+    if (d_to - d_from).days > 365:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Intervalo maximo 366 dias.",
+        )
+    total_cx = 0
+    total_un = 0
+    cur = d_from
+    while cur <= d_to:
+        agg = _aggregate_break_events_by_code(session, cur)
+        rec = agg.get(c, {})
+        total_cx += int(rec.get("caixa", 0))
+        total_un += int(rec.get("unidade", 0))
+        cur += timedelta(days=1)
+    return max(0, total_cx), max(0, total_un)
+
+
+class MateTrocaReconcileFromBreaksBody(BaseModel):
+    cod_produto: str = Field(min_length=1, max_length=120)
+    date_from: str = Field(min_length=10, max_length=10)
+    date_to: str = Field(min_length=10, max_length=10)
+
+
+@router.get("/mate-troca-pending-by-product")
+def get_mate_troca_pending_by_product(
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Pendente CX/UN por produto a partir do último evento gravado no servidor.
+
+    Inclui chegadas, ajustes, zeramentos e incorporacao_quebra (Carregar dia na Base de Troca).
+    Usa o evento mais recente em ``created_at`` (desempate por ``id``), não só ``max(id)``,
+    para refletir a ordem operacional mesmo se houver inserções fora de sequência.
+    """
+    return {"pending": _mate_troca_pending_product_map(session)}
+
+
+@router.post("/mate-troca-reconcile-from-breaks")
+def mate_troca_reconcile_pending_from_break_sum(
+    body: MateTrocaReconcileFromBreaksBody,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_roles("administrativo", "admin")),
+) -> dict:
+    """Define o pendente como a soma das quebras no intervalo (um evento ``definir``).
+
+    Não substitui chegadas já registradas na operação: apenas alinha o saldo ao que consta
+    nos lançamentos de quebra dos dias informados (mesma agregação da tela Quebra).
+    """
+    d0 = _parse_iso_date_arg(body.date_from)
+    d1 = _parse_iso_date_arg(body.date_to)
+    if d0 is None or d1 is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Datas invalidas (use YYYY-MM-DD).",
+        )
+    if d0 > d1:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="date_from nao pode ser maior que date_to.",
+        )
+    canon = _canonical_mate_couro_cod(session, body.cod_produto)
+    tgt_cx, tgt_un = _sum_break_caixa_un_for_code_date_range(session, canon, d0, d1)
+
+    pending_map = _mate_troca_pending_product_map(session)
+    cur = pending_map.get(canon) or {"cx": 0, "un": 0}
+    before_cx = int(cur.get("cx", 0))
+    before_un = int(cur.get("un", 0))
+
+    base_out = {
+        "ok": True,
+        "cod_produto": canon,
+        "pending_before": {"cx": before_cx, "un": before_un},
+        "pending_target_from_breaks": {"cx": tgt_cx, "un": tgt_un},
+        "date_from": d0.isoformat(),
+        "date_to": d1.isoformat(),
+    }
+
+    if before_cx == tgt_cx and before_un == tgt_un:
+        return {**base_out, "skipped": True, "message": "Pendente ja igual a soma das quebras no intervalo."}
+
+    cid = f"reconcile-br-v1-{uuid.uuid4().hex}"[:100]
+    ev = MateTrocaEventInput(
+        client_event_id=cid,
+        kind="definir",
+        cod_produto=canon,
+        qty_cx_in=tgt_cx,
+        qty_un_in=tgt_un,
+        pend_cx_before=before_cx,
+        pend_un_before=before_un,
+        pend_cx_after=tgt_cx,
+        pend_un_after=tgt_un,
+        excess_cx=0,
+        excess_un=0,
+        device_name="reconcile-from-breaks",
+    )
+    ex_cx, ex_un = _validate_mate_troca_payload(ev)
+    row = MateCouroTrocaLog(
+        client_event_id=ev.client_event_id,
+        kind="definir",
+        cod_produto=canon,
+        qty_cx_in=int(ev.qty_cx_in),
+        qty_un_in=int(ev.qty_un_in),
+        pend_cx_before=int(ev.pend_cx_before),
+        pend_un_before=int(ev.pend_un_before),
+        pend_cx_after=int(ev.pend_cx_after),
+        pend_un_after=int(ev.pend_un_after),
+        excess_cx=int(ex_cx),
+        excess_un=int(ex_un),
+        device_name="reconcile-from-breaks",
+        actor_username=user.username,
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(row)
+    session.commit()
+    return {
+        **base_out,
+        "skipped": False,
+        "message": "Pendente atualizado (definir) pela soma das quebras no intervalo.",
+        "client_event_id": cid,
+    }
 
 
 def _mate_troca_iso_utc(dt_val: datetime | None) -> str | None:
