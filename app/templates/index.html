@@ -158,7 +158,7 @@
               <button type="button" class="module-card" data-sub="mate-couro-troca">
                 <span class="module-card-icon">🔄</span>
                 <span class="module-card-title">Base de Troca</span>
-                <span class="module-card-desc">Quebras CIA Mate couro e pendente acumulativo (local)</span>
+                <span class="module-card-desc">Quebras CIA Mate couro e pendente sincronizado no servidor</span>
               </button>
               <button type="button" class="module-card" data-sub="direct-sale">
                 <span class="module-card-icon">💰</span>
@@ -511,8 +511,8 @@
                   <h2 id="mate-couro-troca-title" class="count-audit-page-title">Base de Troca</h2>
                   <p class="count-audit-page-subtitle mate-troca-page-subtitle">
                     A lista <strong>Quebras do dia</strong> mostra totais já lançados no servidor (não é o pendente).
-                    O <strong>pendente de troca</strong> é acumulativo neste aparelho; use <strong>Carregar</strong> para somar deltas do dia.
-                    Chegadas e ajustes sincronizados: abra <strong>Histórico no servidor</strong>.
+                    O <strong>pendente de troca</strong> exibido abaixo é o mesmo para todos os usuários (servidor). Use <strong>Carregar</strong> para aplicar no servidor os deltas de quebra Mate couro do dia.
+                    Chegadas e ajustes: <strong>Histórico no servidor</strong>.
                   </p>
                   <div class="count-audit-header__toolbar mate-troca-kpi-toolbar" aria-label="Ações da base de troca">
                     <div class="count-audit-field count-audit-field--date">
@@ -562,11 +562,11 @@
                 <div class="card-head count-audit-card-head count-audit-filters-head">
                   <div>
                     <h3>Filtros</h3>
-                    <p class="count-audit-card-sub muted">Busca no pendente e limpeza do acumulativo</p>
+                    <p class="count-audit-card-sub muted">Busca no pendente e limpeza de snapshots locais do “Carregar dia”</p>
                   </div>
                   <div class="count-audit-filters-actions mate-troca-filters-actions-row">
                     <button type="button" id="btn-mate-couro-troca-adjust-pending" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline">Ajustar pendente por código</button>
-                    <button type="button" id="btn-mate-couro-troca-clear-all" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline count-audit-btn-clear-all">Limpar acumulativo todo</button>
+                    <button type="button" id="btn-mate-couro-troca-clear-all" class="mate-troca-toolbar-btn mate-troca-toolbar-btn--outline count-audit-btn-clear-all">Limpar snapshots locais</button>
                   </div>
                 </div>
                 <div id="mate-troca-filters-panel" class="count-audit-filters-panel">
@@ -1531,7 +1531,7 @@
       </main>
     </div>
 
-    <script src="/static/app.js?v=56"></script>
+    <script src="/static/app.js?v=57"></script>
     <script src="/static/pwa-install.js?v=6"></script>
   </body>
 </html>

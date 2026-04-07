@@ -409,6 +409,8 @@ const API_SYNC_BREAKS = '/audit/break-events';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
 const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product';
+/** Pendente Mate couro no servidor — mesma visão em todos os aparelhos (Base de Troca, KPIs, análise). */
+let mateTrocaUiServerPending = {};
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
@@ -3476,6 +3478,38 @@ async function loadBreakHistoryList() {
   }
 }
 
+async function fetchMateTrocaPendingByProductMap() {
+  const token = getToken();
+  if (!token) return {};
+  try {
+    const response = await apiFetch(API_MATE_TROCA_PENDING_BY_PRODUCT, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) return {};
+    if (!response.ok) return {};
+    const data = await response.json();
+    const raw = data.pending && typeof data.pending === 'object' ? data.pending : {};
+    const norm = {};
+    for (const k of Object.keys(raw)) {
+      const c = normalizeItemCode(k);
+      if (!c) continue;
+      const v = raw[k];
+      norm[c] = {
+        cx: Math.max(0, Math.round(Number(v?.cx) || 0)),
+        un: Math.max(0, Math.round(Number(v?.un) || 0)),
+      };
+    }
+    return norm;
+  } catch {
+    return {};
+  }
+}
+
+async function refreshMateTrocaUiServerPending() {
+  mateTrocaUiServerPending = await fetchMateTrocaPendingByProductMap();
+}
+
 function readMateCouroTrocaStorage() {
   try {
     let raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_KEY);
@@ -3799,52 +3833,90 @@ function mateTrocaSignedCxUnParts(dcx, dun) {
   return [cxPart, unPart].filter(Boolean).join(' · ') || '0 CX · 0 UN';
 }
 
-/** Soma ao pendente apenas o delta em relação ao último Carregar deste mesmo dia (permite novas quebras no mesmo dia). */
-function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
+/**
+ * Soma ao pendente o delta da quebra vs último Carregar deste dia; grava no servidor (incorporacao_quebra)
+ * para todos verem o mesmo pendente. Base do cálculo: snapshot atual do servidor.
+ */
+async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
+  await refreshMateTrocaUiServerPending();
   const state = readMateCouroTrocaStorage();
   if (!state.daySnapshots) state.daySnapshots = {};
   if (!Array.isArray(state.eventLog)) state.eventLog = [];
   const agg = aggregateMateCouroEventsByCode(mateEvents);
   const prev = state.daySnapshots[dayKey] || {};
   const codes = new Set([...Object.keys(agg), ...Object.keys(prev)]);
-  let anyDelta = false;
+  const work = {};
+  for (const k of Object.keys(mateTrocaUiServerPending)) {
+    const v = mateTrocaUiServerPending[k];
+    work[k] = { cx: v.cx, un: v.un };
+  }
+  const payloads = [];
   const nowIso = new Date().toISOString();
   const opDay = String(dayKey).slice(0, 10);
   for (const cod of codes) {
+    const base = normalizeItemCode(cod);
+    if (!base) continue;
     const a = agg[cod] || { cx: 0, un: 0 };
     const p = prev[cod] || { cx: 0, un: 0 };
     const dcx = a.cx - p.cx;
     const dun = a.un - p.un;
-    if (dcx !== 0 || dun !== 0) {
-      const base = normalizeItemCode(cod);
-      const cur = state.pending[base] || { cx: 0, un: 0 };
-      mergePendingDelta(state, base, dcx, dun);
-      const after = state.pending[base] || { cx: 0, un: 0 };
+    if (dcx === 0 && dun === 0) continue;
+    const cur = work[base] || { cx: 0, un: 0 };
+    const nx = Math.max(0, Math.round(cur.cx + dcx));
+    const nu = Math.max(0, Math.round(cur.un + dun));
+    const clientEventId = makeEventId();
+    payloads.push({
+      client_event_id: clientEventId,
+      kind: 'incorporacao_quebra',
+      cod_produto: base,
+      qty_cx_in: dcx,
+      qty_un_in: dun,
+      pend_cx_before: Math.round(Number(cur.cx) || 0),
+      pend_un_before: Math.round(Number(cur.un) || 0),
+      pend_cx_after: nx,
+      pend_un_after: nu,
+      excess_cx: 0,
+      excess_un: 0,
+      device_name: getDeviceName(),
+    });
+    work[base] = { cx: nx, un: nu };
+  }
+  if (payloads.length) {
+    const res = await postMateTrocaEventsToServer(payloads);
+    if (!res.ok) {
+      return false;
+    }
+    for (const pl of payloads) {
       state.eventLog.push({
-        client_event_id: makeEventId(),
+        client_event_id: pl.client_event_id,
         kind: 'incorporacao_quebra',
-        cod_produto: base,
-        qty_cx_in: dcx,
-        qty_un_in: dun,
-        pend_cx_before: Math.round(Number(cur.cx) || 0),
-        pend_un_before: Math.round(Number(cur.un) || 0),
-        pend_cx_after: Math.round(Number(after.cx) || 0),
-        pend_un_after: Math.round(Number(after.un) || 0),
+        cod_produto: pl.cod_produto,
+        qty_cx_in: pl.qty_cx_in,
+        qty_un_in: pl.qty_un_in,
+        pend_cx_before: pl.pend_cx_before,
+        pend_un_before: pl.pend_un_before,
+        pend_cx_after: pl.pend_cx_after,
+        pend_un_after: pl.pend_un_after,
         excess_cx: 0,
         excess_un: 0,
-        device_name: getDeviceName(),
+        device_name: pl.device_name,
         operational_date: opDay,
         created_at_local: nowIso,
         actor_label: 'Carregar dia (quebra sincronizada)',
         synced: true,
       });
-      anyDelta = true;
     }
   }
   state.daySnapshots[dayKey] = agg;
+  state.pending = {};
+  for (const [k, v] of Object.entries(work)) {
+    if (v.cx !== 0 || v.un !== 0) state.pending[k] = { cx: v.cx, un: v.un };
+  }
   while (state.eventLog.length > 500) state.eventLog.shift();
   writeMateCouroTrocaStorage(state);
-  return anyDelta;
+  await refreshMateTrocaUiServerPending();
+  countAuditState.mateTrocaServerPending = { ...mateTrocaUiServerPending };
+  return true;
 }
 
 async function ensureMateCouroCatalogLoaded() {
@@ -3879,11 +3951,10 @@ function filterEventsMateCouro(events) {
 }
 
 function updateMateCouroKpis() {
-  const state = readMateCouroTrocaStorage();
   let sumCx = 0;
   let sumUn = 0;
   let nProd = 0;
-  for (const v of Object.values(state.pending || {})) {
+  for (const v of Object.values(mateTrocaUiServerPending || {})) {
     const cx = Math.round(Number(v?.cx) || 0);
     const un = Math.round(Number(v?.un) || 0);
     sumCx += cx;
@@ -3977,11 +4048,10 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
 }
 
 function getMateCouroPendingRowsFiltered() {
-  const state = readMateCouroTrocaStorage();
   const searchEl = document.getElementById('mate-couro-troca-pending-search');
   const term = ((searchEl && searchEl.value) || '').trim().toLowerCase();
   const rows = [];
-  for (const [cod, v] of Object.entries(state.pending || {})) {
+  for (const [cod, v] of Object.entries(mateTrocaUiServerPending || {})) {
     const cx = Math.round(Number(v.cx) || 0);
     const un = Math.round(Number(v.un) || 0);
     if (cx === 0 && un === 0) continue;
@@ -4012,7 +4082,7 @@ function renderMateCouroPendingList() {
   ul.innerHTML = '';
   if (!rows.length) {
     ul.innerHTML =
-      '<li class="count-audit-empty"><span>Nenhum saldo pendente. Carregue dias com quebra Mate couro para acumular.</span><strong>—</strong></li>';
+      '<li class="count-audit-empty"><span>Nenhum saldo pendente no servidor. Use <strong>Carregar</strong> no dia com quebra Mate couro para incorporar ao pendente (todos verão o mesmo).</span><strong>—</strong></li>';
     updateMateCouroKpis();
     return;
   }
@@ -4033,7 +4103,7 @@ function renderMateCouroPendingList() {
       `</div></div>` +
       `<div class="count-audit-cell">` +
       `<span class="count-audit-cell-label">Acumulativo</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Pendente de troca (local)">` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Pendente de troca no servidor (mesma visão para todos)">` +
       `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
       `</div></div>` +
@@ -4070,7 +4140,9 @@ async function loadMateCouroBreakDayList() {
   }
 
   await ensureMateCouroCatalogLoaded();
+  await refreshMateTrocaUiServerPending();
   updateMateCouroKpis();
+  renderMateCouroPendingList();
   await loadServerBreakTotals();
 
   try {
@@ -4081,25 +4153,35 @@ async function loadMateCouroBreakDayList() {
       cache: 'no-store',
     });
     if (handleUnauthorizedResponse(response)) {
+      await refreshMateTrocaUiServerPending();
+      renderMateCouroPendingList();
       return;
     }
     if (!response.ok) {
       lastMateTrocaDayItemsCount = null;
       renderMateCouroDayList(dayLabel, []);
+      await refreshMateTrocaUiServerPending();
       updateMateCouroKpis();
+      renderMateCouroPendingList();
       return;
     }
     const data = await response.json();
     const events = Array.isArray(data.events) ? data.events : [];
     const mateEvents = filterEventsMateCouro(events);
     lastMateTrocaDayItemsCount = mateEvents.length;
-    mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
+    const incorporacaoOk = await mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    if (lastSyncKpi) lastSyncKpi.textContent = `${dayLabel} · ${nowStr}`;
+    if (lastSyncKpi) {
+      lastSyncKpi.textContent = incorporacaoOk === false
+        ? `${dayLabel} · ${nowStr} · falha ao gravar pendente no servidor`
+        : `${dayLabel} · ${nowStr}`;
+    }
     renderMateCouroDayList(dayLabel, mateEvents);
     renderMateCouroPendingList();
   } catch {
+    await refreshMateTrocaUiServerPending();
     updateMateCouroKpis();
+    renderMateCouroPendingList();
   }
 }
 
@@ -4570,16 +4652,25 @@ function bindMateCouroTrocaEvents() {
   if (btnClearAll && !btnClearAll.dataset.mateTrocaBound) {
     btnClearAll.dataset.mateTrocaBound = '1';
     btnClearAll.addEventListener('click', () => {
-      if (
-        !window.confirm(
-          'Zerar todo o acumulativo de troca e o histórico de snapshots por dia neste aparelho? As quebras no servidor não serão alteradas.',
-        )
-      ) {
-        return;
-      }
-      const _s = readMateCouroTrocaStorage();
-      writeMateCouroTrocaStorage({ ..._s, pending: {}, daySnapshots: {} });
-      renderMateCouroPendingList();
+      void (async () => {
+        if (
+          !window.confirm(
+            'Limpar neste aparelho os snapshots de “Carregar o dia” usados para calcular deltas? O pendente exibido vem do servidor; quebras no servidor não são alteradas.',
+          )
+        ) {
+          return;
+        }
+        const _s = readMateCouroTrocaStorage();
+        writeMateCouroTrocaStorage({ ..._s, pending: {}, daySnapshots: {} });
+        await refreshMateTrocaUiServerPending();
+        const st = readMateCouroTrocaStorage();
+        st.pending = {};
+        for (const [k, v] of Object.entries(mateTrocaUiServerPending)) {
+          if (v.cx || v.un) st.pending[k] = { cx: v.cx, un: v.un };
+        }
+        writeMateCouroTrocaStorage(st);
+        renderMateCouroPendingList();
+      })();
     });
   }
 
@@ -4602,8 +4693,8 @@ function bindMateCouroTrocaEvents() {
           window.alert('Código não encontrado no catálogo Mate couro (ativos).');
           return;
         }
-        const state = readMateCouroTrocaStorage();
-        const cur = state.pending[cod] || { cx: 0, un: 0 };
+        await refreshMateTrocaUiServerPending();
+        const cur = mateTrocaUiServerPending[cod] || { cx: 0, un: 0 };
         const cxNew = parseMateCouroIntPrompt(`Novo pendente em CX para ${cod}:`, String(cur.cx));
         if (cxNew === null) return;
         const unNew = parseMateCouroIntPrompt(`Novo pendente em UN para ${cod}:`, String(cur.un));
@@ -4623,8 +4714,12 @@ function bindMateCouroTrocaEvents() {
           window.alert(sync.message || 'Falha ao sincronizar.');
           return;
         }
-        if (cxNew === 0 && unNew === 0) delete state.pending[cod];
-        else state.pending[cod] = { cx: cxNew, un: unNew };
+        await refreshMateTrocaUiServerPending();
+        const state = readMateCouroTrocaStorage();
+        state.pending = {};
+        for (const [k, v] of Object.entries(mateTrocaUiServerPending)) {
+          if (v.cx || v.un) state.pending[k] = { cx: v.cx, un: v.un };
+        }
         writeMateCouroTrocaStorage(state);
         renderMateCouroPendingList();
       })();
@@ -4679,8 +4774,8 @@ function bindMateCouroTrocaEvents() {
       if (!cod) return;
 
       void (async () => {
-        const state = readMateCouroTrocaStorage();
-        const cur = state.pending[cod] || { cx: 0, un: 0 };
+        await refreshMateTrocaUiServerPending();
+        const cur = mateTrocaUiServerPending[cod] || { cx: 0, un: 0 };
 
         if (action === 'zerar') {
           if (!window.confirm(`Zerar pendente de troca para ${cod}?`)) return;
@@ -4697,7 +4792,12 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          delete state.pending[cod];
+          await refreshMateTrocaUiServerPending();
+          const state = readMateCouroTrocaStorage();
+          state.pending = {};
+          for (const [k, v] of Object.entries(mateTrocaUiServerPending)) {
+            if (v.cx || v.un) state.pending[k] = { cx: v.cx, un: v.un };
+          }
           writeMateCouroTrocaStorage(state);
           renderMateCouroPendingList();
           return;
@@ -4718,8 +4818,12 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          if (next.cx === 0 && next.un === 0) delete state.pending[cod];
-          else state.pending[cod] = next;
+          await refreshMateTrocaUiServerPending();
+          const state = readMateCouroTrocaStorage();
+          state.pending = {};
+          for (const [k, v] of Object.entries(mateTrocaUiServerPending)) {
+            if (v.cx || v.un) state.pending[k] = { cx: v.cx, un: v.un };
+          }
           writeMateCouroTrocaStorage(state);
           renderMateCouroPendingList();
           return;
@@ -4745,8 +4849,12 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          if (cxNew === 0 && unNew === 0) delete state.pending[cod];
-          else state.pending[cod] = { cx: cxNew, un: unNew };
+          await refreshMateTrocaUiServerPending();
+          const state = readMateCouroTrocaStorage();
+          state.pending = {};
+          for (const [k, v] of Object.entries(mateTrocaUiServerPending)) {
+            if (v.cx || v.un) state.pending[k] = { cx: v.cx, un: v.un };
+          }
           writeMateCouroTrocaStorage(state);
           renderMateCouroPendingList();
         }
@@ -8547,31 +8655,9 @@ async function loadCountAuditBreakDay(dayKey) {
 
 async function loadCountAuditMateTrocaServerPending() {
   countAuditState.mateTrocaServerPending = {};
-  const token = getToken();
-  if (!token) return;
-  try {
-    const response = await apiFetch(API_MATE_TROCA_PENDING_BY_PRODUCT, {
-      headers: getAuthHeaders(),
-      cache: 'no-store',
-    });
-    if (handleUnauthorizedResponse(response)) return;
-    if (!response.ok) return;
-    const data = await response.json();
-    const raw = data.pending && typeof data.pending === 'object' ? data.pending : {};
-    const norm = {};
-    for (const k of Object.keys(raw)) {
-      const c = normalizeItemCode(k);
-      if (!c) continue;
-      const v = raw[k];
-      norm[c] = {
-        cx: Math.max(0, Math.round(Number(v?.cx) || 0)),
-        un: Math.max(0, Math.round(Number(v?.un) || 0)),
-      };
-    }
-    countAuditState.mateTrocaServerPending = norm;
-  } catch {
-    countAuditState.mateTrocaServerPending = {};
-  }
+  const norm = await fetchMateTrocaPendingByProductMap();
+  countAuditState.mateTrocaServerPending = norm;
+  mateTrocaUiServerPending = norm;
 }
 
 async function loadCountAuditValidityExpiryMap() {
