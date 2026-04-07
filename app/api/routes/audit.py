@@ -2451,8 +2451,9 @@ def get_mate_troca_pending_by_product(
     Usa o evento mais recente em ``created_at`` (desempate por ``id``), não só ``max(id)``,
     para refletir a ordem operacional mesmo se houver inserções fora de sequência.
 
-    ``break_totals`` é a soma de todas as quebras registradas (ChangeLog) para CIA Mate couro,
-    independente do saldo do histórico de troca — usado na Base de Troca para exibir o acumulado real.
+    ``break_totals`` é a soma de todas as quebras registradas (ChangeLog) para CIA Mate couro;
+    o cliente usa isso para incluir na lista produtos com quebra no servidor mesmo sem saldo na troca.
+    Os valores exibidos na coluna de saldo vêm de ``pending``.
     """
     return {
         "pending": _mate_troca_pending_product_map(session),
