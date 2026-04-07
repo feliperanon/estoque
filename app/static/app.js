@@ -3576,17 +3576,36 @@ async function fetchMateTrocaPendingByProductMap() {
   return pending;
 }
 
-/** Espelha o pendente do servidor no localStorage (histórico/offline parcial); exibição usa o cache. */
+/**
+ * Espelha o pendente do servidor no localStorage (histórico/offline parcial).
+ * A API só devolve produtos com saldo > 0; um mapa vazio não significa “apagar tudo no aparelho”.
+ * Só removemos chaves que já tinham sido confirmadas no servidor e sumiram da resposta (ex.: Zerar).
+ * Pendente só local (nunca veio no servidor) permanece até sincronizar ou limpar manualmente.
+ */
 function mirrorMateTrocaPendingToLocalStorage(serverMap) {
   const state = readMateCouroTrocaStorage();
-  state.pending = {};
-  for (const [k, v] of Object.entries(serverMap || {})) {
+  const sm = serverMap && typeof serverMap === 'object' ? serverMap : {};
+  const incomingKeys = new Set();
+  for (const k of Object.keys(sm)) {
+    const ck = normalizeNumericProductCodeKey(k);
+    if (ck) incomingKeys.add(ck);
+  }
+  const prevMirrored = state.serverMirroredPendingKeys;
+  const prevSet = new Set(Array.isArray(prevMirrored) ? prevMirrored.map((x) => String(x || '').trim()).filter(Boolean) : []);
+  for (const ck of prevSet) {
+    if (!incomingKeys.has(ck)) {
+      delete state.pending[ck];
+    }
+  }
+  for (const [k, v] of Object.entries(sm)) {
     const ck = normalizeNumericProductCodeKey(k);
     if (!ck) continue;
     const cx = Math.max(0, Math.round(Number(v?.cx) || 0));
     const un = Math.max(0, Math.round(Number(v?.un) || 0));
     if (cx || un) state.pending[ck] = { cx, un };
+    else delete state.pending[ck];
   }
+  state.serverMirroredPendingKeys = Array.from(incomingKeys);
   writeMateCouroTrocaStorage(state);
 }
 
@@ -3716,10 +3735,26 @@ function readMateCouroTrocaStorage() {
     let raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_KEY);
     if (!raw) raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_PREV_KEY);
     if (!raw) raw = localStorage.getItem(MATE_COURO_TROCA_STORAGE_LEGACY_KEY);
-    if (!raw) return { pending: {}, daySnapshots: {}, eventLog: [], incorpGen: 0, incorpRevByCod: {} };
+    if (!raw) {
+      return {
+        pending: {},
+        daySnapshots: {},
+        eventLog: [],
+        incorpGen: 0,
+        incorpRevByCod: {},
+        serverMirroredPendingKeys: [],
+      };
+    }
     const o = JSON.parse(raw);
     if (!o || typeof o !== 'object') {
-      return { pending: {}, daySnapshots: {}, eventLog: [], incorpGen: 0, incorpRevByCod: {} };
+      return {
+        pending: {},
+        daySnapshots: {},
+        eventLog: [],
+        incorpGen: 0,
+        incorpRevByCod: {},
+        serverMirroredPendingKeys: [],
+      };
     }
     const eventLog = Array.isArray(o.eventLog)
       ? o.eventLog.filter((e) => e && typeof e === 'object')
@@ -3734,12 +3769,17 @@ function readMateCouroTrocaStorage() {
       }
     }
     if (o.pending && typeof o.pending === 'object') {
+      const smpk = o.serverMirroredPendingKeys;
+      const serverMirroredPendingKeys = Array.isArray(smpk)
+        ? smpk.map((x) => String(x || '').trim()).filter(Boolean)
+        : [];
       return {
         pending: o.pending,
         daySnapshots: o.daySnapshots && typeof o.daySnapshots === 'object' ? o.daySnapshots : {},
         eventLog,
         incorpGen,
         incorpRevByCod,
+        serverMirroredPendingKeys,
       };
     }
     const pending = {};
@@ -3762,14 +3802,32 @@ function readMateCouroTrocaStorage() {
         };
       }
     }
-    return { pending, daySnapshots: {}, eventLog, incorpGen, incorpRevByCod };
+    return {
+      pending,
+      daySnapshots: {},
+      eventLog,
+      incorpGen,
+      incorpRevByCod,
+      serverMirroredPendingKeys: [],
+    };
   } catch {
-    return { pending: {}, daySnapshots: {}, eventLog: [], incorpGen: 0, incorpRevByCod: {} };
+    return {
+      pending: {},
+      daySnapshots: {},
+      eventLog: [],
+      incorpGen: 0,
+      incorpRevByCod: {},
+      serverMirroredPendingKeys: [],
+    };
   }
 }
 
 function writeMateCouroTrocaStorage(state) {
   try {
+    const smpk = state.serverMirroredPendingKeys;
+    const serverMirroredPendingKeys = Array.isArray(smpk)
+      ? smpk.map((x) => String(x || '').trim()).filter(Boolean)
+      : [];
     const payload = {
       pending: state.pending && typeof state.pending === 'object' ? state.pending : {},
       daySnapshots:
@@ -3778,6 +3836,7 @@ function writeMateCouroTrocaStorage(state) {
       incorpGen: Math.max(0, Math.round(Number(state.incorpGen) || 0)),
       incorpRevByCod:
         state.incorpRevByCod && typeof state.incorpRevByCod === 'object' ? state.incorpRevByCod : {},
+      serverMirroredPendingKeys,
     };
     localStorage.setItem(MATE_COURO_TROCA_STORAGE_KEY, JSON.stringify(payload));
     localStorage.removeItem(MATE_COURO_TROCA_STORAGE_LEGACY_KEY);
