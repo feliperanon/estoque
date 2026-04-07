@@ -610,22 +610,35 @@
                   </div>
                 </section>
 
-                <section class="card count-audit-list-card mate-couro-pending-card">
+                <section
+                  id="mate-couro-troca-balance-card-v2"
+                  class="card count-audit-list-card mate-couro-troca-balance-card-v2"
+                  aria-labelledby="mate-couro-troca-balance-v2-title"
+                >
                   <div class="card-head count-audit-list-head">
                     <div>
-                      <h3>Saldo pendente (troca)</h3>
+                      <h3 id="mate-couro-troca-balance-v2-title">Base de troca</h3>
+                      <p class="count-audit-card-sub muted mate-couro-troca-balance-v2-lede">
+                        Saldo acumulado por produto. Só zera por ação manual.
+                      </p>
                     </div>
-                    <div class="count-audit-list-head-meta">
-                      <span id="mate-couro-troca-pending-range-info" class="count-audit-range-info">Defina De/Até e use Atualizar lista.</span>
+                    <div class="count-audit-list-head-meta mate-couro-troca-balance-v2-meta">
+                      <span id="mate-couro-troca-balance-v2-count" class="count-audit-range-info">0 produtos</span>
+                      <span id="mate-couro-troca-balance-v2-range" class="count-audit-range-info muted"></span>
                     </div>
                   </div>
-                  <div class="mate-couro-pending-list-header" aria-hidden="true">
+                  <div class="mate-couro-pending-list-header mate-couro-troca-balance-v2-list-header" aria-hidden="true">
                     <span>Produto</span>
                     <span>Saldo</span>
                     <span>Ações</span>
                   </div>
-                  <div class="count-audit-list-panel mate-couro-pending-list-panel">
-                    <ul id="mate-couro-troca-pending-list" class="count-audit-list-main" role="list" aria-label="Saldo pendente de troca Mate couro"></ul>
+                  <div class="count-audit-list-panel mate-couro-pending-list-panel mate-couro-troca-balance-v2-panel">
+                    <ul
+                      id="mate-couro-troca-balance-list-v2"
+                      class="count-audit-list-main"
+                      role="list"
+                      aria-label="Base de troca — saldo por produto"
+                    ></ul>
                   </div>
                 </section>
               </div>

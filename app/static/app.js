@@ -418,13 +418,25 @@ const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
 const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product';
 const API_MATE_TROCA_BASE = '/audit/mate-troca-base';
+const API_MATE_TROCA_BASE_V2 = '/audit/mate-troca-base-v2';
 const API_MATE_TROCA_RECONCILE_FROM_BREAKS = '/audit/mate-troca-reconcile-from-breaks';
-/** Saldo de troca no servidor — única fonte de verdade exibida e alterada na Base de Troca. */
+/** Último estado confiável da Base de Troca V2 (persistido) — evita 0/0 fantasma em refresh parcial. */
+const MATE_TROCA_BASE_V2_LAST_VALID_KEY = 'estoque_mate_troca_base_v2_last_valid_v1';
+/** Saldo de troca no servidor — espelho para análise de contagem / espelho local; preenchido pelo fluxo V2. */
 let mateTrocaServerPendingCache = {};
 /** Soma global ChangeLog (CIA Mate couro) — só análise de contagem; preenchido pelo GET completo, nunca pelo card. */
 let mateTrocaBreakTotalsCache = {};
-/** Códigos com quebra Mate couro no período De–Até (só presença) — para listar produto com saldo 0. */
+/** Códigos com quebra Mate couro no período De–Até (só presença) — espelho do V2 para compat. */
 let mateTrocaDiscoveryCodesCache = new Set();
+/** Base de Troca V2 — saldos explícitos do último GET ok (inclui 0/0 do servidor). */
+let mateTrocaBaseBalanceCacheV2 = {};
+/** Descoberta de códigos no período (V2). */
+let mateTrocaBaseDiscoveryCodesV2 = new Set();
+/** Por código: último estado confiável exibido / servidor (merge). */
+let mateTrocaBaseLastValidStateV2 = {};
+/** Últimas linhas já fundidas (KPI + busca sem novo fetch). */
+let mateTrocaBaseV2LastMergedRows = [];
+let mateTrocaBaseV2LastValidHydrated = false;
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';

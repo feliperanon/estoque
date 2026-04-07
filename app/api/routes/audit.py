@@ -2443,6 +2443,75 @@ def _mate_troca_pending_product_map(session: Session) -> dict[str, dict[str, int
     return pending
 
 
+def _mate_troca_latest_event_balance_map_including_zeros(session: Session) -> dict[str, dict[str, int]]:
+    """Último ``pend_cx_after`` / ``pend_un_after`` por código canônico, **incluindo 0/0** após zerar.
+
+    Diferente de ``_mate_troca_pending_product_map`` (que omite zeros): necessário para a Base de Troca
+    distinguir “sem evento no servidor” de “saldo explicitamente zero no servidor”.
+    """
+    _ensure_mate_couro_troca_logs_table()
+    rn = (
+        func.row_number()
+        .over(
+            partition_by=MateCouroTrocaLog.cod_produto,
+            order_by=(desc(MateCouroTrocaLog.created_at), desc(MateCouroTrocaLog.id)),
+        )
+        .label("rn")
+    )
+    sub = select(
+        MateCouroTrocaLog.cod_produto,
+        MateCouroTrocaLog.pend_cx_after,
+        MateCouroTrocaLog.pend_un_after,
+        MateCouroTrocaLog.created_at,
+        MateCouroTrocaLog.id,
+        rn,
+    ).subquery()
+    stmt = select(
+        sub.c.cod_produto,
+        sub.c.pend_cx_after,
+        sub.c.pend_un_after,
+        sub.c.created_at,
+        sub.c.id,
+    ).where(sub.c.rn == 1)
+    rows = list(session.exec(stmt).all())
+    out: dict[str, dict[str, int]] = {}
+    best_row: dict[str, tuple[int, int, datetime | None, int | None, str]] = {}
+    for row in rows:
+        cod_raw, pcx, pun, cr_at, rid = row[0], row[1], row[2], row[3], row[4]
+        cx = int(pcx or 0)
+        un = int(pun or 0)
+        cod_raw_str = str(cod_raw or "")
+        c = _normalize_numeric_product_code_key(cod_raw_str)
+        if not c:
+            continue
+        cur = best_row.get(c)
+        cand = (cx, un, cr_at, rid, cod_raw_str)
+        if cur is None:
+            best_row[c] = cand
+            continue
+        cand_pref = _mate_troca_cod_preferred_over_alias(cod_raw_str, c)
+        cur_pref = _mate_troca_cod_preferred_over_alias(cur[4], c)
+        if cand_pref and not cur_pref:
+            best_row[c] = cand
+            continue
+        if cur_pref and not cand_pref:
+            continue
+        _, _, cr_at_c, rid_c, _ = cand
+        _, _, cur_at, cur_id, _ = cur
+        newer = False
+        if cr_at_c is not None and cur_at is not None:
+            newer = cr_at_c > cur_at or (cr_at_c == cur_at and (rid_c or 0) > (cur_id or 0))
+        elif cr_at_c is not None and cur_at is None:
+            newer = True
+        elif cr_at_c is None and cur_at is None:
+            newer = (rid_c or 0) > (cur_id or 0)
+        if newer:
+            best_row[c] = cand
+    for c, (cx, un, _, _, _) in best_row.items():
+        out[c] = {"cx": cx, "un": un}
+    return out
+
+
 def _sum_break_caixa_un_for_code_date_range(
     session: Session, canon_code: str, d_from: date, d_to: date
 ) -> tuple[int, int]:
@@ -2562,6 +2631,38 @@ def get_mate_troca_base(
         "discovery_codes": discovery_codes,
         "period_from": d0.isoformat(),
         "period_to": d1.isoformat(),
+    }
+
+
+@router.get("/mate-troca-base-v2")
+def get_mate_troca_base_v2(
+    date_from: str | None = Query(
+        default=None,
+        description="Início do intervalo para descoberta de códigos com quebra (YYYY-MM-DD), inclusive.",
+    ),
+    date_to: str | None = Query(
+        default=None,
+        description="Fim do intervalo para descoberta de códigos com quebra (YYYY-MM-DD), inclusive.",
+    ),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Contrato explícito para a Base de Troca (UI V2).
+
+    - ``discovery_codes``: códigos com quebra Mate couro no período (ChangeLog) — só montagem de lista.
+    - ``balances``: último saldo CX/UN **por evento** no servidor, **incluindo 0/0** após zerar.
+      Códigos só em ``discovery_codes`` e ausentes de ``balances`` nunca tiveram evento Mate troca no servidor.
+    """
+    d0, d1 = _mate_troca_base_period_bounds(date_from, date_to)
+    period_map = _mate_couro_break_totals_date_range(session, d0, d1)
+    discovery_codes = sorted(period_map.keys())
+    balances = _mate_troca_latest_event_balance_map_including_zeros(session)
+    return {
+        "schema_version": 2,
+        "period_from": d0.isoformat(),
+        "period_to": d1.isoformat(),
+        "discovery_codes": discovery_codes,
+        "balances": balances,
     }
 
 
