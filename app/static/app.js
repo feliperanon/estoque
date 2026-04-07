@@ -3674,6 +3674,7 @@ function mateTrocaKindLabelPt(kind) {
   if (k === 'definir') return 'Definir saldo';
   if (k === 'zerar') return 'Zerar';
   if (k === 'ajuste_pendente') return 'Ajuste por código';
+  if (k === 'incorporacao_quebra') return 'Quebra (Carregar dia)';
   return k || '—';
 }
 
@@ -3784,25 +3785,65 @@ function aggregateMateCouroEventsByCode(events) {
   return m;
 }
 
+/** Sinal + valor absoluto para texto de movimento (ex.: +3 CX / −1 UN). */
+function mateTrocaSignedCxUnParts(dcx, dun) {
+  const cx = Math.round(Number(dcx) || 0);
+  const un = Math.round(Number(dun) || 0);
+  const cxPart =
+    cx === 0
+      ? null
+      : `${cx > 0 ? '+' : '−'}${formatBreakIntegerBR(Math.abs(cx))} CX`;
+  const unPart =
+    un === 0
+      ? null
+      : `${un > 0 ? '+' : '−'}${formatBreakIntegerBR(Math.abs(un))} UN`;
+  return [cxPart, unPart].filter(Boolean).join(' · ') || '0 CX · 0 UN';
+}
+
 /** Soma ao pendente apenas o delta em relação ao último Carregar deste mesmo dia (permite novas quebras no mesmo dia). */
 function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
   const state = readMateCouroTrocaStorage();
   if (!state.daySnapshots) state.daySnapshots = {};
+  if (!Array.isArray(state.eventLog)) state.eventLog = [];
   const agg = aggregateMateCouroEventsByCode(mateEvents);
   const prev = state.daySnapshots[dayKey] || {};
   const codes = new Set([...Object.keys(agg), ...Object.keys(prev)]);
   let anyDelta = false;
+  const nowIso = new Date().toISOString();
+  const opDay = String(dayKey).slice(0, 10);
   for (const cod of codes) {
     const a = agg[cod] || { cx: 0, un: 0 };
     const p = prev[cod] || { cx: 0, un: 0 };
     const dcx = a.cx - p.cx;
     const dun = a.un - p.un;
     if (dcx !== 0 || dun !== 0) {
-      mergePendingDelta(state, cod, dcx, dun);
+      const base = normalizeItemCode(cod);
+      const cur = state.pending[base] || { cx: 0, un: 0 };
+      mergePendingDelta(state, base, dcx, dun);
+      const after = state.pending[base] || { cx: 0, un: 0 };
+      state.eventLog.push({
+        client_event_id: makeEventId(),
+        kind: 'incorporacao_quebra',
+        cod_produto: base,
+        qty_cx_in: dcx,
+        qty_un_in: dun,
+        pend_cx_before: Math.round(Number(cur.cx) || 0),
+        pend_un_before: Math.round(Number(cur.un) || 0),
+        pend_cx_after: Math.round(Number(after.cx) || 0),
+        pend_un_after: Math.round(Number(after.un) || 0),
+        excess_cx: 0,
+        excess_un: 0,
+        device_name: getDeviceName(),
+        operational_date: opDay,
+        created_at_local: nowIso,
+        actor_label: 'Carregar dia (quebra sincronizada)',
+        synced: true,
+      });
       anyDelta = true;
     }
   }
   state.daySnapshots[dayKey] = agg;
+  while (state.eventLog.length > 500) state.eventLog.shift();
   writeMateCouroTrocaStorage(state);
   return anyDelta;
 }
@@ -4308,8 +4349,9 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   if (!events.length) {
     body.innerHTML =
       `<p class="mate-troca-pending-history-empty muted">Nenhum lançamento para este código ainda ` +
-      `(servidor e histórico deste aparelho). Use <strong>Chegada</strong>, <strong>Saldo</strong>, ` +
-      `<strong>Zerar</strong> ou <strong>Ajustar pendente</strong> para gravar movimentos.</p>`;
+      `(servidor e histórico deste aparelho). Ao <strong>Carregar</strong> um dia com quebra Mate couro, ` +
+      `o pendente sobe e passa a aparecer aqui neste navegador. Também use <strong>Chegada</strong>, ` +
+      `<strong>Saldo</strong>, <strong>Zerar</strong> ou <strong>Ajustar pendente</strong> para movimentos gravados no servidor.</p>`;
     return;
   }
   const sorted = [...events].sort((a, b) =>
@@ -4324,6 +4366,8 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     let mov = '';
     if (kindRaw === 'chegada') {
       mov = `Registro de chegada: entrada CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`;
+    } else if (kindRaw === 'incorporacao_quebra') {
+      mov = `Incorporação ao pendente ao Carregar o dia (quebra Mate couro no servidor): ${mateTrocaSignedCxUnParts(ev.qty_cx_in, ev.qty_un_in)}.`;
     } else if (kindRaw === 'zerar') {
       mov = 'Zerar: pendente levado a zero.';
     } else if (kindRaw === 'definir') {
