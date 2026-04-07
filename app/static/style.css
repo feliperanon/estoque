@@ -464,6 +464,65 @@
   align-self: center;
 }
 
+/* Quebra — escopo da lista (Mate couro / Outros / Todos) */
+#sub-break .break-scope-fieldset {
+  border: none;
+  margin: 10px 0 0;
+  padding: 0;
+  width: 100%;
+  min-width: 0;
+}
+#sub-break .break-scope-legend {
+  float: none;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+}
+#sub-break .break-scope-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+#sub-break .break-scope-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-size: 0.875rem;
+  line-height: 1.2;
+  min-height: 44px;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#sub-break .break-scope-pill:has(input:checked) {
+  border-color: var(--accent, #2563eb);
+  background: rgba(37, 99, 235, 0.08);
+  box-shadow: 0 0 0 1px var(--accent, #2563eb);
+}
+#sub-break .break-scope-pill input {
+  margin: 0;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent, #2563eb);
+}
+#sub-break .break-scope-pill span {
+  font-weight: 500;
+}
+@media (max-width: 480px) {
+  #sub-break .break-scope-pill {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+}
+
 .count-main-progress {
   width: 100%;
   margin-top: 6px;

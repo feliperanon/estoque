@@ -38,6 +38,74 @@ function isBreakOperationalEditable() {
   return true;
 }
 
+const BREAK_SCOPE_STORAGE_KEY = 'break_scope_filter';
+const BREAK_SCOPE_VALUES = ['mate-couro', 'outros', 'todos'];
+
+/** Normaliza descrição do produto para comparar com a lista fixa da quebra (Mate couro). */
+function normalizeBreakProductDescForScope(raw) {
+  return String(raw || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toUpperCase();
+}
+
+/** Lista operacional Mate couro na tela Quebra (descrição cadastral, após normalização). */
+const BREAK_MATE_COURO_DESC_NORMALIZED = new Set([
+  'MATE COURO PET 2L TRADICIONAL',
+  'MATE COURO PET 2L GUARANA',
+  'NICK PET 2L GUARANA EB/06',
+  'MATE COURO PET 1,5 LTS TRADICIONAL C/06',
+  'AGUA MATE COURO 500ML NATURAL CX/12',
+  'MATE COURO PET 1L TRADICIONAL',
+  'MATE COURO PET 1L ZERO C/06 UNID',
+  'MATE COURO PET 250ML TRADICIONAL',
+  'MATE COURO PET 350ML TRADICIONAL',
+  'MATE COURO PET 600ML TRADICIONAL',
+  'AGUA TONICA TRAD MC 1L CX/6',
+  'MATE COURO PET 200ML TRADICIONAL',
+  'NICK 200ML GUARANA CX/12',
+]);
+
+function isProductOnBreakMateCouroAllowlist(product) {
+  const key = normalizeBreakProductDescForScope(product?.cod_grup_descricao);
+  return !!key && BREAK_MATE_COURO_DESC_NORMALIZED.has(key);
+}
+
+function filterBreakCatalogByScope(products, scope) {
+  if (!Array.isArray(products)) return [];
+  if (scope === 'mate-couro') {
+    return products.filter((p) => isProductOnBreakMateCouroAllowlist(p));
+  }
+  if (scope === 'outros') {
+    return products.filter((p) => !isProductOnBreakMateCouroAllowlist(p));
+  }
+  return products;
+}
+
+function getSelectedBreakScope() {
+  const checked = document.querySelector('input[name="break-scope"]:checked');
+  const v = checked && checked.value;
+  if (BREAK_SCOPE_VALUES.includes(v)) return v;
+  return 'todos';
+}
+
+function restoreBreakScopeFromStorage() {
+  try {
+    const saved = localStorage.getItem(BREAK_SCOPE_STORAGE_KEY);
+    if (!saved || !BREAK_SCOPE_VALUES.includes(saved)) return;
+    const id =
+      saved === 'mate-couro'
+        ? 'break-scope-mate-couro'
+        : saved === 'outros'
+          ? 'break-scope-outros'
+          : 'break-scope-todos';
+    const r = document.getElementById(id);
+    if (r) r.checked = true;
+  } catch {
+    /* ignore */
+  }
+}
+
 function getActiveValidityOpDateKey() {
   const el = document.getElementById('validity-op-date');
   const v = (el && el.value || '').trim();
@@ -2746,10 +2814,16 @@ function updateCountReadOnlyState() {
   }
 }
 
-function filterCountProductsByTerm(term) {
+/**
+ * @param {string} term
+ * @param {unknown[]} [sourceList] quando omitido, usa o cache global da contagem
+ */
+function filterCountProductsByTerm(term, sourceList) {
+  const list = sourceList !== undefined && sourceList !== null ? sourceList : countProductsCache;
+  if (!Array.isArray(list)) return [];
   const normalized = (term || '').trim().toLowerCase();
-  if (!normalized) return countProductsCache;
-  return countProductsCache.filter((product) => {
+  if (!normalized) return list;
+  return list.filter((product) => {
     const descricao = (product.cod_grup_descricao || '').toLowerCase();
     const marca = (product.cod_grup_marca || '').toLowerCase();
     const codigo = (product.cod_produto || '').toLowerCase();
@@ -2986,7 +3060,8 @@ function updateBreakReadOnlyState() {
 function refreshBreakProductListView() {
   const input = document.getElementById('break-item-code');
   const term = (input && input.value || '').trim();
-  const toShow = term ? filterCountProductsByTerm(term) : countProductsCache;
+  const scoped = filterBreakCatalogByScope(countProductsCache, getSelectedBreakScope());
+  const toShow = term ? filterCountProductsByTerm(term, scoped) : scoped;
   renderBreakProducts(toShow);
   filtrarProdutosQuebra();
 }
@@ -3148,6 +3223,8 @@ async function syncPendingBreakEvents() {
 }
 
 function bindBreakEvents() {
+  restoreBreakScopeFromStorage();
+
   const form = document.getElementById('break-op-form');
   if (form) {
     form.addEventListener('submit', (e) => {
@@ -3161,12 +3238,21 @@ function bindBreakEvents() {
     });
   }
 
+  document.querySelectorAll('input[name="break-scope"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      try {
+        localStorage.setItem(BREAK_SCOPE_STORAGE_KEY, radio.value);
+      } catch {
+        /* ignore */
+      }
+      refreshBreakProductListView();
+    });
+  });
+
   const itemCodeInput = document.getElementById('break-item-code');
   if (itemCodeInput) {
     itemCodeInput.addEventListener('input', () => {
-      const filtered = filterCountProductsByTerm(itemCodeInput.value);
-      renderBreakProducts(filtered);
-      filtrarProdutosQuebra();
+      refreshBreakProductListView();
     });
   }
 
