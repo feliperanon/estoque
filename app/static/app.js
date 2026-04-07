@@ -4592,6 +4592,7 @@ async function loadMateCouroTrocaPage() {
   if (dateEl && !dateEl.value) {
     dateEl.value = getBrazilDateKey();
   }
+  ensureMateTrocaAcumuladoRangeDefaults();
   updateMateTrocaReconcileFromBreaksButton();
   await loadMateCouroBreakDayList();
 }
@@ -5083,6 +5084,29 @@ function bindMateCouroTrocaEvents() {
     btnLoad.addEventListener('click', () => {
       loadMateCouroBreakDayList();
     });
+  }
+
+  const acumFrom = document.getElementById('mate-couro-troca-acum-from');
+  const acumTo = document.getElementById('mate-couro-troca-acum-to');
+  const btnAcumRefresh = document.getElementById('btn-mate-couro-troca-acum-refresh');
+  const runMateTrocaAcumRefresh = () => {
+    void (async () => {
+      await refreshMateTrocaServerPendingDisplay();
+      renderMateCouroPendingList();
+      updateMateCouroKpis();
+    })();
+  };
+  if (acumFrom && !acumFrom.dataset.mateTrocaAcumBound) {
+    acumFrom.dataset.mateTrocaAcumBound = '1';
+    acumFrom.addEventListener('change', runMateTrocaAcumRefresh);
+  }
+  if (acumTo && !acumTo.dataset.mateTrocaAcumBound) {
+    acumTo.dataset.mateTrocaAcumBound = '1';
+    acumTo.addEventListener('change', runMateTrocaAcumRefresh);
+  }
+  if (btnAcumRefresh && !btnAcumRefresh.dataset.mateTrocaAcumBound) {
+    btnAcumRefresh.dataset.mateTrocaAcumBound = '1';
+    btnAcumRefresh.addEventListener('click', runMateTrocaAcumRefresh);
   }
 
   const btnReconcileBreaks = document.getElementById('btn-mate-couro-reconcile-from-breaks');
@@ -9177,6 +9201,7 @@ async function loadCountAuditAnalysis() {
       countAuditState.mateTrocaServerPending = {};
       mateTrocaServerPendingCache = {};
       mateTrocaBreakTotalsCache = {};
+      mateTrocaTrocaAcumuladoCache = {};
       setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
       return;
     }
@@ -9195,6 +9220,7 @@ async function loadCountAuditAnalysis() {
       countAuditState.mateTrocaServerPending = {};
       mateTrocaServerPendingCache = {};
       mateTrocaBreakTotalsCache = {};
+      mateTrocaTrocaAcumuladoCache = {};
       countAuditState.detailCache.clear();
       renderCountAuditSummary({});
       renderCountAuditRows([]);
