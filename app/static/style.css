@@ -7569,6 +7569,29 @@ details[open] > .validity-analytic-summary::after {
   overflow-y: auto;
   max-height: calc(88vh - 88px);
 }
+.mate-troca-pending-history-summary {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--audit-border, rgba(15, 23, 42, 0.12));
+  background: #f1f5f9;
+}
+.mate-troca-pending-history-summary-line {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #1e293b;
+}
+.mate-troca-pending-history-summary-line:first-child {
+  margin-top: 0;
+}
+.mate-troca-pending-history-summary-line--global {
+  font-size: 0.78rem;
+}
+.mate-troca-pending-history-summary-hint {
+  display: inline;
+  font-size: 0.72rem;
+}
 .mate-troca-pending-history-lead {
   margin: 0 0 10px;
   font-size: 0.8rem;
