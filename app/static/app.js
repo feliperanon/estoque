@@ -19,6 +19,14 @@ function getBrazilMonthBoundsDateKeys() {
   return { first: `${ys}-${ms}-01`, last: `${ys}-${ms}-${pad2(lastDay)}` };
 }
 
+/** Soma dias a uma chave YYYY-MM-DD (meio-dia em BRT, alinhado a getBrazilDateKey). */
+function brazilDateKeyAddDays(dayKey, deltaDays) {
+  const m = String(dayKey || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return getBrazilDateKey();
+  const utcMs = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 15, 0, 0);
+  return getBrazilDateKey(new Date(utcMs + Number(deltaDays) * 86400000));
+}
+
 function getActiveCountDateKey() {
   const el = document.getElementById('count-date');
   const v = (el && el.value || '').trim();
@@ -3832,7 +3840,7 @@ async function syncMateTrocaEventsToServer(events) {
   return res;
 }
 
-function mergeMateTrocaHistoryForCod(cod, serverEvents) {
+function mergeMateTrocaHistoryForCod(cod, serverEvents, overlayEvents) {
   const base = normalizeItemCode(cod);
   const byCid = new Map();
   for (const ev of serverEvents || []) {
@@ -3868,6 +3876,11 @@ function mergeMateTrocaHistoryForCod(cod, serverEvents) {
       _pendingSync: !ev.synced,
       _source: 'local',
     });
+  }
+  for (const ev of overlayEvents || []) {
+    const cid = String(ev.client_event_id || '').trim();
+    if (!cid || byCid.has(cid)) continue;
+    byCid.set(cid, { ...ev, _source: ev._source || 'break_screen' });
   }
   return Array.from(byCid.values()).sort((a, b) => {
     const ta = Date.parse(a.created_at || '') || 0;
@@ -3919,6 +3932,7 @@ function mateTrocaKindLabelPt(kind) {
   if (k === 'zerar') return 'Zerar';
   if (k === 'ajuste_pendente') return 'Ajuste por código';
   if (k === 'incorporacao_quebra') return 'Quebra (Carregar dia)';
+  if (k === 'quebra_operacional') return 'Quebra (tela Quebra)';
   return k || '—';
 }
 
@@ -4184,6 +4198,43 @@ function mateCouroCatalogHasCode(set, evCod) {
 function filterEventsMateCouro(events) {
   const set = getMateCouroCodSet();
   return (events || []).filter((ev) => mateCouroCatalogHasCode(set, ev.cod_produto));
+}
+
+/** Converte linhas GET /audit/break-events (intervalo + cod) em eventos para o diálogo de histórico da Base de Troca. */
+function breakScreenEventsToMateTrocaOverlay(events) {
+  const out = [];
+  for (const r of filterEventsMateCouro(events || [])) {
+    const { cx, un } = parseAuditBreakCxUn(r);
+    if (cx === 0 && un === 0) continue;
+    const canon =
+      normalizeNumericProductCodeKey(String(r.cod_produto || '')) ||
+      normalizeItemCode(String(r.cod_produto || ''));
+    const opDay = String(r.operational_date || '').slice(0, 10);
+    if (!opDay) continue;
+    const observed =
+      r.observed_at != null && String(r.observed_at).trim()
+        ? String(r.observed_at).trim()
+        : `${opDay}T15:00:00.000Z`;
+    out.push({
+      client_event_id: `break-screen:${opDay}:${canon}`,
+      kind: 'quebra_operacional',
+      cod_produto: canon,
+      qty_cx_in: cx,
+      qty_un_in: un,
+      pend_cx_before: 0,
+      pend_un_before: 0,
+      pend_cx_after: 0,
+      pend_un_after: 0,
+      excess_cx: 0,
+      excess_un: 0,
+      created_at: observed,
+      operational_date: opDay,
+      actor_username: r.actor || null,
+      product_desc: r.product_desc || null,
+      _source: 'break_screen',
+    });
+  }
+  return out;
 }
 
 function updateMateCouroKpis() {
@@ -4688,10 +4739,11 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   }
   if (!events.length) {
     body.innerHTML =
-      `<p class="mate-troca-pending-history-empty muted">Nenhum lançamento para este código ainda ` +
-      `(servidor e histórico deste aparelho). Ao <strong>Carregar</strong> um dia com quebra Mate couro, ` +
-      `o pendente sobe e passa a aparecer aqui neste navegador. Também use <strong>Chegada</strong>, ` +
-      `<strong>Saldo</strong>, <strong>Zerar</strong> ou <strong>Ajustar pendente</strong> para movimentos gravados no servidor.</p>`;
+      `<p class="mate-troca-pending-history-empty muted">Nenhum lançamento para este código nos últimos 120 dias ` +
+      `(Base de Troca no servidor, histórico deste aparelho ou quebra na tela Quebra). ` +
+      `Se houve quebra Mate couro, confira o dia em <strong>Quebra</strong> ou <strong>Histórico de quebra</strong>. ` +
+      `Na Base de Troca, use <strong>Carregar</strong> para incorporar o dia ao pendente; ` +
+      `use <strong>Chegada</strong>, <strong>Saldo</strong>, <strong>Zerar</strong> ou <strong>Ajustar pendente</strong> para movimentos gravados no servidor.</p>`;
     return;
   }
   const sorted = [...events].sort((a, b) =>
@@ -4708,6 +4760,8 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
       mov = `Registro de chegada: entrada CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`;
     } else if (kindRaw === 'incorporacao_quebra') {
       mov = `Incorporação ao pendente ao Carregar o dia (quebra Mate couro no servidor): ${mateTrocaSignedCxUnParts(ev.qty_cx_in, ev.qty_un_in)}.`;
+    } else if (kindRaw === 'quebra_operacional') {
+      mov = `Quebra registrada na tela Quebra (total do dia operacional Mate couro): CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}.`;
     } else if (kindRaw === 'zerar') {
       mov = 'Zerar: pendente levado a zero.';
     } else if (kindRaw === 'definir') {
@@ -4717,7 +4771,10 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     } else {
       mov = `Quantidades: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
     }
-    const pend = `Pendente: ${formatBreakIntegerBR(ev.pend_cx_before)} CX / ${formatBreakIntegerBR(ev.pend_un_before)} UN → ${formatBreakIntegerBR(ev.pend_cx_after)} CX / ${formatBreakIntegerBR(ev.pend_un_after)} UN`;
+    const pend =
+      kindRaw === 'quebra_operacional'
+        ? 'Base de Troca: este valor é o registro de quebra no dia; o pendente acumulativo só muda ao usar Carregar (ou Chegada / Saldo / Zerar / Ajuste).'
+        : `Pendente: ${formatBreakIntegerBR(ev.pend_cx_before)} CX / ${formatBreakIntegerBR(ev.pend_un_before)} UN → ${formatBreakIntegerBR(ev.pend_cx_after)} CX / ${formatBreakIntegerBR(ev.pend_un_after)} UN`;
     const actor = escapeHtml(String(ev.actor_username || '—'));
     const syncBadge = ev._pendingSync
       ? `<span class="mate-troca-sync-pill" title="Ainda não confirmado no servidor">Aguardando sync</span>`
@@ -4743,7 +4800,7 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   });
   body.innerHTML =
     `<p class="mate-troca-pending-history-lead muted">Ordem cronológica (mais antigo primeiro). ` +
-    `Inclui servidor e lançamentos feitos neste aparelho (incluindo antes da sincronização).</p>` +
+    `Inclui Base de Troca no servidor, quebra na tela Quebra (últimos 120 dias) e lançamentos neste aparelho ainda não sincronizados.</p>` +
     `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
 }
 
@@ -4769,7 +4826,7 @@ async function openMateTrocaPendingProductHistory(codRaw) {
 
   const token = getToken();
   if (!token) {
-    const mergedOffline = mergeMateTrocaHistoryForCod(cod, []);
+    const mergedOffline = mergeMateTrocaHistoryForCod(cod, [], []);
     if (!mergedOffline.length) {
       body.innerHTML =
         '<p class="mate-troca-pending-history-empty is-error">Faça login para ver o histórico no servidor ou registre um lançamento neste aparelho.</p>';
@@ -4780,19 +4837,43 @@ async function openMateTrocaPendingProductHistory(codRaw) {
   }
 
   try {
-    const params = new URLSearchParams();
-    params.set('cod_produto', cod);
-    params.set('limit', '500');
-    const response = await apiFetch(`${API_MATE_TROCA_EVENTS}?${params.toString()}`, {
-      headers: getAuthHeaders(),
-      cache: 'no-store',
-    });
+    const endKey = getBrazilDateKey();
+    const startKey = brazilDateKeyAddDays(endKey, -119);
+    const mateParams = new URLSearchParams();
+    mateParams.set('cod_produto', cod);
+    mateParams.set('limit', '500');
+    const breakParams = new URLSearchParams();
+    breakParams.set('date_from', startKey);
+    breakParams.set('date_to', endKey);
+    breakParams.set('cod_produto', cod);
+
+    const [response, breakResponse] = await Promise.all([
+      apiFetch(`${API_MATE_TROCA_EVENTS}?${mateParams.toString()}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      }),
+      apiFetch(`${API_SYNC_BREAKS}?${breakParams.toString()}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      }),
+    ]);
+
+    let overlay = [];
+    if (breakResponse.ok) {
+      try {
+        const bd = await breakResponse.json();
+        overlay = breakScreenEventsToMateTrocaOverlay(Array.isArray(bd.events) ? bd.events : []);
+      } catch {
+        overlay = [];
+      }
+    }
+
     if (handleUnauthorizedResponse(response)) {
       dlg.close();
       return;
     }
     if (!response.ok) {
-      const mergedErr = mergeMateTrocaHistoryForCod(cod, []);
+      const mergedErr = mergeMateTrocaHistoryForCod(cod, [], overlay);
       if (mergedErr.length) {
         renderMateTrocaPendingHistoryInDialog(mergedErr, cod, desc);
       } else {
@@ -4803,10 +4884,10 @@ async function openMateTrocaPendingProductHistory(codRaw) {
     }
     const data = await response.json();
     const evs = Array.isArray(data.events) ? data.events : [];
-    const merged = mergeMateTrocaHistoryForCod(cod, evs);
+    const merged = mergeMateTrocaHistoryForCod(cod, evs, overlay);
     renderMateTrocaPendingHistoryInDialog(merged, cod, desc);
   } catch {
-    const mergedCatch = mergeMateTrocaHistoryForCod(cod, []);
+    const mergedCatch = mergeMateTrocaHistoryForCod(cod, [], []);
     if (mergedCatch.length) {
       renderMateTrocaPendingHistoryInDialog(mergedCatch, cod, desc);
     } else {

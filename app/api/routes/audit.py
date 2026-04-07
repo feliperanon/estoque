@@ -1461,6 +1461,69 @@ def _break_event_rows_for_operational_day(session: Session, operational_date: da
     return _merge_break_event_rows_for_operational_day(raw)
 
 
+def _break_event_merged_rows_for_code_date_range(
+    session: Session, d_from: date, d_to: date, cod_filter: str
+) -> list[dict]:
+    """Uma passada nos logs: totais de quebra por dia operacional para um único código (chave numérica)."""
+    logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_break",
+                ChangeLog.action == "break_event",
+            )
+        ).all()
+    )
+    by_day: dict[date, list[dict]] = defaultdict(list)
+    for log in logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        od = payload.get("operational_date")
+        if od:
+            try:
+                d_op = date.fromisoformat(str(od)[:10])
+            except ValueError:
+                continue
+        else:
+            br_d = _brazil_date_from_observed_at(str(payload.get("observed_at") or ""))
+            if br_d is None:
+                continue
+            d_op = br_d
+        if d_op < d_from or d_op > d_to:
+            continue
+        item_code = str(payload.get("item_code") or "")
+        code = _normalize_numeric_product_code_key(item_code)
+        if code != cod_filter:
+            continue
+        try:
+            qty = int(payload.get("quantity", 0))
+        except Exception:
+            qty = 0
+        if qty == 0:
+            continue
+        ct = _extract_count_type(item_code)
+        by_day[d_op].append(
+            {
+                "cod_produto": code,
+                "item_code_raw": item_code,
+                "quantity": qty,
+                "qty_type": ct,
+                "observed_at": payload.get("observed_at"),
+                "actor": (log.actor or "").strip() or None,
+                "reason": payload.get("reason"),
+                "client_event_id": payload.get("client_event_id"),
+                "device_name": payload.get("device_name"),
+            }
+        )
+
+    out: list[dict] = []
+    for d_op in sorted(by_day.keys()):
+        merged = _merge_break_event_rows_for_operational_day(by_day[d_op])
+        for r in merged:
+            rr = dict(r)
+            rr["operational_date"] = d_op.isoformat()
+            out.append(rr)
+    return out
+
+
 @router.get("/break-day-totals")
 def break_day_totals(
     operational_date: str | None = Query(
@@ -1490,11 +1553,80 @@ def list_break_events(
         default=None,
         description="YYYY-MM-DD do dia operacional (America/Sao_Paulo). Padrão: hoje.",
     ),
+    date_from: str | None = Query(
+        default=None,
+        description="Com date_to e cod_produto: início do intervalo (YYYY-MM-DD), inclusive.",
+    ),
+    date_to: str | None = Query(
+        default=None,
+        description="Com date_from e cod_produto: fim do intervalo (YYYY-MM-DD), inclusive.",
+    ),
+    cod_produto: str | None = Query(
+        default=None,
+        description="Com date_from e date_to: filtra um produto (chave numérica canônica).",
+    ),
     limit: int = Query(default=2000, ge=1, le=5000),
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> dict:
     br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    df_r = _parse_iso_date_arg(date_from) if date_from else None
+    dt_r = _parse_iso_date_arg(date_to) if date_to else None
+    cod_q = (cod_produto or "").strip()
+
+    if df_r is not None or dt_r is not None or cod_q:
+        if df_r is None or dt_r is None or not cod_q:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Para consultar intervalo, informe date_from, date_to e cod_produto.",
+            )
+        d0, d1 = df_r, dt_r
+        if d0 > d1:
+            d0, d1 = d1, d0
+        if (d1 - d0).days > 120:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Intervalo maximo 120 dias para quebra por produto.",
+            )
+        c = _normalize_numeric_product_code_key(cod_q)
+        if not c:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="cod_produto invalido.",
+            )
+        rows = _break_event_merged_rows_for_code_date_range(session, d0, d1, c)[:limit]
+        desc_map: dict[str, str] = {}
+        codes_lookup: set[str] = {c}
+        alt_cod = _normalize_item_code(cod_q)
+        if alt_cod:
+            codes_lookup.add(alt_cod)
+        prod_rows = list(session.exec(select(Product).where(Product.cod_produto.in_(codes_lookup))).all())
+        for p in prod_rows:
+            cc = _normalize_numeric_product_code_key(str(p.cod_produto or ""))
+            if cc:
+                desc_map[cc] = (p.cod_grup_descricao or "").strip()
+        break_logins: set[str] = set()
+        for r in rows:
+            ac = r.get("actor")
+            if ac and str(ac).strip():
+                break_logins.update(p.strip() for p in re.split(r",\s*", str(ac).strip()) if p.strip())
+        break_name_map = _display_name_map_for_logins(session, break_logins)
+        for r in rows:
+            rc = str(r.get("cod_produto") or "")
+            r["product_desc"] = desc_map.get(rc) or None
+            ac = r.get("actor")
+            if ac:
+                disp = _actor_csv_to_display_labels(str(ac), break_name_map)
+                r["actor"] = disp if disp else ac
+        return {
+            "date_from": d0.isoformat(),
+            "date_to": d1.isoformat(),
+            "operational_date": None,
+            "cod_produto": c,
+            "events": rows,
+            "count": len(rows),
+        }
+
     d = _parse_iso_date_arg(operational_date) if operational_date else br_today
     if d is None:
         d = br_today
