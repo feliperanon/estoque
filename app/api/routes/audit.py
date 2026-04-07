@@ -1296,6 +1296,59 @@ def _aggregate_break_events_by_code(session: Session, operational_date: date) ->
     return out
 
 
+def _aggregate_break_events_all_time_by_code(session: Session) -> dict[str, dict[str, int]]:
+    """Soma CX/UN de quebra por produto em todo o histórico ChangeLog (break_event)."""
+    logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_break",
+                ChangeLog.action == "break_event",
+            )
+        ).all()
+    )
+    out: dict[str, dict[str, int]] = {}
+    for log in logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        item_code = str(payload.get("item_code") or "")
+        code = _normalize_numeric_product_code_key(item_code)
+        if not code:
+            continue
+        try:
+            qty = int(payload.get("quantity", 0))
+        except Exception:
+            qty = 0
+        if qty == 0:
+            continue
+        ct = _extract_count_type(item_code)
+        if code not in out:
+            out[code] = {"caixa": 0, "unidade": 0}
+        out[code][ct] = out[code].get(ct, 0) + qty
+    return out
+
+
+def _mate_couro_break_totals_all_time(session: Session) -> dict[str, dict[str, int]]:
+    """Total de quebra CX/UN (servidor) apenas produtos CIA Mate couro; chave numérica canônica."""
+    raw = _aggregate_break_events_all_time_by_code(session)
+    rows = list(
+        session.exec(select(Product.cod_produto).where(Product.cod_grup_cia == MATE_COURO_CIA)).all()
+    )
+    allowed: set[str] = set()
+    for r in rows:
+        c = _normalize_numeric_product_code_key(str(r or ""))
+        if c:
+            allowed.add(c)
+    out: dict[str, dict[str, int]] = {}
+    for code, rec in raw.items():
+        if code not in allowed:
+            continue
+        cx = int(rec.get("caixa", 0) or 0)
+        un = int(rec.get("unidade", 0) or 0)
+        if cx == 0 and un == 0:
+            continue
+        out[code] = {"cx": cx, "un": un}
+    return out
+
+
 def _merge_break_event_rows_for_operational_day(raw: list[dict]) -> list[dict]:
     """Consolida lançamentos do dia: uma linha por produto com totais líquidos CX e UN no mesmo registro."""
     buckets: dict[str, list[dict]] = defaultdict(list)
@@ -2258,8 +2311,14 @@ def get_mate_troca_pending_by_product(
     Inclui chegadas, ajustes, zeramentos e incorporacao_quebra (Carregar dia na Base de Troca).
     Usa o evento mais recente em ``created_at`` (desempate por ``id``), não só ``max(id)``,
     para refletir a ordem operacional mesmo se houver inserções fora de sequência.
+
+    ``break_totals`` é a soma de todas as quebras registradas (ChangeLog) para CIA Mate couro,
+    independente do saldo do histórico de troca — usado na Base de Troca para exibir o acumulado real.
     """
-    return {"pending": _mate_troca_pending_product_map(session)}
+    return {
+        "pending": _mate_troca_pending_product_map(session),
+        "break_totals": _mate_couro_break_totals_all_time(session),
+    }
 
 
 @router.post("/mate-troca-reconcile-from-breaks")

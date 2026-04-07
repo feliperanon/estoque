@@ -3661,6 +3661,12 @@ form#break-op-form.count-form {
   padding-bottom: 0.25rem;
 }
 
+.mate-troca-pending-op-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
 #sub-mate-couro-troca .mate-couro-pending-list-header, #sub-mate-couro-troca-trocas .mate-couro-pending-list-header, #sub-mate-couro-troca-historico .mate-couro-pending-list-header{
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) minmax(0, 1.45fr);
