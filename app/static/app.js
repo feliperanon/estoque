@@ -49,7 +49,7 @@ function normalizeBreakProductDescForScope(raw) {
     .toUpperCase();
 }
 
-/** Lista operacional Mate couro na tela Quebra (descrição cadastral, após normalização). */
+/** Lista fechada: só estes itens aparecem ao escolher "Mate couro" na Quebra (descrição após normalização). */
 const BREAK_MATE_COURO_DESC_NORMALIZED = new Set([
   'MATE COURO PET 2L TRADICIONAL',
   'MATE COURO PET 2L GUARANA',
@@ -71,8 +71,11 @@ function isProductOnBreakMateCouroAllowlist(product) {
   return !!key && BREAK_MATE_COURO_DESC_NORMALIZED.has(key);
 }
 
-/** Linha Mate couro na quebra: lista fixa + descrição com "MATE COURO" + linha Nick (mesma CIA operacional no negócio). */
-function isProductBreakMateCouroLine(product) {
+/**
+ * Linha CIA Mate couro para excluir de "Outros produtos": lista fechada + qualquer descrição com
+ * "MATE COURO" (novos SKUs) + marca Nick no início da descrição.
+ */
+function isProductBreakMateCouroCiaExcludedFromOutros(product) {
   if (isProductOnBreakMateCouroAllowlist(product)) return true;
   const norm = normalizeBreakProductDescForScope(product?.cod_grup_descricao);
   if (norm.includes('MATE COURO')) return true;
@@ -83,10 +86,10 @@ function isProductBreakMateCouroLine(product) {
 function filterBreakCatalogByScope(products, scope) {
   if (!Array.isArray(products)) return [];
   if (scope === 'mate-couro') {
-    return products.filter((p) => isProductBreakMateCouroLine(p));
+    return products.filter((p) => isProductOnBreakMateCouroAllowlist(p));
   }
   if (scope === 'outros') {
-    return products.filter((p) => !isProductBreakMateCouroLine(p));
+    return products.filter((p) => !isProductBreakMateCouroCiaExcludedFromOutros(p));
   }
   return products;
 }
