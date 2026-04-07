@@ -218,6 +218,16 @@ def _normalize_numeric_product_code_key(value: str | None) -> str:
     return c
 
 
+def _mate_troca_cod_preferred_over_alias(cod_raw: str, canon: str) -> bool:
+    """True se cod_raw já está na forma canônica (ex. 10) e não em alias (ex. 010)."""
+    raw = _normalize_item_code(cod_raw)
+    if not raw or _normalize_numeric_product_code_key(raw) != canon:
+        return False
+    if raw.isdigit():
+        return raw == str(int(raw))
+    return raw == canon
+
+
 def _format_first_second_name(full_name: str | None, fallback_login: str | None) -> str:
     """Primeiro nome completo; se houver segundo token, só a inicial e ponto (ex.: Felipe R.). Senão login."""
     fn = (full_name or "").strip()
@@ -2173,22 +2183,31 @@ def get_mate_troca_pending_by_product(
     ).where(sub.c.rn == 1)
     rows = list(session.exec(stmt).all())
     pending: dict[str, dict[str, int]] = {}
-    best_row: dict[str, tuple[int, int, datetime | None, int | None]] = {}
+    best_row: dict[str, tuple[int, int, datetime | None, int | None, str]] = {}
     for row in rows:
         cod_raw, pcx, pun, cr_at, rid = row[0], row[1], row[2], row[3], row[4]
         cx = int(pcx or 0)
         un = int(pun or 0)
         if cx == 0 and un == 0:
             continue
-        c = _normalize_numeric_product_code_key(str(cod_raw or ""))
+        cod_raw_str = str(cod_raw or "")
+        c = _normalize_numeric_product_code_key(cod_raw_str)
         if not c:
             continue
         cur = best_row.get(c)
-        cand = (cx, un, cr_at, rid)
+        cand = (cx, un, cr_at, rid, cod_raw_str)
         if cur is None:
             best_row[c] = cand
             continue
-        _, _, cur_at, cur_id = cur
+        cand_pref = _mate_troca_cod_preferred_over_alias(cod_raw_str, c)
+        cur_pref = _mate_troca_cod_preferred_over_alias(cur[4], c)
+        if cand_pref and not cur_pref:
+            best_row[c] = cand
+            continue
+        if cur_pref and not cand_pref:
+            continue
+        _, _, cr_at, rid, _ = cand
+        _, _, cur_at, cur_id, _ = cur
         newer = False
         if cr_at is not None and cur_at is not None:
             newer = cr_at > cur_at or (cr_at == cur_at and (rid or 0) > (cur_id or 0))
@@ -2198,7 +2217,7 @@ def get_mate_troca_pending_by_product(
             newer = (rid or 0) > (cur_id or 0)
         if newer:
             best_row[c] = cand
-    for c, (cx, un, _, _) in best_row.items():
+    for c, (cx, un, _, _, _) in best_row.items():
         if cx == 0 and un == 0:
             continue
         pending[c] = {"cx": cx, "un": un}
