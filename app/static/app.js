@@ -8200,9 +8200,9 @@ function reconcileCountAuditMetaDiffWithMergedCount(row) {
 }
 
 /**
- * Troca na análise: **pendente do servidor**; se zerado e Mate couro, reflexo da soma acumulada de quebras no servidor
- * (`break_totals` do GET mate-troca-pending-by-product, igual à Base de Troca). Se esse mapa não tiver dado, cai na quebra só do dia da análise.
- * O Carregar na Base de Troca grava incorporacao_quebra no servidor — mesmos números em todos os aparelhos.
+ * Troca na análise: **pendente do servidor**; se zerado e Mate couro, fallback com soma global de quebras
+ * (`break_totals` all-time do GET mate-troca-pending-by-product — não é o acumulado por período da Base de Troca).
+ * Se esse mapa não tiver dado, cai na quebra só do dia da análise.
  */
 function applyMateCouroTrocaPendingToCountAuditRows() {
   const rows = Array.isArray(countAuditState.rows) ? countAuditState.rows : [];
