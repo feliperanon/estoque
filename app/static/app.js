@@ -4599,25 +4599,16 @@ function bindMateCouroTrocaEvents() {
   if (btnClearAll && !btnClearAll.dataset.mateTrocaBound) {
     btnClearAll.dataset.mateTrocaBound = '1';
     btnClearAll.addEventListener('click', () => {
-      void (async () => {
-        if (
-          !window.confirm(
-            'Limpar neste aparelho os snapshots de “Carregar o dia” usados para calcular deltas? O pendente exibido vem do servidor; quebras no servidor não são alteradas.',
-          )
-        ) {
-          return;
-        }
-        const _s = readMateCouroTrocaStorage();
-        writeMateCouroTrocaStorage({ ..._s, pending: {}, daySnapshots: {} });
-        await refreshMateTrocaUiServerPending();
-        const st = readMateCouroTrocaStorage();
-        st.pending = {};
-        for (const [k, v] of Object.entries(mateTrocaUiServerPending)) {
-          if (v.cx || v.un) st.pending[k] = { cx: v.cx, un: v.un };
-        }
-        writeMateCouroTrocaStorage(st);
-        renderMateCouroPendingList();
-      })();
+      if (
+        !window.confirm(
+          'Zerar todo o acumulativo de troca e o histórico de snapshots por dia neste aparelho? As quebras no servidor não serão alteradas.',
+        )
+      ) {
+        return;
+      }
+      const _s = readMateCouroTrocaStorage();
+      writeMateCouroTrocaStorage({ ..._s, pending: {}, daySnapshots: {} });
+      renderMateCouroPendingList();
     });
   }
 
@@ -4640,8 +4631,8 @@ function bindMateCouroTrocaEvents() {
           window.alert('Código não encontrado no catálogo Mate couro (ativos).');
           return;
         }
-        await refreshMateTrocaUiServerPending();
-        const cur = mateTrocaUiServerPending[cod] || { cx: 0, un: 0 };
+        const state = readMateCouroTrocaStorage();
+        const cur = state.pending[cod] || { cx: 0, un: 0 };
         const cxNew = parseMateCouroIntPrompt(`Novo pendente em CX para ${cod}:`, String(cur.cx));
         if (cxNew === null) return;
         const unNew = parseMateCouroIntPrompt(`Novo pendente em UN para ${cod}:`, String(cur.un));
@@ -4661,12 +4652,8 @@ function bindMateCouroTrocaEvents() {
           window.alert(sync.message || 'Falha ao sincronizar.');
           return;
         }
-        await refreshMateTrocaUiServerPending();
-        const state = readMateCouroTrocaStorage();
-        state.pending = {};
-        for (const [k, v] of Object.entries(mateTrocaUiServerPending)) {
-          if (v.cx || v.un) state.pending[k] = { cx: v.cx, un: v.un };
-        }
+        if (cxNew === 0 && unNew === 0) delete state.pending[cod];
+        else state.pending[cod] = { cx: cxNew, un: unNew };
         writeMateCouroTrocaStorage(state);
         renderMateCouroPendingList();
       })();
@@ -4721,8 +4708,8 @@ function bindMateCouroTrocaEvents() {
       if (!cod) return;
 
       void (async () => {
-        await refreshMateTrocaUiServerPending();
-        const cur = mateTrocaUiServerPending[cod] || { cx: 0, un: 0 };
+        const state = readMateCouroTrocaStorage();
+        const cur = state.pending[cod] || { cx: 0, un: 0 };
 
         if (action === 'zerar') {
           if (!window.confirm(`Zerar pendente de troca para ${cod}?`)) return;
@@ -4739,12 +4726,7 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          await refreshMateTrocaUiServerPending();
-          const state = readMateCouroTrocaStorage();
-          state.pending = {};
-          for (const [k, v] of Object.entries(mateTrocaUiServerPending)) {
-            if (v.cx || v.un) state.pending[k] = { cx: v.cx, un: v.un };
-          }
+          delete state.pending[cod];
           writeMateCouroTrocaStorage(state);
           renderMateCouroPendingList();
           return;
@@ -4765,12 +4747,8 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          await refreshMateTrocaUiServerPending();
-          const state = readMateCouroTrocaStorage();
-          state.pending = {};
-          for (const [k, v] of Object.entries(mateTrocaUiServerPending)) {
-            if (v.cx || v.un) state.pending[k] = { cx: v.cx, un: v.un };
-          }
+          if (next.cx === 0 && next.un === 0) delete state.pending[cod];
+          else state.pending[cod] = next;
           writeMateCouroTrocaStorage(state);
           renderMateCouroPendingList();
           return;
@@ -4796,12 +4774,8 @@ function bindMateCouroTrocaEvents() {
             window.alert(sync.message || 'Falha ao sincronizar.');
             return;
           }
-          await refreshMateTrocaUiServerPending();
-          const state = readMateCouroTrocaStorage();
-          state.pending = {};
-          for (const [k, v] of Object.entries(mateTrocaUiServerPending)) {
-            if (v.cx || v.un) state.pending[k] = { cx: v.cx, un: v.un };
-          }
+          if (cxNew === 0 && unNew === 0) delete state.pending[cod];
+          else state.pending[cod] = { cx: cxNew, un: unNew };
           writeMateCouroTrocaStorage(state);
           renderMateCouroPendingList();
         }
@@ -8058,7 +8032,7 @@ function buildCountAuditTrailHtml(row, meta, importInfo, actors, devices) {
   )).join('');
 }
 
-/** Pendente Base de Troca (local): só exibe bloco quando há saldo. */
+/** Pendente Base de Troca (local/servidor/reflexo): só exibe bloco quando há saldo. */
 function countAuditHasTrocaPending(meta) {
   const tCx = Math.max(0, Math.round(Number(meta?.trocaCx) || 0));
   const tUn = Math.max(0, Math.round(Number(meta?.trocaUn) || 0));
@@ -8237,8 +8211,8 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
     : '';
   const trocaDetailArticle = countAuditHasTrocaPending(meta)
     ? (meta.trocaFallbackFromBreak
-      ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (reflexo da quebra)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro: sem pendente da Base de Troca no servidor; valores espelham a quebra positiva do dia para alinhar a coluna Contagem.</small></article>`
-      : `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro — pendente no servidor (mesma visão para todos na análise); zerado ao limpar ou encerrar no fluxo de troca</small></article>`)
+      ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (reflexo da quebra)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro: sem pendente na Base de Troca neste navegador; valores espelham a quebra positiva do dia para alinhar a coluna Contagem.</small></article>`
+      : `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>CIA Mate couro — pendente local e/ou servidor; zerado ao limpar ou encerrar no fluxo de troca</small></article>`)
     : '';
   const breakDetailArticle = countAuditHasBreakDay(meta)
     ? `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.breakCx, meta.breakUn, 'break')}</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>`
@@ -8850,6 +8824,16 @@ function openCountAuditRecount(code) {
 }
 
 function bindCountAuditEvents() {
+  if (!countAuditMateTrocaStorageBound) {
+    countAuditMateTrocaStorageBound = true;
+    window.addEventListener('storage', (e) => {
+      if (e.key !== MATE_COURO_TROCA_STORAGE_KEY && e.key !== MATE_COURO_TROCA_STORAGE_LEGACY_KEY) return;
+      const sub = document.getElementById('sub-count-audit');
+      if (!sub?.classList.contains('active')) return;
+      applyMateCouroTrocaPendingToCountAuditRows();
+      renderCountAuditRows(getCountAuditRowsFromState());
+    });
+  }
   if (!countAuditVisibilityBound) {
     countAuditVisibilityBound = true;
     document.addEventListener('visibilitychange', () => {
