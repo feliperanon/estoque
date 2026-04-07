@@ -418,14 +418,12 @@ const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
 const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product';
 const API_MATE_TROCA_RECONCILE_FROM_BREAKS = '/audit/mate-troca-reconcile-from-breaks';
-/** Pendente Mate couro no servidor — mesma lista/KPI/análise em todos os aparelhos. */
+/** Pendente Mate couro no servidor — usado pelos botões Chegada/Saldo/Zerar (não é o número principal na lista). */
 let mateTrocaServerPendingCache = {};
-/** Soma de quebras (ChangeLog) CIA Mate couro em todas as datas — referência global; não confundir com pendente nem com o dia consultado. */
+/** Soma global ChangeLog (CIA Mate couro) — apenas para análise de contagem / fallback interno. */
 let mateTrocaBreakTotalsCache = {};
-/** Agregado CX/UN das quebras Mate couro no último dia carregado com sucesso em Base de Troca (card «Quebras do dia»). Chave canônica numérica. */
-let lastMateTrocaDayBreakAgg = {};
-/** Rótulo do dia consultado (pt-BR) alinhado ao último carregamento da lista do dia. */
-let lastMateTrocaDayConsultLabel = '';
+/** Acumulado de quebras no intervalo De–Até (servidor) — único total exibido na Base de Troca. */
+let mateTrocaTrocaAcumuladoCache = {};
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
@@ -3555,23 +3553,48 @@ function normalizeMateTrocaCxUnMap(raw) {
   return norm;
 }
 
+function ensureMateTrocaAcumuladoRangeDefaults() {
+  const fromEl = document.getElementById('mate-couro-troca-acum-from');
+  const toEl = document.getElementById('mate-couro-troca-acum-to');
+  const dayEl = document.getElementById('mate-couro-troca-date');
+  if (!fromEl || !toEl) return;
+  const bounds = getBrazilMonthBoundsDateKeys();
+  const dayVal = (dayEl && dayEl.value && String(dayEl.value).trim()) || getBrazilDateKey();
+  if (!String(toEl.value || '').trim()) toEl.value = String(dayVal).slice(0, 10);
+  if (!String(fromEl.value || '').trim()) fromEl.value = bounds.first;
+}
+
 async function fetchMateTrocaPendingPayload() {
   const token = getToken();
-  if (!token) return { pending: {}, break_totals: {} };
+  const empty = { pending: {}, break_totals: {}, break_totals_period: {} };
+  if (!token) return empty;
   try {
-    const response = await apiFetch(API_MATE_TROCA_PENDING_BY_PRODUCT, {
+    ensureMateTrocaAcumuladoRangeDefaults();
+    const params = new URLSearchParams();
+    const fromEl = document.getElementById('mate-couro-troca-acum-from');
+    const toEl = document.getElementById('mate-couro-troca-acum-to');
+    const d0 = String((fromEl && fromEl.value) || '').trim().slice(0, 10);
+    const d1 = String((toEl && toEl.value) || '').trim().slice(0, 10);
+    if (d0 && d1) {
+      params.set('date_from', d0);
+      params.set('date_to', d1);
+    }
+    const qs = params.toString();
+    const url = qs ? `${API_MATE_TROCA_PENDING_BY_PRODUCT}?${qs}` : API_MATE_TROCA_PENDING_BY_PRODUCT;
+    const response = await apiFetch(url, {
       headers: getAuthHeaders(),
       cache: 'no-store',
     });
-    if (handleUnauthorizedResponse(response)) return { pending: {}, break_totals: {} };
-    if (!response.ok) return { pending: {}, break_totals: {} };
+    if (handleUnauthorizedResponse(response)) return empty;
+    if (!response.ok) return empty;
     const data = await response.json();
     return {
       pending: normalizeMateTrocaCxUnMap(data.pending),
       break_totals: normalizeMateTrocaCxUnMap(data.break_totals),
+      break_totals_period: normalizeMateTrocaCxUnMap(data.break_totals_period),
     };
   } catch {
-    return { pending: {}, break_totals: {} };
+    return empty;
   }
 }
 
@@ -3615,9 +3638,10 @@ function mirrorMateTrocaPendingToLocalStorage(serverMap) {
 
 /** Atualiza cache global, estado da análise e espelho local após GET pending. */
 async function refreshMateTrocaServerPendingDisplay() {
-  const { pending, break_totals } = await fetchMateTrocaPendingPayload();
+  const { pending, break_totals, break_totals_period } = await fetchMateTrocaPendingPayload();
   mateTrocaServerPendingCache = pending;
   mateTrocaBreakTotalsCache = break_totals;
+  mateTrocaTrocaAcumuladoCache = break_totals_period;
   countAuditState.mateTrocaServerPending = { ...pending };
   mirrorMateTrocaPendingToLocalStorage(pending);
   return pending;
@@ -3901,18 +3925,6 @@ async function syncMateTrocaEventsToServer(events) {
     markMateTrocaLocalEventsSynced(arr.map((e) => e.client_event_id));
   }
   return res;
-}
-
-/** Soma CX/UN dos eventos `quebra_operacional` em uma lista (ex.: histórico mesclado do produto). */
-function sumMateTrocaQuebraOperacionalInList(events) {
-  let cx = 0;
-  let un = 0;
-  for (const ev of events || []) {
-    if (String(ev.kind || '').trim() !== 'quebra_operacional') continue;
-    cx += Math.max(0, Math.round(Number(ev.qty_cx_in) || 0));
-    un += Math.max(0, Math.round(Number(ev.qty_un_in) || 0));
-  }
-  return { cx, un };
 }
 
 function mergeMateTrocaHistoryForCod(cod, serverEvents, overlayEvents) {
