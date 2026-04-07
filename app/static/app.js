@@ -3935,6 +3935,29 @@ async function refreshMateTrocaBaseScreenData() {
   return mateTrocaServerPendingCache;
 }
 
+/** Saldo “antes” para POST Mate troca — prioriza cache V2 do último GET ok, senão último estado válido. */
+function getMateTrocaV2CurForPayload(cod) {
+  const ck = normalizeNumericProductCodeKey(cod) || normalizeItemCode(String(cod || ''));
+  if (!ck) return { cx: 0, un: 0 };
+  if (mateTrocaBaseBalanceCacheV2[ck] !== undefined) {
+    const b = mateTrocaBaseBalanceCacheV2[ck];
+    return { cx: Math.max(0, Math.round(Number(b.cx) || 0)), un: Math.max(0, Math.round(Number(b.un) || 0)) };
+  }
+  const lv = mateTrocaBaseLastValidStateV2[ck];
+  if (lv && lv.saldoKnown) {
+    return { cx: Math.max(0, Math.round(Number(lv.cx) || 0)), un: Math.max(0, Math.round(Number(lv.un) || 0)) };
+  }
+  return { cx: 0, un: 0 };
+}
+
+function mateTrocaV2SaldoKnownForCod(cod) {
+  const ck = normalizeNumericProductCodeKey(cod) || normalizeItemCode(String(cod || ''));
+  if (!ck) return false;
+  if (mateTrocaBaseBalanceCacheV2[ck] !== undefined) return true;
+  const lv = mateTrocaBaseLastValidStateV2[ck];
+  return !!(lv && lv.saldoKnown);
+}
+
 /**
  * Espelha o pendente do servidor no localStorage (histórico/offline parcial).
  * A API só devolve produtos com saldo > 0; um mapa vazio não significa “apagar tudo no aparelho”.
@@ -4054,9 +4077,7 @@ async function runMateTrocaReconcileFromBreaks() {
         ? data.message || 'Já estava correto.'
         : `Pronto. Pendente definido: CX ${formatBreakIntegerBR(Number(tgt.cx) || 0)} · UN ${formatBreakIntegerBR(Number(tgt.un) || 0)}.`,
     );
-    await refreshMateTrocaBaseScreenData();
-    renderMateCouroPendingList();
-    updateMateCouroKpis();
+    await refreshMateTrocaBaseBalanceCardV2();
   } catch {
     window.alert('Sem conexão.');
   }
@@ -4780,89 +4801,22 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
   }
 }
 
+/** @deprecated Card legado substituído por V2 — mantido só para chamadas residuais. */
 function getMateCouroPendingRowsFiltered() {
   const searchEl = document.getElementById('mate-couro-troca-pending-search');
   const term = ((searchEl && searchEl.value) || '').trim().toLowerCase();
-  const server = mateTrocaServerPendingCache || {};
-  const codeSet = collectMateCouroBaseProductCodes(server, mateTrocaDiscoveryCodesCache);
-  const rows = [];
-  for (const cod of codeSet) {
-    const sv = resolveMateCouroPendingEntry(server, cod);
-    const cx = sv.cx;
-    const un = sv.un;
-    const p = (mateCouroProductsCache || []).find(
-      (x) => normalizeNumericProductCodeKey(String(x.cod_produto || '')) === cod,
-    );
-    const desc = p ? String(p.cod_grup_descricao || '').trim() : '';
-    if (term) {
-      const ok = cod.toLowerCase().includes(term) || desc.toLowerCase().includes(term);
-      if (!ok) continue;
-    }
-    rows.push({
-      cod,
-      cx,
-      un,
-      desc,
-    });
-  }
-  rows.sort((a, b) => compareAuditCodProduto({ cod_produto: a.cod }, { cod_produto: b.cod }));
-  return rows;
+  const base = Array.isArray(mateTrocaBaseV2LastMergedRows) ? mateTrocaBaseV2LastMergedRows : [];
+  if (!term) return base.slice();
+  return base.filter(
+    (r) =>
+      r.cod.toLowerCase().includes(term) ||
+      String(r.desc || '').toLowerCase().includes(term),
+  );
 }
 
+/** @deprecated Render legado — delega ao card V2 (sem lista antiga). */
 function renderMateCouroPendingList() {
-  const ul = document.getElementById('mate-couro-troca-pending-list');
-  const rangeInfo = document.getElementById('mate-couro-troca-pending-range-info');
-  if (!ul) return;
-  const rows = getMateCouroPendingRowsFiltered();
-  const fromEl = document.getElementById('mate-couro-troca-acum-from');
-  const toEl = document.getElementById('mate-couro-troca-acum-to');
-  const dr =
-    fromEl && toEl && fromEl.value && toEl.value
-      ? `${formatDateBR(fromEl.value)} – ${formatDateBR(toEl.value)}`
-      : '';
-  if (rangeInfo) {
-    rangeInfo.textContent = rows.length
-      ? `${rows.length} produto(s) · saldo = pendente no servidor${dr ? ` · lista inclui códigos com quebra em ${dr}` : ''}`
-      : `Nenhum produto${dr ? ` (período ${dr})` : ''}. Use <strong>De/Até</strong> + <strong>Atualizar lista</strong> ou <strong>Carregar</strong> o dia.`;
-  }
-  ul.innerHTML = '';
-  if (!rows.length) {
-    ul.innerHTML =
-      '<li class="count-audit-empty"><span>Sem itens. Ajuste <strong>De</strong>/<strong>Até</strong> e <strong>Atualizar lista</strong>, ou <strong>Carregar</strong> o dia para incorporar quebras ao pendente.</span><strong>—</strong></li>';
-    updateMateCouroKpis();
-    return;
-  }
-  for (const r of rows) {
-    const codEsc = escapeHtml(r.cod);
-    const nameEsc = escapeHtml(r.desc || r.cod);
-    const codRef = encodeURIComponent(r.cod);
-    const li = document.createElement('li');
-    li.className = 'count-audit-item mate-couro-pending-item';
-    li.setAttribute('data-state', 'ok');
-    li.setAttribute('data-mate-pending-cod', r.cod);
-    li.innerHTML =
-      `<div class="mate-couro-pending-audit-row mate-couro-pending-audit-row--clickable" role="presentation">` +
-      `<div class="count-audit-cell count-audit-cell--product">` +
-      `<div class="break-history-product-static">` +
-      `<div class="count-audit-row-topline"><span class="count-audit-code-badge">${codEsc}</span></div>` +
-      `<span class="count-audit-row-name">${nameEsc}</span>` +
-      `</div></div>` +
-      `<div class="count-audit-cell mate-couro-pending-saldo-cell">` +
-      `<span class="count-audit-cell-label">Saldo atual para troca</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break mate-couro-pending-break-acc">` +
-      `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
-      `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>` +
-      `</div>` +
-      `</div>` +
-      `<div class="count-audit-cell mate-couro-pending-actions">` +
-      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--primary" data-mate-pend="recebeu" data-coderef="${codRef}" aria-label="Registrar chegada" title="Registrar chegada">Chegada</button>` +
-      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--outline" data-mate-pend="definir" data-coderef="${codRef}" aria-label="Definir saldo pendente" title="Definir saldo pendente">Saldo</button>` +
-      `<button type="button" class="mate-troca-pend-btn mate-troca-pend-btn--muted" data-mate-pend="zerar" data-coderef="${codRef}" aria-label="Zerar saldo pendente" title="Zerar saldo pendente">Zerar</button>` +
-      `</div>` +
-      `</div>`;
-    ul.appendChild(li);
-  }
-  updateMateCouroKpis();
+  renderMateTrocaBaseBalanceCardV2FromCache();
 }
 
 async function loadMateCouroBreakDayList() {
@@ -4888,8 +4842,6 @@ async function loadMateCouroBreakDayList() {
 
   await ensureMateCouroCatalogLoaded();
   await refreshMateTrocaBaseScreenData();
-  updateMateCouroKpis();
-  renderMateCouroPendingList();
   await loadServerBreakTotals();
 
   try {
@@ -4905,8 +4857,7 @@ async function loadMateCouroBreakDayList() {
     if (!response.ok) {
       lastMateTrocaDayItemsCount = null;
       renderMateCouroDayList(dayLabel, []);
-      renderMateCouroPendingList();
-      updateMateCouroKpis();
+      renderMateTrocaBaseBalanceCardV2FromCache();
       return;
     }
     const data = await response.json();
@@ -4921,12 +4872,10 @@ async function loadMateCouroBreakDayList() {
         : `${dayLabel} · ${nowStr}`;
     }
     renderMateCouroDayList(dayLabel, mateEvents);
-    renderMateCouroPendingList();
   } catch {
     lastMateTrocaDayItemsCount = null;
     renderMateCouroDayList(dayLabel, []);
-    renderMateCouroPendingList();
-    updateMateCouroKpis();
+    renderMateTrocaBaseBalanceCardV2FromCache();
   }
 }
 
