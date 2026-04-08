@@ -3499,7 +3499,11 @@ form#break-op-form.count-form {
 
 .count-audit-list-header {
   display: grid;
+<<<<<<< HEAD
   grid-template-columns: minmax(0, 2.1fr) repeat(5, minmax(0, 0.72fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) minmax(4.75rem, 5rem);
+=======
+  grid-template-columns: minmax(0, 2.55fr) repeat(5, minmax(0, 0.72fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) minmax(4.75rem, 5rem);
+>>>>>>> fb1c8f9 (sua mensagem)
   gap: var(--audit-space-2);
   align-items: center;
   padding: 0 0.35rem var(--audit-space-2);
@@ -3890,7 +3894,11 @@ form#break-op-form.count-form {
 
 .count-audit-row {
   display: grid;
+<<<<<<< HEAD
   grid-template-columns: minmax(0, 2.1fr) repeat(5, minmax(0, 0.72fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) minmax(4.75rem, 5rem);
+=======
+  grid-template-columns: minmax(0, 2.55fr) repeat(5, minmax(0, 0.72fr)) minmax(0, 1.02fr) minmax(0, 1.02fr) minmax(4.75rem, 5rem);
+>>>>>>> fb1c8f9 (sua mensagem)
   gap: var(--audit-space-2);
   align-items: stretch;
   padding: 0.55rem 0.65rem 0.55rem 0.85rem;
@@ -3997,6 +4005,13 @@ form#break-op-form.count-form {
   gap: 0.35rem;
 }
 
+<<<<<<< HEAD
+=======
+#sub-count-audit .count-audit-row .count-audit-cell--product {
+  justify-content: flex-start;
+}
+
+>>>>>>> fb1c8f9 (sua mensagem)
 .count-audit-row-select {
   display: flex;
   flex-direction: column;
@@ -4008,6 +4023,11 @@ form#break-op-form.count-form {
   color: inherit;
   text-align: left;
   cursor: pointer;
+<<<<<<< HEAD
+=======
+  /* UA: button { white-space: nowrap } corta nomes longos na coluna da grade */
+  white-space: normal;
+>>>>>>> fb1c8f9 (sua mensagem)
 }
 
 .count-audit-row-select:focus-visible {
@@ -4102,9 +4122,33 @@ form#break-op-form.count-form {
   font-size: var(--audit-text-md);
   line-height: 1.35;
   font-weight: 500;
+<<<<<<< HEAD
   display: block;
   width: 100%;
   min-width: 0;
+=======
+  display: flex;
+  align-items: flex-start;
+  gap: 0.32rem;
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.count-audit-row-name-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.count-audit-flavor-icon {
+  flex-shrink: 0;
+  font-size: 1.02em;
+  line-height: 1.35;
+  opacity: 0.88;
+  user-select: none;
+>>>>>>> fb1c8f9 (sua mensagem)
 }
 
 /* Vencimento: uma linha só, discreta; sem “—” quando não há dado */
@@ -4578,6 +4622,17 @@ body.count-audit-drawer-open {
   font-size: var(--audit-text-md);
   font-weight: 600;
   line-height: 1.35;
+<<<<<<< HEAD
+=======
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.count-audit-detail-title-text {
+  flex: 1;
+  min-width: 0;
+>>>>>>> fb1c8f9 (sua mensagem)
 }
 
 .count-audit-detail-section-head h4 {
@@ -4684,6 +4739,10 @@ body.count-audit-drawer-open {
   color: inherit;
   text-align: left;
   cursor: pointer;
+<<<<<<< HEAD
+=======
+  white-space: normal;
+>>>>>>> fb1c8f9 (sua mensagem)
 }
 
 .count-audit-mobile-select:focus-visible,

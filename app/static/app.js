@@ -3021,6 +3021,12 @@ async function loadCountProducts(options = {}) {
   }
 }
 
+/** Garante catálogo ativo em memória para enriquecer nomes na Análise de Contagem. */
+async function ensureCountProductsCatalogForAudit() {
+  if (Array.isArray(countProductsCache) && countProductsCache.length > 0) return;
+  await loadCountProducts({ skipCountRender: true });
+}
+
 async function loadBreakProducts() {
   const list = document.getElementById('break-products-list');
   if (!list) return;
@@ -8280,8 +8286,30 @@ function getCountAuditFiltersSnapshot() {
   };
 }
 
+/** Nome exibido na análise: prioriza descrição do cadastro quando for mais completa que TXT/API. */
+function resolveCountAuditDescricao(row) {
+  const api = String(row?.descricao || '').trim();
+  const rawCode = normalizeItemCode(row?.cod_produto || '');
+  if (!rawCode || !Array.isArray(countProductsCache) || countProductsCache.length === 0) {
+    return api || 'Sem descrição';
+  }
+  const useNum = /^\d+$/.test(rawCode);
+  const numKey = useNum ? normalizeNumericProductCodeKey(rawCode) : '';
+  const p = countProductsCache.find((x) => {
+    const c = normalizeItemCode(x.cod_produto || '');
+    if (!c) return false;
+    if (useNum && /^\d+$/.test(c)) return normalizeNumericProductCodeKey(c) === numKey;
+    return c === rawCode;
+  });
+  const catalog = p ? String(p.cod_grup_descricao || '').trim() : '';
+  if (!catalog) return api || 'Sem descrição';
+  if (!api) return catalog;
+  return catalog.length >= api.length ? catalog : api;
+}
+
 function enrichCountAuditRow(row) {
   if (!row || row._auditMeta) return row;
+  row = { ...row, descricao: resolveCountAuditDescricao(row) };
   const importCx = Number(row.import_caixa) || 0;
   const importUn = Number(row.import_unidade) || 0;
   const countedCx = Number(row.counted_caixa) || 0;
@@ -8942,6 +8970,88 @@ function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
   return `<div class="count-audit-mobile-ops-wrap">${parts.join('')}</div>`;
 }
 
+/** Ícone discreto na Análise de Contagem (#count-audit) quando o nome sugere sabor de fruta / refrigerante. */
+const COUNT_AUDIT_FLAVOR_RULES = [
+  ['refrigerante', '🥤', 'Refrigerante'],
+  ['maracuja', '🍹', 'Maracujá'],
+  ['bergamota', '🍊', 'Bergamota'],
+  ['tangerina', '🍊', 'Tangerina'],
+  ['mandarina', '🍊', 'Mandarina'],
+  ['melancia', '🍉', 'Melancia'],
+  ['citricas', '🍋', 'Cítricas'],
+  ['toranja', '🍊', 'Toranja'],
+  ['morango', '🍓', 'Morango'],
+  ['pessego', '🍑', 'Pêssego'],
+  ['guarana', '🫘', 'Guaraná'],
+  ['abacaxi', '🍍', 'Abacaxi'],
+  ['laranja', '🍊', 'Laranja'],
+  ['frutti', '🍹', 'Tutti-frutti'],
+  ['tutti', '🍹', 'Tutti-frutti'],
+  ['melao', '🍈', 'Melão'],
+  ['banana', '🍌', 'Banana'],
+  ['cereja', '🍒', 'Cereja'],
+  ['manga', '🥭', 'Manga'],
+  ['limao', '🍋', 'Limão'],
+  ['sprite', '🍋', 'Limão'],
+  ['citrica', '🍋', 'Cítrico'],
+  ['citrico', '🍋', 'Cítrico'],
+  ['citrus', '🍋', 'Cítrico'],
+  ['cupuacu', '🫐', 'Cupuaçu'],
+  ['acai', '🫐', 'Açaí'],
+  ['frutas', '🍇', 'Frutas'],
+  ['pepsi', '🥤', 'Cola'],
+  ['fanta', '🍊', 'Laranja'],
+  ['tonica', '🥤', 'Tônica'],
+  ['maca', '🍎', 'Maçã'],
+  ['kiwi', '🥝', 'Kiwi'],
+  ['lima', '🍋', 'Lima'],
+  ['coco', '🥥', 'Coco'],
+  ['coca', '🥤', 'Cola'],
+  ['cola', '🥤', 'Cola'],
+  ['refri', '🥤', 'Refrigerante'],
+  ['uva', '🍇', 'Uva'],
+  /* Abreviações comuns em etiqueta/TXT (ex.: TUTTI FRUT) */
+  ['frut', '🍹', 'Frutas / tutti-frutti'],
+].sort((a, b) => b[0].length - a[0].length);
+
+function countAuditFlavorHaystack(text) {
+  const n = String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return n ? ` ${n} ` : '';
+}
+
+function countAuditFlavorWordInHay(hay, word) {
+  const w = String(word || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+  if (!w || !hay) return false;
+  const esc = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^| )${esc}( |$)`).test(hay);
+}
+
+function countAuditFlavorIconHtml(descricao) {
+  const hay = countAuditFlavorHaystack(descricao);
+  if (!hay) return '';
+  for (const [word, icon, label] of COUNT_AUDIT_FLAVOR_RULES) {
+    if (countAuditFlavorWordInHay(hay, word)) {
+      const t = escapeHtml(label);
+      return `<span class="count-audit-flavor-icon" aria-hidden="true" title="Sabor: ${t}">${icon}</span>`;
+    }
+  }
+  return '';
+}
+
+function countAuditRowNameWithFlavorHtml(descricao) {
+  const raw = String(descricao || '').trim() || 'Sem descrição';
+  return `${countAuditFlavorIconHtml(raw)}<span class="count-audit-row-name-text">${escapeHtml(raw)}</span>`;
+}
+
 /** Contagem sincronizada + saldo atual da Base de Troca V2 (Mate couro): total em destaque; parcela em verde. */
 function buildCountAuditMergedCurrentCxuHtml(row, meta) {
   const baseCx = Math.max(0, Math.round(Number(row.counted_caixa) || 0));
@@ -9004,7 +9114,7 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
       `<section class="count-audit-detail-hero">` +
         `<div class="count-audit-detail-hero-top">` +
           `<div>` +
-            `<h4 class="count-audit-detail-title">${escapeHtml(row.descricao || 'Sem descrição')}</h4>` +
+            `<h4 class="count-audit-detail-title">${countAuditFlavorIconHtml(row.descricao || '')}<span class="count-audit-detail-title-text">${escapeHtml(row.descricao || 'Sem descrição')}</span></h4>` +
             `<div class="count-audit-detail-subtitle">Código ${escapeHtml(code || '-')} · Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</div>` +
             `${expDetailLine}` +
           `</div>` +
@@ -9054,7 +9164,7 @@ function renderCountAuditDesktopRowMarkup(row) {
               `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
               `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
             `</div>` +
-            `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
+            `<span class="count-audit-row-name">${countAuditRowNameWithFlavorHtml(row.descricao)}</span>` +
             `${countAuditValidityMarkupForRow(code)}` +
           `</button>` +
         `</div>` +
@@ -9109,7 +9219,7 @@ function renderCountAuditMobileRowMarkup(row) {
             `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
             `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
           `</div>` +
-          `<span class="count-audit-row-name">${escapeHtml(row.descricao || 'Sem descrição')}</span>` +
+          `<span class="count-audit-row-name">${countAuditRowNameWithFlavorHtml(row.descricao)}</span>` +
           `${countAuditValidityMarkupForRow(code)}` +
           `<div class="count-audit-mobile-summary">` +
             `<strong class="count-audit-mobile-diff">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong>` +
@@ -9455,6 +9565,7 @@ async function loadCountAuditAnalysis() {
       loadCountAuditMateTrocaServerPending(),
       ensureMateCouroCatalogLoaded(),
     ]);
+    await ensureCountProductsCatalogForAudit();
 
     countAuditSummaryFilterKey = null;
     countAuditState.rows = (payload.rows || []).map(enrichCountAuditRow);
