@@ -2139,9 +2139,8 @@ function getUnsyncedNetBreakByProductAndTypeForDate(productCode, countType, dayK
 
 /**
  * Totais de quebra no mapa do servidor (break-day-totals) para o código da linha.
- * Tenta equivalente numérico (ex.: 030 vs 30), como no pendente Mate troca, para não zerar a coluna Quebra
- * quando o TXT e o ChangeLog divergem só na forma do código — caso em que Troca (servidor) podia mostrar UN
- * e Quebra parecia vazia.
+ * Tenta equivalente numérico (ex.: 030 vs 30) para não zerar a coluna Quebra quando TXT e ChangeLog divergem
+ * só na forma do código.
  */
 function resolveBreakDayBalanceEntry(balancesMap, productCode) {
   const base = normalizeItemCode(productCode);
@@ -9358,6 +9357,7 @@ async function loadCountAuditBreakDay(dayKey) {
   }
 }
 
+/** Sincroniza com GET /audit/mate-troca-base-v2 (mesmo fluxo do card Saldo acumulado na Base de Troca). */
 async function loadCountAuditMateTrocaServerPending() {
   await refreshMateTrocaBaseBalanceCardV2();
 }

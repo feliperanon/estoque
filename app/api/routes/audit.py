@@ -2443,73 +2443,152 @@ def _mate_troca_pending_product_map(session: Session) -> dict[str, dict[str, int
     return pending
 
 
-def _mate_troca_latest_event_balance_map_including_zeros(session: Session) -> dict[str, dict[str, int]]:
-    """Último ``pend_cx_after`` / ``pend_un_after`` por código canônico, **incluindo 0/0** após zerar.
+def _mate_troca_created_br_date(dt: datetime | None) -> date | None:
+    if dt is None:
+        return None
+    u = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    return u.astimezone(_BR).date()
 
-    Diferente de ``_mate_troca_pending_product_map`` (que omite zeros): necessário para a Base de Troca
-    distinguir “sem evento no servidor” de “saldo explicitamente zero no servidor”.
+
+def _mate_troca_events_in_period_br(evs: list[MateCouroTrocaLog], d0: date, d1: date) -> list[MateCouroTrocaLog]:
+    out: list[MateCouroTrocaLog] = []
+    for e in evs:
+        bd = _mate_troca_created_br_date(e.created_at)
+        if bd is not None and d0 <= bd <= d1:
+            out.append(e)
+    return out
+
+
+def _mate_troca_fmt_events_compact(evs: list[MateCouroTrocaLog]) -> str:
+    if not evs:
+        return "—"
+    parts: list[str] = []
+    for e in evs:
+        k = (e.kind or "").strip()
+        parts.append(
+            f"{k}(+cx{e.qty_cx_in}+un{e.qty_un_in} → {e.pend_cx_after}/{e.pend_un_after})"
+        )
+    return " | ".join(parts)
+
+
+def _mate_troca_last_balance_before_period(evs: list[MateCouroTrocaLog], d0: date) -> tuple[int, int] | None:
+    """Último pend_after de evento com data BR estritamente anterior a ``d0``."""
+    best: MateCouroTrocaLog | None = None
+    best_bd: date | None = None
+    for e in evs:
+        bd = _mate_troca_created_br_date(e.created_at)
+        if bd is None or bd >= d0:
+            continue
+        if best is None or bd > best_bd or (bd == best_bd and (e.id or 0) > (best.id or 0)):
+            best = e
+            best_bd = bd
+    if best is None:
+        return None
+    return max(0, int(best.pend_cx_after or 0)), max(0, int(best.pend_un_after or 0))
+
+
+def _mate_troca_base_v2_balances(
+    session: Session,
+    d0: date,
+    d1: date,
+    discovery_codes: list[str],
+    period_break_map: dict[str, dict[str, int]],
+) -> dict[str, dict[str, int]]:
+    """Saldo operacional da Base V2.
+
+    1. **Com log Mate troca** (qualquer histórico): uma única linha do tempo por código canônico
+       (unifica aliases 010/10), ordenada por ``created_at``, ``id``. O saldo é o ``pend_*_after`` do
+       **último** evento — equivale ao estado real após encadear todos os movimentos (inclui vários
+       ``incorporacao_quebra`` em dias diferentes, ex. 06 e 07).
+
+    2. **Sem log** mas presente em ``discovery_codes``: ainda não houve Carregar/sincronismo na Base;
+       usa a soma de quebras (ChangeLog) no intervalo ``[d0,d1]`` — mesma agregação que monta a lista,
+       refletindo o acumulado de quebra do período (ex. soma dos dias 06 e 07 dentro do De/Até).
+
+    Assim não se usa mais um “último evento” por partição SQL em ``cod_produto`` bruto, que podia
+    ignorar eventos em variantes de código do mesmo produto.
     """
     _ensure_mate_couro_troca_logs_table()
-    rn = (
-        func.row_number()
-        .over(
-            partition_by=MateCouroTrocaLog.cod_produto,
-            order_by=(desc(MateCouroTrocaLog.created_at), desc(MateCouroTrocaLog.id)),
-        )
-        .label("rn")
+    rows = list(
+        session.exec(
+            select(MateCouroTrocaLog).order_by(MateCouroTrocaLog.created_at, MateCouroTrocaLog.id)
+        ).all()
     )
-    sub = select(
-        MateCouroTrocaLog.cod_produto,
-        MateCouroTrocaLog.pend_cx_after,
-        MateCouroTrocaLog.pend_un_after,
-        MateCouroTrocaLog.created_at,
-        MateCouroTrocaLog.id,
-        rn,
-    ).subquery()
-    stmt = select(
-        sub.c.cod_produto,
-        sub.c.pend_cx_after,
-        sub.c.pend_un_after,
-        sub.c.created_at,
-        sub.c.id,
-    ).where(sub.c.rn == 1)
-    rows = list(session.exec(stmt).all())
-    out: dict[str, dict[str, int]] = {}
-    best_row: dict[str, tuple[int, int, datetime | None, int | None, str]] = {}
-    for row in rows:
-        cod_raw, pcx, pun, cr_at, rid = row[0], row[1], row[2], row[3], row[4]
-        cx = int(pcx or 0)
-        un = int(pun or 0)
-        cod_raw_str = str(cod_raw or "")
-        c = _normalize_numeric_product_code_key(cod_raw_str)
-        if not c:
+    by_canon: dict[str, list[MateCouroTrocaLog]] = defaultdict(list)
+    for r in rows:
+        ck = _normalize_numeric_product_code_key(str(r.cod_produto or ""))
+        if not ck:
             continue
-        cur = best_row.get(c)
-        cand = (cx, un, cr_at, rid, cod_raw_str)
-        if cur is None:
-            best_row[c] = cand
+        by_canon[ck].append(r)
+
+    replay_final: dict[str, tuple[int, int, str, MateCouroTrocaLog]] = {}
+    for ck, evs in by_canon.items():
+        last = evs[-1]
+        replay_final[ck] = (
+            max(0, int(last.pend_cx_after or 0)),
+            max(0, int(last.pend_un_after or 0)),
+            (last.kind or "").strip(),
+            last,
+        )
+
+    all_codes = sorted(set(discovery_codes) | set(replay_final.keys()))
+    balances: dict[str, dict[str, int]] = {}
+
+    for ck in all_codes:
+        evs = by_canon.get(ck, [])
+        has_logs = len(evs) > 0
+
+        saldo_anterior = _mate_troca_last_balance_before_period(evs, d0) if has_logs else None
+        ev_period = _mate_troca_events_in_period_br(evs, d0, d1)
+        ev_by_day: dict[date, list[MateCouroTrocaLog]] = defaultdict(list)
+        for e in ev_period:
+            bd = _mate_troca_created_br_date(e.created_at)
+            if bd:
+                ev_by_day[bd].append(e)
+
+        zeramento_explicito = any((e.kind or "").strip() == "zerar" for e in evs)
+
+        if has_logs:
+            cx, un, last_kind, _ = replay_final[ck]
+            balances[ck] = {"cx": cx, "un": un}
+            origem = "replay_eventos_acumulado"
+            if last_kind == "zerar":
+                origem = "zeramento_explicito"
+            elif last_kind in ("definir", "ajuste_pendente") and cx == 0 and un == 0:
+                origem = "ultimo_evento_definir_zero"
+        elif ck in period_break_map:
+            rec = period_break_map[ck]
+            cx = max(0, int(rec.get("cx", 0) or 0))
+            un = max(0, int(rec.get("un", 0) or 0))
+            balances[ck] = {"cx": cx, "un": un}
+            origem = "acumulado_quebra_periodo_sem_log_mate"
+            saldo_anterior = None
+            zeramento_explicito = False
+        else:
             continue
-        cand_pref = _mate_troca_cod_preferred_over_alias(cod_raw_str, c)
-        cur_pref = _mate_troca_cod_preferred_over_alias(cur[4], c)
-        if cand_pref and not cur_pref:
-            best_row[c] = cand
-            continue
-        if cur_pref and not cand_pref:
-            continue
-        _, _, cr_at_c, rid_c, _ = cand
-        _, _, cur_at, cur_id, _ = cur
-        newer = False
-        if cr_at_c is not None and cur_at is not None:
-            newer = cr_at_c > cur_at or (cr_at_c == cur_at and (rid_c or 0) > (cur_id or 0))
-        elif cr_at_c is not None and cur_at is None:
-            newer = True
-        elif cr_at_c is None and cur_at is None:
-            newer = (rid_c or 0) > (cur_id or 0)
-        if newer:
-            best_row[c] = cand
-    for c, (cx, un, _, _, _) in best_row.items():
-        out[c] = {"cx": cx, "un": un}
-    return out
+
+        # Logs temporários por código (validação operacional)
+        day_keys = sorted(ev_by_day.keys())
+        for dk in day_keys:
+            logger.info(
+                "[MATE TROCA V2][BACKEND] cod=%s dia_operacional=%s eventos=%s",
+                ck,
+                dk.isoformat(),
+                _mate_troca_fmt_events_compact(ev_by_day[dk]),
+            )
+        logger.info(
+            "[MATE TROCA V2][BACKEND] cod=%s saldo_anterior_antes_periodo=%s eventos_no_periodo=%s "
+            "zeramento_explicito_na_historia=%s saldo_final_balances=%s/%s origem=%s",
+            ck,
+            saldo_anterior,
+            _mate_troca_fmt_events_compact(ev_period),
+            zeramento_explicito,
+            balances[ck]["cx"],
+            balances[ck]["un"],
+            origem,
+        )
+
+    return balances
 
 
 def _sum_break_caixa_un_for_code_date_range(
@@ -2586,12 +2665,12 @@ def get_mate_troca_pending_by_product(
     Usa o evento mais recente em ``created_at`` (desempate por ``id``), não só ``max(id)``,
     para refletir a ordem operacional mesmo se houver inserções fora de sequência.
 
-    ``break_totals`` permanece como soma histórica global (ChangeLog, CIA Mate couro) para usos internos
-    (ex.: análise de contagem). **Não** deve ser o número principal na Base de Troca.
+    ``break_totals`` é soma histórica global (ChangeLog, CIA Mate couro) — **legado**; não usar como saldo
+    operacional nem como coluna Troca na Análise de Contagem (o cliente usa ``GET /audit/mate-troca-base-v2``).
 
-    ``break_totals_period`` é a soma das quebras no intervalo (ChangeLog) — **não** é o saldo da Base de Troca;
-    use apenas em telas que precisem desse agregado ou em clientes legados. A Base de Troca operacional deve
-    usar ``GET /audit/mate-troca-base`` (``pending`` + ``discovery_codes``).
+    ``break_totals_period`` é a soma das quebras no intervalo (ChangeLog) — **não** é o saldo da Base de Troca.
+    A Base de Troca operacional deve usar ``GET /audit/mate-troca-base-v2`` (``balances`` + ``discovery_codes``)
+    ou, no contrato antigo, ``GET /audit/mate-troca-base`` (``pending`` + ``discovery_codes``).
     """
     d0, d1 = _mate_troca_base_period_bounds(date_from, date_to)
     break_totals_period = _mate_couro_break_totals_date_range(session, d0, d1)
@@ -2649,14 +2728,19 @@ def get_mate_troca_base_v2(
 ) -> dict:
     """Contrato explícito para a Base de Troca (UI V2).
 
-    - ``discovery_codes``: códigos com quebra Mate couro no período (ChangeLog) — só montagem de lista.
-    - ``balances``: último saldo CX/UN **por evento** no servidor, **incluindo 0/0** após zerar.
-      Códigos só em ``discovery_codes`` e ausentes de ``balances`` nunca tiveram evento Mate troca no servidor.
+    - ``discovery_codes``: códigos com quebra Mate couro no período (ChangeLog) — montagem da lista.
+    - ``balances``: saldo operacional CX/UN. Com linha do tempo em ``mate_couro_troca_logs``, usa **replay**
+      cronológico por código canônico (unifica aliases), refletindo o encadeamento de todos os eventos —
+      inclusive várias ``incorporacao_quebra`` em dias distintos dentro do período. Sem log Mate troca para o
+      código: usa a soma de quebras ChangeLog em ``[De, Até]`` até o Carregar sincronizar.
+
+    A Análise de Contagem continua usando ``mate-troca-pending-by-product`` / espelho em cliente para a coluna
+    Troca; esta rota é a fonte da Base V2.
     """
     d0, d1 = _mate_troca_base_period_bounds(date_from, date_to)
     period_map = _mate_couro_break_totals_date_range(session, d0, d1)
     discovery_codes = sorted(period_map.keys())
-    balances = _mate_troca_latest_event_balance_map_including_zeros(session)
+    balances = _mate_troca_base_v2_balances(session, d0, d1, discovery_codes, period_map)
     return {
         "schema_version": 2,
         "period_from": d0.isoformat(),
