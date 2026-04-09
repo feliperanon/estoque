@@ -34,6 +34,7 @@ from app.services.inventory_txt_parse import (
     extract_caixa_unidade_from_numeric_tail,
     extract_caixa_unidade_from_txt_tokens,
 )
+from app.services.validity_lines_schema import ensure_validity_lines_structures
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 logger = logging.getLogger(__name__)
@@ -43,11 +44,7 @@ _BR = ZoneInfo("America/Sao_Paulo")
 def _ensure_validity_lines_table() -> None:
     """Garante DDL (Railway/deploy sem alembic ou migração pendente). Idempotente."""
     try:
-        SQLModel.metadata.create_all(
-            engine,
-            tables=[ValidityLine.__table__],
-            checkfirst=True,
-        )
+        ensure_validity_lines_structures()
     except SQLAlchemyError:
         logger.exception("Falha ao garantir tabela validity_lines")
         raise
@@ -154,7 +151,8 @@ class ValidityEventInput(BaseModel):
     client_event_id: str = Field(min_length=8, max_length=100)
     cod_produto: str = Field(min_length=1, max_length=120)
     expiration_date: date
-    quantity_un: int = Field(ge=0, le=500_000)
+    quantity_un: int = Field(default=0, ge=0, le=500_000)
+    quantity_cx: int = Field(default=0, ge=0, le=500_000)
     lot_code: str | None = Field(default=None, max_length=80)
     note: str | None = Field(default=None, max_length=500)
     observed_at: str
@@ -165,7 +163,7 @@ class ValidityEventsPayload(BaseModel):
     events: list[ValidityEventInput]
     reference_date: str | None = Field(
         default=None,
-        description="YYYY-MM-DD da importação TXT usada para teto de UN (mesmo filtro da contagem).",
+        description="YYYY-MM-DD da importação TXT usada para teto de UN/CX (mesmo filtro da contagem).",
     )
 
 
@@ -199,6 +197,39 @@ def _un_balance_map_for_validity(session: Session, reference_date: date | None) 
             continue
         _cx, un = _extract_import_quantities(item.metrics if isinstance(item.metrics, dict) else None)
         out[code] = out.get(code, 0) + int(un)
+    return out
+
+
+def _cx_balance_map_for_validity(session: Session, reference_date: date | None) -> dict[str, int]:
+    """Saldo CX agregado por código (última importação para a data informada)."""
+    current_import = None
+    if reference_date is not None:
+        current_import = session.exec(
+            select(InventoryImport)
+            .where(InventoryImport.reference_date == reference_date)
+            .order_by(InventoryImport.imported_at.desc())
+            .limit(1)
+        ).first()
+    else:
+        current_import = session.exec(
+            select(InventoryImport).order_by(InventoryImport.imported_at.desc()).limit(1)
+        ).first()
+
+    out: dict[str, int] = {}
+    if not current_import:
+        return out
+
+    import_items = list(
+        session.exec(
+            select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == current_import.id)
+        ).all()
+    )
+    for item in import_items:
+        code = _normalize_item_code(item.cod_produto)
+        if not code:
+            continue
+        cx, _un = _extract_import_quantities(item.metrics if isinstance(item.metrics, dict) else None)
+        out[code] = out.get(code, 0) + int(cx)
     return out
 
 
@@ -1766,6 +1797,52 @@ def ingest_break_events(
         )
 
 
+@router.get("/validity-lines/{line_id}")
+def get_validity_line(
+    line_id: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """Uma linha por id (evita 405 em clientes que fazem GET no mesmo path do DELETE)."""
+    _ensure_validity_lines_table()
+    row = session.get(ValidityLine, line_id)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linha de validade nao encontrada")
+    try:
+        v_logins = (
+            {(row.actor_username or "").strip()}
+            if row.actor_username and str(row.actor_username).strip()
+            else set()
+        )
+        v_name_map = _display_name_map_for_logins(session, v_logins)
+        au = row.actor_username
+        au_disp = (
+            v_name_map.get((au or "").strip(), au)
+            if au and str(au).strip()
+            else au
+        )
+        return {
+            "id": row.id,
+            "client_event_id": row.client_event_id,
+            "cod_produto": row.cod_produto,
+            "expiration_date": row.expiration_date.isoformat(),
+            "quantity_un": int(row.quantity_un),
+            "quantity_cx": int(row.quantity_cx or 0),
+            "lot_code": row.lot_code,
+            "note": row.note,
+            "operational_date": row.operational_date.isoformat(),
+            "observed_at": _validity_observed_at_iso(row.observed_at),
+            "device_name": row.device_name,
+            "actor_username": au_disp,
+        }
+    except SQLAlchemyError as exc:
+        logger.exception("Erro ao ler linha de validade %s", line_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao consultar validade: {exc}",
+        ) from exc
+
+
 @router.get("/validity-lines")
 def list_validity_lines(
     operational_date: str | None = Query(
@@ -1825,6 +1902,7 @@ def list_validity_lines(
                 "cod_produto": r.cod_produto,
                 "expiration_date": r.expiration_date.isoformat(),
                 "quantity_un": int(r.quantity_un),
+                "quantity_cx": int(r.quantity_cx or 0),
                 "lot_code": r.lot_code,
                 "note": r.note,
                 "operational_date": r.operational_date.isoformat(),
@@ -1942,6 +2020,7 @@ def ingest_validity_events(
 
     ref_d = _parse_iso_date_arg(payload.reference_date) if payload.reference_date else None
     un_map = _un_balance_map_for_validity(session, ref_d)
+    cx_map = _cx_balance_map_for_validity(session, ref_d)
     count_day = ref_d if ref_d is not None else br_today
     counted_by_code = _aggregate_count_events_by_code(session, count_on_date=count_day)
 
@@ -1953,8 +2032,17 @@ def ingest_validity_events(
             return int(counted_by_code[c].get("unidade", 0))
         return int(un_map.get(c, 0))
 
+    def _validity_cx_cap(code: str) -> int:
+        c = _normalize_item_code(code)
+        if not c:
+            return 0
+        if c in counted_by_code:
+            return int(counted_by_code[c].get("caixa", 0))
+        return int(cx_map.get(c, 0))
+
     # Quantidades já gravadas hoje por código (excluindo duplicatas de idempotência)
-    existing_by_code: dict[str, int] = {}
+    existing_by_un: dict[str, int] = {}
+    existing_by_cx: dict[str, int] = {}
     existing_rows = list(
         session.exec(select(ValidityLine).where(ValidityLine.operational_date == br_today)).all()
     )
@@ -1962,15 +2050,17 @@ def ingest_validity_events(
         c = _normalize_item_code(er.cod_produto)
         if not c:
             continue
-        existing_by_code[c] = existing_by_code.get(c, 0) + int(er.quantity_un)
+        existing_by_un[c] = existing_by_un.get(c, 0) + int(er.quantity_un)
+        existing_by_cx[c] = existing_by_cx.get(c, 0) + int(er.quantity_cx or 0)
 
     # Novas quantidades por código neste batch (apenas eventos que virarão insert)
-    new_by_code: dict[str, int] = {}
+    new_by_un: dict[str, int] = {}
+    new_by_cx: dict[str, int] = {}
     events_to_insert: list[ValidityEventInput] = []
 
     try:
         for event in payload.events:
-            if event.quantity_un < 0:
+            if event.quantity_un < 0 or event.quantity_cx < 0:
                 continue
             dt_utc, br_date = _parse_and_validate_observed_at(event.observed_at)
             if br_date != br_today:
@@ -1990,27 +2080,46 @@ def ingest_validity_events(
                 continue
 
             events_to_insert.append(event)
-            new_by_code[code] = new_by_code.get(code, 0) + int(event.quantity_un)
+            new_by_un[code] = new_by_un.get(code, 0) + int(event.quantity_un)
+            new_by_cx[code] = new_by_cx.get(code, 0) + int(event.quantity_cx)
 
-        # Teto UN: contagem do dia (se existir evento para o código) senão saldo UN do TXT da referência
-        for code, add_qty in new_by_code.items():
-            if add_qty <= 0:
-                continue
-            cap = _validity_un_cap(code)
-            total_after = existing_by_code.get(code, 0) + add_qty
-            if cap <= 0 and total_after > 0:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Produto {code}: base UN zero (contagem/TXT); nao e possivel classificar quantidade.",
-                )
-            if cap > 0 and total_after > cap:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=(
-                        f"Produto {code}: soma das quantidades por validade ({total_after} UN) "
-                        f"excede a base ({cap} UN) da contagem ou do TXT."
-                    ),
-                )
+        # Teto UN: só valida se houver lançamento com UN neste batch (compatível com fluxo legado).
+        touched = set(new_by_un) | set(new_by_cx)
+        for code in touched:
+            add_un = new_by_un.get(code, 0)
+            if add_un > 0:
+                cap = _validity_un_cap(code)
+                total_after = existing_by_un.get(code, 0) + add_un
+                if cap <= 0 and total_after > 0:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Produto {code}: base UN zero (contagem/TXT); nao e possivel classificar quantidade.",
+                    )
+                if cap > 0 and total_after > cap:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=(
+                            f"Produto {code}: soma das quantidades por validade ({total_after} UN) "
+                            f"excede a base ({cap} UN) da contagem ou do TXT."
+                        ),
+                    )
+            add_cx = new_by_cx.get(code, 0)
+            if add_cx > 0:
+                cap_cx = _validity_cx_cap(code)
+                total_cx = existing_by_cx.get(code, 0) + add_cx
+                if cap_cx <= 0 and total_cx > 0:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Produto {code}: base CX zero (contagem/TXT); nao e possivel classificar caixas.",
+                    )
+                if cap_cx > 0 and total_cx > cap_cx:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=(
+                            f"Produto {code}: soma das caixas por validade ({total_cx} CX) "
+                            f"excede a base ({cap_cx} CX) da contagem ou do TXT."
+                        ),
+                    )
 
         for event in events_to_insert:
             dt_utc, br_date = _parse_and_validate_observed_at(event.observed_at)
@@ -2020,6 +2129,7 @@ def ingest_validity_events(
                 cod_produto=code,
                 expiration_date=event.expiration_date,
                 quantity_un=int(event.quantity_un),
+                quantity_cx=int(event.quantity_cx),
                 lot_code=(event.lot_code or "").strip() or None,
                 note=(event.note or "").strip() or None,
                 operational_date=br_date,

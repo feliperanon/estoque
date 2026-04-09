@@ -2,8 +2,8 @@ const CACHE_NAME = "estoque-v33";
 const URLS = [
   "/",
   "/app",
-  "/static/style.css?v=54",
-  "/static/app.js?v=66",
+  "/static/style.css?v=55",
+  "/static/app.js?v=69",
   "/static/manifest.json",
   "/static/favicon.svg",
 ];

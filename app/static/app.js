@@ -5641,6 +5641,7 @@ function getMergedValidityLinesForProduct(codRaw) {
     cod_produto: cod,
     expiration_date: e.expiration_date,
     quantity_un: e.quantity_un,
+    quantity_cx: e.quantity_cx,
     lot_code: e.lot_code || null,
     note: e.note || null,
     operational_date: e.operational_day || op,
@@ -6129,9 +6130,7 @@ function buildValidityOperationalRowModel(p, opKey, todayBr, launchPairs) {
     : '—';
   const pair = (launchPairs && launchPairs[cod]) || { atual: null, anterior: null };
   const snap = getValidityLastCountSnapshot(cod);
-  const contagemLabel = snap
-    ? `${formatIntegerBR(snap.cx)} CX | ${formatIntegerBR(snap.un)} UN`
-    : '—';
+  const contagemLabel = snap ? `${formatIntegerBR(snap.cx)} CX` : '—';
   const lastLaunchLabel = lastLaunch ? formatDateBrFromIso(lastLaunch) : '—';
   const logAtualLabel = pair.atual ? formatDateTimeBr(pair.atual.observed_at) : '—';
   const logAnteriorLabel = pair.anterior ? formatDateTimeBr(pair.anterior.observed_at) : '—';
@@ -6241,6 +6240,7 @@ function renderValidityOperationalView() {
       : '';
     const fieldId = `validity-op-exp-date-${vi}`;
     const fieldName = `validity-op-exp-date-${vi}`;
+    const fieldIdCx = `validity-op-cx-${vi}`;
     li.innerHTML = `
       <div class="validity-op-main" role="button" tabindex="0" aria-expanded="false" aria-label="Abrir lançamento de validade">
         <div class="count-product-label">
@@ -6266,6 +6266,11 @@ function renderValidityOperationalView() {
             <input type="text" id="${fieldId}" name="${fieldName}" class="count-filter-input validity-op-date-input" data-coderef="${enc}"
               inputmode="numeric" maxlength="10" enterkeyhint="done" autocomplete="off"
               placeholder="DD/MM/AAAA" aria-label="Data de validade, digite dia, mês e ano" />
+          </div>
+          <div class="validity-op-expand-field">
+            <label class="validity-op-expand-kicker" for="${fieldIdCx}">Caixas</label>
+            <input type="number" id="${fieldIdCx}" class="count-filter-input validity-op-cx-input" data-coderef="${enc}"
+              inputmode="numeric" min="0" step="1" placeholder="Opcional" aria-label="Quantidade de caixas nesta validade, opcional" />
           </div>
           <button type="button" class="btn btn-primary validity-op-save" data-coderef="${enc}">Enviar</button>
         </div>
@@ -6296,7 +6301,10 @@ function saveValidityOpItemFromDom(item, inp) {
     return;
   }
   validityOpSaveGuard = { t: now, key: gk };
-  registerValidityLineLocal(cod, exp);
+  const cxInp = item.querySelector('.validity-op-cx-input');
+  const qcx = cxInp ? Math.max(0, Math.round(Number(cxInp.value) || 0)) : 0;
+  registerValidityLineLocal(cod, exp, qcx);
+  if (cxInp) cxInp.value = '';
   const ul = document.getElementById('validity-op-list');
   ul?.querySelectorAll('.validity-op-item--open').forEach((n) => {
     n.classList.remove('validity-op-item--open');
@@ -6610,9 +6618,7 @@ function buildValidityDetailBodyHtml(row, todayBr) {
   const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
   const enc = encodeURIComponent;
   const snap = getValidityLastCountSnapshot(cod);
-  const contagemLabel = snap
-    ? `${formatIntegerBR(snap.cx)} CX | ${formatIntegerBR(snap.un)} UN`
-    : '—';
+  const contagemLabel = snap ? `${formatIntegerBR(snap.cx)} CX` : '—';
   const lastLaunchIso = mergedLastValidityLaunchDateIso(cod);
   const lastLaunchLabel = lastLaunchIso ? formatDateBrFromIso(lastLaunchIso) : '—';
   const launchPairs = buildValidityOpLaunchPairsByCode();
@@ -6639,7 +6645,7 @@ function buildValidityDetailBodyHtml(row, todayBr) {
 
   const refMetrics = snap
     ? `<div class="validity-analytic-metrics validity-analytic-metrics--expanded">
-        <div class="validity-metric"><span class="validity-metric-k">Última contagem</span><span class="validity-metric-v">${formatIntegerBR(snap.cx)} CX <span class="validity-meta-sep">|</span> ${formatIntegerBR(snap.un)} UN</span></div>
+        <div class="validity-metric"><span class="validity-metric-k">Última contagem</span><span class="validity-metric-v">${formatIntegerBR(snap.cx)} CX</span></div>
         <div class="validity-metric"><span class="validity-metric-k">Data base</span><span class="validity-metric-v">${formatDateBrFromIso(snap.countDate)}</span></div>
         <div class="validity-metric"><span class="validity-metric-k">Idade da base</span><span class="validity-metric-v${ageClass}">${ageLabel}${baseOld ? ' · base antiga' : ''}</span></div>
         <div class="validity-metric"><span class="validity-metric-k">Próximo venc.</span><span class="validity-metric-v">${nextBr}</span></div>
@@ -6663,16 +6669,19 @@ function buildValidityDetailBodyHtml(row, todayBr) {
             ? escapeHtml(ln.device_name || 'Este aparelho')
             : escapeHtml(ln.actor_username || '—');
           const when = formatDateTimeBr(ln.observed_at);
+          const qcx = Math.max(0, Math.round(Number(ln.quantity_cx) || 0));
+          const cxCell = qcx > 0 ? formatIntegerBR(qcx) : '—';
           return `<tr>
             <td>${expBr}</td>
             <td><span class="${rkChip}">${rkLabel}</span></td>
+            <td class="muted">${cxCell}</td>
             <td class="muted">${who}</td>
             <td class="muted">${when}</td>
             <td>${delBtn}</td>
           </tr>`;
         })
         .join('')
-    : '<tr><td colspan="5" class="muted">Nenhuma data neste dia operacional.</td></tr>';
+    : '<tr><td colspan="6" class="muted">Nenhuma data neste dia operacional.</td></tr>';
 
   const codRefEnc = enc(cod);
   const editable = isValidityOperationalEditable();
@@ -6680,11 +6689,13 @@ function buildValidityDetailBodyHtml(row, todayBr) {
     ? `<div class="validity-add-row">
         <div class="validity-add-exp"><label class="sr-only" for="validity-exp-panel-${codRefEnc}">Nova validade</label>
         <input type="date" class="count-filter-input validity-inp-exp" id="validity-exp-panel-${codRefEnc}" data-coderef="${codRefEnc}" /></div>
+        <div class="validity-add-cx"><label class="sr-only" for="validity-cx-panel-${codRefEnc}">Caixas nesta validade</label>
+        <input type="number" class="count-filter-input validity-inp-cx" id="validity-cx-panel-${codRefEnc}" data-coderef="${codRefEnc}" inputmode="numeric" min="0" step="1" placeholder="CX" aria-label="Quantidade de caixas nesta validade, opcional" /></div>
         <div class="validity-add-actions"><button type="button" class="btn btn-primary validity-btn-add" data-coderef="${codRefEnc}">Adicionar</button></div>
       </div>`
     : '';
 
-  return `${resumoOperacional}${refMetrics}<p class="validity-detail-hint muted">Datas neste dia operacional</p><div class="validity-lines-table-wrap"><table class="validity-lines-table"><thead><tr><th>Vencimento</th><th>Faixa</th><th>Nome</th><th>Quando</th><th></th></tr></thead><tbody>${linesHtml}</tbody></table></div>${addBlock}`;
+  return `${resumoOperacional}${refMetrics}<p class="validity-detail-hint muted">Datas neste dia operacional</p><div class="validity-lines-table-wrap"><table class="validity-lines-table"><thead><tr><th>Vencimento</th><th>Faixa</th><th>Caixas</th><th>Nome</th><th>Quando</th><th></th></tr></thead><tbody>${linesHtml}</tbody></table></div>${addBlock}`;
 }
 
 function renderValidityAnalysisDetailPanel(row) {
@@ -6844,7 +6855,7 @@ async function loadValidityModuleForSub(subKey) {
   });
 }
 
-function registerValidityLineLocal(codRaw, expirationDateStr) {
+function registerValidityLineLocal(codRaw, expirationDateStr, quantityCx) {
   if (!isValidityOperationalEditable()) {
     setValidityFeedback('Lancamento apenas na data de hoje (America/Sao_Paulo).', true);
     return;
@@ -6857,11 +6868,13 @@ function registerValidityLineLocal(codRaw, expirationDateStr) {
   }
   const dayKey = getActiveValidityOpDateKey();
   const events = loadValidityEventsForDate(dayKey);
+  const qcx = Math.max(0, Math.round(Number(quantityCx) || 0));
   const ev = {
     client_event_id: makeEventId(),
     cod_produto: cod,
     expiration_date: String(expirationDateStr).slice(0, 10),
     quantity_un: 0,
+    quantity_cx: qcx,
     lot_code: null,
     note: null,
     observed_at: new Date().toISOString(),
@@ -6915,6 +6928,7 @@ async function syncValidityPending() {
       cod_produto: normalizeItemCode(e.cod_produto),
       expiration_date: e.expiration_date,
       quantity_un: Math.max(0, Math.round(Number(e.quantity_un) || 0)),
+      quantity_cx: Math.max(0, Math.round(Number(e.quantity_cx) || 0)),
       lot_code: e.lot_code || null,
       note: e.note || null,
       observed_at: e.observed_at || new Date().toISOString(),
@@ -6993,7 +7007,15 @@ async function removeValidityLine(lineId, clientId, codRaw) {
     });
     if (handleUnauthorizedResponse(resp)) return;
     if (!resp.ok) {
-      setValidityFeedback('Nao foi possivel remover no servidor.', true);
+      const err = await resp.json().catch(() => ({}));
+      const d = err.detail;
+      const msg =
+        typeof d === 'string'
+          ? d
+          : Array.isArray(d)
+            ? d.map((x) => x.msg || x).join(' ')
+            : 'Nao foi possivel remover no servidor.';
+      setValidityFeedback(msg, true);
       return;
     }
     await loadValidityLinesFromServer(getActiveValiditySubKey() === 'validity-analysis');
@@ -7028,8 +7050,11 @@ function bindValidityShellClicks(shell) {
       const codRefEnc = addBtn.getAttribute('data-coderef') || '';
       const cod = normalizeItemCode(decodeURIComponent(codRefEnc));
       const expEl = document.getElementById(`validity-exp-panel-${codRefEnc}`);
-      registerValidityLineLocal(cod, expEl && expEl.value);
+      const cxEl = document.getElementById(`validity-cx-panel-${codRefEnc}`);
+      const qcx = cxEl ? Math.max(0, Math.round(Number(cxEl.value) || 0)) : 0;
+      registerValidityLineLocal(cod, expEl && expEl.value, qcx);
       if (expEl) expEl.value = '';
+      if (cxEl) cxEl.value = '';
       return;
     }
     const rem = e.target.closest('.btn-validity-remove');
@@ -11000,6 +11025,9 @@ async function resolveLocalUserInfo(token, username) {
 
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (loginForm.dataset.loginInFlight === '1') {
+    return;
+  }
   loginError.textContent = '';
 
   const username = document.getElementById('username').value.trim();
@@ -11016,6 +11044,7 @@ loginForm.addEventListener('submit', async (e) => {
     return;
   }
 
+  loginForm.dataset.loginInFlight = '1';
   setLoading(true);
 
   try {
@@ -11050,6 +11079,7 @@ loginForm.addEventListener('submit', async (e) => {
   } catch {
     loginError.textContent = 'Erro de conexão. Verifique sua internet e tente novamente.';
   } finally {
+    loginForm.dataset.loginInFlight = '0';
     setLoading(false);
   }
 });

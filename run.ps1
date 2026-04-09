@@ -12,12 +12,15 @@ if (-not (Test-Path $python)) {
     throw 'Nao foi possivel localizar .venv\Scripts\python.exe'
 }
 
-# Forca execucao local independente de credenciais remotas no .env
+# Forca SQLite local (evita apontar por engano para Postgres remoto no .env).
+# Credenciais de admin vêm do arquivo .env. No Windows, variáveis de ambiente do usuário
+# ou de sessões antigas (ex.: ADMIN_USERNAME=admin) substituem o .env no Pydantic — aí o
+# login com o e-mail do .env falha com 401. Removemos do processo atual para o .env valer.
 $env:DATABASE_URL = 'sqlite:///./estoque_local.db'
+Remove-Item Env:ADMIN_USERNAME -ErrorAction SilentlyContinue
+Remove-Item Env:ADMIN_PASSWORD -ErrorAction SilentlyContinue
 if (-not $env:SECRET_KEY) { $env:SECRET_KEY = 'dev-local-secret-key' }
 if (-not $env:IMPORT_SECRET) { $env:IMPORT_SECRET = 'dev-local-import-secret' }
-if (-not $env:ADMIN_USERNAME) { $env:ADMIN_USERNAME = 'admin' }
-if (-not $env:ADMIN_PASSWORD) { $env:ADMIN_PASSWORD = 'admin123' }
 
 if (-not (Test-Path '.\.env')) {
     Write-Host 'Criando .env a partir de .env.example...' -ForegroundColor Yellow

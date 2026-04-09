@@ -2,7 +2,6 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
@@ -70,29 +69,47 @@ def _to_user_info(user: User) -> UserInfo:
 
 
 def _ensure_default_admin_on_login(session: Session, username: str, password: str) -> User | None:
+    """Cria ou regrava o admin padrão quando a senha confere (Postgres, SQLite e Railway).
+
+    Evita SQL bruto em app_core.users, que quebra em SQLite (sem schema) e em bases legadas.
+    """
     normalized_username = (username or "").strip().lower()
     admin_username, admin_password = _admin_credentials()
     if normalized_username != admin_username or password != admin_password:
         return None
 
     password_hash = get_password_hash(admin_password)
-    session.exec(
-        text(
-            """
-            INSERT INTO app_core.users (username, password_hash, role, is_active, source_system, updated_at)
-            VALUES (:username, :password_hash, 'admin', true, 'bootstrap', NOW())
-            ON CONFLICT (username)
-            DO UPDATE
-            SET password_hash = EXCLUDED.password_hash,
-                role = 'admin',
-                is_active = true,
-                updated_at = NOW()
-            """
-        ),
-        {"username": admin_username, "password_hash": password_hash},
-    )
-    session.commit()
-    return session.exec(select(User).where(User.username == admin_username)).first()
+    try:
+        user = session.exec(select(User).where(User.username == admin_username)).first()
+        if user:
+            user.password_hash = password_hash
+            user.role = "admin"
+            user.is_active = True
+            user.allowed_pages = DEFAULT_ADMIN_ALLOWED_PAGES
+            if not user.full_name:
+                user.full_name = "Felipe Ranon"
+            user.source_system = "bootstrap"
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            return user
+        user = User(
+            username=admin_username,
+            full_name="Felipe Ranon",
+            phone="",
+            password_hash=password_hash,
+            role="admin",
+            is_active=True,
+            allowed_pages=DEFAULT_ADMIN_ALLOWED_PAGES,
+            source_system="bootstrap",
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user
+    except SQLAlchemyError:
+        session.rollback()
+        return None
 
 
 @router.post("/login", response_model=Token)

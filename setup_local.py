@@ -7,7 +7,11 @@ Uso:
 """
 
 import os
+
 os.environ["DATABASE_URL"] = "sqlite:///./estoque_local.db"
+# Mesma regra do run.ps1: env do sistema não deve sobrescrever ADMIN_* do .env.
+os.environ.pop("ADMIN_USERNAME", None)
+os.environ.pop("ADMIN_PASSWORD", None)
 
 from sqlmodel import SQLModel, create_engine, Session
 from app.core.config import get_settings

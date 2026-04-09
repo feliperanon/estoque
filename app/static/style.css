@@ -7477,7 +7477,7 @@ details[open] > .validity-analytic-summary::after {
 }
 .validity-add-row {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) auto;
+  grid-template-columns: minmax(140px, 1fr) minmax(64px, 100px) auto;
   gap: 8px;
   align-items: end;
   margin-top: 8px;
@@ -8243,7 +8243,7 @@ details[open] > .validity-analytic-summary::after {
 }
 .validity-op-expand-row {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  grid-template-columns: minmax(0, 1fr) minmax(72px, 120px) auto;
   gap: 8px;
   align-items: stretch;
   width: 100%;
@@ -8263,13 +8263,17 @@ details[open] > .validity-analytic-summary::after {
   margin: 0;
   line-height: 1.2;
 }
-.validity-op-date-input {
+.validity-op-date-input,
+.validity-op-cx-input {
   font-size: 1.05rem;
   min-height: 44px;
   padding: 8px 10px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  cursor: text;
+}
+.validity-op-cx-input {
   cursor: text;
 }
 #sub-validity .validity-op-save {
@@ -8282,6 +8286,14 @@ details[open] > .validity-analytic-summary::after {
   border-radius: 10px;
   align-self: stretch;
   white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .validity-op-expand-row {
+    grid-template-columns: 1fr;
+  }
+  #sub-validity .validity-op-save {
+    grid-column: 1 / -1;
+  }
 }
 @media (max-width: 380px) {
   .validity-op-expand-row {

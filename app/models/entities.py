@@ -285,6 +285,7 @@ class ValidityLine(SQLModel, table=True):
     cod_produto: str = Field(max_length=120, index=True)
     expiration_date: date
     quantity_un: int = Field(ge=0)
+    quantity_cx: int = Field(default=0, ge=0)
     lot_code: str | None = Field(default=None, max_length=80)
     note: str | None = Field(default=None, max_length=500)
     operational_date: date = Field(index=True)

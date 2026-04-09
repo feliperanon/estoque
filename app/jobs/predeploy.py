@@ -15,6 +15,7 @@ from app.models import (
     ValidityLine,
 )
 from app.services.bootstrap import ensure_admin_user, ensure_database_ready
+from app.services.validity_lines_schema import ensure_validity_lines_structures
 
 
 def _missing_critical_tables() -> list[str]:
@@ -73,6 +74,10 @@ def _ensure_inventory_tables() -> None:
             SQLModel.metadata.create_all(engine, tables=[table], checkfirst=True)
         except Exception:
             pass
+    try:
+        ensure_validity_lines_structures()
+    except Exception:
+        pass
 
 
 _BASE_CRITICAL = {"app_core.employees", "app_core.users", "app_core.products"}

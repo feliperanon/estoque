@@ -1,4 +1,4 @@
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import SQLModel, Session, select
 
@@ -212,23 +212,27 @@ def _ensure_products_compat_columns(*, is_sqlite: bool) -> None:
 
 def ensure_admin_user(session: Session) -> bool:
     settings = get_settings()
-    admin_username = settings.admin_username or DEFAULT_ADMIN_USERNAME
+    admin_username = (settings.admin_username or DEFAULT_ADMIN_USERNAME).strip().lower()
     admin_password = settings.admin_password or DEFAULT_ADMIN_PASSWORD
 
     # Defensive guard for environments where migrations completed partially:
     # ensure the users table exists before querying it during startup.
     bind = session.get_bind()
     inspector = inspect(bind)
-    if not inspector.has_table(User.__tablename__, schema="app_core"):
+    is_sqlite = settings.sqlalchemy_database_url.startswith("sqlite")
+    user_table_schema = None if is_sqlite else "app_core"
+    if not inspector.has_table(User.__tablename__, schema=user_table_schema):
         ensure_database_ready()
         # If users table is still missing, do not force create_all here because
         # model-level FK (users.employee_id -> employees.id) can break startup in
         # environments where legacy tables are not provisioned yet.
         inspector = inspect(bind)
-        if not inspector.has_table(User.__tablename__, schema="app_core"):
+        if not inspector.has_table(User.__tablename__, schema=user_table_schema):
             return False
 
-    existing = session.exec(select(User).where(User.username == admin_username)).first()
+    existing = session.exec(
+        select(User).where(func.lower(User.username) == admin_username),
+    ).first()
     if existing:
         if (existing.role or "").strip().lower() != "admin":
             existing.role = "admin"
