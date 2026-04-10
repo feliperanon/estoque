@@ -1,6 +1,12 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _validate_conversion_factor(v: float | None) -> float | None:
+    if v is not None and v <= 0:
+        raise ValueError("Fator de conversao deve ser maior que zero")
+    return v
 
 
 class ProductBase(BaseModel):
@@ -16,6 +22,15 @@ class ProductBase(BaseModel):
     status: str | None = Field(default=None, max_length=40)
     grup_prioridade: str | None = Field(default=None, max_length=80)
     price: float | None = Field(default=None)
+    conversion_factor: float | None = Field(
+        default=None,
+        description="Unidades por 1 caixa/embalagem (ex.: 1 caixa = 6 unidades → 6).",
+    )
+
+    @field_validator("conversion_factor")
+    @classmethod
+    def _conversion_factor_ok(cls, v: float | None) -> float | None:
+        return _validate_conversion_factor(v)
 
 
 class ProductCreate(ProductBase):
@@ -36,6 +51,12 @@ class ProductUpdate(BaseModel):
     status: str | None = None
     grup_prioridade: str | None = None
     price: float | None = None
+    conversion_factor: float | None = None
+
+    @field_validator("conversion_factor")
+    @classmethod
+    def _conversion_factor_ok_update(cls, v: float | None) -> float | None:
+        return _validate_conversion_factor(v)
 
 
 class ProductRead(ProductBase):

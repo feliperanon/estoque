@@ -674,10 +674,8 @@ async function apiFetchProductsList(searchQuery, statusFilters, options = {}) {
     if (qt) params.set('q', qt);
     if (applyDimFilters) {
       const fcia = document.getElementById('produtos-filter-cia')?.value?.trim() || '';
-      const fseg = document.getElementById('produtos-filter-segmento')?.value?.trim() || '';
       const fmar = document.getElementById('produtos-filter-marca')?.value?.trim() || '';
       if (fcia) params.set('cia', fcia);
-      if (fseg) params.set('segmento', fseg);
       if (fmar) params.set('marca', fmar);
     }
     if (Array.isArray(statusFilters) && statusFilters.length > 0) {
@@ -11279,6 +11277,7 @@ function fillSelect(selectId, options, selected = null, placeholderLabel = 'Sele
   el.appendChild(placeholder);
   if (!Array.isArray(options) || options.length === 0) return;
   for (const opt of options) {
+    if (opt == null || String(opt).trim() === '') continue;
     const option = document.createElement('option');
     option.value = opt;
     option.textContent = opt === 'ativo' ? 'Ativo' : opt === 'inativo' ? 'Inativo' : opt;
@@ -11316,7 +11315,6 @@ function mergeUnique(baseValues, newValues) {
 function applyProductDefaultsToForms() {
   const defaults = loadProductDefaults();
   const preserveProdutosCia = document.getElementById('produtos-filter-cia')?.value ?? '';
-  const preserveProdutosSeg = document.getElementById('produtos-filter-segmento')?.value ?? '';
   const preserveProdutosMarca = document.getElementById('produtos-filter-marca')?.value ?? '';
   const pairs = [
     ['cod_grup_cia', 'prod-cod-cia', 'edit-cod-cia'],
@@ -11330,7 +11328,6 @@ function applyProductDefaultsToForms() {
     fillSelect(editId, defaults[key]);
   }
   fillSelect('produtos-filter-cia', defaults.cod_grup_cia, preserveProdutosCia, 'Todos');
-  fillSelect('produtos-filter-segmento', defaults.cod_grup_segmento, preserveProdutosSeg, 'Todos');
   fillSelect('produtos-filter-marca', defaults.cod_grup_marca, preserveProdutosMarca, 'Todos');
   renderParamRemoveValues(defaults);
 }
@@ -11362,6 +11359,8 @@ function renderParamRemoveValues(defaults = null) {
 }
 
 function readProductPayloadFromForm() {
+  const cf = parseConversionFactorInput('prod-fator-conversao');
+  if (!cf.ok) return { __invalidConversionFactor: true };
   return {
     cod_grup_sp: null,
     cod_grup_cia: document.getElementById('prod-cod-cia').value.trim() || null,
@@ -11375,6 +11374,7 @@ function readProductPayloadFromForm() {
     status: null,
     grup_prioridade: null,
     price: parseFloat(document.getElementById('prod-custo').value) || null,
+    conversion_factor: cf.value,
     source_system: 'manual',
   };
 }
@@ -11430,6 +11430,9 @@ async function loadProducts() {
     saveProductDefaults(mergedDefaults);
     applyProductDefaultsToForms();
     renderProducts(products);
+    if (document.getElementById('sub-produtos')?.classList.contains('active')) {
+      void searchProdutos();
+    }
   } catch {
     setProductFeedback('Falha de conexao ao carregar produtos.', true);
   }
@@ -11437,6 +11440,10 @@ async function loadProducts() {
 
 async function saveProductManual() {
   const payload = readProductPayloadFromForm();
+  if (payload.__invalidConversionFactor) {
+    setProductFeedback('Fator de conversão deve ser um número maior que zero (ou deixe em branco).', true);
+    return;
+  }
   if (!payload.cod_produto || !payload.cod_grup_descricao || !payload.cod_grup_sku) {
     setProductFeedback('Código, produto e SKU são obrigatórios.', true);
     return;
@@ -11693,6 +11700,25 @@ function formatPrice(v) {
   return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+/** UN por 1 CX; vazio = não definido */
+function formatConversionFactor(v) {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '—';
+  if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+}
+
+function parseConversionFactorInput(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return { ok: true, value: null };
+  const raw = String(el.value || '').trim().replace(',', '.');
+  if (!raw) return { ok: true, value: null };
+  const n = parseFloat(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) return { ok: false, value: null };
+  return { ok: true, value: n };
+}
+
 function produtoStatusBadgeMeta(p) {
   const raw = (p.status || '').trim();
   const sl = raw.toLowerCase();
@@ -11718,7 +11744,8 @@ function produtoStatusBadgeMeta(p) {
 }
 
 async function searchProdutos() {
-  const q = document.getElementById('produtos-search').value.trim();
+  const searchEl = document.getElementById('produtos-search');
+  const q = (searchEl?.value ?? '').trim();
   const token = getToken();
   if (!token) return;
 
@@ -11747,7 +11774,7 @@ async function searchProdutos() {
     }
 
     const data = await resp.json();
-    renderProdutosTable(data);
+    renderProdutosTable(Array.isArray(data) ? data : []);
   } catch {
     setProdutosFeedback('Sem conexão.', true);
   }
@@ -11756,11 +11783,12 @@ async function searchProdutos() {
 function renderProdutosTable(products) {
   const tbody = document.getElementById('produtos-tbody');
   const total = document.getElementById('produtos-result-total');
+  if (!tbody || !total) return;
   tbody.innerHTML = '';
-  total.textContent = products.length;
+  total.textContent = String(products.length);
 
   if (!products.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Nenhum produto encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center">Nenhum produto encontrado.</td></tr>';
     return;
   }
 
@@ -11772,6 +11800,7 @@ function renderProdutosTable(products) {
       <td>${p.cod_grup_sku || '—'}</td>
       <td>${p.cod_grup_descricao || '—'}</td>
       <td>${formatPrice(p.price)}</td>
+      <td title="Unidades por 1 caixa">${formatConversionFactor(p.conversion_factor)}</td>
       <td><span class="status-badge ${st.cls}">${st.label}</span></td>
       <td>${formatDate(p.created_at)}</td>
       <td class="actions-cell">
@@ -11814,6 +11843,13 @@ async function openEditProduct(id) {
     document.getElementById('edit-produto').value = p.cod_grup_descricao || '';
     fillSelect('edit-sku', defaults.cod_grup_sku, p.cod_grup_sku || '');
     document.getElementById('edit-custo').value = p.price != null ? p.price : '';
+    const editFator = document.getElementById('edit-fator-conversao');
+    if (editFator) {
+      editFator.value =
+        p.conversion_factor != null && Number.isFinite(Number(p.conversion_factor))
+          ? String(p.conversion_factor)
+          : '';
+    }
 
     openProductEditPanel();
     document.getElementById('product-history-inline').style.display = 'none';
@@ -11828,6 +11864,12 @@ async function updateProduct() {
   const token = getToken();
   if (!token || !id) return;
 
+  const cf = parseConversionFactorInput('edit-fator-conversao');
+  if (!cf.ok) {
+    setEditFeedback('Fator de conversão deve ser um número maior que zero (ou deixe em branco).', true);
+    return;
+  }
+
   const payload = {
     cod_grup_cia: document.getElementById('edit-cod-cia').value.trim() || null,
     cod_grup_tipo: document.getElementById('edit-cod-tipo').value.trim() || null,
@@ -11837,6 +11879,7 @@ async function updateProduct() {
     cod_grup_descricao: document.getElementById('edit-produto').value.trim(),
     cod_grup_sku: document.getElementById('edit-sku').value.trim(),
     price: parseFloat(document.getElementById('edit-custo').value) || null,
+    conversion_factor: cf.value,
   };
 
   if (!payload.cod_produto || !payload.cod_grup_descricao || !payload.cod_grup_sku) {
@@ -11946,12 +11989,17 @@ function bindProdutosEvents() {
   const btnCloseHistoryInline = document.getElementById('btn-close-history-inline');
   const editForm = document.getElementById('product-edit-form');
 
-  if (!btnSearch) return;
+  if (!btnSearch || !searchInput || !tbody) return;
 
   btnSearch.addEventListener('click', () => searchProdutos());
   searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchProdutos(); } });
 
-  for (const fid of ['produtos-filter-cia', 'produtos-filter-segmento', 'produtos-filter-marca']) {
+  for (const fid of ['produtos-filter-cia', 'produtos-filter-marca']) {
+    const fel = document.getElementById(fid);
+    if (fel) fel.addEventListener('change', () => searchProdutos());
+  }
+
+  for (const fid of ['produtos-filter-ativo', 'produtos-filter-inativo', 'produtos-filter-precadastro']) {
     const fel = document.getElementById(fid);
     if (fel) fel.addEventListener('change', () => searchProdutos());
   }

@@ -140,6 +140,8 @@ class Product(SourceTracked, table=True):
     status: str | None = Field(default=None, max_length=40)
     grup_prioridade: str | None = Field(default=None, max_length=80)
     price: float | None = Field(default=None)
+    # Quantidade de unidades equivalentes a 1 caixa/embalagem (ex.: 1 CX = 6 UN → 6).
+    conversion_factor: float | None = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
 
 

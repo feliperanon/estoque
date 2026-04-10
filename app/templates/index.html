@@ -1358,7 +1358,8 @@
                   Planilha padrão: primeira linha com colunas
                   <strong>Cia</strong>, <strong>Tipo</strong>, <strong>Segmento</strong>, <strong>Marca</strong>,
                   <strong>Produto</strong>, <strong>Codigo</strong>, <strong>SKU</strong>, <strong>Custo</strong>
-                  (custo numérico ou texto tipo R$ 0,00).
+                  (custo numérico ou texto tipo R$ 0,00). Opcional: <strong>Fator_conversao</strong> ou <strong>Unidades_por_caixa</strong>
+                  (quantas unidades em 1 caixa; ex.: 6).
                 </p>
               </div>
               <form id="product-form" class="product-form product-form--cadastro" autocomplete="off">
@@ -1370,6 +1371,11 @@
                   <div class="field"><label for="prod-codigo">Código</label><input id="prod-codigo" type="text" required autocomplete="off" /></div>
                   <div class="field"><div class="field-label-row"><label for="prod-sku">SKU</label><button type="button" class="btn-link-mini" data-new-option-target="prod-sku">+ Novo</button></div><select id="prod-sku"></select></div>
                   <div class="field"><label for="prod-custo">Custo (R$)</label><input id="prod-custo" type="number" step="0.01" min="0" inputmode="decimal" /></div>
+                  <div class="field">
+                    <label for="prod-fator-conversao">Fator de conversão (UN por 1 CX)</label>
+                    <input id="prod-fator-conversao" type="number" step="any" min="0.0001" inputmode="decimal" placeholder="Ex.: 6" autocomplete="off" />
+                    <p class="muted" style="margin-top:4px;font-size:0.82rem;">Quantas unidades equivalem a <strong>1 caixa</strong> (embalagem). Deixe em branco se não usar.</p>
+                  </div>
                   <button type="submit" id="btn-product-save">Salvar produto</button>
               </form>
               <div id="product-import-feedback" class="field-feedback" aria-live="polite"></div>
@@ -1382,22 +1388,20 @@
             <section class="card">
               <h2>Produtos Cadastrados</h2>
               <p class="muted">Pesquise, edite, ative/inative ou exclua produtos. Clique em um produto para ver o histórico.</p>
-              <div class="search-row">
-                <input id="produtos-search" type="text" placeholder="Código, SKU, descrição, Cia, Segmento, Marca ou valor do custo (ex.: 12,90)..." class="search-input" />
-                <button id="btn-produtos-search" type="button" class="btn-secondary btn-dark">Buscar</button>
-              </div>
-              <div class="produtos-extra-filters" role="group" aria-label="Filtrar por Cia, Segmento e Marca">
-                <div class="field produtos-filter-field">
-                  <label for="produtos-filter-cia">Cia</label>
-                  <select id="produtos-filter-cia" class="search-select"></select>
+              <div class="produtos-toolbar" role="group" aria-label="Busca e filtros de produtos">
+                <div class="search-row produtos-toolbar-search">
+                  <input id="produtos-search" type="text" placeholder="Código, SKU, descrição, Cia, Segmento, Marca ou valor do custo (ex.: 12,90)..." class="search-input" />
+                  <button id="btn-produtos-search" type="button" class="btn-secondary btn-dark">Buscar</button>
                 </div>
-                <div class="field produtos-filter-field">
-                  <label for="produtos-filter-segmento">Segmento</label>
-                  <select id="produtos-filter-segmento" class="search-select"></select>
-                </div>
-                <div class="field produtos-filter-field">
-                  <label for="produtos-filter-marca">Marca</label>
-                  <select id="produtos-filter-marca" class="search-select"></select>
+                <div class="produtos-extra-filters produtos-toolbar-filters" role="group" aria-label="Filtrar por Cia e Marca">
+                  <div class="field produtos-filter-field">
+                    <label for="produtos-filter-cia">Cia</label>
+                    <select id="produtos-filter-cia" class="search-select"></select>
+                  </div>
+                  <div class="field produtos-filter-field">
+                    <label for="produtos-filter-marca">Marca</label>
+                    <select id="produtos-filter-marca" class="search-select"></select>
+                  </div>
                 </div>
               </div>
               <div class="produtos-status-filters" role="group" aria-label="Filtrar listagem por status do produto">
@@ -1428,6 +1432,7 @@
                       <th>SKU</th>
                       <th>Produto</th>
                       <th>Custo</th>
+                      <th title="Unidades por 1 caixa">Fator CX→UN</th>
                       <th>Status</th>
                       <th>Criado em</th>
                       <th>Ações</th>
@@ -1457,6 +1462,11 @@
                 <div class="field"><label for="edit-codigo">Código</label><input id="edit-codigo" type="text" required autocomplete="off" /></div>
                 <div class="field"><div class="field-label-row"><label for="edit-sku">SKU</label><button type="button" class="btn-link-mini" data-new-option-target="edit-sku">+ Novo</button></div><select id="edit-sku"></select></div>
                 <div class="field"><label for="edit-custo">Custo (R$)</label><input id="edit-custo" type="number" step="0.01" min="0" inputmode="decimal" /></div>
+                <div class="field">
+                  <label for="edit-fator-conversao">Fator de conversão (UN por 1 CX)</label>
+                  <input id="edit-fator-conversao" type="number" step="any" min="0.0001" inputmode="decimal" placeholder="Ex.: 6" autocomplete="off" />
+                  <p class="muted" style="margin-top:4px;font-size:0.82rem;">Quantas unidades equivalem a <strong>1 caixa</strong>. Vazio = não definido.</p>
+                </div>
                 <button type="submit" id="btn-product-update">Salvar alterações</button>
               </form>
               <div id="product-edit-feedback" class="field-feedback" aria-live="polite"></div>

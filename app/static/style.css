@@ -5603,6 +5603,26 @@ body.count-audit-drawer-open {
   color: var(--ink);
 }
 
+/* Cadastro > Produtos: busca + filtros Cia/Marca na mesma linha (desktop); empilha no mobile */
+#sub-produtos .produtos-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+#sub-produtos .produtos-toolbar .produtos-toolbar-search {
+  flex: 1 1 280px;
+  min-width: min(100%, 220px);
+  margin-bottom: 0;
+}
+
+#sub-produtos .produtos-toolbar .produtos-toolbar-filters {
+  flex: 1 1 260px;
+  margin-bottom: 0;
+}
+
 #sub-produtos .produtos-extra-filters {
   display: flex;
   flex-wrap: wrap;

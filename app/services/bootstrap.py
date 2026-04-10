@@ -168,6 +168,13 @@ def _ensure_products_compat_columns(*, is_sqlite: bool) -> None:
                 connection.execute(text("ALTER TABLE products ADD COLUMN price FLOAT"))
             else:
                 connection.execute(text("ALTER TABLE app_core.products ADD COLUMN IF NOT EXISTS price DOUBLE PRECISION"))
+        if "conversion_factor" not in columns:
+            if is_sqlite:
+                connection.execute(text("ALTER TABLE products ADD COLUMN conversion_factor FLOAT"))
+            else:
+                connection.execute(
+                    text("ALTER TABLE app_core.products ADD COLUMN IF NOT EXISTS conversion_factor DOUBLE PRECISION"),
+                )
         if "created_at" not in columns:
             if is_sqlite:
                 connection.execute(text("ALTER TABLE products ADD COLUMN created_at DATETIME"))

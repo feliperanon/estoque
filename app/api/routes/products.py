@@ -82,6 +82,7 @@ def _to_product_read(product: Product) -> ProductRead:
         status=safe.status,
         grup_prioridade=safe.grup_prioridade,
         price=safe.price,
+        conversion_factor=safe.conversion_factor,
         legacy_id=safe.legacy_id,
         source_system=safe.source_system,
         imported_at=safe.imported_at,
@@ -152,7 +153,7 @@ def _norm_header(value: str) -> str:
 
 # Modelo oficial de importação (planilha BI — 8 colunas):
 # Cia → cod_grup_cia | Tipo → cod_grup_tipo | Segmento → cod_grup_segmento | Marca → cod_grup_marca
-# Produto → cod_grup_descricao | Codigo → cod_produto | SKU → cod_grup_sku | Custo → price
+# Produto → cod_grup_descricao | Codigo → cod_produto | SKU → cod_grup_sku | Custo → price | Fator → conversion_factor
 HEADER_ALIASES = {
     "cod_grup_sp": "cod_grup_sp",
     "grup_sp": "cod_grup_sp",
@@ -225,6 +226,14 @@ HEADER_ALIASES = {
     "valor": "price",
     "valor_rs": "price",
     "valor_unitario": "price",
+    # Fator CX→UN (unidades por 1 caixa)
+    "conversion_factor": "conversion_factor",
+    "fator_conversao": "conversion_factor",
+    "fator_de_conversao": "conversion_factor",
+    "unidades_por_caixa": "conversion_factor",
+    "un_por_cx": "conversion_factor",
+    "unidades_por_cx": "conversion_factor",
+    "cx_para_un": "conversion_factor",
 }
 
 # Importação por planilha: obrigatório código do produto + nome/descrição. SKU é opcional (espelha o código se vazio).
@@ -380,6 +389,32 @@ def _parse_br_price(value: object) -> float | None:
         return float(s)
     except ValueError:
         return None
+
+
+def _coerce_conversion_factor_in_row(row_data: dict[str, str | float | None]) -> None:
+    """Converte coluna de fator de conversão (UN por CX) para float positivo."""
+    raw = row_data.get("conversion_factor")
+    if raw is None:
+        return
+    if isinstance(raw, str) and not raw.strip():
+        row_data.pop("conversion_factor", None)
+        return
+    if isinstance(raw, bool):
+        row_data.pop("conversion_factor", None)
+        return
+    if isinstance(raw, (int, float)):
+        v = float(raw)
+    else:
+        s = str(raw).strip().replace(",", ".")
+        try:
+            v = float(s)
+        except ValueError:
+            row_data.pop("conversion_factor", None)
+            return
+    if v <= 0 or v != v:  # exclui NaN
+        row_data.pop("conversion_factor", None)
+        return
+    row_data["conversion_factor"] = v
 
 
 def _coerce_price_in_row(row_data: dict[str, str | float | None]) -> None:
@@ -715,6 +750,7 @@ async def import_products_excel(
 
             _normalize_codigo_import(row_data)
             _coerce_price_in_row(row_data)
+            _coerce_conversion_factor_in_row(row_data)
             _fill_import_row_defaults(row_data)
             if "status" in row_data and row_data.get("status") is not None:
                 row_data["status"] = _normalize_import_status(row_data["status"])
