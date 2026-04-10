@@ -2001,7 +2001,10 @@ function updateCountProgress(products = countProductsCache) {
   if (!fillDim) return;
   const stats = computeCountProgressStats(products);
   const { total, percent, productPercent, usesDimProgress } = stats;
-  const dual = Boolean(total && usesDimProgress && stats.dimTotal > 0);
+  // Segunda barra só com importação TXT: metades (CX/UN) na primeira, produtos com lançamento na segunda.
+  const dual = Boolean(
+    total && countImportBalancesState.hasTxt && usesDimProgress && stats.dimTotal > 0,
+  );
 
   if (blockProducts) blockProducts.hidden = !dual;
 
@@ -2014,9 +2017,11 @@ function updateCountProgress(products = countProductsCache) {
     }
     const percentSpan = document.getElementById('count-progress-percent');
     if (percentSpan) percentSpan.textContent = '0%';
-    if (percentProductsSpan) percentProductsSpan.textContent = '0%';
+    if (percentProductsSpan) percentProductsSpan.textContent = dual ? '0%' : '';
     if (detailDimEl) detailDimEl.textContent = countProgressDetailDimLabel(stats);
-    if (detailProductsEl) detailProductsEl.textContent = countProgressDetailProductsLabel(stats);
+    if (detailProductsEl) {
+      detailProductsEl.textContent = dual ? countProgressDetailProductsLabel(stats) : '';
+    }
     return;
   }
 
@@ -2032,10 +2037,14 @@ function updateCountProgress(products = countProductsCache) {
 
   const percentSpan = document.getElementById('count-progress-percent');
   if (percentSpan) percentSpan.textContent = `${percent}%`;
-  if (percentProductsSpan) percentProductsSpan.textContent = dual ? `${productPercent}%` : '0%';
+  if (percentProductsSpan) {
+    percentProductsSpan.textContent = dual ? `${productPercent}%` : '';
+  }
 
   if (detailDimEl) detailDimEl.textContent = countProgressDetailDimLabel(stats);
-  if (detailProductsEl) detailProductsEl.textContent = countProgressDetailProductsLabel(stats);
+  if (detailProductsEl) {
+    detailProductsEl.textContent = dual ? countProgressDetailProductsLabel(stats) : '';
+  }
 }
 
 function getDeviceName() {
@@ -3136,8 +3145,11 @@ async function loadBreakProducts() {
 function setBreakFeedback(msg, isError = false) {
   const el = document.getElementById('break-feedback');
   if (!el) return;
-  el.textContent = msg || '';
-  el.style.color = isError ? 'var(--error)' : 'var(--accent)';
+  const text = msg || '';
+  el.textContent = text;
+  const hasMsg = !!String(text).trim();
+  el.classList.toggle('is-error', !!isError && hasMsg);
+  el.style.color = '';
 }
 
 function renderBreakProducts(products) {
