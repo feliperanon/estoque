@@ -6942,7 +6942,7 @@ function updateValidityOpStickyMeta() {
   }
   const syncEl = document.getElementById('validity-op-sync-hint');
   if (syncEl) {
-    syncEl.textContent = `Sincronização: ${formatValidityLastSyncDisplay()}`;
+    syncEl.textContent = formatValidityLastSyncDisplay();
   }
 }
 

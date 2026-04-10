@@ -8800,11 +8800,17 @@ details[open] > .validity-analytic-summary::after {
   min-width: 0;
 }
 .validity-op-sticky {
-  position: relative;
-  z-index: 1;
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app, 52px));
+  z-index: 40;
   background: linear-gradient(180deg, #faf8ff 0%, #f8fafc 100%);
   border-bottom: 1px solid rgba(91, 33, 182, 0.12);
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+@media (max-width: 1023px) {
+  .validity-op-sticky {
+    top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app, 54px));
+  }
 }
 .validity-op-sticky-inner {
   padding: 10px 12px 12px;
