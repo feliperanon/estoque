@@ -2980,6 +2980,37 @@ form#break-op-form.count-form {
   border-top: 1px solid var(--audit-border);
 }
 
+/* Análise de Contagem: contexto (pills) e ações na mesma faixa do card */
+.count-audit-header__combined {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--audit-space-3) var(--audit-space-4);
+}
+
+.count-audit-header__combined .count-audit-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1 1 12rem;
+  min-width: 0;
+  gap: var(--audit-space-2);
+  margin-bottom: 0;
+}
+
+.count-audit-header__combined .count-audit-meta-pill {
+  flex: 1 1 7.5rem;
+  min-width: 0;
+  max-width: 14rem;
+}
+
+.count-audit-header__combined .count-audit-header__toolbar {
+  flex: 0 1 auto;
+  margin-left: auto;
+  padding-top: 0;
+  border-top: none;
+  align-self: flex-end;
+}
+
 .count-audit-field {
   display: flex;
   flex-direction: column;
@@ -5024,7 +5055,22 @@ body.count-audit-drawer-open {
   }
 }
 
+@media (min-width: 1100px) {
+  .count-audit-header__combined {
+    flex-wrap: nowrap;
+  }
+
+  .count-audit-header__combined .count-audit-header__meta {
+    flex: 1 1 0;
+  }
+}
+
 @media (max-width: 760px) {
+  .count-audit-header__combined .count-audit-header__toolbar {
+    margin-left: 0;
+    width: 100%;
+  }
+
   #sub-count-audit .count-audit-shell,
   #sub-mate-couro-troca .count-audit-shell, #sub-mate-couro-troca-trocas .count-audit-shell, #sub-mate-couro-troca-historico .count-audit-shell,
   #sub-break-history .count-audit-shell {

@@ -775,7 +775,6 @@ if (countAuditDate) {
 const btnCountAuditRefresh = document.getElementById('btn-count-audit-refresh');
 const btnCountAuditExportExcel = document.getElementById('btn-count-audit-export-excel');
 const countAuditOnlyDiff = document.getElementById('count-audit-only-diff');
-const countAuditFeedback = document.getElementById('count-audit-feedback');
 const countAuditSummary = document.getElementById('count-audit-summary');
 const countAuditList = document.getElementById('count-audit-list');
 const countAuditTotal = document.getElementById('count-audit-total');
@@ -822,6 +821,9 @@ let countKpiTicker = null;
 let countAuditPollingTimer = null;
 /** Intervalo da Análise de Contagem: atualização quase em tempo real (outros dispositivos / servidor). */
 const COUNT_AUDIT_POLL_MS = 8000;
+/** Evita que o polling da análise apague logo a confirmação de “recontagem enviada”. */
+let countAuditRecountFeedbackPreserveUntil = 0;
+let countAuditRecountFeedbackPreserveMessage = '';
 let countAuditVisibilityBound = false;
 
 const PAGE_KEYS_BY_MODULE = {
@@ -9336,7 +9338,6 @@ const countAuditAnalysisStatus = document.getElementById('count-audit-analysis-s
 const countAuditLastSync = document.getElementById('count-audit-last-sync');
 const countAuditBaseSource = document.getElementById('count-audit-base-source');
 const countAuditBaseSourceNote = document.getElementById('count-audit-base-source-note');
-const countAuditModeIndicator = document.getElementById('count-audit-mode-indicator');
 const countAuditFiltersCard = document.querySelector('#sub-count-audit .count-audit-filters-card');
 const countAuditMobileMediaQuery = typeof window !== 'undefined' && window.matchMedia
   ? window.matchMedia('(max-width: 760px)')
@@ -9751,9 +9752,6 @@ function updateCountAuditHeaderContext() {
   if (countAuditLastSync) {
     countAuditLastSync.textContent = countAuditState.loadedAt ? formatDateTime(countAuditState.loadedAt) : '--';
   }
-  if (countAuditModeIndicator) {
-    countAuditModeIndicator.textContent = 'Modo leitura';
-  }
   if (countAuditAnalysisStatus) {
     let label = 'Aguardando carga';
     if (dashboard.total > 0) {
@@ -9799,14 +9797,7 @@ function getCountAuditRowByCode(code, rows = getCountAuditRowsFromState()) {
   return rows.find((row) => String(row.cod_produto || '') === String(code || '')) || null;
 }
 
-function setCountAuditFeedback(message, isError = false) {
-  if (!countAuditFeedback) return;
-  countAuditFeedback.textContent = message || '';
-  const visible = !!message;
-  countAuditFeedback.style.display = visible ? '' : 'none';
-  countAuditFeedback.classList.toggle('is-error', visible && isError);
-  countAuditFeedback.classList.toggle('is-info', visible && !isError);
-}
+function setCountAuditFeedback() {}
 
 function updateCountAuditSummarySelection() {
   if (!countAuditSummary) return;
@@ -10776,6 +10767,8 @@ async function loadCountAuditAnalysis() {
       mateTrocaBaseBalanceCacheV2 = {};
       mateTrocaBaseDiscoveryCodesV2 = new Set();
       mateTrocaBaseV2LastMergedRows = [];
+      countAuditRecountFeedbackPreserveUntil = 0;
+      countAuditRecountFeedbackPreserveMessage = '';
       setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
       return;
     }
@@ -10802,6 +10795,8 @@ async function loadCountAuditAnalysis() {
       renderCountAuditRows([]);
       renderCountAuditDetailEmpty('Não foi possível montar a análise.');
       updateCountAuditHeaderContext();
+      countAuditRecountFeedbackPreserveUntil = 0;
+      countAuditRecountFeedbackPreserveMessage = '';
       setCountAuditFeedback('Não foi possível montar a análise. Verifique permissões ou tente novamente.', true);
       return;
     }
@@ -10841,12 +10836,23 @@ async function loadCountAuditAnalysis() {
       }
     }
 
-    if (info.id == null) {
-      setCountAuditFeedback(info.file_name || 'Análise sem TXT: usando saldo zero para produtos ativos.', false);
+    if (
+      Date.now() < countAuditRecountFeedbackPreserveUntil &&
+      countAuditRecountFeedbackPreserveMessage
+    ) {
+      setCountAuditFeedback(countAuditRecountFeedbackPreserveMessage, false);
     } else {
-      setCountAuditFeedback(`Base TXT: ${formatDateBR(info.reference_date || '')} · ${info.file_name || 'arquivo'}`, false);
+      countAuditRecountFeedbackPreserveUntil = 0;
+      countAuditRecountFeedbackPreserveMessage = '';
+      if (info.id == null) {
+        setCountAuditFeedback(info.file_name || 'Análise sem TXT: usando saldo zero para produtos ativos.', false);
+      } else {
+        setCountAuditFeedback(`Base TXT: ${formatDateBR(info.reference_date || '')} · ${info.file_name || 'arquivo'}`, false);
+      }
     }
   } catch {
+    countAuditRecountFeedbackPreserveUntil = 0;
+    countAuditRecountFeedbackPreserveMessage = '';
     setCountAuditFeedback('Erro de conexão ao carregar análise de contagem.', true);
   } finally {
     if (btnCountAuditRefresh) btnCountAuditRefresh.disabled = false;
@@ -10914,10 +10920,10 @@ async function postRecountLiveSignal(codeRaw) {
       setCountAuditFeedback(String(err.detail || 'Não foi possível enviar a solicitação de recontagem.'), true);
       return;
     }
-    setCountAuditFeedback(
-      `Recontagem em tempo real enviada para ${code} (dia ${formatDateBR(op)}). O conferente verá o alerta roxo na Contagem com essa mesma data.`,
-      false,
-    );
+    const okMsg = `Recontagem em tempo real enviada para ${code} (dia ${formatDateBR(op)}). O conferente verá o alerta roxo na Contagem com essa mesma data.`;
+    countAuditRecountFeedbackPreserveUntil = Date.now() + 12000;
+    countAuditRecountFeedbackPreserveMessage = okMsg;
+    setCountAuditFeedback(okMsg, false);
   } catch {
     setCountAuditFeedback('Erro de conexão ao solicitar recontagem.', true);
   }

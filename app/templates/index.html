@@ -1066,45 +1066,39 @@
             <section class="count-audit-shell" aria-labelledby="count-audit-title">
               <header class="card count-audit-header">
                 <div class="count-audit-header__row">
-                  <div class="count-audit-header__titles">
-                    <h2 id="count-audit-title" class="count-audit-page-title">Análise de Contagem</h2>
-                    <p class="count-audit-page-subtitle">Saldo TXT × contagem registrada · somente produtos ativos · America/Sao_Paulo</p>
+                  <h2 id="count-audit-title" class="count-audit-page-title">Análise de Contagem</h2>
+                </div>
+                <div class="count-audit-header__combined" aria-label="Contexto e ações da análise">
+                  <div class="count-audit-header__meta" role="list" aria-label="Contexto da análise">
+                    <article class="count-audit-meta-pill" role="listitem">
+                      <span class="count-audit-meta-label">Data operacional</span>
+                      <span id="count-audit-operational-date" class="count-audit-meta-value">--/--/----</span>
+                    </article>
+                    <article class="count-audit-meta-pill" role="listitem">
+                      <span class="count-audit-meta-label">Status</span>
+                      <span id="count-audit-analysis-status" class="count-audit-meta-value">Aguardando carga</span>
+                    </article>
+                    <article class="count-audit-meta-pill count-audit-meta-pill--soft" role="listitem">
+                      <span class="count-audit-meta-label">Última sincronização</span>
+                      <span id="count-audit-last-sync" class="count-audit-meta-value">--:--</span>
+                    </article>
+                    <article class="count-audit-meta-pill count-audit-meta-pill--soft" role="listitem">
+                      <span class="count-audit-meta-label">Base TXT</span>
+                      <span id="count-audit-base-source" class="count-audit-meta-value">Sem base carregada</span>
+                      <span id="count-audit-base-source-note" class="count-audit-meta-hint">Importação ou saldo zero</span>
+                    </article>
                   </div>
-                  <div class="count-audit-header__chips">
-                    <span class="chip count-audit-chip-ativo">Somente ativos</span>
-                    <span id="count-audit-mode-indicator" class="chip count-audit-chip-mode">Modo leitura</span>
+                  <div class="count-audit-header__toolbar" aria-label="Ações da análise">
+                    <div class="count-audit-field count-audit-field--date">
+                      <label class="count-audit-label" for="count-audit-date">Data da importação TXT</label>
+                      <input id="count-audit-date" class="search-input count-audit-date-input" type="date" />
+                    </div>
+                    <div class="count-audit-header__actions">
+                      <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark count-audit-btn-refresh">Sincronizar</button>
+                      <button id="btn-count-audit-export-excel" type="button" class="btn-secondary btn-dark count-audit-btn-export" title="Exportar a base da análise em Excel">Exportar Excel</button>
+                    </div>
                   </div>
                 </div>
-                <div class="count-audit-header__meta" role="list" aria-label="Contexto da análise">
-                  <article class="count-audit-meta-pill" role="listitem">
-                    <span class="count-audit-meta-label">Data operacional</span>
-                    <span id="count-audit-operational-date" class="count-audit-meta-value">--/--/----</span>
-                  </article>
-                  <article class="count-audit-meta-pill" role="listitem">
-                    <span class="count-audit-meta-label">Status</span>
-                    <span id="count-audit-analysis-status" class="count-audit-meta-value">Aguardando carga</span>
-                  </article>
-                  <article class="count-audit-meta-pill count-audit-meta-pill--soft" role="listitem">
-                    <span class="count-audit-meta-label">Última sincronização</span>
-                    <span id="count-audit-last-sync" class="count-audit-meta-value">--:--</span>
-                  </article>
-                  <article class="count-audit-meta-pill count-audit-meta-pill--soft" role="listitem">
-                    <span class="count-audit-meta-label">Base TXT</span>
-                    <span id="count-audit-base-source" class="count-audit-meta-value">Sem base carregada</span>
-                    <span id="count-audit-base-source-note" class="count-audit-meta-hint">Importação ou saldo zero</span>
-                  </article>
-                </div>
-                <div class="count-audit-header__toolbar" aria-label="Ações da análise">
-                  <div class="count-audit-field count-audit-field--date">
-                    <label class="count-audit-label" for="count-audit-date">Data da importação TXT</label>
-                    <input id="count-audit-date" class="search-input count-audit-date-input" type="date" />
-                  </div>
-                  <div class="count-audit-header__actions">
-                    <button id="btn-count-audit-refresh" type="button" class="btn-secondary btn-dark count-audit-btn-refresh">Sincronizar</button>
-                    <button id="btn-count-audit-export-excel" type="button" class="btn-secondary btn-dark count-audit-btn-export" title="Exportar a base da análise em Excel">Exportar Excel</button>
-                  </div>
-                </div>
-                <div id="count-audit-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
               </header>
 
               <section class="card count-audit-summary-card">
