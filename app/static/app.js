@@ -250,7 +250,9 @@ function filtrarProdutos() {
   });
   // Atualiza o total exibido
   const totalSpan = document.getElementById('count-products-total');
-  if (totalSpan) totalSpan.textContent = totalVisiveis;
+  if (totalSpan) {
+    totalSpan.textContent = `${totalVisiveis} ${totalVisiveis === 1 ? 'item' : 'itens'}`;
+  }
   // Atualiza barra de progresso após filtro
   updateCountProgress(visiveis.map(item => {
     const inp = item.querySelector('input.count-product-qty[data-coderef]');
@@ -2815,7 +2817,10 @@ function renderCountProducts(products) {
   showDashboard();
   countProductsList.hidden = false;
   countProductsList.innerHTML = '';
-  if (countProductsTotal) countProductsTotal.textContent = `${ativos.length}`;
+  if (countProductsTotal) {
+    const n = ativos.length;
+    countProductsTotal.textContent = `${n} ${n === 1 ? 'item' : 'itens'}`;
+  }
   const feedback = document.getElementById('count-feedback');
   if (feedback) feedback.textContent = '';
 

@@ -274,18 +274,7 @@
 /* Contagem: mesma hierarquia visual do cabeçalho operacional de validade (chips · filtros em linha · barra 10px) */
 #sub-count .count-main-card-inner.count-op-header .count-main-title-row {
   margin-bottom: 8px;
-}
-#sub-count .count-main-card-inner.count-op-header .count-main-chip {
-  min-height: 32px;
-  padding: 0 10px;
-  border-radius: 10px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--primary-blue, #2563eb);
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  box-sizing: border-box;
+  justify-content: flex-start;
 }
 #sub-count .count-main-card-inner.count-op-header .count-filter-label {
   font-size: 0.72rem;
