@@ -41,6 +41,9 @@ router = APIRouter(prefix="/audit", tags=["audit"])
 logger = logging.getLogger(__name__)
 _BR = ZoneInfo("America/Sao_Paulo")
 
+# Janela ao buscar a última diferença contagem × TXT antes do dia da análise (sem base de troca).
+_STOCK_ANALYSIS_PREV_DIFF_LOOKBACK_DAYS = 120
+
 
 def _ensure_validity_lines_table() -> None:
     """Garante DDL (Railway/deploy sem alembic ou migração pendente). Idempotente."""
@@ -345,6 +348,155 @@ def _aggregate_count_events_by_code(
             counted_by_code[code] = {"caixa": 0, "unidade": 0}
         counted_by_code[code][count_type] = counted_by_code[code].get(count_type, 0) + qty
     return counted_by_code
+
+
+def _load_imported_by_code_for_reference_date(session: Session, ref_date: date) -> dict[str, dict] | None:
+    """Itens agregados da última importação TXT cuja data de referência é `ref_date`."""
+    current_import = session.exec(
+        select(InventoryImport)
+        .where(InventoryImport.reference_date == ref_date)
+        .order_by(InventoryImport.imported_at.desc())
+        .limit(1)
+    ).first()
+    if not current_import:
+        return None
+    imported_by_code: dict[str, dict] = {}
+    import_items = list(
+        session.exec(
+            select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == current_import.id)
+        ).all()
+    )
+    for item in import_items:
+        code = _normalize_item_code(item.cod_produto)
+        if not code:
+            continue
+        import_caixa, import_unidade = _extract_import_quantities(
+            item.metrics if isinstance(item.metrics, dict) else None
+        )
+        if code not in imported_by_code:
+            imported_by_code[code] = {
+                "cod_produto": code,
+                "descricao": item.descricao or "",
+                "import_caixa": 0,
+                "import_unidade": 0,
+            }
+        imported_by_code[code]["import_caixa"] += import_caixa
+        imported_by_code[code]["import_unidade"] += import_unidade
+        if not imported_by_code[code]["descricao"] and item.descricao:
+            imported_by_code[code]["descricao"] = item.descricao
+    return imported_by_code
+
+
+def _build_count_totals_and_activity_dates_before(
+    session: Session,
+    count_day: date,
+    min_day: date,
+) -> tuple[dict[date, dict[str, dict[str, int]]], dict[str, set[date]]]:
+    """Totais CX/UN por (dia BR, código) e dias com lançamento, apenas para min_day <= dia < count_day."""
+    count_logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_count",
+                ChangeLog.action == "count_event",
+            )
+        ).all()
+    )
+    totals: dict[date, dict[str, dict[str, int]]] = {}
+    code_dates: dict[str, set[date]] = defaultdict(set)
+    for log in count_logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        raw_item = str(payload.get("item_code") or "")
+        br_d = _brazil_date_from_observed_at(str(payload.get("observed_at") or ""))
+        if br_d is None or br_d >= count_day or br_d < min_day:
+            continue
+        code = _normalize_item_code(raw_item)
+        if not code:
+            continue
+        count_type = _extract_count_type(raw_item)
+        qty_raw = payload.get("quantity", 0)
+        try:
+            qty = int(qty_raw)
+        except Exception:
+            qty = 0
+        if br_d not in totals:
+            totals[br_d] = {}
+        if code not in totals[br_d]:
+            totals[br_d][code] = {"caixa": 0, "unidade": 0}
+        totals[br_d][code][count_type] = totals[br_d][code].get(count_type, 0) + qty
+        code_dates[code].add(br_d)
+    return totals, dict(code_dates)
+
+
+def _resolve_previous_operational_count_diff(
+    session: Session,
+    item_code: str,
+    count_day: date,
+    min_day: date,
+    totals_by_date: dict[date, dict[str, dict[str, int]]],
+    code_activity_dates: dict[str, set[date]],
+    import_cache: dict[date, dict[str, dict] | None],
+) -> tuple[date | None, int, int]:
+    """
+    Último dia < count_day em que o código teve lançamento de contagem e existia TXT com esse código:
+    diferença = contagem do dia − saldo TXT daquele dia (sem troca).
+    """
+    code = _normalize_item_code(item_code)
+    if not code:
+        return None, 0, 0
+    days = code_activity_dates.get(code)
+    if not days:
+        return None, 0, 0
+    for d in sorted(days, reverse=True):
+        if d >= count_day:
+            continue
+        if d < min_day:
+            break
+        if d not in import_cache:
+            import_cache[d] = _load_imported_by_code_for_reference_date(session, d)
+        imp_map = import_cache[d]
+        if imp_map is None:
+            continue
+        imp_rec = imp_map.get(code)
+        if not imp_rec:
+            continue
+        day_bucket = totals_by_date.get(d) or {}
+        counted = day_bucket.get(code) or {"caixa": 0, "unidade": 0}
+        icx = int(imp_rec.get("import_caixa", 0))
+        iun = int(imp_rec.get("import_unidade", 0))
+        ccx = int(counted.get("caixa", 0))
+        cun = int(counted.get("unidade", 0))
+        return d, ccx - icx, cun - iun
+    return None, 0, 0
+
+
+def _enrich_stock_analysis_rows_previous_operational_diff(
+    session: Session,
+    rows: list[dict],
+    count_day: date,
+) -> None:
+    if not rows:
+        return
+    min_day = count_day - timedelta(days=_STOCK_ANALYSIS_PREV_DIFF_LOOKBACK_DAYS)
+    totals_by_date, code_dates = _build_count_totals_and_activity_dates_before(session, count_day, min_day)
+    import_cache: dict[date, dict[str, dict] | None] = {}
+    for row in rows:
+        d_prev, dcx, dun = _resolve_previous_operational_count_diff(
+            session,
+            str(row.get("cod_produto") or ""),
+            count_day,
+            min_day,
+            totals_by_date,
+            code_dates,
+            import_cache,
+        )
+        if d_prev is not None:
+            row["previous_difference_date"] = d_prev.isoformat()
+            row["previous_difference_caixa"] = dcx
+            row["previous_difference_unidade"] = dun
+        else:
+            row["previous_difference_date"] = None
+            row["previous_difference_caixa"] = None
+            row["previous_difference_unidade"] = None
 
 
 def _parse_payload_observed_at_utc(od: object) -> datetime | None:
@@ -845,6 +997,7 @@ def _compute_stock_analysis(
         )
     )
     rows = rows[:limit]
+    _enrich_stock_analysis_rows_previous_operational_diff(session, rows, count_day)
 
     def _len_codes(mapping: dict[str, dict]) -> int:
         if active_set is None:
@@ -989,7 +1142,7 @@ def _build_stock_analysis_excel_workbook(
     wrap = Alignment(wrap_text=True, vertical="center", horizontal="left")
     center = Alignment(horizontal="center", vertical="center")
 
-    ncols = 11
+    ncols = 14
     last_col = get_column_letter(ncols)
 
     ws.merge_cells(f"A1:{last_col}1")
@@ -1050,6 +1203,9 @@ def _build_stock_analysis_excel_workbook(
         "Dif. CX",
         "Dif. UN",
         "|Dif| total",
+        "Últ. dif. (data)",
+        "Últ. dif. CX",
+        "Últ. dif. UN",
     ]
     start_row = 6
     for col_idx, h in enumerate(headers, start=1):
@@ -1062,6 +1218,10 @@ def _build_stock_analysis_excel_workbook(
     rows = data.get("rows") or []
     for i, row in enumerate(rows, start=start_row + 1):
         status = _audit_status_label_pt(str(row.get("status") or ""))
+        pdd = row.get("previous_difference_date")
+        pdd_str = str(pdd)[:10] if pdd else ""
+        pdc = row.get("previous_difference_caixa")
+        pdu = row.get("previous_difference_unidade")
         vals = [
             row.get("cod_produto") or "",
             row.get("grupo") or "",
@@ -1074,6 +1234,9 @@ def _build_stock_analysis_excel_workbook(
             int(row.get("difference_caixa") or 0),
             int(row.get("difference_unidade") or 0),
             int(row.get("difference_abs") or 0),
+            pdd_str,
+            int(pdc) if pdc is not None else "",
+            int(pdu) if pdu is not None else "",
         ]
         for j, v in enumerate(vals, start=1):
             cell = ws.cell(row=i, column=j, value=v)
@@ -1083,7 +1246,7 @@ def _build_stock_analysis_excel_workbook(
             else:
                 cell.alignment = Alignment(horizontal="left", vertical="center")
 
-    widths = [14, 18, 42, 16, 10, 10, 12, 12, 10, 10, 12]
+    widths = [14, 18, 42, 16, 10, 10, 12, 12, 10, 10, 12, 14, 10, 10]
     for idx, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(idx)].width = w
 

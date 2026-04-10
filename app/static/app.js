@@ -228,9 +228,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Filtro de produtos por grupo (contagem: apenas ativos na API e na renderização)
 
+/** CX e UN zerados no total exibido na contagem (equivalente ao readout; inclui Mate quando aplicável). */
+function countProductRowNetCxUnZero(codRaw) {
+  const cod = String(codRaw || '');
+  if (!cod) return true;
+  const netCx = getCountNetMergedWithMateTrocaForTxtCompare(cod, 'caixa');
+  const netUn = getCountNetMergedWithMateTrocaForTxtCompare(cod, 'unidade');
+  const vCx = Math.max(0, Math.round(Number(netCx) || 0));
+  const vUn = Math.max(0, Math.round(Number(netUn) || 0));
+  return vCx === 0 && vUn === 0;
+}
+
 // Filtro de produtos por grupo e ativo
 function filtrarProdutos() {
   const grupo = (document.getElementById('count-group')?.value || '').trim().toLowerCase();
+  const onlyNoCountBtn = document.getElementById('count-filter-only-nocount-btn');
+  const onlyNoCount = onlyNoCountBtn && onlyNoCountBtn.getAttribute('aria-pressed') === 'true';
   let totalVisiveis = 0;
   const visiveis = [];
   document.querySelectorAll('#count-products-list .count-product-item').forEach(item => {
@@ -241,6 +254,10 @@ function filtrarProdutos() {
     if (grupo) {
       const desc = item.querySelector('.count-product-desc')?.textContent?.toLowerCase() || '';
       show = show && desc.includes(grupo);
+    }
+    if (show && onlyNoCount) {
+      const cod = item.dataset.codProduto || '';
+      show = countProductRowNetCxUnZero(cod);
     }
     item.style.display = show ? '' : 'none';
     if (show) {
@@ -269,6 +286,19 @@ function filtrarProdutos() {
       chip.className = 'count-group-chip';
       chip.textContent = grupo;
       chipsContainer.appendChild(chip);
+    }
+  }
+
+  const countShell = document.querySelector('#sub-count .count-products-shell');
+  const doneWrap = document.getElementById('count-products-done-wrap');
+  if (doneWrap && countShell) {
+    if (onlyNoCount) {
+      doneWrap.hidden = true;
+    } else {
+      const vis = countShell.dataset.doneSectionVisible;
+      if (vis === '1' || vis === '0') {
+        doneWrap.hidden = vis !== '1';
+      }
     }
   }
 }
@@ -2179,10 +2209,11 @@ function getServerNetForProductAndType(productCode, countType) {
 }
 
 /**
- * Fonte de verdade do readout (.count-product-readout-value), para a data ativa (#count-date):
+ * Contagem operacional líquida (sem Base de Troca), para a data ativa (#count-date):
  * - Com API ok: total da equipe no servidor (GET count-server-totals, dia SP) + apenas eventos
  *   locais desta data ainda não sincronizados (evita duplicar o que já entrou no servidor).
  * - Sem API (offline/erro): soma de todos os eventos locais dessa data (inclui já sincronizados no bucket).
+ * O readout na lista de contagem usa getCountNetMergedWithMateTrocaForTxtCompare (esta função + troca Mate).
  * Gravação em registerCountDelta usa o mesmo dayKey que loadCountEvents() (getActiveCountDateKey).
  */
 function getNetByProductAndType(productCode, countType) {
@@ -2916,6 +2947,9 @@ function renderCountProducts(products) {
     if (countProductsListDone) countProductsListDone.innerHTML = '';
     if (countProductsDoneWrap) countProductsDoneWrap.hidden = true;
     updateCountProgress([]);
+    const countShellEmpty = document.querySelector('#sub-count .count-products-shell');
+    if (countShellEmpty) countShellEmpty.dataset.doneSectionVisible = '0';
+    filtrarProdutos();
     // Garante que o menu de módulos e dashboard continuam visíveis
     const moduleNav = document.getElementById('module-nav');
     if (moduleNav) moduleNav.style.display = '';
@@ -2939,16 +2973,21 @@ function renderCountProducts(products) {
     const codHtml = codRaw
       ? ` <span class="count-product-cod">· ${escapeHtml(codRaw)}</span>`
       : '';
-    const netCxDisplay = getNetByProductAndType(codRaw, 'caixa');
-    const netUnDisplay = getNetByProductAndType(codRaw, 'unidade');
     const netCx = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'caixa');
     const netUn = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'unidade');
     const pair = getCountSaldoPair(codRaw);
     const hasTxt = countImportBalancesState.hasTxt;
     const dimCx = countDimensionMatchesSaldo(codRaw, 'caixa', netCx, pair ? pair.import_caixa : 0);
     const dimUn = countDimensionMatchesSaldo(codRaw, 'unidade', netUn, pair ? pair.import_unidade : 0);
-    const vCx = Math.max(0, Math.round(Number(netCxDisplay) || 0));
-    const vUn = Math.max(0, Math.round(Number(netUnDisplay) || 0));
+    const vCx = Math.max(0, Math.round(Number(netCx) || 0));
+    const vUn = Math.max(0, Math.round(Number(netUn) || 0));
+    const isMateForReadout = mateCouroCatalogHasCode(getMateCouroCodSet(), codRaw);
+    const titleCx = isMateForReadout
+      ? 'Total físico em caixas: contagem (equipe + pendente neste aparelho) + saldo Base de Troca Mate. Os botões +/− alteram só a contagem operacional.'
+      : 'Total em caixas: equipe (sincronizado) + pendente neste aparelho';
+    const titleUn = isMateForReadout
+      ? 'Total físico em unidades: contagem (equipe + pendente neste aparelho) + saldo Base de Troca Mate. Os botões +/− alteram só a contagem operacional.'
+      : 'Total em unidades: equipe (sincronizado) + pendente neste aparelho';
 
     let cardClass = 'count-product-item';
     const analystLiveRecount = serverRecountSignalCodes.has(codRaw);
@@ -2997,7 +3036,7 @@ function renderCountProducts(products) {
             data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
           <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="Total em caixas: equipe (sincronizado) + pendente neste aparelho">
+            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="${escapeHtml(titleCx)}">
               <span class="count-product-readout-inner">
                 <strong class="count-product-readout-value">${formatIntegerBR(vCx)}</strong>
               </span>
@@ -3012,7 +3051,7 @@ function renderCountProducts(products) {
             data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
           <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="Total em unidades: equipe (sincronizado) + pendente neste aparelho">
+            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="${escapeHtml(titleUn)}">
               <span class="count-product-readout-inner">
                 <strong class="count-product-readout-value">${formatIntegerBR(vUn)}</strong>
               </span>
@@ -3060,6 +3099,9 @@ function renderCountProducts(products) {
 
   updateCountProgress(ativos);
   updateCountReadOnlyState();
+  const countShell = document.querySelector('#sub-count .count-products-shell');
+  if (countShell) countShell.dataset.doneSectionVisible = done.length ? '1' : '0';
+  filtrarProdutos();
   // Garante que o menu de módulos e dashboard continuam visíveis
   const moduleNav = document.getElementById('module-nav');
   if (moduleNav) moduleNav.style.display = '';
@@ -8562,6 +8604,15 @@ function bindCountEvents() {
     });
   }
 
+  const countOnlyNocountBtn = document.getElementById('count-filter-only-nocount-btn');
+  if (countOnlyNocountBtn) {
+    countOnlyNocountBtn.addEventListener('click', () => {
+      const next = countOnlyNocountBtn.getAttribute('aria-pressed') !== 'true';
+      countOnlyNocountBtn.setAttribute('aria-pressed', next ? 'true' : 'false');
+      filtrarProdutos();
+    });
+  }
+
   const countDateEl = document.getElementById('count-date');
   if (countDateEl) {
     countDateEl.addEventListener('change', async () => {
@@ -9434,6 +9485,9 @@ function enrichCountAuditRow(row) {
       trocaMateCouro: false,
       /** Saldo da Base de Troca V2 já conhecido (GET ok ou último estado válido em disco). */
       trocaSaldoKnown: false,
+      prevDiffDate: row.previous_difference_date || null,
+      prevDiffCx: row.previous_difference_caixa,
+      prevDiffUn: row.previous_difference_unidade,
     },
   };
 }
@@ -9793,6 +9847,26 @@ function countAuditValidityMarkupForRow(codRaw) {
   );
 }
 
+/** Última diferença contagem × TXT em dia anterior com lançamento (vem do servidor; sem troca). */
+function countAuditPrevDiffMarkupForMeta(meta, variant = 'row') {
+  if (!meta) return '';
+  const d = String(meta.prevDiffDate || '').trim();
+  if (!d) return '';
+  const pdc = Math.round(Number(meta.prevDiffCx) || 0);
+  const pdu = Math.round(Number(meta.prevDiffUn) || 0);
+  const zero = pdc === 0 && pdu === 0;
+  const tone = zero ? 'count-audit-prev-diff--zero' : 'count-audit-prev-diff--nonzero';
+  const dateBr = formatDateBR(d);
+  const line = `Diferença ${dateBr} · CX ${formatSignedIntegerBR(pdc)} · UN ${formatSignedIntegerBR(pdu)}`;
+  const title =
+    'Contagem × TXT nesse dia (sem base de troca). Último dia anterior ao da análise em que houve lançamento e o código existia na importação.';
+  const tag = variant === 'detail' ? 'div' : 'span';
+  const blockCls = variant === 'detail' ? ' count-audit-prev-diff--detail' : '';
+  return (
+    `<${tag} class="count-audit-prev-diff ${tone}${blockCls}" title="${escapeHtml(title)}">${escapeHtml(line)}</${tag}>`
+  );
+}
+
 function buildCountAuditHistoryHtml(history) {
   return history.length
     ? history.map((entry) => (
@@ -10107,6 +10181,7 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
   const expDetailLine = expIsoDetail
     ? `<div class="count-audit-detail-validity-line${expRiskDetail ? ` ${expRiskDetail}` : ''}">Validade (referência) · ${escapeHtml(formatDateBR(expIsoDetail))}</div>`
     : '';
+  const prevDiffDetailLine = countAuditPrevDiffMarkupForMeta(meta, 'detail');
   const trocaDetailArticle = countAuditHasTrocaPending(meta)
     ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (base de troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>Saldo atual da base de troca (mesmo dado do card Saldo acumulado); altera com Chegada, Saldo, Zerar ou Carregar.</small></article>`
     : meta.trocaMateCouro && !meta.trocaSaldoKnown
@@ -10124,6 +10199,7 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
             `<h4 class="count-audit-detail-title">${countAuditFlavorIconHtml(row.descricao || '')}<span class="count-audit-detail-title-text">${escapeHtml(row.descricao || 'Sem descrição')}</span></h4>` +
             `<div class="count-audit-detail-subtitle">Código ${escapeHtml(code || '-')} · Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</div>` +
             `${expDetailLine}` +
+            `${prevDiffDetailLine}` +
           `</div>` +
           `<div class="count-audit-detail-pill-row">` +
             `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
@@ -10173,6 +10249,7 @@ function renderCountAuditDesktopRowMarkup(row) {
             `</div>` +
             `<span class="count-audit-row-name">${countAuditRowNameWithFlavorHtml(row.descricao)}</span>` +
             `${countAuditValidityMarkupForRow(code)}` +
+            `${countAuditPrevDiffMarkupForMeta(meta, 'row')}` +
           `</button>` +
         `</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
@@ -10228,6 +10305,7 @@ function renderCountAuditMobileRowMarkup(row) {
           `</div>` +
           `<span class="count-audit-row-name">${countAuditRowNameWithFlavorHtml(row.descricao)}</span>` +
           `${countAuditValidityMarkupForRow(code)}` +
+          `${countAuditPrevDiffMarkupForMeta(meta, 'row')}` +
           `<div class="count-audit-mobile-summary">` +
             `<strong class="count-audit-mobile-diff">|Dif| ${formatIntegerBR(meta.diffAbs || 0)}</strong>` +
             `<span class="count-audit-mobile-action">${escapeHtml(getCountAuditCompactActionLabel(meta))}</span>` +

@@ -158,7 +158,10 @@
               <form id="count-form" class="count-form" autocomplete="off" novalidate>
               <div class="count-main-card-inner count-main-card-extended count-op-header">
                 <div class="count-main-title-row">
-                  <span id="count-products-total" class="validity-op-meta-chip" aria-live="polite">0 itens</span>
+                  <div class="count-main-head-actions">
+                    <span id="count-products-total" class="validity-op-meta-chip" aria-live="polite">0 itens</span>
+                    <button type="button" id="count-filter-only-nocount-btn" class="count-nocount-toggle" aria-pressed="false" title="Mostrar apenas produtos com total CX e UN zerados (sem lançamento consolidado)">Só sem contagem</button>
+                  </div>
                 </div>
                 <div class="count-main-filters-row">
                   <div class="count-main-filter-col count-main-filter-col--produto">
