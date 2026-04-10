@@ -437,7 +437,6 @@
  */
 /* Slot vazio: não participa do layout (evita linha extra no flex-wrap). */
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper .count-group-chip-slot:empty,
-#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper .count-group-chip-slot:empty,
 #sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper .count-group-chip-slot:empty {
   display: none;
 }
@@ -452,7 +451,6 @@
   min-width: 0;
 }
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper,
-#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper,
 #sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper {
   min-height: 44px;
   height: 44px;
@@ -465,14 +463,12 @@
 }
 /* Com chips, o wrapper precisa crescer além de 44px */
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper:has(.count-group-chip-slot:not(:empty)),
-#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper:has(.count-group-chip-slot:not(:empty)),
 #sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper:has(.count-group-chip-slot:not(:empty)) {
   height: auto;
   min-height: 44px;
   max-height: none;
 }
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
-#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
 #sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper > .count-filter-input[type="date"].count-filter-date {
   height: 32px;
@@ -489,7 +485,6 @@
 }
 @media (max-width: 600px) {
   #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
-  #sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
   #sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
   #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data > .count-filter-input-wrapper > .count-filter-input[type="date"].count-filter-date {
     font-size: 16px;
@@ -509,7 +504,6 @@
   text-align: left;
 }
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
-#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
 #sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
 #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data .count-filter-icon {
   align-self: center;
@@ -528,7 +522,10 @@
   width: 100%;
   padding: 0;
   margin: 0 0 6px;
-  font-size: 0.8125rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.02em;
 }
 #sub-break .break-scope-options {
   display: flex;
@@ -8560,39 +8557,101 @@ details[open] > .validity-analytic-summary::after {
     --count-sticky-under-app: 54px;
   }
 }
-#sub-break .count-main-card-inner.count-op-header {
+/* Quebra operacional (#sub-break): layout tipo validade operacional + identidade vermelha */
+#sub-break .count-main-card-inner.count-op-header.break-op-header {
   position: sticky;
   top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app));
   z-index: 45;
-  background: #fff;
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.07);
-  border: 1px solid rgba(15, 23, 42, 0.07);
+  isolation: isolate;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  padding: 10px 12px 12px;
+  background: linear-gradient(180deg, #fff5f5 0%, #fef2f2 100%);
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
   border-bottom: none;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   margin-bottom: 0;
-  padding: 6px 10px 8px;
-  isolation: isolate;
   overflow-x: hidden;
   box-sizing: border-box;
 }
-#sub-break .count-main-filters-row {
+#sub-break .break-op-sticky-head {
+  margin-bottom: 8px;
+  min-width: 0;
+}
+#sub-break .break-op-sticky-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
   width: 100%;
   min-width: 0;
 }
-@media (min-width: 1025px) {
-  #sub-break .count-main-filters-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
+#sub-break .break-op-meta-chip.validity-op-meta-chip {
+  background: rgba(254, 226, 226, 0.65);
+  color: #991b1b;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  font-weight: 700;
 }
-@media (max-width: 1024px) {
-  #sub-break .count-main-filter-col--grupo {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
+#sub-break .break-op-filters.validity-op-filters-grid {
+  margin-bottom: 10px;
 }
-#sub-break .count-main-card-inner.count-op-header .count-filter-input-wrapper {
+#sub-break .break-op-header .validity-op-input-wrap:focus-within {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.18);
+  border-color: rgba(185, 28, 28, 0.35);
+}
+#sub-break .break-op-field--grupo .validity-op-input-wrap {
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
   min-height: 44px;
+  height: 44px;
+}
+#sub-break .break-op-field--grupo .validity-op-input-wrap:has(.count-group-chip-slot:not(:empty)) {
+  height: auto;
+  min-height: 44px;
+}
+#sub-break .break-op-field--grupo .count-group-chip-slot:empty {
+  display: none;
+}
+#sub-break .break-op-field--grupo .count-group-chip-slot {
+  flex: 1 1 100%;
+  width: 100%;
+  order: 4;
+  padding-top: 6px;
+  min-width: 0;
+}
+#sub-break .break-op-field--grupo .validity-op-input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+#sub-break .break-op-field--produto .validity-op-input-wrap .validity-op-input {
+  width: 100%;
+}
+@media (max-width: 640px) {
+  #sub-break .break-op-filters.validity-op-filters-grid {
+    flex-wrap: wrap;
+  }
+  #sub-break .break-op-filters .validity-op-field {
+    flex: 1 1 100%;
+  }
+}
+#sub-break .break-scope-pill:has(input:checked) {
+  border-color: rgba(220, 38, 38, 0.45);
+  background: rgba(254, 226, 226, 0.45);
+  box-shadow: 0 0 0 1px rgba(185, 28, 28, 0.35);
+}
+#sub-break .break-scope-pill input {
+  accent-color: #b91c1c;
+}
+#sub-break .count-main-card-inner.count-op-header .count-last-launch {
+  background: rgba(254, 242, 242, 0.96);
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  color: #991b1b;
 }
 /* Lista: itens como na contagem (count-list-flat + count-product-item) */
 #sub-validity .count-list-flat .validity-op-item {
@@ -9239,30 +9298,23 @@ details[open] > .validity-analytic-summary::after {
   background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
 }
 
-/* Produto em largura total na Validade e Quebra (igual #sub-count) */
+/* Produto em largura total na Validade (igual #sub-count) */
 #sub-validity .count-main-filter-col--produto .count-filter-input-wrapper,
-#sub-validity .count-main-filter-col--produto .count-filter-input,
-#sub-break .count-main-filter-col--produto .count-filter-input-wrapper,
-#sub-break .count-main-filter-col--produto .count-filter-input {
+#sub-validity .count-main-filter-col--produto .count-filter-input {
   width: 100%;
   max-width: none;
   box-sizing: border-box;
 }
-#sub-validity .count-main-filter-col--produto .count-filter-input,
-#sub-break .count-main-filter-col--produto .count-filter-input {
+#sub-validity .count-main-filter-col--produto .count-filter-input {
   flex: 1 1 auto;
   min-width: 0;
 }
 #sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
-#sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--produto .count-filter-icon,
-#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo .count-filter-icon,
-#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--produto .count-filter-icon,
-#sub-break .count-main-card-inner.count-op-header .count-main-filter-col--data .count-filter-icon {
+#sub-validity .count-main-card-inner.count-op-header .count-main-filter-col--produto .count-filter-icon {
   align-self: center;
 }
 @media (max-width: 600px) {
-  #sub-break .count-main-card-inner.count-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"],
-  #sub-break .count-main-card-inner.count-op-header .count-main-filter-col--produto > .count-filter-input-wrapper > .count-filter-input[type="text"] {
+  #sub-break .break-op-header .validity-op-input {
     font-size: 16px;
   }
 }
