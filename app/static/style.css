@@ -84,15 +84,21 @@
   position: sticky;
   top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app));
   z-index: 45;
-  background: #fff;
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.07);
-  border: 1px solid rgba(15, 23, 42, 0.07);
+  isolation: isolate;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  padding: 10px 12px 12px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
   border-bottom: none;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   margin-bottom: 0;
-  padding: 6px 10px 8px;
-  isolation: isolate;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 #sub-count .count-main-card-inner.count-op-header .count-last-launch {
   margin-top: 6px;
@@ -263,6 +269,62 @@
 
 #sub-count .count-main-card-inner.count-op-header .count-filter-input-wrapper:focus-within {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+/* Contagem: mesma hierarquia visual do cabeçalho operacional de validade (chips · filtros em linha · barra 10px) */
+#sub-count .count-main-card-inner.count-op-header .count-main-title-row {
+  margin-bottom: 8px;
+}
+#sub-count .count-main-card-inner.count-op-header .count-main-chip {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary-blue, #2563eb);
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-sizing: border-box;
+}
+#sub-count .count-main-card-inner.count-op-header .count-filter-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+#sub-count .count-main-card-inner.count-op-header .count-filter-input-wrapper {
+  border-radius: 12px;
+  padding: 0 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+#sub-count .count-main-card-inner.count-op-header .count-main-filters-row {
+  margin-bottom: 10px;
+}
+@media (min-width: 1025px) {
+  #sub-count .count-main-card-inner.count-op-header .count-main-filters-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: 10px;
+    margin-top: 0;
+    margin-bottom: 10px;
+  }
+  #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--produto,
+  #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--grupo,
+  #sub-count .count-main-card-inner.count-op-header .count-main-filter-col--data {
+    flex: 1 1 0;
+    min-width: 0;
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+#sub-count .count-main-card-inner.count-op-header .count-main-progress {
+  margin-top: 4px;
+}
+#sub-count .count-main-card-inner.count-op-header .count-progress-track-wrap .count-progress-track {
+  height: 10px;
 }
 
 .count-main-filter-date {
@@ -610,11 +672,6 @@
   color: #0f766e;
 }
 
-/* Card / progresso contagem: sem estouro horizontal; trilhas e texto com min-width 0 */
-#sub-count .count-main-card-inner.count-op-header {
-  overflow-x: hidden;
-  box-sizing: border-box;
-}
 .count-main-card {
   box-sizing: border-box;
 }
@@ -8475,24 +8532,24 @@ details[open] > .validity-analytic-summary::after {
     grid-row: 2;
   }
 }
-/* Barra inferior: roxo (validade ≠ teal da contagem) */
+/* Validade operacional: barra de progresso alinhada ao azul da contagem */
 #sub-validity .validity-op-progress-fill.count-progress-fill--products {
-  background: linear-gradient(90deg, #c4b5fd 0%, #8b5cf6 100%);
+  background: linear-gradient(90deg, #93c5fd 0%, #2563eb 100%);
 }
 #sub-validity .validity-op-progress-fill.count-progress-fill--products.is-low {
-  background: linear-gradient(90deg, #ddd6fe 0%, #a78bfa 100%);
+  background: linear-gradient(90deg, #bfdbfe 0%, #3b82f6 100%);
 }
 #sub-validity .validity-op-progress-fill.count-progress-fill--products.is-mid {
-  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
 }
 #sub-validity .validity-op-progress-fill.count-progress-fill--products.is-high {
-  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
 }
 #sub-validity .count-progress-percent--products {
-  color: #6d28d9;
+  color: var(--primary-blue, #2563eb);
 }
 #sub-validity .count-progress-detail--products {
-  color: #5b21b6;
+  color: #1e40af;
 }
 #sub-validity .count-main-card-inner.count-op-header .count-filter-input-wrapper {
   min-height: 44px;
@@ -8745,8 +8802,8 @@ details[open] > .validity-analytic-summary::after {
 .validity-op-sticky {
   position: relative;
   z-index: 1;
-  background: linear-gradient(180deg, #faf8ff 0%, #f8fafc 100%);
-  border-bottom: 1px solid rgba(91, 33, 182, 0.12);
+  background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+  border-bottom: 1px solid rgba(37, 99, 235, 0.12);
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
 }
 .validity-op-sticky-inner {
@@ -8783,9 +8840,9 @@ details[open] > .validity-analytic-summary::after {
   border-radius: 999px;
   font-size: 0.8125rem;
   font-weight: 700;
-  background: rgba(124, 58, 237, 0.12);
-  color: #5b21b6;
-  border: 1px solid rgba(124, 58, 237, 0.25);
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.28);
 }
 .validity-op-meta-chip {
   display: inline-flex;
@@ -8870,29 +8927,29 @@ details[open] > .validity-analytic-summary::after {
 .validity-op-progress-pct {
   font-size: 0.9rem;
   font-weight: 800;
-  color: #6d28d9;
+  color: var(--primary-blue, #2563eb);
   font-variant-numeric: tabular-nums;
 }
 .validity-op-progress-track {
   height: 10px;
   border-radius: 999px;
-  background: #e9d5ff;
+  background: #dbeafe;
   overflow: hidden;
 }
 .validity-op-progress-fill--bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #c4b5fd 0%, #7c3aed 100%);
+  background: linear-gradient(90deg, #93c5fd 0%, #2563eb 100%);
   transition: width 0.28s ease;
 }
 .validity-op-progress-fill--bar.is-low {
-  background: linear-gradient(90deg, #ddd6fe 0%, #a78bfa 100%);
+  background: linear-gradient(90deg, #bfdbfe 0%, #3b82f6 100%);
 }
 .validity-op-progress-fill--bar.is-mid {
-  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
 }
 .validity-op-progress-fill--bar.is-high {
-  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
 }
 .validity-op-progress-detail {
   margin: 6px 0 0;
@@ -9020,10 +9077,6 @@ details[open] > .validity-analytic-summary::after {
 .validity-op-item--nohistory .validity-op-main:hover {
   background: rgba(254, 243, 199, 0.35);
 }
-.validity-op-main:focus-visible {
-  outline: 2px solid rgba(124, 58, 237, 0.45);
-  outline-offset: 2px;
-}
 .validity-op-item-expand {
   padding: 0 8px 12px;
   max-height: 0;
@@ -9121,7 +9174,7 @@ details[open] > .validity-analytic-summary::after {
 .validity-op-new-lot-title {
   font-size: 0.78rem;
   font-weight: 800;
-  color: #5b21b6;
+  color: #1d4ed8;
   margin-bottom: 8px;
 }
 .validity-op-new-lot-grid {
@@ -9179,16 +9232,16 @@ details[open] > .validity-analytic-summary::after {
   font-weight: 700;
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar {
-  background: linear-gradient(90deg, #c4b5fd 0%, #8b5cf6 100%);
+  background: linear-gradient(90deg, #93c5fd 0%, #2563eb 100%);
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar.is-low {
-  background: linear-gradient(90deg, #ddd6fe 0%, #a78bfa 100%);
+  background: linear-gradient(90deg, #bfdbfe 0%, #3b82f6 100%);
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar.is-mid {
-  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar.is-high {
-  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
 }
 
 /* Produto em largura total na Validade e Quebra (igual #sub-count) */
