@@ -140,7 +140,7 @@ class BreakEventInput(BaseModel):
     quantity: int = Field(ge=-500_000, le=500_000)
     observed_at: str
     device_name: str | None = Field(default=None, max_length=120)
-    reason: str | None = Field(default=None, max_length=120)
+    reason: str = Field(min_length=1, max_length=200)
     operational_date: str | None = Field(
         default=None,
         description="YYYY-MM-DD (America/Sao_Paulo). Se omitido, deriva de observed_at.",
@@ -1937,6 +1937,8 @@ def _merge_break_event_rows_for_operational_day(raw: list[dict]) -> list[dict]:
         reason_out: str | None = None
         if len(reasons_set) == 1:
             reason_out = next(iter(reasons_set))
+        elif len(reasons_set) > 1:
+            reason_out = " · ".join(sorted(reasons_set))
         actor_out: str | None = None
         if len(actors_set) == 1:
             actor_out = next(iter(actors_set))

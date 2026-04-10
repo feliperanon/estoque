@@ -90,9 +90,10 @@
   margin-right: auto;
   width: 100%;
   padding: 10px 12px 12px;
-  background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
-  border: 1px solid rgba(37, 99, 235, 0.12);
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
+  /* Contagem: azul predominante, fundo quase branco (clean) */
+  background: linear-gradient(180deg, #fbfcff 0%, #f4f7ff 100%);
+  border: 1px solid rgba(59, 130, 246, 0.1);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
   border-bottom: none;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
@@ -107,9 +108,9 @@
   border-radius: 4px;
   font-size: 0.6875rem;
   line-height: 1.25;
-  background: rgba(240, 253, 244, 0.95);
-  border: 1px solid rgba(34, 197, 94, 0.18);
-  color: #166534;
+  background: rgba(239, 246, 255, 0.92);
+  border: 1px solid rgba(59, 130, 246, 0.14);
+  color: #1e40af;
 }
 #sub-count .count-main-card-inner.count-op-header .count-last-launch-kicker {
   margin-bottom: 2px;
@@ -118,6 +119,13 @@
 #sub-count .count-main-card-inner.count-op-header .count-last-launch-body {
   display: block;
   word-break: break-word;
+}
+
+#sub-count #count-products-total.validity-op-meta-chip {
+  background: rgba(239, 246, 255, 0.95);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: #1d4ed8;
+  font-weight: 700;
 }
 .count-main-title-row {
   display: flex;
@@ -674,7 +682,7 @@
   color: var(--primary-blue, #2563eb);
 }
 .count-progress-percent--products {
-  color: #0f766e;
+  color: #1d4ed8;
 }
 /* Rótulo auxiliar em outras telas (ex.: validade); não usado no bloco de progresso da Contagem */
 .count-progress-label {
@@ -699,7 +707,7 @@
   overflow-wrap: anywhere;
 }
 .count-progress-detail--products {
-  color: #0f766e;
+  color: #334155;
 }
 
 .count-main-card {
@@ -1939,7 +1947,8 @@ button[type="submit"]:disabled {
 
 .contagem-grid-title {
   margin: 18px 0 10px;
-  color: #173328;
+  color: #0f172a;
+  font-weight: 700;
 }
 
 .module-grid.module-grid-contagem .module-card {
@@ -1966,6 +1975,43 @@ button[type="submit"]:disabled {
   font-size: 0.9rem;
   line-height: 1.45;
   color: var(--muted);
+}
+
+/* Hub Contagem: identidade visual por módulo (azul / vermelho / roxo) — clean, faixa superior */
+#module-contagem .module-grid-contagem .module-card[data-sub="count"] {
+  border-top: 3px solid rgba(59, 130, 246, 0.42);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.55) 0%, #fff 38%);
+}
+#module-contagem .module-grid-contagem .module-card[data-sub="count"] .module-card-title {
+  color: #1d4ed8;
+}
+#module-contagem .module-grid-contagem .module-card[data-sub="count"]:hover {
+  border-color: rgba(59, 130, 246, 0.28);
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.1);
+}
+
+#module-contagem .module-grid-contagem .module-card[data-sub="break"] {
+  border-top: 3px solid rgba(244, 63, 94, 0.4);
+  background: linear-gradient(180deg, rgba(255, 241, 242, 0.65) 0%, #fff 38%);
+}
+#module-contagem .module-grid-contagem .module-card[data-sub="break"] .module-card-title {
+  color: #be123c;
+}
+#module-contagem .module-grid-contagem .module-card[data-sub="break"]:hover {
+  border-color: rgba(244, 63, 94, 0.25);
+  box-shadow: 0 10px 28px rgba(244, 63, 94, 0.09);
+}
+
+#module-contagem .module-grid-contagem .module-card[data-sub="validity"] {
+  border-top: 3px solid rgba(139, 92, 246, 0.42);
+  background: linear-gradient(180deg, rgba(245, 243, 255, 0.75) 0%, #fff 38%);
+}
+#module-contagem .module-grid-contagem .module-card[data-sub="validity"] .module-card-title {
+  color: #6d28d9;
+}
+#module-contagem .module-grid-contagem .module-card[data-sub="validity"]:hover {
+  border-color: rgba(139, 92, 246, 0.26);
+  box-shadow: 0 10px 28px rgba(124, 58, 237, 0.1);
 }
 
 #contagem-home {
@@ -2373,18 +2419,18 @@ form#break-op-form.count-form {
 }
 
 /* Barra superior: metades CX+UN — cores em .count-progress-fill + .is-low|mid|high. */
-/* Barra inferior: produtos completos (teal), faixas de intensidade próprias. */
+/* Barra inferior contagem: mesma família azul da barra superior (identidade #count). */
 .count-progress-fill--products {
-  background: linear-gradient(90deg, #2dd4bf 0%, #14b8a6 100%);
+  background: linear-gradient(90deg, #93c5fd 0%, #3b82f6 100%);
 }
 .count-progress-fill--products.is-low {
-  background: linear-gradient(90deg, #5eead4 0%, #2dd4bf 100%);
+  background: linear-gradient(90deg, #bfdbfe 0%, #60a5fa 100%);
 }
 .count-progress-fill--products.is-mid {
-  background: linear-gradient(90deg, #14b8a6 0%, #0d9488 100%);
+  background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%);
 }
 .count-progress-fill--products.is-high {
-  background: linear-gradient(90deg, #0d9488 0%, #0f766e 100%);
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
 }
 
 .count-progress small {
@@ -4003,10 +4049,10 @@ form#break-op-form.count-form {
   }
 }
 
-/* Registro de quebras (#sub-break-history) — fila: Produto, Dia, Quebra, Nome (4 colunas) */
+/* Registro de quebras (#sub-break-history) — fila: Produto, Dia, Quebra, Motivo, Nome */
 #sub-break-history .break-history-list-header {
   display: grid;
-  grid-template-columns: minmax(0, 2.2fr) 5.5rem minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) 5.5rem minmax(0, 0.95fr) minmax(0, 1.35fr) minmax(0, 0.9fr);
   gap: var(--audit-space-2);
   align-items: center;
   padding: 0 0.35rem var(--audit-space-2);
@@ -4019,7 +4065,7 @@ form#break-op-form.count-form {
 
 #sub-break-history .break-history-audit-row {
   display: grid;
-  grid-template-columns: minmax(0, 2.2fr) 5.5rem minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) 5.5rem minmax(0, 0.95fr) minmax(0, 1.35fr) minmax(0, 0.9fr);
   gap: var(--audit-space-2);
   align-items: stretch;
   padding: 0.55rem 0.65rem 0.55rem 0.85rem;
@@ -4039,7 +4085,33 @@ form#break-op-form.count-form {
 
 #sub-break-history .break-history-list-header,
 #sub-break-history .break-history-audit-row {
-  min-width: 480px;
+  min-width: 560px;
+}
+
+#sub-break-history .break-history-reason {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--audit-ink-secondary);
+}
+
+#sub-break .break-reason-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+#sub-break .break-reason-label {
+  font-size: 0.72rem;
+}
+
+#sub-break .break-reason-select {
+  width: 100%;
+  max-width: 100%;
+  min-height: 2.5rem;
 }
 
 #sub-break-history .break-history-audit-row .count-audit-cell-value {
@@ -8745,21 +8817,23 @@ details[open] > .validity-analytic-summary::after {
   min-width: 0;
 }
 #sub-break .validity-op-sticky.break-op-sticky {
-  background: linear-gradient(180deg, #fff5f5 0%, #fef2f2 100%);
-  border-bottom-color: rgba(220, 38, 38, 0.2);
+  /* Quebra: vermelho suave, fundo quase branco */
+  background: linear-gradient(180deg, #fffbfb 0%, #fff7f7 100%);
+  border-bottom-color: rgba(244, 63, 94, 0.14);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
 }
 #sub-break .break-op-meta-chip.validity-op-meta-chip {
-  background: rgba(254, 226, 226, 0.65);
-  color: #991b1b;
-  border: 1px solid rgba(220, 38, 38, 0.28);
+  background: rgba(255, 241, 242, 0.85);
+  color: #be123c;
+  border: 1px solid rgba(251, 113, 133, 0.35);
   font-weight: 700;
 }
 #sub-break .break-op-filters.validity-op-filters-grid {
   margin-bottom: 10px;
 }
 #sub-break .break-op-sticky .validity-op-input-wrap:focus-within {
-  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.18);
-  border-color: rgba(185, 28, 28, 0.35);
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.28);
 }
 #sub-break .break-op-field--grupo .validity-op-input-wrap {
   flex-wrap: wrap;
@@ -8798,54 +8872,54 @@ details[open] > .validity-analytic-summary::after {
   }
 }
 #sub-break .break-op-sticky .count-last-launch {
-  background: rgba(254, 242, 242, 0.96);
-  border: 1px solid rgba(220, 38, 38, 0.22);
-  color: #991b1b;
+  background: rgba(255, 241, 242, 0.9);
+  border: 1px solid rgba(251, 113, 133, 0.35);
+  color: #9f1239;
 }
 #sub-break .break-op-progress-wrap .validity-op-progress-pct {
-  color: #b91c1c;
+  color: #e11d48;
 }
 #sub-break .break-op-progress-wrap .validity-op-progress-title {
   font-size: 0.68rem;
   font-weight: 700;
-  color: #991b1b;
+  color: #64748b;
   letter-spacing: 0.02em;
 }
 #sub-break .break-op-progress-wrap .validity-op-progress-track {
-  background: #fecaca;
+  background: rgba(254, 205, 211, 0.65);
 }
 #sub-break #break-op-progress-fill.validity-op-progress-fill--bar {
-  background: linear-gradient(90deg, #fca5a5 0%, #dc2626 100%);
+  background: linear-gradient(90deg, #fda4af 0%, #f43f5e 100%);
 }
 #sub-break #break-op-progress-fill.validity-op-progress-fill--bar.is-low {
-  background: linear-gradient(90deg, #fecaca 0%, #f87171 100%);
+  background: linear-gradient(90deg, #fecdd3 0%, #fb7185 100%);
 }
 #sub-break #break-op-progress-fill.validity-op-progress-fill--bar.is-mid {
-  background: linear-gradient(90deg, #f87171 0%, #dc2626 100%);
+  background: linear-gradient(90deg, #fb7185 0%, #e11d48 100%);
 }
 #sub-break #break-op-progress-fill.validity-op-progress-fill--bar.is-high {
-  background: linear-gradient(90deg, #dc2626 0%, #991b1b 100%);
+  background: linear-gradient(90deg, #e11d48 0%, #be123c 100%);
 }
 #sub-break .break-op-progress-wrap .validity-op-progress-detail {
-  color: #7f1d1d;
+  color: #64748b;
   font-weight: 600;
 }
 #sub-break .break-op-form .validity-op-label {
-  color: #991b1b;
+  color: #64748b;
 }
 #sub-break .break-op-sticky .validity-op-input-icon {
-  color: #b91c1c;
+  color: #f43f5e;
 }
 #sub-break .break-op-sticky .count-group-chip {
-  background: linear-gradient(90deg, #b91c1c 0%, #7f1d1d 100%);
+  background: linear-gradient(90deg, #fb7185 0%, #e11d48 100%);
   color: #fff;
 }
 #sub-break .break-op-sticky .count-group-chip-remove {
-  color: #fecaca;
+  color: #ffe4e6;
 }
 #sub-break #break-feedback.break-op-feedback {
   margin-top: 6px;
-  color: #b91c1c;
+  color: #be123c;
   font-weight: 600;
 }
 #sub-break #break-feedback.break-op-feedback.is-error {
@@ -8968,8 +9042,8 @@ details[open] > .validity-analytic-summary::after {
   pointer-events: auto;
 }
 .validity-op-item.validity-op-item--open {
-  background: #faf5ff;
-  box-shadow: inset 0 1px 0 rgba(124, 58, 237, 0.1);
+  background: rgba(250, 245, 255, 0.65);
+  box-shadow: inset 0 1px 0 rgba(167, 139, 250, 0.12);
 }
 .validity-op-expand-row {
   display: grid;
@@ -9050,9 +9124,10 @@ details[open] > .validity-analytic-summary::after {
   position: sticky;
   top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app, 52px));
   z-index: 40;
-  background: linear-gradient(180deg, #faf8ff 0%, #f8fafc 100%);
-  border-bottom: 1px solid rgba(91, 33, 182, 0.12);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  /* Validade: roxo leve, fundo quase neutro */
+  background: linear-gradient(180deg, #fcfbff 0%, #f8fafc 100%);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
 }
 @media (max-width: 1023px) {
   .validity-op-sticky {
@@ -9093,9 +9168,9 @@ details[open] > .validity-analytic-summary::after {
   border-radius: 999px;
   font-size: 0.8125rem;
   font-weight: 700;
-  background: rgba(124, 58, 237, 0.12);
-  color: #5b21b6;
-  border: 1px solid rgba(124, 58, 237, 0.25);
+  background: rgba(167, 139, 250, 0.14);
+  color: #6d28d9;
+  border: 1px solid rgba(167, 139, 250, 0.32);
 }
 .validity-op-meta-chip {
   display: inline-flex;
@@ -9149,6 +9224,10 @@ details[open] > .validity-analytic-summary::after {
   background: #fff;
   box-sizing: border-box;
 }
+#sub-validity .validity-op-sticky .validity-op-input-wrap:focus-within {
+  border-color: rgba(139, 92, 246, 0.32);
+  box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.14);
+}
 .validity-op-input-icon {
   flex: 0 0 auto;
   color: #64748b;
@@ -9180,29 +9259,29 @@ details[open] > .validity-analytic-summary::after {
 .validity-op-progress-pct {
   font-size: 0.9rem;
   font-weight: 800;
-  color: #6d28d9;
+  color: #7c3aed;
   font-variant-numeric: tabular-nums;
 }
 .validity-op-progress-track {
   height: 10px;
   border-radius: 999px;
-  background: #e9d5ff;
+  background: rgba(233, 213, 255, 0.75);
   overflow: hidden;
 }
 .validity-op-progress-fill--bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #c4b5fd 0%, #7c3aed 100%);
+  background: linear-gradient(90deg, #d8b4fe 0%, #a78bfa 100%);
   transition: width 0.28s ease;
 }
 .validity-op-progress-fill--bar.is-low {
-  background: linear-gradient(90deg, #ddd6fe 0%, #a78bfa 100%);
+  background: linear-gradient(90deg, #e9d5ff 0%, #c4b5fd 100%);
 }
 .validity-op-progress-fill--bar.is-mid {
-  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
+  background: linear-gradient(90deg, #c4b5fd 0%, #8b5cf6 100%);
 }
 .validity-op-progress-fill--bar.is-high {
-  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
+  background: linear-gradient(90deg, #8b5cf6 0%, #6d28d9 100%);
 }
 .validity-op-progress-detail {
   margin: 6px 0 0;
@@ -9485,16 +9564,16 @@ details[open] > .validity-analytic-summary::after {
   font-weight: 700;
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar {
-  background: linear-gradient(90deg, #c4b5fd 0%, #8b5cf6 100%);
+  background: linear-gradient(90deg, #d8b4fe 0%, #a78bfa 100%);
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar.is-low {
-  background: linear-gradient(90deg, #ddd6fe 0%, #a78bfa 100%);
+  background: linear-gradient(90deg, #ede9fe 0%, #c4b5fd 100%);
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar.is-mid {
-  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
+  background: linear-gradient(90deg, #c4b5fd 0%, #8b5cf6 100%);
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar.is-high {
-  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
+  background: linear-gradient(90deg, #8b5cf6 0%, #6d28d9 100%);
 }
 
 /* Produto em largura total na Validade (igual #sub-count) */

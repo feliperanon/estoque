@@ -469,6 +469,21 @@ let mateTrocaBaseLastValidStateV2 = {};
 let mateTrocaBaseV2LastMergedRows = [];
 let mateTrocaBaseV2LastValidHydrated = false;
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
+/** Submódulo operacional no hash (#quebra); elemento DOM continua id="sub-break". */
+const QUEBRA_SUB_KEY = 'quebra';
+/** Motivos fechados — obrigatório em cada lançamento de quantidade na Quebra. */
+const BREAK_REASON_OPTIONS = [
+  'Produto vencido',
+  'Produto estragado',
+  'Produto avariado',
+  'Produto sem embalagem',
+  'Produto trocado',
+  'Produto em excesso',
+  'Produto faltante',
+  'Produto fora do padrão (defeito de fábrica, gás baixo, cor alterada)',
+  'Lote divergente',
+  'Erro de faturamento',
+];
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
 /** Dias sem nova contagem para considerar a base "antiga" (painel analítico). */
@@ -830,7 +845,7 @@ const PAGE_KEYS_BY_MODULE = {
     'count',
     'pull',
     'return',
-    'break',
+    QUEBRA_SUB_KEY,
     'direct-sale',
     'validity',
   ],
@@ -866,7 +881,7 @@ const REGISTER_ACCESS_GROUPS = [
       { key: 'count', label: 'Contagem de Estoque' },
       { key: 'pull', label: 'Puxada' },
       { key: 'return', label: 'Devolução' },
-      { key: 'break', label: 'Quebra' },
+      { key: QUEBRA_SUB_KEY, label: 'Quebra (lançamento)' },
       { key: 'direct-sale', label: 'Venda Direta' },
       { key: 'validity', label: 'Validade (lançamento)' },
     ],
@@ -903,7 +918,7 @@ const REGISTER_PROFILE_PRESETS = {
     'count',
     'pull',
     'return',
-    'break',
+    QUEBRA_SUB_KEY,
     'direct-sale',
     'validity',
     'count-audit',
@@ -921,7 +936,7 @@ const REGISTER_PROFILE_PRESETS = {
     'count',
     'pull',
     'return',
-    'break',
+    QUEBRA_SUB_KEY,
     'direct-sale',
     'validity',
     'import-txt',
@@ -942,7 +957,7 @@ const SUB_MODULES = [
   'count',
   'pull',
   'return',
-  'break',
+  QUEBRA_SUB_KEY,
   'direct-sale',
   'validity',
 ];
@@ -967,6 +982,10 @@ CADASTRO_SUBS.forEach((s) => {
   SUB_TO_PARENT[s] = 'cadastro';
 });
 
+function subSectionDomId(subKey) {
+  return subKey === QUEBRA_SUB_KEY ? 'break' : subKey;
+}
+
 /** Não liberar só por ter "contagem" em allowed_pages (auditoria / análise). */
 const SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED = new Set(['count-audit', 'validity-analysis']);
 
@@ -979,7 +998,7 @@ const PAGE_TITLES = {
   count: 'Contagem',
   pull: 'Puxada',
   return: 'Devolução',
-  break: 'Quebra',
+  quebra: 'Quebra',
   'break-history': 'Registro de quebras',
   'mate-couro-troca': 'Base de troca',
   'mate-couro-troca-historico': 'Histórico no servidor',
@@ -1108,7 +1127,7 @@ function setActiveSub(subKey) {
 
   parentEl.querySelectorAll('.sub-section').forEach((s) => s.classList.remove('active'));
 
-  const target = document.getElementById(`sub-${subKey}`);
+  const target = document.getElementById(`sub-${subSectionDomId(subKey)}`);
   if (target) target.classList.add('active');
 
   if (subKey !== 'count') {
@@ -1120,7 +1139,7 @@ function setActiveSub(subKey) {
   } else if (subKey === 'count') {
     startCountRecountSignalsPolling();
     loadCountProducts();
-  } else if (subKey === 'break') {
+  } else if (subKey === QUEBRA_SUB_KEY) {
     loadBreakProducts();
   } else if (subKey === 'break-history') {
     loadBreakHistoryList();
@@ -1183,6 +1202,12 @@ function setActiveModule(moduleKey, updateHistory = true) {
       history.replaceState(null, '', `${APP_BASE_PATH}#validity`);
     }
     setActiveModule('validity', false);
+    return;
+  }
+  /* #break (bookmark antigo / links externos) → consulta Registro de quebras; lançamento operacional em #quebra */
+  if (normalized === 'break') {
+    history.replaceState(null, '', `${APP_BASE_PATH}#break-history`);
+    setActiveModule('break-history', false);
     return;
   }
 
@@ -1256,6 +1281,8 @@ function expandUserAllowedPagesForValidity(pages) {
     if (!arr.includes('mate-couro-troca-historico')) arr.push('mate-couro-troca-historico');
     if (!arr.includes('mate-couro-troca-trocas')) arr.push('mate-couro-troca-trocas');
   }
+  /* Legado: perfis gravados com chave "break" ganham acesso a #quebra */
+  if (arr.includes('break') && !arr.includes(QUEBRA_SUB_KEY)) arr.push(QUEBRA_SUB_KEY);
   return arr;
 }
 
@@ -1273,18 +1300,22 @@ function canAccessHash(hashKey) {
       const expanded = expandUserAllowedPagesForValidity(currentAllowedPages);
       if (expanded.includes('mate-couro-troca')) return true;
     }
-    return canAccessHash('break');
+    return canAccessHash(QUEBRA_SUB_KEY);
   }
   if (k === 'mate-couro-troca') {
     if (currentAllowedPages.length) {
       const expanded = expandUserAllowedPagesForValidity(currentAllowedPages);
       if (expanded.includes('mate-couro-troca')) return true;
     }
-    return canAccessHash('break');
+    return canAccessHash(QUEBRA_SUB_KEY);
   }
 
   if (k === 'break-history') {
-    return canAccessHash('break');
+    return canAccessHash(QUEBRA_SUB_KEY);
+  }
+
+  if (k === 'break') {
+    return canAccessHash('break-history');
   }
 
   if (k === 'validity' || k === 'validity-launch') {
@@ -1740,6 +1771,9 @@ function openUserEditPanel(user) {
     }
     if (key === 'validity') {
       checked = checked || pages.includes('validity-analysis');
+    }
+    if (key === QUEBRA_SUB_KEY) {
+      checked = checked || pages.includes('break');
     }
     node.checked = checked;
   });
@@ -3410,6 +3444,10 @@ function renderBreakProducts(products) {
     return;
   }
 
+  const breakReasonOptionsHtml =
+    '<option value="">Selecione o motivo…</option>'
+    + BREAK_REASON_OPTIONS.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+
   const appendCard = (parentUl, product) => {
     const codRaw = String(product.cod_produto || '');
     const desc = escapeHtml(product.cod_grup_descricao || '');
@@ -3417,6 +3455,7 @@ function renderBreakProducts(products) {
     const codHtml = codRaw
       ? ` <span class="count-product-cod">· ${escapeHtml(codRaw)}</span>`
       : '';
+    const codSafeId = (codRaw.replace(/[^a-zA-Z0-9_-]/g, '_') || 'item').slice(0, 80);
     const netCx = getNetBreakByProductAndType(codRaw, 'caixa');
     const netUn = getNetBreakByProductAndType(codRaw, 'unidade');
     const vCx = Math.round(Number(netCx) || 0);
@@ -3461,6 +3500,12 @@ function renderBreakProducts(products) {
           </div>
         </div>
       </div>
+      <div class="break-reason-row">
+        <label class="validity-op-label break-reason-label" for="break-reason-${escapeHtml(codSafeId)}">Motivo da quebra</label>
+        <select id="break-reason-${escapeHtml(codSafeId)}" class="validity-op-input break-reason-select" aria-label="Motivo obrigatório antes de lançar quantidade" required>
+          ${breakReasonOptionsHtml}
+        </select>
+      </div>
     `;
     parentUl.appendChild(li);
   };
@@ -3502,10 +3547,20 @@ function refreshBreakProductListView() {
   filtrarProdutosQuebra();
 }
 
-function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction) {
+function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction, anchorEl) {
   const opQty = parseOperationQtyFromInputEl(inp);
   if (opQty == null) {
     setBreakFeedback('Digite uma quantidade maior que zero para aplicar com + ou −.', true);
+    return;
+  }
+  const item =
+    (inp && inp.closest('.count-product-item'))
+    || (anchorEl && anchorEl.closest && anchorEl.closest('.count-product-item'));
+  const reasonSel = item?.querySelector('select.break-reason-select');
+  const reason = (reasonSel?.value || '').trim();
+  if (!reason) {
+    setBreakFeedback('Selecione o motivo da quebra antes de lançar quantidade.', true);
+    if (reasonSel && typeof reasonSel.focus === 'function') reasonSel.focus({ preventScroll: true });
     return;
   }
   const refDecoded = decodeURIComponent(String(codRefEnc || ''));
@@ -3523,11 +3578,11 @@ function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction) {
     refreshBreakProductListView();
     return;
   }
-  registerBreakDelta(itemCode, delta, ct);
+  registerBreakDelta(itemCode, delta, ct, reason);
   if (inp) inp.value = '';
 }
 
-function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa') {
+function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa', reasonText = '') {
   if (!isBreakOperationalEditable()) {
     setBreakFeedback('Só é possível lançar quebra na data de hoje (America/Sao_Paulo).', true);
     return;
@@ -3535,6 +3590,7 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   const itemCode = normalizeItemCode(itemCodeInput);
   const quantity = Number(qtyDeltaInput);
   const countType = normalizeCountType(countTypeInput);
+  const reason = String(reasonText || '').trim();
 
   if (!itemCode) {
     setBreakFeedback('Informe o item para registrar.', true);
@@ -3543,6 +3599,11 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
 
   if (!Number.isInteger(quantity) || quantity === 0) {
     setBreakFeedback('Informe uma quantidade inteira diferente de zero.', true);
+    return;
+  }
+
+  if (!reason) {
+    setBreakFeedback('Selecione o motivo da quebra antes de lançar quantidade.', true);
     return;
   }
 
@@ -3557,7 +3618,7 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
     synced: false,
     device_name: getDeviceName(),
     operational_date: dayKey,
-    reason: null,
+    reason,
   };
 
   events.push(event);
@@ -3612,6 +3673,16 @@ async function syncPendingBreakEvents() {
   const pending = allEv.filter((event) => !event.synced);
   if (pending.length === 0) return;
 
+  const pendingValid = pending.filter((event) => String(event.reason || '').trim());
+  const pendingBad = pending.length - pendingValid.length;
+  if (pendingBad > 0) {
+    setBreakFeedback(
+      `${pendingBad} lançamento(s) pendente(s) sem motivo (versão antiga). Eles não serão enviados; refaça o lançamento com motivo.`,
+      true,
+    );
+  }
+  if (pendingValid.length === 0) return;
+
   breakSyncInProgress = true;
 
   try {
@@ -3622,7 +3693,7 @@ async function syncPendingBreakEvents() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        events: pending.map((event) => ({
+        events: pendingValid.map((event) => ({
           client_event_id: event.client_event_id,
           item_code: normalizeCountType(event.count_type) === 'unidade'
             ? `${event.item_code} [UN]`
@@ -3631,7 +3702,7 @@ async function syncPendingBreakEvents() {
           observed_at: event.observed_at,
           device_name: event.device_name,
           operational_date: event.operational_date || getActiveBreakDateKey(),
-          reason: event.reason || null,
+          reason: String(event.reason || '').trim(),
         })),
       }),
     });
@@ -3723,7 +3794,7 @@ function bindBreakEvents() {
       if (deltaBtn !== 1 && deltaBtn !== -1) return;
       const row = btn.closest('.count-control-row');
       const inp = row ? row.querySelector('input.count-product-qty') : null;
-      applyBreakRowOperation(codRefEnc, countType, inp, deltaBtn);
+      applyBreakRowOperation(codRefEnc, countType, inp, deltaBtn, btn);
       if (inp && typeof inp.focus === 'function') inp.focus({ preventScroll: true });
       refreshAfter();
     });
@@ -3882,6 +3953,8 @@ async function loadBreakHistoryList() {
       const nameHtml = descRaw ? descEsc : cod;
       const { cx, un } = parseAuditBreakCxUn(ev);
       const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
+      const reasonRaw = String(ev.reason || '').trim();
+      const reasonHtml = reasonRaw ? escapeHtml(reasonRaw) : '—';
       const li = document.createElement('li');
       li.className = 'count-audit-item break-history-item';
       li.setAttribute('data-state', 'ok');
@@ -3904,6 +3977,10 @@ async function loadBreakHistoryList() {
         `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(cx)}</strong>` +
         `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(un)}</strong>` +
         `</div></div>` +
+        `<div class="count-audit-cell">` +
+        `<span class="count-audit-cell-label">Motivo</span>` +
+        `<span class="count-audit-cell-value break-history-reason">${reasonHtml}</span>` +
+        `</div>` +
         `<div class="count-audit-cell">` +
         `<span class="count-audit-cell-label">Nome</span>` +
         `<span class="count-audit-cell-value">${actor}</span>` +
