@@ -2751,11 +2751,11 @@ form#break-op-form.count-form {
   --audit-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-#module-contagem #sub-count-audit.sub-section.active.count-audit-page,
-#module-contagem #sub-mate-couro-troca.sub-section.active.count-audit-page,
-#module-contagem #sub-mate-couro-troca-trocas.sub-section.active.count-audit-page,
-#module-contagem #sub-mate-couro-troca-historico.sub-section.active.count-audit-page,
-#module-contagem #sub-break-history.sub-section.active.break-history-page {
+#module-analise #sub-count-audit.sub-section.active.count-audit-page,
+#module-analise #sub-break-history.sub-section.active.break-history-page,
+#module-analise #sub-mate-couro-troca.sub-section.active.count-audit-page,
+#module-analise #sub-mate-couro-troca-trocas.sub-section.active.count-audit-page,
+#module-analise #sub-mate-couro-troca-historico.sub-section.active.count-audit-page {
   display: block;
   width: 100%;
   max-width: 100%;

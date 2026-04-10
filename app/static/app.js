@@ -675,9 +675,11 @@ const registerAccessAll = document.getElementById('register-access-all');
 const registerProfilePreset = document.getElementById('register-profile-preset');
 const registerAccessMain = document.getElementById('register-access-main');
 const registerAccessCount = document.getElementById('register-access-count');
+const registerAccessAnalise = document.getElementById('register-access-analise');
 const registerAccessCadastro = document.getElementById('register-access-cadastro');
 const editAccessMain = document.getElementById('edit-access-main');
 const editAccessCount = document.getElementById('edit-access-count');
+const editAccessAnalise = document.getElementById('edit-access-analise');
 const editAccessCadastro = document.getElementById('edit-access-cadastro');
 const editAccessAll = document.getElementById('edit-access-all');
 const editProfilePreset = document.getElementById('edit-profile-preset');
@@ -712,15 +714,18 @@ const PAGE_KEYS_BY_MODULE = {
     'pull',
     'return',
     'break',
-    'break-history',
+    'direct-sale',
+    'validity',
+  ],
+  analise: [
+    'analise',
+    'count-audit',
+    'import-txt',
+    'validity-analysis',
     'mate-couro-troca',
     'mate-couro-troca-historico',
     'mate-couro-troca-trocas',
-    'direct-sale',
-    'validity',
-    'validity-analysis',
-    'import-txt',
-    'count-audit',
+    'break-history',
   ],
   cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'parametros-produto'],
   acesso: ['acesso'],
@@ -728,31 +733,41 @@ const PAGE_KEYS_BY_MODULE = {
 
 const REGISTER_ACCESS_GROUPS = [
   {
-    container: () => registerAccessMain,
+    registerId: 'register-access-main',
+    editId: 'edit-access-main',
     items: [
       { key: 'contagem', label: 'Contagem' },
+      { key: 'analise', label: 'Análise' },
       { key: 'cadastro', label: 'Cadastro' },
       { key: 'acesso', label: 'Acesso' },
     ],
   },
   {
-    container: () => registerAccessCount,
+    registerId: 'register-access-count',
+    editId: 'edit-access-count',
     items: [
       { key: 'count', label: 'Contagem de Estoque' },
       { key: 'pull', label: 'Puxada' },
       { key: 'return', label: 'Devolução' },
       { key: 'break', label: 'Quebra' },
-      { key: 'break-history', label: 'Registro de quebras' },
-      { key: 'mate-couro-troca', label: 'Base de Troca' },
       { key: 'direct-sale', label: 'Venda Direta' },
       { key: 'validity', label: 'Validade (lançamento)' },
-      { key: 'validity-analysis', label: 'Análise de Validades' },
-      { key: 'import-txt', label: 'Importar Estoque (TXT)' },
-      { key: 'count-audit', label: 'Análise de Contagem' },
     ],
   },
   {
-    container: () => registerAccessCadastro,
+    registerId: 'register-access-analise',
+    editId: 'edit-access-analise',
+    items: [
+      { key: 'count-audit', label: 'Análise de Contagem' },
+      { key: 'import-txt', label: 'Importar Estoque (TXT)' },
+      { key: 'validity-analysis', label: 'Análise de Validades' },
+      { key: 'mate-couro-troca', label: 'Base de troca' },
+      { key: 'break-history', label: 'Registro de quebras' },
+    ],
+  },
+  {
+    registerId: 'register-access-cadastro',
+    editId: 'edit-access-cadastro',
     items: [
       { key: 'cadastro-produto', label: 'Cadastro de Produto' },
       { key: 'produtos', label: 'Produtos' },
@@ -765,40 +780,43 @@ const REGISTER_PROFILE_PRESETS = {
   admin: null, // null = todos
   administrativo: [
     'contagem',
+    'analise',
     'cadastro',
     'acesso',
     'count',
     'pull',
     'return',
     'break',
-    'break-history',
-    'mate-couro-troca',
     'direct-sale',
     'validity',
-    'validity-analysis',
-    'import-txt',
     'count-audit',
+    'import-txt',
+    'validity-analysis',
+    'mate-couro-troca',
+    'break-history',
     'cadastro-produto',
     'produtos',
     'parametros-produto',
   ],
   conferente: [
     'contagem',
+    'analise',
     'count',
     'pull',
     'return',
     'break',
-    'break-history',
-    'mate-couro-troca',
     'direct-sale',
     'validity',
     'import-txt',
+    'break-history',
+    'mate-couro-troca',
     /* count-audit / validity-analysis: só com permissão explícita ou perfil administrativo */
   ],
 };
 
 const MODULE_ACCESS = {
   contagem: ['conferente', 'administrativo', 'admin'],
+  analise: ['conferente', 'administrativo', 'admin'],
   cadastro: ['administrativo', 'admin'],
   acesso: ['administrativo', 'admin'],
 };
@@ -808,20 +826,29 @@ const SUB_MODULES = [
   'pull',
   'return',
   'break',
-  'break-history',
-  'mate-couro-troca',
-  'mate-couro-troca-historico',
-  'mate-couro-troca-trocas',
   'direct-sale',
   'validity',
+];
+const ANALISE_SUB_MODULES = [
+  'break-history',
   'validity-analysis',
   'import-txt',
   'count-audit',
+  'mate-couro-troca',
+  'mate-couro-troca-historico',
+  'mate-couro-troca-trocas',
 ];
 const CADASTRO_SUBS = ['cadastro-produto', 'produtos', 'parametros-produto'];
 const SUB_TO_PARENT = {};
-SUB_MODULES.forEach(s => { SUB_TO_PARENT[s] = 'contagem'; });
-CADASTRO_SUBS.forEach(s => { SUB_TO_PARENT[s] = 'cadastro'; });
+SUB_MODULES.forEach((s) => {
+  SUB_TO_PARENT[s] = 'contagem';
+});
+ANALISE_SUB_MODULES.forEach((s) => {
+  SUB_TO_PARENT[s] = 'analise';
+});
+CADASTRO_SUBS.forEach((s) => {
+  SUB_TO_PARENT[s] = 'cadastro';
+});
 
 /** Não liberar só por ter "contagem" em allowed_pages (auditoria / análise). */
 const SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED = new Set(['count-audit', 'validity-analysis']);
@@ -829,6 +856,7 @@ const SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED = new Set(['count-audit', 'validity-anal
 const PAGE_TITLES = {
   inicio: 'Página inicial',
   contagem: 'Contagem',
+  analise: 'Análise',
   cadastro: 'Cadastro',
   acesso: 'Acesso',
   count: 'Contagem',
@@ -836,7 +864,7 @@ const PAGE_TITLES = {
   return: 'Devolução',
   break: 'Quebra',
   'break-history': 'Registro de quebras',
-  'mate-couro-troca': 'Base de Troca',
+  'mate-couro-troca': 'Base de troca',
   'mate-couro-troca-historico': 'Histórico no servidor',
   'mate-couro-troca-trocas': 'Trocas encerradas',
   'direct-sale': 'Venda Direta',
@@ -887,10 +915,18 @@ const ACCESS_CATEGORIES = [
       { module: 'Puxada', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Devolução', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Quebra', roles: ['conferente', 'administrativo', 'admin'] },
-      { module: 'Base de Troca', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Venda Direta', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Validade (lançamento)', roles: ['conferente', 'administrativo', 'admin'] },
+    ],
+  },
+  {
+    category: 'Análise e auditoria',
+    subcategories: [
+      { module: 'Análise de Contagem', roles: ['administrativo', 'admin'] },
+      { module: 'Importar Estoque (TXT)', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Análise de Validades', roles: ['administrativo', 'admin'] },
+      { module: 'Base de troca', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Registro de quebras (consulta)', roles: ['conferente', 'administrativo', 'admin'] },
     ],
   },
   {
@@ -929,7 +965,10 @@ function canAccessModule(moduleKey) {
   if (currentRole === 'admin') return true;
   if (currentAllowedPages.length) {
     const allowedKeys = PAGE_KEYS_BY_MODULE[moduleKey] || [moduleKey];
-    return allowedKeys.some((key) => currentAllowedPages.includes(key));
+    if (allowedKeys.some((key) => currentAllowedPages.includes(key))) return true;
+    /* Legado: permissão "contagem" incluía cartões que hoje estão no módulo Análise. */
+    if (moduleKey === 'analise' && currentAllowedPages.includes('contagem')) return true;
+    return false;
   }
   const allowed = MODULE_ACCESS[moduleKey] || [];
   return allowed.includes(currentRole);
@@ -1075,7 +1114,7 @@ function setActiveModule(moduleKey, updateHistory = true) {
 
   if (subKey) {
     setActiveSub(subKey);
-  } else if (actualModule === 'contagem' || actualModule === 'cadastro') {
+  } else if (actualModule === 'contagem' || actualModule === 'cadastro' || actualModule === 'analise') {
     showModuleHome(actualModule);
   }
 
@@ -1114,7 +1153,15 @@ function canAccessHash(hashKey) {
     }
     return canAccessHash('break');
   }
-  if (k === 'break-history' || k === 'mate-couro-troca') {
+  if (k === 'mate-couro-troca') {
+    if (currentAllowedPages.length) {
+      const expanded = expandUserAllowedPagesForValidity(currentAllowedPages);
+      if (expanded.includes('mate-couro-troca')) return true;
+    }
+    return canAccessHash('break');
+  }
+
+  if (k === 'break-history') {
     return canAccessHash('break');
   }
 
@@ -1135,6 +1182,8 @@ function canAccessHash(hashKey) {
     if (expanded.includes(k)) return true;
     const parent = SUB_TO_PARENT[k];
     if (parent && expanded.includes(parent)) return true;
+    /* Legado: páginas de Análise ficavam sob o hub Contagem. */
+    if (parent === 'analise' && expanded.includes('contagem')) return true;
     return false;
   }
   const parent = SUB_TO_PARENT[k];
@@ -1230,7 +1279,7 @@ function renderAccessMatrix() {
 
 function renderRegisterAccessOptions() {
   REGISTER_ACCESS_GROUPS.forEach((group) => {
-    const container = group.container();
+    const container = document.getElementById(group.registerId);
     if (!container) return;
     container.innerHTML = '';
     group.items.forEach((item) => {
@@ -1478,15 +1527,11 @@ function applyRegisterProfilePreset(preset) {
 }
 
 function renderEditAccessOptions() {
-  if (!editAccessMain || !editAccessCount || !editAccessCadastro) return;
-  const groups = [
-    { el: editAccessMain, items: REGISTER_ACCESS_GROUPS[0].items },
-    { el: editAccessCount, items: REGISTER_ACCESS_GROUPS[1].items },
-    { el: editAccessCadastro, items: REGISTER_ACCESS_GROUPS[2].items },
-  ];
-  groups.forEach(({ el, items }) => {
+  REGISTER_ACCESS_GROUPS.forEach((group) => {
+    const el = document.getElementById(group.editId);
+    if (!el) return;
     el.innerHTML = '';
-    items.forEach((item) => {
+    group.items.forEach((item) => {
       const label = document.createElement('label');
       label.className = 'access-option';
       const input = document.createElement('input');
@@ -4112,7 +4157,7 @@ async function runMateTrocaReconcileFromBreaks() {
     window.alert('Faça login.');
     return;
   }
-  const rawCod = window.prompt('Código do produto (Mate couro):', '10');
+  const rawCod = window.prompt('Código do produto (base de troca):', '10');
   if (rawCod == null) return;
   const cod = normalizeNumericProductCodeKey(rawCod) || normalizeItemCode(rawCod);
   if (!cod) {
@@ -4137,7 +4182,7 @@ async function runMateTrocaReconcileFromBreaks() {
   if (
     !window.confirm(
       `Definir o pendente do código ${cod} como a SOMA das quebras de ${d0c} a ${d1c}?\n\n` +
-        `Isso não desconta chegadas já registradas na Base de Troca — use para corrigir pendente incoerente com as quebras.\n\n` +
+        `Isso não desconta chegadas já registradas na base de troca — use para corrigir pendente incoerente com as quebras.\n\n` +
         `Grava um evento "definir" no servidor para todos os usuários.`,
     )
   ) {
@@ -4851,13 +4896,13 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
   if (!list) return;
   if (rangeInfo) {
     rangeInfo.textContent = mateEvents.length
-      ? `${mateEvents.length} produto(s) com lançamento Mate couro neste dia.`
-      : 'Nenhum lançamento Mate couro para este dia.';
+      ? `${mateEvents.length} produto(s) com lançamento na base de troca neste dia.`
+      : 'Nenhum lançamento na base de troca para este dia.';
   }
   list.innerHTML = '';
   if (!mateEvents.length) {
     list.innerHTML =
-      '<li class="count-audit-empty"><span>Nenhuma quebra Mate couro registrada neste dia.</span><strong>—</strong></li>';
+      '<li class="count-audit-empty"><span>Nenhuma quebra da base de troca registrada neste dia.</span><strong>—</strong></li>';
     return;
   }
   for (const ev of mateEvents) {
@@ -5224,9 +5269,9 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   if (!events.length) {
     body.innerHTML =
       `<p class="mate-troca-pending-history-empty muted">Nenhum lançamento para este código nos últimos 120 dias ` +
-      `(Base de Troca no servidor, histórico deste aparelho ou quebra na tela Quebra). ` +
-      `Se houve quebra Mate couro, confira o dia em <strong>Quebra</strong> ou <strong>Histórico de quebra</strong>. ` +
-      `Na Base de Troca, use <strong>Carregar</strong> para incorporar o dia ao pendente; ` +
+      `(Base de troca no servidor, histórico deste aparelho ou quebra na tela Quebra). ` +
+      `Se houve quebra na base de troca, confira o dia em <strong>Quebra</strong> ou <strong>Histórico de quebra</strong>. ` +
+      `Na base de troca, use <strong>Carregar</strong> para incorporar o dia ao pendente; ` +
       `use <strong>Chegada</strong>, <strong>Saldo</strong>, <strong>Zerar</strong> ou <strong>Ajustar pendente</strong> para movimentos gravados no servidor.</p>`;
     return;
   }
@@ -5243,9 +5288,9 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     if (kindRaw === 'chegada') {
       mov = `Registro de chegada: entrada CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`;
     } else if (kindRaw === 'incorporacao_quebra') {
-      mov = `Incorporação ao pendente ao Carregar o dia (quebra Mate couro no servidor): ${mateTrocaSignedCxUnParts(ev.qty_cx_in, ev.qty_un_in)}.`;
+      mov = `Incorporação ao pendente ao Carregar o dia (quebra da base de troca no servidor): ${mateTrocaSignedCxUnParts(ev.qty_cx_in, ev.qty_un_in)}.`;
     } else if (kindRaw === 'quebra_operacional') {
-      mov = `Quebra registrada na tela Quebra (total do dia operacional Mate couro): CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}.`;
+      mov = `Quebra registrada na tela Quebra (total do dia operacional da base de troca): CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}.`;
     } else if (kindRaw === 'zerar') {
       mov = 'Zerar: pendente levado a zero.';
     } else if (kindRaw === 'definir') {
@@ -5257,7 +5302,7 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     }
     const pend =
       kindRaw === 'quebra_operacional'
-        ? 'Base de Troca: este valor é o registro de quebra no dia; o pendente acumulativo só muda ao usar Carregar (ou Chegada / Saldo / Zerar / Ajuste).'
+        ? 'Base de troca: este valor é o registro de quebra no dia; o pendente acumulativo só muda ao usar Carregar (ou Chegada / Saldo / Zerar / Ajuste).'
         : `Pendente: ${formatBreakIntegerBR(ev.pend_cx_before)} CX / ${formatBreakIntegerBR(ev.pend_un_before)} UN → ${formatBreakIntegerBR(ev.pend_cx_after)} CX / ${formatBreakIntegerBR(ev.pend_un_after)} UN`;
     const actor = escapeHtml(String(ev.actor_username || '—'));
     const syncBadge = ev._pendingSync
@@ -5284,7 +5329,7 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   });
   body.innerHTML =
     `<p class="mate-troca-pending-history-lead muted">Ordem cronológica (mais antigo primeiro). ` +
-    `Inclui Base de Troca no servidor, quebra na tela Quebra (últimos 120 dias) e lançamentos neste aparelho ainda não sincronizados.</p>` +
+    `Inclui base de troca no servidor, quebra na tela Quebra (últimos 120 dias) e lançamentos neste aparelho ainda não sincronizados.</p>` +
     `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
 }
 
@@ -5526,7 +5571,7 @@ function bindMateCouroTrocaEvents() {
     btnAdjust.dataset.mateTrocaBound = '1';
     btnAdjust.addEventListener('click', () => {
       void (async () => {
-        const rawCod = window.prompt('Código do produto (Mate couro):', '');
+        const rawCod = window.prompt('Código do produto (base de troca):', '');
         if (rawCod == null) return;
         const cod = normalizeItemCode(rawCod);
         if (!cod) {
@@ -5538,7 +5583,7 @@ function bindMateCouroTrocaEvents() {
           (x) => normalizeItemCode(String(x.cod_produto || '')) === cod,
         );
         if (!inCatalog) {
-          window.alert('Código não encontrado no catálogo Mate couro (ativos).');
+          window.alert('Código não encontrado no catálogo da base de troca (ativos).');
           return;
         }
         await refreshMateTrocaBaseBalanceCardV2();
@@ -9830,7 +9875,7 @@ function buildCountAuditTrocaColumnCellHtml(meta) {
         : `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(0)}</strong>` +
           `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(0)}</strong>`;
     const title =
-      'Saldo atual da Base de Troca (CIA Mate couro), mesma fonte do card na tela Base de Troca; altera com Chegada, Saldo, Zerar ou Carregar.';
+      'Saldo atual da base de troca, mesma fonte do card na tela Base de troca; altera com Chegada, Saldo, Zerar ou Carregar.';
     return (
       `<span class="count-audit-cell-label">Troca</span>` +
       `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="${escapeHtml(title)}">` +
@@ -9840,7 +9885,7 @@ function buildCountAuditTrocaColumnCellHtml(meta) {
   }
   if (meta.trocaMateCouro && !meta.trocaSaldoKnown) {
     const title =
-      'Saldo da Base de Troca ainda não carregado nesta sessão. Abra a Base de Troca e use Atualizar lista, ou recarregue a análise.';
+      'Saldo da base de troca ainda não carregado nesta sessão. Abra a base de troca e use Atualizar lista, ou recarregue a análise.';
     return (
       `<span class="count-audit-cell-label">Troca</span>` +
       `<span class="count-audit-cell-value mate-troca-balance-v2-unknown" title="${escapeHtml(title)}">CX — · UN —</span>`
@@ -9872,14 +9917,14 @@ function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
     let vals = formatCountAuditOpsMobileCxUn(meta.trocaCx, meta.trocaUn, 'troca');
     if (!vals) vals = 'CX 0 · UN 0';
     parts.push(
-      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo atual da Base de Troca (CIA Mate couro), mesma fonte do card na Base de Troca">` +
+      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo atual da base de troca, mesma fonte do card na tela Base de troca">` +
         `<span class="count-audit-mobile-break-label">Troca</span>` +
         `<span class="count-audit-mobile-break-values">${vals}</span>` +
       `</div>`,
     );
   } else if (trocaUnknownMate) {
     parts.push(
-      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo da Base de Troca ainda não carregado — atualize na Base de Troca ou recarregue a análise">` +
+      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo da base de troca ainda não carregado — atualize na Base de troca ou recarregue a análise">` +
         `<span class="count-audit-mobile-break-label">Troca</span>` +
         `<span class="count-audit-mobile-break-values mate-troca-balance-v2-unknown">CX — · UN —</span>` +
       `</div>`,
@@ -9989,7 +10034,7 @@ function buildCountAuditMergedCurrentCxuHtml(row, meta) {
   const sumUn = baseUn + tUn;
   const hasTroca = tCx > 0 || tUn > 0;
   const title = hasTroca
-    ? 'Total = contagem sincronizada + saldo atual da Base de Troca para este produto.'
+    ? 'Total = contagem sincronizada + saldo atual da base de troca para este produto.'
     : '';
   const pairClass = `count-audit-cxu-pair${hasTroca ? ' count-audit-cxu-pair--with-troca' : ''}`;
   const pairOpen = title
@@ -10028,9 +10073,9 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
     ? `<div class="count-audit-detail-validity-line${expRiskDetail ? ` ${expRiskDetail}` : ''}">Validade (referência) · ${escapeHtml(formatDateBR(expIsoDetail))}</div>`
     : '';
   const trocaDetailArticle = countAuditHasTrocaPending(meta)
-    ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>Saldo atual da Base de Troca V2 (mesmo dado do card Saldo acumulado); altera com Chegada, Saldo, Zerar ou Carregar.</small></article>`
+    ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (base de troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>Saldo atual da base de troca (mesmo dado do card Saldo acumulado); altera com Chegada, Saldo, Zerar ou Carregar.</small></article>`
     : meta.trocaMateCouro && !meta.trocaSaldoKnown
-      ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (Base de Troca)</span><strong>—</strong><small>Saldo ainda não carregado nesta sessão. Atualize a lista na Base de Troca ou recarregue a análise.</small></article>`
+      ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (base de troca)</span><strong>—</strong><small>Saldo ainda não carregado nesta sessão. Atualize a lista na base de troca ou recarregue a análise.</small></article>`
       : '';
   const breakDetailArticle = countAuditHasBreakDay(meta)
     ? `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.breakCx, meta.breakUn, 'break')}</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>`
@@ -12069,9 +12114,7 @@ if (registerForm) {
   });
 }
 
-if (editAccessMain) {
-  renderEditAccessOptions();
-}
+renderEditAccessOptions();
 if (editAccessAll) {
   editAccessAll.addEventListener('change', () => {
     setAllEditAccess(editAccessAll.checked);

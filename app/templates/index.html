@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=56" />
+    <link rel="stylesheet" href="/static/style.css?v=57" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -154,11 +154,6 @@
                 <span class="module-card-icon">💔</span>
                 <span class="module-card-title">Quebra</span>
                 <span class="module-card-desc">Baixa por dano, avaria ou impropriedade</span>
-              </button>
-              <button type="button" class="module-card" data-sub="mate-couro-troca">
-                <span class="module-card-icon">🔄</span>
-                <span class="module-card-title">Base de Troca</span>
-                <span class="module-card-desc">Quebras CIA Mate couro e pendente acumulativo (local)</span>
               </button>
               <button type="button" class="module-card" data-sub="direct-sale">
                 <span class="module-card-icon">💰</span>
@@ -410,7 +405,7 @@
                         <div class="break-scope-options" role="group" aria-labelledby="break-scope-visual-label">
                           <label class="break-scope-pill" for="break-scope-mate-couro">
                             <input type="radio" name="break-scope" id="break-scope-mate-couro" value="mate-couro" />
-                            <span>Mate Couro</span>
+                            <span>Base de troca</span>
                           </label>
                           <label class="break-scope-pill" for="break-scope-outros">
                             <input type="radio" name="break-scope" id="break-scope-outros" value="outros" />
@@ -445,12 +440,87 @@
             </div>
           </div>
 
-          <!-- Sub: Base de Troca — mesmo layout da Análise de Contagem (#count-audit) -->
+          <!-- Sub: Venda Direta -->
+          <div id="sub-direct-sale" class="sub-section">
+            <section class="card">
+              <div class="card-head">
+                <h2>Venda Direta</h2>
+                <span class="chip">Baixa imediata</span>
+              </div>
+              <p class="muted">Registre venda no ponto de forma rápida, com controle de quantidade e segurança.</p>
+              <form id="direct-sale-form" class="count-form" autocomplete="off">
+                <div class="field">
+                  <label for="sale-item">Item</label>
+                  <input id="sale-item" name="sale-item" type="text" placeholder="Codigo do produto" required />
+                </div>
+                <div class="field">
+                  <label for="sale-qty">Quantidade</label>
+                  <input id="sale-qty" name="sale-qty" type="number" min="1" step="1" value="1" required />
+                </div>
+                <div class="field">
+                  <label for="sale-channel">Canal</label>
+                  <select id="sale-channel" name="sale-channel">
+                    <option>Balcão</option>
+                    <option>Retirada rápida</option>
+                    <option>Venda interna</option>
+                  </select>
+                </div>
+                <button type="submit" id="btn-direct-sale">Registrar venda</button>
+              </form>
+              <div id="direct-sale-feedback" class="field-feedback" aria-live="polite"></div>
+            </section>
+            <section class="card" style="margin-top:16px">
+              <div class="card-head">
+                <h3>Vendas diretas registradas</h3>
+                <span id="direct-sale-total" class="chip">0 itens</span>
+              </div>
+              <ul id="direct-sale-list" class="list">
+                <li><span>Nenhuma venda direta registrada ainda.</span><strong>0</strong></li>
+              </ul>
+            </section>
+          </div>
+
+        </section>
+
+        <!-- ── MÓDULO MÃE: ANÁLISE ── -->
+        <section id="module-analise" class="module-section">
+          <div id="analise-home" class="sub-section active">
+            <h3 class="contagem-grid-title">Relatórios e auditoria</h3>
+            <div class="module-grid module-grid-contagem">
+              <button type="button" class="module-card" data-sub="count-audit">
+                <span class="module-card-icon">🧭</span>
+                <span class="module-card-title">Análise de Contagem</span>
+                <span class="module-card-desc">Compara contagem em tempo real com a última importação TXT</span>
+              </button>
+              <button type="button" class="module-card" data-sub="import-txt">
+                <span class="module-card-icon">📂</span>
+                <span class="module-card-title">Importar Estoque</span>
+                <span class="module-card-desc">Importar histórico diário de saldo físico via arquivo TXT</span>
+              </button>
+              <button type="button" class="module-card" data-sub="validity-analysis">
+                <span class="module-card-icon">📊</span>
+                <span class="module-card-title">Análise de Validades</span>
+                <span class="module-card-desc">Indicadores, filtros, histórico e auditoria no desktop</span>
+              </button>
+              <button type="button" class="module-card" data-sub="mate-couro-troca">
+                <span class="module-card-icon">🔄</span>
+                <span class="module-card-title">Base de troca</span>
+                <span class="module-card-desc">Quebras da linha base de troca e pendente acumulativo (local)</span>
+              </button>
+              <button type="button" class="module-card" data-sub="break-history">
+                <span class="module-card-icon">📑</span>
+                <span class="module-card-title">Registro de quebras</span>
+                <span class="module-card-desc">Consulta de lançamentos por dia</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub: Base de troca — mesmo layout da Análise de Contagem (#count-audit) -->
           <div id="sub-mate-couro-troca" class="sub-section count-audit-page mate-troca-page">
             <section class="count-audit-shell mate-troca-shell" aria-labelledby="mate-couro-troca-title">
-              <section class="card mate-troca-kpi-shell" id="mate-troca-summary" aria-label="Base de troca Mate couro — consulta e ações">
+              <section class="card mate-troca-kpi-shell" id="mate-troca-summary" aria-label="Base de troca — consulta e ações">
                 <div class="mate-troca-kpi-page-intro">
-                  <h2 id="mate-couro-troca-title" class="count-audit-page-title">Base de Troca</h2>
+                  <h2 id="mate-couro-troca-title" class="count-audit-page-title">Base de troca</h2>
                   <p class="count-audit-page-subtitle mate-troca-page-subtitle">
                     O número do card é só o <strong>pendente no servidor</strong> (o que <strong>Chegada</strong>, <strong>Saldo</strong> e <strong>Zerar</strong> alteram).
                     <strong>De / Até</strong> + <strong>Atualizar lista</strong> só define quais códigos aparecem (ex.: tiveram quebra no período); não substitui o pendente exibido.
@@ -535,7 +605,7 @@
                 <section class="card count-audit-list-card">
                   <div class="card-head count-audit-list-head">
                     <div>
-                      <h3>Quebras do dia (Mate couro)</h3>
+                      <h3>Quebras do dia (base de troca)</h3>
                     </div>
                     <div class="count-audit-list-head-meta">
                       <span id="mate-couro-troca-day-range-info" class="count-audit-range-info">Selecione o dia e carregue o registro.</span>
@@ -548,7 +618,7 @@
                     <span>Nome</span>
                   </div>
                   <div class="count-audit-list-panel break-history-list-panel">
-                    <ul id="mate-couro-troca-day-list" class="count-audit-list-main" role="list" aria-label="Quebras do dia Mate couro"></ul>
+                    <ul id="mate-couro-troca-day-list" class="count-audit-list-main" role="list" aria-label="Quebras do dia (base de troca)"></ul>
                   </div>
                 </section>
 
@@ -646,7 +716,7 @@
             </section>
           </div>
 
-          <!-- Sub: Trocas encerradas (consolidado Mate couro) -->
+          <!-- Sub: Trocas encerradas (consolidado base de troca) -->
           <div id="sub-mate-couro-troca-trocas" class="sub-section count-audit-page mate-troca-page">
             <section class="count-audit-shell mate-troca-shell mate-troca-trocas-shell" aria-labelledby="mate-couro-troca-trocas-title">
               <header class="mate-troca-trocas-hero">
@@ -676,43 +746,79 @@
             </section>
           </div>
 
-          <!-- Sub: Venda Direta -->
-          <div id="sub-direct-sale" class="sub-section">
-            <section class="card">
-              <div class="card-head">
-                <h2>Venda Direta</h2>
-                <span class="chip">Baixa imediata</span>
+          <dialog id="mate-troca-pending-history-dialog" class="mate-troca-pending-history-dialog" aria-labelledby="mate-troca-pending-history-dialog-title">
+            <div class="mate-troca-pending-history-dialog-head">
+              <h2 id="mate-troca-pending-history-dialog-title" class="mate-troca-pending-history-dialog-title">Histórico do produto</h2>
+              <button type="button" class="btn-text mate-troca-pending-history-dialog-close" aria-label="Fechar">Fechar</button>
+            </div>
+            <div id="mate-troca-pending-history-dialog-body" class="mate-troca-pending-history-dialog-body"></div>
+          </dialog>
+
+          <dialog id="mate-troca-batch-detail-dialog" class="mate-troca-pending-history-dialog" aria-labelledby="mate-troca-batch-detail-dialog-title">
+            <div class="mate-troca-pending-history-dialog-head">
+              <h2 id="mate-troca-batch-detail-dialog-title" class="mate-troca-pending-history-dialog-title">Detalhe da troca</h2>
+              <button type="button" class="btn-text mate-troca-batch-detail-dialog-close" aria-label="Fechar">Fechar</button>
+            </div>
+            <div id="mate-troca-batch-detail-dialog-body" class="mate-troca-pending-history-dialog-body"></div>
+          </dialog>
+          <!-- Sub: Registro de quebras (consulta servidor) — layout alinhado à Análise de Contagem -->
+          <div id="sub-break-history" class="sub-section break-history-page">
+            <section class="count-audit-shell" aria-labelledby="break-history-title">
+              <header class="card count-audit-header">
+                <div class="count-audit-header__row">
+                  <div class="count-audit-header__titles">
+                    <h2 id="break-history-title" class="count-audit-page-title">Registro de quebras</h2>
+                    <p class="count-audit-page-subtitle">Lançamentos sincronizados no servidor · totais líquidos por produto (CX e UN) · America/Sao_Paulo</p>
+                  </div>
+                  <div class="count-audit-header__chips">
+                    <span class="chip count-audit-chip-ativo">Consulta servidor</span>
+                  </div>
+                </div>
+                <div class="count-audit-header__meta" role="list" aria-label="Contexto do registro">
+                  <article class="count-audit-meta-pill" role="listitem">
+                    <span class="count-audit-meta-label">Dia operacional</span>
+                    <span id="break-history-meta-date" class="count-audit-meta-value">--/--/----</span>
+                  </article>
+                  <article class="count-audit-meta-pill count-audit-meta-pill--soft" role="listitem">
+                    <span class="count-audit-meta-label">Itens com quebra</span>
+                    <span id="break-history-meta-count" class="count-audit-meta-value">—</span>
+                  </article>
+                </div>
+                <div class="count-audit-header__toolbar" aria-label="Consulta do registro">
+                  <div class="count-audit-field count-audit-field--date">
+                    <label class="count-audit-label" for="break-history-date">Consultar dia</label>
+                    <input id="break-history-date" name="break-history-date" type="date" class="search-input count-audit-date-input" aria-label="Dia da quebra" />
+                  </div>
+                  <div class="count-audit-header__actions">
+                    <button type="button" id="btn-break-history-refresh" class="btn-secondary btn-dark count-audit-btn-refresh">Carregar</button>
+                  </div>
+                </div>
+                <div id="break-history-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
+              </header>
+
+              <div class="count-audit-workspace">
+                <section class="card count-audit-list-card">
+                  <div class="card-head count-audit-list-head">
+                    <div>
+                      <h3>Quebras do dia</h3>
+                      <p class="count-audit-card-sub muted">Totais consolidados por produto neste dia operacional</p>
+                    </div>
+                    <div class="count-audit-list-head-meta">
+                      <span id="break-history-count-chip" class="chip count-audit-total-chip" aria-live="polite">0</span>
+                      <span id="break-history-range-info" class="count-audit-range-info">Selecione o dia e carregue o registro.</span>
+                    </div>
+                  </div>
+                  <div class="break-history-list-header" aria-hidden="true">
+                    <span>Produto</span>
+                    <span>Dia</span>
+                    <span>Quebra</span>
+                    <span>Nome</span>
+                  </div>
+                  <div class="count-audit-list-panel break-history-list-panel">
+                    <ul id="break-history-list" class="count-audit-list-main" role="list" aria-label="Lista de quebras"></ul>
+                  </div>
+                </section>
               </div>
-              <p class="muted">Registre venda no ponto de forma rápida, com controle de quantidade e segurança.</p>
-              <form id="direct-sale-form" class="count-form" autocomplete="off">
-                <div class="field">
-                  <label for="sale-item">Item</label>
-                  <input id="sale-item" name="sale-item" type="text" placeholder="Codigo do produto" required />
-                </div>
-                <div class="field">
-                  <label for="sale-qty">Quantidade</label>
-                  <input id="sale-qty" name="sale-qty" type="number" min="1" step="1" value="1" required />
-                </div>
-                <div class="field">
-                  <label for="sale-channel">Canal</label>
-                  <select id="sale-channel" name="sale-channel">
-                    <option>Balcão</option>
-                    <option>Retirada rápida</option>
-                    <option>Venda interna</option>
-                  </select>
-                </div>
-                <button type="submit" id="btn-direct-sale">Registrar venda</button>
-              </form>
-              <div id="direct-sale-feedback" class="field-feedback" aria-live="polite"></div>
-            </section>
-            <section class="card" style="margin-top:16px">
-              <div class="card-head">
-                <h3>Vendas diretas registradas</h3>
-                <span id="direct-sale-total" class="chip">0 itens</span>
-              </div>
-              <ul id="direct-sale-list" class="list">
-                <li><span>Nenhuma venda direta registrada ainda.</span><strong>0</strong></li>
-              </ul>
             </section>
           </div>
 
@@ -908,22 +1014,6 @@
               <button type="button" class="btn-text validity-history-dialog-close" aria-label="Fechar">Fechar</button>
             </div>
             <div id="validity-history-dialog-body" class="validity-history-dialog-body"></div>
-          </dialog>
-
-          <dialog id="mate-troca-pending-history-dialog" class="mate-troca-pending-history-dialog" aria-labelledby="mate-troca-pending-history-dialog-title">
-            <div class="mate-troca-pending-history-dialog-head">
-              <h2 id="mate-troca-pending-history-dialog-title" class="mate-troca-pending-history-dialog-title">Histórico do produto</h2>
-              <button type="button" class="btn-text mate-troca-pending-history-dialog-close" aria-label="Fechar">Fechar</button>
-            </div>
-            <div id="mate-troca-pending-history-dialog-body" class="mate-troca-pending-history-dialog-body"></div>
-          </dialog>
-
-          <dialog id="mate-troca-batch-detail-dialog" class="mate-troca-pending-history-dialog" aria-labelledby="mate-troca-batch-detail-dialog-title">
-            <div class="mate-troca-pending-history-dialog-head">
-              <h2 id="mate-troca-batch-detail-dialog-title" class="mate-troca-pending-history-dialog-title">Detalhe da troca</h2>
-              <button type="button" class="btn-text mate-troca-batch-detail-dialog-close" aria-label="Fechar">Fechar</button>
-            </div>
-            <div id="mate-troca-batch-detail-dialog-body" class="mate-troca-pending-history-dialog-body"></div>
           </dialog>
 
           <!-- Sub: Importar Estoque -->
@@ -1188,7 +1278,7 @@
                     <span>Base / TXT</span>
                     <span>Contagem:</span>
                     <span>Diferença</span>
-                    <span class="count-audit-h-troca" title="Saldo atual da Base de Troca (CIA Mate couro), mesmo dado do card Saldo acumulado na Base de Troca">Troca</span>
+                    <span class="count-audit-h-troca" title="Saldo atual da base de troca, mesmo dado do card Saldo acumulado na base de troca">Troca</span>
                     <span class="count-audit-h-quebra">Quebra</span>
                     <span>Status</span>
                     <span>Ação</span>
@@ -1442,6 +1532,10 @@
                     <div id="register-access-count" class="access-options"></div>
                   </div>
                   <div class="access-group">
+                    <h4>Submódulos de Análise</h4>
+                    <div id="register-access-analise" class="access-options"></div>
+                  </div>
+                  <div class="access-group">
                     <h4>Submódulos de Cadastro</h4>
                     <div id="register-access-cadastro" class="access-options"></div>
                   </div>
@@ -1507,6 +1601,10 @@
                     <div class="access-group">
                       <h4>Submódulos de Contagem</h4>
                       <div id="edit-access-count" class="access-options"></div>
+                    </div>
+                    <div class="access-group">
+                      <h4>Submódulos de Análise</h4>
+                      <div id="edit-access-analise" class="access-options"></div>
                     </div>
                     <div class="access-group">
                       <h4>Submódulos de Cadastro</h4>
