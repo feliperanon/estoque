@@ -6,6 +6,7 @@ from collections import defaultdict
 from itertools import groupby
 from datetime import date, datetime, time, timezone, timedelta
 from io import BytesIO
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -1092,6 +1093,294 @@ def _build_stock_analysis_excel_workbook(
     wb.save(buf)
     buf.seek(0)
     return buf
+
+
+class ValidityAnalysisExportPayload(BaseModel):
+    """JSON enviado pelo front com os mesmos dados exibidos na análise (incl. merge local)."""
+
+    operational_date: str = Field(..., min_length=8, max_length=32)
+    brazil_today: str | None = None
+    last_sync_display: str | None = None
+    executive_lines: list[str] = Field(default_factory=list)
+    summary_kpis: dict[str, int] = Field(default_factory=dict)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    history_flat: list[dict[str, Any]] = Field(default_factory=list)
+
+
+def _validity_xlsx_fill_for_visual(key: str | None) -> PatternFill:
+    k = (key or "").strip().lower()
+    colors = {
+        "expired": "FEE2E2",
+        "d30": "FECACA",
+        "d60": "FFEDD5",
+        "d90": "FEF3C7",
+        "d120": "FEF9C3",
+        "d150": "DBEAFE",
+        "d180": "EDE9FE",
+        "ok": "DCFCE7",
+        "no_validity": "E2E8F0",
+        "no_count": "CCFBF1",
+        "oldbase": "F3E8FF",
+        "none": "F1F5F9",
+    }
+    hx = colors.get(k, "F8FAFC")
+    return PatternFill(start_color=hx, end_color=hx, fill_type="solid")
+
+
+def _build_validity_analysis_excel_workbook(
+    payload: dict[str, Any],
+    emitted_at_br: datetime,
+    emitted_by: str,
+) -> BytesIO:
+    wb = Workbook()
+    title_font = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+    thin = Side(style="thin", color="CBD5E1")
+    border_all = Border(left=thin, right=thin, top=thin, bottom=thin)
+    wrap = Alignment(wrap_text=True, vertical="center", horizontal="left")
+    center = Alignment(horizontal="center", vertical="center")
+
+    # --- Aba 1: Resumo ---
+    ws0 = wb.active
+    ws0.title = "Resumo Executivo"
+    op_d = str(payload.get("operational_date") or "")[:10]
+    today = str(payload.get("brazil_today") or op_d)[:10]
+    last_sync = str(payload.get("last_sync_display") or "—")
+    sk = payload.get("summary_kpis") or {}
+    ws0.merge_cells("A1:F1")
+    c1 = ws0["A1"]
+    c1.value = "Análise de Validades · Resumo executivo"
+    c1.font = title_font
+    c1.fill = header_fill
+    c1.alignment = Alignment(horizontal="center", vertical="center")
+    ws0.row_dimensions[1].height = 26
+
+    ws0.merge_cells("A2:F2")
+    ws0["A2"].value = (
+        f"Emitido em: {emitted_at_br.strftime('%d/%m/%Y %H:%M:%S')}  ·  "
+        f"Emitido por: {emitted_by}  ·  Data operacional: {op_d}  ·  Hoje (BR): {today}"
+    )
+    ws0["A2"].font = Font(name="Calibri", size=10, bold=True)
+    ws0["A2"].alignment = wrap
+
+    r = 4
+    pairs = [
+        ("Última sincronização (cliente)", last_sync),
+        ("Total no filtro", sk.get("filtered_total", "—")),
+        ("Com validade", sk.get("with", "—")),
+        ("Sem validade", sk.get("without", "—")),
+        ("Vencidos", sk.get("expired", "—")),
+        ("Até 30d", sk.get("d30", "—")),
+        ("Até 60d", sk.get("d60", "—")),
+        ("Até 90d", sk.get("d90", "—")),
+        ("Até 120d", sk.get("d120", "—")),
+        ("Até 150d", sk.get("d150", "—")),
+        ("Até 180d", sk.get("d180", "—")),
+        ("Sem contagem", sk.get("nocount", "—")),
+        ("Base antiga", sk.get("oldbase", "—")),
+    ]
+    ws0.cell(row=r, column=1, value="Métrica").font = header_font
+    ws0.cell(row=r, column=1).fill = header_fill
+    ws0.cell(row=r, column=2, value="Valor").font = header_font
+    ws0.cell(row=r, column=2).fill = header_fill
+    r += 1
+    for label, val in pairs:
+        ws0.cell(row=r, column=1, value=label).border = border_all
+        ws0.cell(row=r, column=2, value=val).border = border_all
+        r += 1
+
+    r += 1
+    ws0.cell(row=r, column=1, value="Narrativa executiva").font = Font(bold=True)
+    r += 1
+    for line in payload.get("executive_lines") or []:
+        ws0.merge_cells(f"A{r}:F{r}")
+        ws0.cell(row=r, column=1, value=str(line)).alignment = wrap
+        r += 1
+
+    r += 1
+    ws0.merge_cells(f"A{r}:F{r}")
+    ws0.cell(row=r, column=1, value="Legenda de cores (faixa)").font = Font(bold=True)
+    r += 1
+    legend = [
+        ("Vencido", "FEE2E2"),
+        ("≤30d", "FECACA"),
+        ("≤60d", "FFEDD5"),
+        ("≤90d", "FEF3C7"),
+        ("≤120d", "FEF9C3"),
+        ("≤150d", "DBEAFE"),
+        ("≤180d", "EDE9FE"),
+        (">180d", "DCFCE7"),
+        ("Sem validade", "E2E8F0"),
+        ("Sem contagem", "CCFBF1"),
+        ("Base antiga", "F3E8FF"),
+    ]
+    for lab, hx in legend:
+        ws0.cell(row=r, column=1, value=lab)
+        ws0.cell(row=r, column=2, value="").fill = PatternFill(
+            start_color=hx, end_color=hx, fill_type="solid"
+        )
+        r += 1
+
+    for idx in range(1, 7):
+        ws0.column_dimensions[get_column_letter(idx)].width = 18 if idx > 2 else 28
+
+    # --- Aba 2: Lista ---
+    ws1 = wb.create_sheet("Lista Analítica")
+    headers = [
+        "Código",
+        "Produto",
+        "Grupo",
+        "Situação",
+        "Visual",
+        "Próx. venc. (BR)",
+        "Dias",
+        "Faixa",
+        "Qtd c/ val.",
+        "Qtd s/ val.",
+        "Contagem ref.",
+        "Últ. lanç. op.",
+        "Resp.",
+    ]
+    hr = 1
+    for j, h in enumerate(headers, start=1):
+        cell = ws1.cell(row=hr, column=j, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border_all
+        cell.alignment = center
+    rows = payload.get("rows") or []
+    for i, row in enumerate(rows, start=hr + 1):
+        vk = str(row.get("visual_key") or "")
+        vals = [
+            row.get("cod_produto") or "",
+            row.get("produto") or "",
+            row.get("grupo") or "",
+            row.get("situacao") or "",
+            vk,
+            row.get("proximo_vencimento_br") or "",
+            row.get("dias_para_vencer") or "",
+            row.get("faixa") or "",
+            row.get("qtd_com_validade") or "",
+            row.get("qtd_sem_validade") or "",
+            row.get("contagem_referencia") or "",
+            row.get("ultimo_lancamento_op") or "",
+            row.get("responsavel_ultimo") or "",
+        ]
+        fill = _validity_xlsx_fill_for_visual(vk)
+        for j, v in enumerate(vals, start=1):
+            cell = ws1.cell(row=i, column=j, value=v)
+            cell.border = border_all
+            cell.fill = fill
+            cell.alignment = Alignment(horizontal="left" if j <= 5 else "right" if j in (7, 8) else "left", vertical="center")
+    last_r = hr + len(rows)
+    if rows:
+        ws1.auto_filter.ref = f"A{hr}:{get_column_letter(len(headers))}{last_r}"
+    ws1.freeze_panes = f"A{hr + 1}"
+    widths = [12, 36, 22, 14, 14, 14, 8, 18, 14, 14, 18, 14, 18]
+    for idx, w in enumerate(widths, start=1):
+        ws1.column_dimensions[get_column_letter(idx)].width = w
+
+    # --- Aba 3: Críticos ---
+    ws2 = wb.create_sheet("Críticos")
+    crit_keys = {"expired", "d30", "no_validity", "no_count", "oldbase"}
+    crit_rows = [x for x in rows if str(x.get("visual_key") or "") in crit_keys]
+    for j, h in enumerate(headers, start=1):
+        cell = ws2.cell(row=1, column=j, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border_all
+    for i, row in enumerate(crit_rows, start=2):
+        vk = str(row.get("visual_key") or "")
+        vals = [
+            row.get("cod_produto") or "",
+            row.get("produto") or "",
+            row.get("grupo") or "",
+            row.get("situacao") or "",
+            vk,
+            row.get("proximo_vencimento_br") or "",
+            row.get("dias_para_vencer") or "",
+            row.get("faixa") or "",
+            row.get("qtd_com_validade") or "",
+            row.get("qtd_sem_validade") or "",
+            row.get("contagem_referencia") or "",
+            row.get("ultimo_lancamento_op") or "",
+            row.get("responsavel_ultimo") or "",
+        ]
+        fill = _validity_xlsx_fill_for_visual(vk)
+        for j, v in enumerate(vals, start=1):
+            cell = ws2.cell(row=i, column=j, value=v)
+            cell.border = border_all
+            cell.fill = fill
+    if crit_rows:
+        ws2.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{len(crit_rows) + 1}"
+    ws2.freeze_panes = "A2"
+    for idx, w in enumerate(widths, start=1):
+        ws2.column_dimensions[get_column_letter(idx)].width = w
+
+    # --- Aba 4: Histórico ---
+    ws3 = wb.create_sheet("Histórico")
+    hh = ["Código", "Produto", "Vencimento", "CX", "UN", "Observado em", "Responsável", "Dia operacional"]
+    for j, h in enumerate(hh, start=1):
+        cell = ws3.cell(row=1, column=j, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border_all
+    hist = payload.get("history_flat") or []
+    for i, hrow in enumerate(hist, start=2):
+        vals = [
+            hrow.get("cod_produto") or "",
+            hrow.get("produto") or "",
+            hrow.get("vencimento") or "",
+            hrow.get("cx"),
+            hrow.get("un"),
+            hrow.get("observado_em") or "",
+            hrow.get("responsavel") or "",
+            hrow.get("dia_operacional") or "",
+        ]
+        for j, v in enumerate(vals, start=1):
+            cell = ws3.cell(row=i, column=j, value=v)
+            cell.border = border_all
+    if hist:
+        ws3.auto_filter.ref = f"A1:{get_column_letter(len(hh))}{len(hist) + 1}"
+    ws3.freeze_panes = "A2"
+    w3 = [12, 32, 12, 8, 8, 22, 22, 14]
+    for idx, w in enumerate(w3, start=1):
+        ws3.column_dimensions[get_column_letter(idx)].width = w
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+@router.post("/validity-analysis/export.xlsx")
+def export_validity_analysis_excel(
+    payload: ValidityAnalysisExportPayload,
+    user: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> StreamingResponse:
+    """
+    Gera Excel premium a partir do payload calculado no cliente (alinhado à tela).
+    EMAIL_VALIDITY_REPORT_ATTACH: reutilizar o mesmo bytes/body em envio futuro (multipart).
+    """
+    emitted_at_br = datetime.now(timezone.utc).astimezone(ZoneInfo("America/Sao_Paulo"))
+    emitted_by = (user.full_name or "").strip() or (user.username or "—")
+    if user.username and user.username not in emitted_by and "@" in (user.username or ""):
+        emitted_by = f"{emitted_by} ({user.username})"
+
+    buf = _build_validity_analysis_excel_workbook(
+        payload.model_dump(),
+        emitted_at_br,
+        emitted_by,
+    )
+    op = str(payload.operational_date or "").strip()[:10] or emitted_at_br.strftime("%Y-%m-%d")
+    filename = f"analise_validades_{op}.xlsx"
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/stock-analysis")

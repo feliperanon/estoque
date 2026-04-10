@@ -413,6 +413,7 @@ const API_VALIDITY_EVENTS = '/audit/validity-events';
 const API_VALIDITY_LINES = '/audit/validity-lines';
 const API_VALIDITY_LAST_LAUNCH = '/audit/validity-last-launch-by-product';
 const API_VALIDITY_DISPLAY_EXPIRY_BY_PRODUCT = '/audit/validity-display-expiry-by-product';
+const API_VALIDITY_ANALYSIS_EXPORT_XLSX = '/audit/validity-analysis/export.xlsx';
 const API_SYNC_BREAKS = '/audit/break-events';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
@@ -474,6 +475,9 @@ let validityServerLines = [];
 let validityLastLaunchByCode = {};
 /** Última contagem global por produto: CX/UN + count_date (ChangeLog, servidor). */
 let validityLastCountState = { ok: false, balances: {} };
+/** Totais CX/UN da contagem consolidada no servidor para o dia operacional da validade (GET count-server-totals). */
+let validityDayCountState = { ok: false, balances: {}, meta: null, dayKey: null };
+let loadValidityDayCountInFlight = null;
 /** KPI clicável ativo (filtro rápido); null = nenhum. */
 let validityActiveKpiKey = null;
 /** Produto selecionado na tabela da análise (painel lateral). */
@@ -1936,12 +1940,12 @@ function applyCountProgressFillTier(el, pct) {
   else el.classList.add('is-low');
 }
 
-/** Barra “produtos” da Validade (mesma lógica de faixas; cores roxas no CSS #sub-validity). */
-function updateValidityOpProgress(launchedOnOp, totalV, opKey, todayBr) {
+/** Barra: produtos com distribuição de validade concluída (soma de lotes = base da contagem do dia). */
+function updateValidityOpProgress(completeCount, totalWithBase, opKey, todayBr) {
   const fill = document.getElementById('validity-op-progress-fill-products');
   const pctEl = document.getElementById('validity-op-progress-percent-products');
   const detailEl = document.getElementById('validity-op-progress-detail-products');
-  const pct = totalV > 0 ? Math.round((launchedOnOp / totalV) * 100) : 0;
+  const pct = totalWithBase > 0 ? Math.round((completeCount / totalWithBase) * 100) : 0;
   if (fill) {
     fill.style.width = `${pct}%`;
     applyCountProgressFillTier(fill, pct);
@@ -1950,8 +1954,8 @@ function updateValidityOpProgress(launchedOnOp, totalV, opKey, todayBr) {
   if (detailEl) {
     const sameDay = opKey === todayBr;
     detailEl.textContent = sameDay
-      ? `${launchedOnOp} de ${totalV} produtos lançados hoje`
-      : `${launchedOnOp} de ${totalV} produtos lançados nesta data`;
+      ? `${completeCount} de ${totalWithBase} produtos com lotes completos (hoje)`
+      : `${completeCount} de ${totalWithBase} produtos com lotes completos nesta data`;
   }
 }
 
@@ -2571,6 +2575,65 @@ async function loadLastCountPerProduct() {
     validityLastCountState = { ok: true, balances: data.balances || {} };
   } catch {
     validityLastCountState = { ok: false, balances: {} };
+  }
+}
+
+async function loadValidityDayCountTotals() {
+  const dayKey = getActiveValidityOpDateKey();
+  if (loadValidityDayCountInFlight) {
+    await loadValidityDayCountInFlight;
+    return;
+  }
+  loadValidityDayCountInFlight = (async () => {
+    const token = getToken();
+    if (!token) {
+      validityDayCountState = { ok: false, balances: {}, meta: null, dayKey };
+      return;
+    }
+    if (unauthorizedRedirectInProgress) {
+      validityDayCountState = { ok: false, balances: {}, meta: null, dayKey };
+      return;
+    }
+    if (isAccessTokenExpired(token)) {
+      validityDayCountState = { ok: false, balances: {}, meta: null, dayKey };
+      handleUnauthorizedResponse({ status: 401 });
+      return;
+    }
+    try {
+      const params = new URLSearchParams();
+      params.set('count_date', dayKey);
+      const response = await apiFetch(`${API_COUNT_SERVER_TOTALS}?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+      });
+      if (handleUnauthorizedResponse(response)) {
+        validityDayCountState = { ok: false, balances: {}, meta: null, dayKey };
+        return;
+      }
+      if (!response.ok) {
+        validityDayCountState = { ok: false, balances: {}, meta: null, dayKey };
+        return;
+      }
+      const data = await response.json();
+      const metaRaw = data.meta;
+      const meta =
+        metaRaw && typeof metaRaw === 'object'
+          ? {
+              actors: Array.isArray(metaRaw.actors) ? metaRaw.actors : [],
+              first_observed_at: metaRaw.first_observed_at || null,
+              last_observed_at: metaRaw.last_observed_at || null,
+              event_count: Number(metaRaw.event_count) || 0,
+            }
+          : null;
+      validityDayCountState = { ok: true, balances: data.balances || {}, meta, dayKey };
+    } catch {
+      validityDayCountState = { ok: false, balances: {}, meta: null, dayKey };
+    }
+  })();
+  try {
+    await loadValidityDayCountInFlight;
+  } finally {
+    loadValidityDayCountInFlight = null;
   }
 }
 
@@ -5694,10 +5757,18 @@ function validityRiskLabel(cat) {
 }
 
 function validityRiskChipClass(cat) {
-  if (cat === 'expired' || cat === 'd30') return 'validity-chip validity-chip--danger';
-  if (cat === 'd60' || cat === 'd90') return 'validity-chip validity-chip--warn';
-  if (cat === 'd120' || cat === 'd150' || cat === 'd180') return 'validity-chip validity-chip--soft';
-  return 'validity-chip validity-chip--muted';
+  const m = {
+    unknown: 'validity-chip validity-chip--muted',
+    expired: 'validity-chip validity-chip--expired',
+    d30: 'validity-chip validity-chip--d30',
+    d60: 'validity-chip validity-chip--d60',
+    d90: 'validity-chip validity-chip--d90',
+    d120: 'validity-chip validity-chip--d120',
+    d150: 'validity-chip validity-chip--d150',
+    d180: 'validity-chip validity-chip--d180',
+    ok: 'validity-chip validity-chip--okband',
+  };
+  return m[cat] || 'validity-chip validity-chip--muted';
 }
 
 function formatDateTimeBr(iso) {
@@ -5857,6 +5928,369 @@ function validityCardTone(worst, hasLines, hasSnap, baseOld) {
   if (worst === 'd60' || worst === 'd90') return 'warn';
   if (worst === 'd120' || worst === 'd150' || worst === 'd180') return 'soft';
   return 'calm';
+}
+
+/** Chave visual alinhada à régua de risco da Análise (KPIs, tabela, Excel). */
+function validityRowVisualKey(row, todayBr) {
+  const lines = row.lines || [];
+  const snap = getValidityLastCountSnapshot(row.cod);
+  if (!lines.length) return 'no_validity';
+  if (!snap) return 'no_count';
+  if (isValidityCountBaseOld(snap.countDate, todayBr)) return 'oldbase';
+  return operationalValidityPrimaryCategory(lines, todayBr);
+}
+
+function validityProductGroupLabel(p) {
+  if (!p) return '—';
+  const parts = [p.cod_grup_familia, p.cod_grup_segmento, p.cod_grup_marca]
+    .map((x) => String(x || '').trim())
+    .filter(Boolean);
+  return parts.length ? parts.join(' · ') : '—';
+}
+
+function validityDaysToExpiryDisplay(lines, todayBr) {
+  if (!lines?.length) return '—';
+  const anchor = operationalAnchorLine(lines, todayBr);
+  if (anchor) {
+    const d = validityExpiryDiffDays(anchor.expiration_date, todayBr);
+    return d === null ? '—' : String(d);
+  }
+  let minD = null;
+  for (const ln of lines) {
+    const d = validityExpiryDiffDays(ln.expiration_date, todayBr);
+    if (d !== null && (minD === null || d < minD)) minD = d;
+  }
+  return minD === null ? '—' : String(minD);
+}
+
+function validityQtyAllocatedAndRemaining(row, opKey) {
+  const lines = row.lines || [];
+  const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
+  const sums = sumValidityLineQuantities(linesOp);
+  const bal =
+    validityDayCountState.ok && validityDayCountState.dayKey === opKey
+      ? validityDayCountState.balances[row.cod]
+      : null;
+  const baseCx = bal ? Math.max(0, Math.round(Number(bal.caixa) || 0)) : 0;
+  const baseUn = bal ? Math.max(0, Math.round(Number(bal.unidade) || 0)) : 0;
+  const hasBase = baseCx > 0 || baseUn > 0;
+  const remCx = hasBase ? Math.max(0, baseCx - sums.cx) : null;
+  const remUn = hasBase ? Math.max(0, baseUn - sums.un) : null;
+  const withParts = [];
+  if (sums.cx > 0) withParts.push(`${formatIntegerBR(sums.cx)} CX`);
+  if (sums.un > 0) withParts.push(`${formatIntegerBR(sums.un)} UN`);
+  const withLabel = withParts.length ? withParts.join(' · ') : linesOp.length ? '0' : '—';
+  let withoutLabel = '—';
+  if (hasBase && (remCx > 0 || remUn > 0)) {
+    const rp = [];
+    if (baseCx > 0 && remCx > 0) rp.push(`${formatIntegerBR(remCx)} CX`);
+    if (baseUn > 0 && remUn > 0) rp.push(`${formatIntegerBR(remUn)} UN`);
+    withoutLabel = rp.join(' · ') || '—';
+  } else if (!hasBase && linesOp.length) {
+    withoutLabel = '—';
+  }
+  return { withLabel, withoutLabel, sums, remCx, remUn, hasBase };
+}
+
+function getLatestValidityLaunchMeta(codRaw) {
+  const cod = normalizeItemCode(codRaw);
+  let best = null;
+  const consider = (observed_at, actor_username, device_name, isLocal) => {
+    if (!observed_at) return;
+    const s = String(observed_at);
+    if (!best || s > best.obs) {
+      best = { obs: s, actor: actor_username || null, dev: device_name || null, isLocal: !!isLocal };
+    }
+  };
+  const b = loadValidityBucketRaw();
+  for (const k of Object.keys(b)) {
+    const arr = b[k];
+    if (!Array.isArray(arr)) continue;
+    for (const ev of arr) {
+      if (normalizeItemCode(ev.cod_produto) !== cod) continue;
+      consider(ev.observed_at, null, ev.device_name, true);
+    }
+  }
+  for (const ln of validityServerLines || []) {
+    if (normalizeItemCode(ln.cod_produto) !== cod) continue;
+    consider(ln.observed_at, ln.actor_username, ln.device_name, false);
+  }
+  if (!best) return { whenIso: null, who: '—' };
+  const who = (best.actor && String(best.actor).trim()) || (best.dev && String(best.dev).trim()) || (best.isLocal ? 'Este aparelho' : '—');
+  return { whenIso: best.obs, who };
+}
+
+function buildValidityExecutiveNarrativeLines(rows, todayBr) {
+  const out = [];
+  let nWithout = 0;
+  let nNoCount = 0;
+  const groupScore = new Map();
+
+  let nExpired = 0;
+  let nD30 = 0;
+  for (const row of rows) {
+    const lines = row.lines || [];
+    const snap = getValidityLastCountSnapshot(row.cod);
+    const g = validityProductGroupLabel(row.product);
+    if (!lines.length) {
+      nWithout += 1;
+      continue;
+    }
+    if (!snap) nNoCount += 1;
+    const w = operationalValidityPrimaryCategory(lines, todayBr);
+    if (w === 'expired') nExpired += 1;
+    else if (w === 'd30') nD30 += 1;
+    const s = validityPriorityScore(row, todayBr);
+    const prev = groupScore.get(g);
+    if (prev === undefined || s < prev) groupScore.set(g, s);
+  }
+
+  const nRisk60 = rows.filter((row) => {
+    const lines = row.lines || [];
+    if (!lines.length) return false;
+    const w = operationalValidityPrimaryCategory(lines, todayBr);
+    return w === 'expired' || w === 'd30' || w === 'd60';
+  }).length;
+
+  if (nExpired > 0 || nD30 > 0) {
+    out.push(
+      `No filtro atual: ${nExpired} produto(s) vencido(s) e ${nD30} com vencimento em até 30 dias (${nRisk60} com criticidade até 60 dias).`,
+    );
+  }
+  if (nWithout > 0) {
+    out.push(`${nWithout} produto(s) ainda estão sem validade lançada.`);
+  }
+  if (nNoCount > 0) {
+    out.push(`${nNoCount} produto(s) estão sem contagem de referência.`);
+  }
+  if (groupScore.size) {
+    let worstG = null;
+    let worstS = Infinity;
+    for (const [g, sc] of groupScore) {
+      if (g && g !== '—' && sc < worstS) {
+        worstS = sc;
+        worstG = g;
+      }
+    }
+    if (worstG) {
+      out.push(`O grupo com maior criticidade no filtro atual é ${worstG}.`);
+    }
+  }
+  if (!out.length) {
+    out.push('Nenhum alerta adicional no filtro atual — revisar KPIs acima para o panorama completo.');
+  }
+  return out;
+}
+
+function buildValidityAnalysisExportPayload(rows, todayBr, executiveLines, summaryKpis) {
+  const opKey = getActiveValidityOpDateKey();
+  const exportRows = rows.map((row) => {
+    const lines = row.lines || [];
+    const snap = getValidityLastCountSnapshot(row.cod);
+    const st = validityStatusMainShort(operationalValidityPrimaryCategory(lines, todayBr), lines.length > 0, !!snap);
+    const vKey = validityRowVisualKey(row, todayBr);
+    const anchorLn = operationalAnchorLine(lines, todayBr);
+    const nextIso = anchorLn ? String(anchorLn.expiration_date || '').slice(0, 10) : '';
+    const band = lines.length > 0 ? validityRiskLabel(operationalValidityPrimaryCategory(lines, todayBr)) : '—';
+    const q = validityQtyAllocatedAndRemaining(row, opKey);
+    const launch = getLatestValidityLaunchMeta(row.cod);
+    const countRef = snap ? `${formatIntegerBR(snap.cx)} CX / ${formatIntegerBR(snap.un)} UN` : 'Sem contagem';
+    return {
+      cod_produto: row.cod,
+      produto: String(row.product?.cod_grup_descricao || row.cod || '').trim(),
+      grupo: validityProductGroupLabel(row.product),
+      situacao_key: st.key,
+      situacao: st.label,
+      visual_key: vKey,
+      proximo_vencimento: nextIso,
+      proximo_vencimento_br: anchorLn
+        ? formatDateBrFromIso(nextIso)
+        : lines.length > 0
+          ? 'Vencidos'
+          : '—',
+      dias_para_vencer: validityDaysToExpiryDisplay(lines, todayBr),
+      faixa: band,
+      faixa_key: lines.length ? operationalValidityPrimaryCategory(lines, todayBr) : 'none',
+      qtd_com_validade: q.withLabel,
+      qtd_sem_validade: q.withoutLabel,
+      contagem_referencia: countRef,
+      ultimo_lancamento_op: (() => {
+        const iso = mergedLastValidityLaunchDateIso(row.cod);
+        return iso ? formatDateBrFromIso(iso) : '—';
+      })(),
+      ultimo_lancamento_observado_em: launch.whenIso,
+      responsavel_ultimo: launch.who,
+    };
+  });
+
+  const historyFlat = [];
+  for (const row of rows) {
+    const lines = [...(row.lines || [])].sort((a, b) =>
+      String(b.observed_at || '').localeCompare(String(a.observed_at || '')),
+    );
+    const take = lines.slice(0, 8);
+    for (const ln of take) {
+      historyFlat.push({
+        cod_produto: row.cod,
+        produto: String(row.product?.cod_grup_descricao || row.cod || '').trim(),
+        vencimento: String(ln.expiration_date || '').slice(0, 10),
+        cx: Math.max(0, Math.round(Number(ln.quantity_cx) || 0)),
+        un: Math.max(0, Math.round(Number(ln.quantity_un) || 0)),
+        observado_em: ln.observed_at || null,
+        responsavel: (ln.actor_username && String(ln.actor_username).trim()) || (ln.device_name && String(ln.device_name).trim()) || null,
+        dia_operacional: String(ln.operational_date || '').slice(0, 10),
+      });
+    }
+  }
+
+  return {
+    operational_date: opKey,
+    brazil_today: todayBr,
+    last_sync_display: formatValidityLastSyncDisplay(),
+    executive_lines: executiveLines,
+    summary_kpis: summaryKpis,
+    rows: exportRows,
+    history_flat: historyFlat,
+  };
+}
+
+/**
+ * Envio futuro por e-mail (servidor): anexar o mesmo .xlsx deste export e enviar multipart
+ * para um endpoint dedicado, por exemplo POST /notifications/email com campos to[], subject, body_text.
+ */
+/** EMAIL_VALIDITY_REPORT_ATTACH: reutilizar `payload` + blob deste fluxo como anexo no envio SMTP/API futuro. */
+async function downloadValidityAnalysisExcel(payload) {
+  const token = getToken();
+  if (!token) {
+    setValidityFeedback('Sessao expirada. Faca login novamente.', true);
+    return;
+  }
+  if (!navigator.onLine) {
+    setValidityFeedback('Sem conexao para exportar.', true);
+    return;
+  }
+  try {
+    const resp = await apiFetch(API_VALIDITY_ANALYSIS_EXPORT_XLSX, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (handleUnauthorizedResponse(resp)) return;
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      const d = err.detail;
+      const msg = typeof d === 'string' ? d : 'Falha ao gerar Excel.';
+      setValidityFeedback(msg, true);
+      return;
+    }
+    const blob = await resp.blob();
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const m = /filename="([^"]+)"/.exec(cd);
+    const name = m ? m[1] : `analise_validades_${payload.operational_date || getBrazilDateKey()}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    window._validityLastExportPayload = payload;
+    window._validityLastExportBlob = blob;
+    setValidityFeedback('Excel gerado com sucesso.');
+  } catch {
+    setValidityFeedback('Erro de rede ao exportar Excel.', true);
+  }
+}
+
+async function exportValidityAnalysisExcelFromUi() {
+  const todayBr = getBrazilDateKey();
+  const isActive = (status) => {
+    const s = String(status || '').trim().toLowerCase();
+    if (!s || s === 'ativo' || s === 's' || s === 'sim' || s === '1' || s === 'true') return true;
+    return false;
+  };
+  const ativos = (validityProductsCache || []).filter((p) => isActive(p.status));
+  const allRows = ativos.map(buildValidityRowForProduct);
+  const sortMode = (document.getElementById('validity-analysis-sort')?.value || 'priority').trim();
+  const rows = sortValidityRows(filterValidityAnalysisRows(allRows), sortMode, todayBr);
+  const narrative = buildValidityExecutiveNarrativeLines(rows, todayBr);
+  const numEl = (id) => Math.max(0, Math.round(Number(String(document.getElementById(id)?.textContent || '0').trim()) || 0));
+  const summaryKpis = {
+    with: numEl('validity-analysis-kpi-with'),
+    without: numEl('validity-analysis-kpi-without'),
+    expired: numEl('validity-analysis-kpi-expired'),
+    d30: numEl('validity-analysis-kpi-d30'),
+    d60: numEl('validity-analysis-kpi-d60'),
+    d90: numEl('validity-analysis-kpi-d90'),
+    d120: numEl('validity-analysis-kpi-d120'),
+    d150: numEl('validity-analysis-kpi-d150'),
+    d180: numEl('validity-analysis-kpi-d180'),
+    oldbase: numEl('validity-analysis-kpi-oldbase'),
+    nocount: numEl('validity-analysis-kpi-nocount'),
+    filtered_total: rows.length,
+  };
+  const payload = buildValidityAnalysisExportPayload(rows, todayBr, narrative, summaryKpis);
+  await downloadValidityAnalysisExcel(payload);
+}
+
+function openValidityOperationalForProduct(codRaw) {
+  const cod = normalizeItemCode(codRaw);
+  if (!cod) return;
+  setActiveModule('validity', true);
+  const inp = document.getElementById('validity-op-item-code');
+  if (inp) {
+    inp.value = cod;
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
+
+function openValidityEmailPrepDialog() {
+  const dlg = document.getElementById('validity-email-prep-dialog');
+  if (!dlg || typeof dlg.showModal !== 'function') return;
+  const op = getActiveValidityOpDateKey();
+  const subj = document.getElementById('validity-email-subject');
+  const body = document.getElementById('validity-email-body');
+  if (subj && !subj.value.trim()) {
+    subj.value = `Análise de validades — ${op}`;
+  }
+  if (body && !body.value.trim()) {
+    body.value =
+      `Segue em anexo a análise de validades (${op}).\n\n` +
+      `Última sincronização: ${formatValidityLastSyncDisplay()}\n\n` +
+      `---\n` +
+      `Gere o Excel pela tela antes de enviar (botão "Gerar Excel agora" abaixo, se ainda não exportou).`;
+  }
+  dlg.showModal();
+}
+
+async function exportValidityAnalysisExcelForSingleCod(codRaw) {
+  const cod = normalizeItemCode(codRaw);
+  const row = window._validityRowsByCod?.get(cod);
+  if (!row) {
+    setValidityFeedback('Produto nao encontrado na analise atual.', true);
+    return;
+  }
+  const todayBr = getBrazilDateKey();
+  const narrative = buildValidityExecutiveNarrativeLines([row], todayBr);
+  const numEl = (id) => Math.max(0, Math.round(Number(String(document.getElementById(id)?.textContent || '0').trim()) || 0));
+  const summaryKpis = {
+    with: numEl('validity-analysis-kpi-with'),
+    without: numEl('validity-analysis-kpi-without'),
+    expired: numEl('validity-analysis-kpi-expired'),
+    d30: numEl('validity-analysis-kpi-d30'),
+    d60: numEl('validity-analysis-kpi-d60'),
+    d90: numEl('validity-analysis-kpi-d90'),
+    d120: numEl('validity-analysis-kpi-d120'),
+    d150: numEl('validity-analysis-kpi-d150'),
+    d180: numEl('validity-analysis-kpi-d180'),
+    oldbase: numEl('validity-analysis-kpi-oldbase'),
+    nocount: numEl('validity-analysis-kpi-nocount'),
+    filtered_total: 1,
+  };
+  const payload = buildValidityAnalysisExportPayload([row], todayBr, narrative, summaryKpis);
+  await downloadValidityAnalysisExcel(payload);
 }
 
 function validityPriorityScore(row, todayBr) {
@@ -6053,10 +6487,68 @@ function validityOpOperationalTier(row) {
   return 1;
 }
 
+const VALIDITY_OP_BUCKET_ORDER = {
+  criticos: 0,
+  sem_hist: 1,
+  sem_base: 2,
+  pendentes: 3,
+  parciais: 4,
+  concluidos: 5,
+};
+
+function sumValidityLineQuantities(linesOp) {
+  let cx = 0;
+  let un = 0;
+  for (const ln of linesOp || []) {
+    cx += Math.max(0, Math.round(Number(ln.quantity_cx) || 0));
+    un += Math.max(0, Math.round(Number(ln.quantity_un) || 0));
+  }
+  return { cx, un };
+}
+
+function deriveValidityDistributionStatus(baseCx, baseUn, sums) {
+  const hasBase = baseCx > 0 || baseUn > 0;
+  const anyLine = sums.cx > 0 || sums.un > 0;
+  if (!hasBase) {
+    return { key: 'no_base', short: 'Sem base', label: 'Sem base de contagem' };
+  }
+  const needCx = baseCx > 0;
+  const needUn = baseUn > 0;
+  const cxOk = !needCx || sums.cx >= baseCx;
+  const unOk = !needUn || sums.un >= baseUn;
+  if (anyLine && cxOk && unOk) {
+    return { key: 'complete', short: 'Concluído', label: 'Concluído' };
+  }
+  if (anyLine && (!cxOk || !unOk)) {
+    return { key: 'partial', short: 'Parcial', label: 'Parcial' };
+  }
+  return { key: 'none', short: 'Sem lançamento', label: 'Sem lançamento' };
+}
+
+function validityDistChipClass(distKey) {
+  if (distKey === 'complete') return 'validity-chip validity-chip--ok';
+  if (distKey === 'partial') return 'validity-chip validity-chip--over';
+  if (distKey === 'no_base') return 'validity-chip validity-chip--muted';
+  return 'validity-chip validity-chip--warn';
+}
+
+function assignValidityOperationalBucket(row) {
+  const { distStatus, isOverdueStrict, hasLaunchOnOpDay, noHistory, hasCountBase } = row;
+  if (distStatus.key === 'partial') return 'parciais';
+  if (distStatus.key === 'complete') return 'concluidos';
+  if (isOverdueStrict && !hasLaunchOnOpDay) return 'criticos';
+  if (noHistory && !hasLaunchOnOpDay) return 'sem_hist';
+  if (!hasCountBase) return 'sem_base';
+  return 'pendentes';
+}
+
 function sortValidityOperationalModels(models) {
   const descKey = (row) =>
     String((row.product && row.product.cod_grup_descricao) || row.cod || '').trim();
   models.sort((a, b) => {
+    const bo =
+      VALIDITY_OP_BUCKET_ORDER[a.bucket] - VALIDITY_OP_BUCKET_ORDER[b.bucket];
+    if (bo !== 0) return bo;
     const ta = validityOpOperationalTier(a);
     const tb = validityOpOperationalTier(b);
     if (ta !== tb) return ta - tb;
@@ -6122,15 +6614,38 @@ function buildValidityOperationalRowModel(p, opKey, todayBr, launchPairs) {
   const daysSinceLast = lastLaunch ? _validityDaysBetweenCalendar(todayBr, lastLaunch) : null;
   const noHistory = !lastLaunch;
   const isOverdueStrict = lastLaunch != null && daysSinceLast != null && daysSinceLast > 7;
-  /** Para ordenação: atrasado (+7d) ou sem histórico, sem lançamento nesta data. */
   const isBacklog = !hasLaunchOnOpDay && (noHistory || isOverdueStrict);
   const anchor = linesOp.length ? operationalAnchorLine(linesOp, todayBr) : null;
   const validadeLabel = anchor
     ? formatDateBrFromIso(String(anchor.expiration_date || '').slice(0, 10))
     : '—';
   const pair = (launchPairs && launchPairs[cod]) || { atual: null, anterior: null };
-  const snap = getValidityLastCountSnapshot(cod);
-  const contagemLabel = snap ? `${formatIntegerBR(snap.cx)} CX` : '—';
+  const bal =
+    validityDayCountState.ok && validityDayCountState.dayKey === opKey
+      ? validityDayCountState.balances[cod]
+      : null;
+  const baseCx = bal ? Math.max(0, Math.round(Number(bal.caixa) || 0)) : 0;
+  const baseUn = bal ? Math.max(0, Math.round(Number(bal.unidade) || 0)) : 0;
+  const hasCountBase = baseCx > 0 || baseUn > 0;
+  const distSums = sumValidityLineQuantities(linesOp);
+  const distStatus = deriveValidityDistributionStatus(baseCx, baseUn, distSums);
+  const remainingCx = Math.max(0, baseCx - distSums.cx);
+  const remainingUn = Math.max(0, baseUn - distSums.un);
+  const contagemLabel = hasCountBase
+    ? [baseCx > 0 ? `${formatIntegerBR(baseCx)} CX` : null, baseUn > 0 ? `${formatIntegerBR(baseUn)} UN` : null]
+        .filter(Boolean)
+        .join(' · ')
+    : '—';
+  const distribLabel = hasCountBase
+    ? [baseCx > 0 ? `${formatIntegerBR(distSums.cx)} CX` : null, baseUn > 0 ? `${formatIntegerBR(distSums.un)} UN` : null]
+        .filter(Boolean)
+        .join(' · ') || '0'
+    : '—';
+  const saldoLabel = hasCountBase
+    ? [baseCx > 0 ? `${formatIntegerBR(remainingCx)} CX` : null, baseUn > 0 ? `${formatIntegerBR(remainingUn)} UN` : null]
+        .filter(Boolean)
+        .join(' · ') || '0'
+    : '—';
   const lastLaunchLabel = lastLaunch ? formatDateBrFromIso(lastLaunch) : '—';
   const logAtualLabel = pair.atual ? formatDateTimeBr(pair.atual.observed_at) : '—';
   const logAnteriorLabel = pair.anterior ? formatDateTimeBr(pair.anterior.observed_at) : '—';
@@ -6141,16 +6656,27 @@ function buildValidityOperationalRowModel(p, opKey, todayBr, launchPairs) {
         ? `Atrasado: sem lançamento há ${daysSinceLast} dia(s).`
         : 'Atrasado: sem lançamento há mais de 7 dias.';
   }
-  let badgeHtml = '';
-  if (noHistory) {
-    badgeHtml = '<span class="validity-chip validity-chip--warn">Sem histórico</span>';
-  } else if (isOverdueStrict && !hasLaunchOnOpDay) {
-    badgeHtml = '<span class="validity-chip validity-chip--danger">Atrasado</span>';
-  } else if (hasLaunchOnOpDay) {
-    badgeHtml = '<span class="validity-chip validity-chip--ok">Lançado</span>';
-  } else {
-    badgeHtml = '<span class="validity-chip validity-chip--muted">No prazo</span>';
+  const chips = [];
+  chips.push(
+    `<span class="${validityDistChipClass(distStatus.key)}">${escapeHtml(distStatus.label)}</span>`,
+  );
+  if (noHistory && !hasLaunchOnOpDay) {
+    chips.push('<span class="validity-chip validity-chip--warn">Sem histórico</span>');
   }
+  if (isOverdueStrict && !hasLaunchOnOpDay) {
+    chips.push('<span class="validity-chip validity-chip--danger">Atrasado (validade)</span>');
+  }
+  if (hasLaunchOnOpDay) {
+    chips.push('<span class="validity-chip validity-chip--ok">Lançado hoje</span>');
+  }
+  const badgeHtml = `<div class="validity-op-badges-row">${chips.join('')}</div>`;
+  const bucket = assignValidityOperationalBucket({
+    distStatus,
+    isOverdueStrict,
+    hasLaunchOnOpDay,
+    noHistory,
+    hasCountBase,
+  });
   return {
     product: p,
     cod,
@@ -6169,6 +6695,16 @@ function buildValidityOperationalRowModel(p, opKey, todayBr, launchPairs) {
     logAnteriorLabel,
     hintLine,
     badgeHtml,
+    baseCx,
+    baseUn,
+    hasCountBase,
+    distSums,
+    distStatus,
+    remainingCx,
+    remainingUn,
+    distribLabel,
+    saldoLabel,
+    bucket,
   };
 }
 
@@ -6191,6 +6727,92 @@ function filterValidityOperationalModels(rows) {
   });
 }
 
+const VALIDITY_OP_SECTION_TITLES = {
+  criticos: 'Críticos',
+  sem_hist: 'Sem histórico',
+  sem_base: 'Sem base de contagem',
+  pendentes: 'Pendentes',
+  parciais: 'Parciais',
+  concluidos: 'Concluídos',
+};
+
+function buildValidityOperationalLotRowHtml(ln, codRaw) {
+  const enc = encodeURIComponent(codRaw);
+  const exp = formatDateBrFromIso(String(ln.expiration_date || '').slice(0, 10));
+  const qcx = Math.max(0, Math.round(Number(ln.quantity_cx) || 0));
+  const qun = Math.max(0, Math.round(Number(ln.quantity_un) || 0));
+  const parts = [];
+  if (qcx > 0) parts.push(`${formatIntegerBR(qcx)} CX`);
+  if (qun > 0) parts.push(`${formatIntegerBR(qun)} UN`);
+  const qtyPart = parts.length ? parts.join(' · ') : '—';
+  const localMark = ln._local
+    ? '<span class="validity-op-lot-flag" title="Ainda não sincronizado">Local</span>'
+    : '';
+  const lid = ln.id != null ? String(ln.id) : '';
+  const cidRaw = String(ln.client_event_id || '');
+  const cidAttr = escapeHtml(cidRaw);
+  const removable = isValidityOperationalEditable();
+  const rem = removable
+    ? `<button type="button" class="btn-text btn-validity-remove-line" data-line-id="${lid}" data-client-id="${cidAttr}" data-coderef="${enc}">Remover</button>`
+    : '';
+  return `<div class="validity-op-lot-row">
+    <div class="validity-op-lot-main">
+      <span class="validity-op-lot-qty">${escapeHtml(qtyPart)}</span>
+      <span class="validity-op-lot-exp muted">venc. ${escapeHtml(exp)}</span>
+      ${localMark}
+    </div>
+    <div class="validity-op-lot-actions">${rem}</div>
+  </div>`;
+}
+
+function buildValidityOperationalExpandHtml(row, vi) {
+  const enc = encodeURIComponent(row.cod);
+  const sorted = [...(row.linesOp || [])].sort((a, b) =>
+    String(b.observed_at || '').localeCompare(String(a.observed_at || '')),
+  );
+  const lotsHtml = sorted.length
+    ? `<div class="validity-op-lots-head">Lotes do dia</div><div class="validity-op-lots-list">${sorted
+        .map((ln) => buildValidityOperationalLotRowHtml(ln, row.cod))
+        .join('')}</div>`
+    : '<p class="validity-op-lots-empty muted">Nenhum lote neste dia.</p>';
+  const fieldExp = `validity-op-new-exp-${vi}`;
+  const fieldCcx = `validity-op-new-cx-${vi}`;
+  const fieldCun = `validity-op-new-un-${vi}`;
+  const showCx = row.baseCx > 0;
+  const showUn = row.baseUn > 0;
+  const cxField = showCx
+    ? `<div class="validity-op-new-field">
+        <label class="validity-op-new-label" for="${fieldCcx}">Quantidade (CX)</label>
+        <input type="number" id="${fieldCcx}" class="validity-op-input validity-op-new-qty-cx" min="0" step="1" inputmode="numeric" autocomplete="off" aria-label="Quantidade em caixas do lote" />
+      </div>`
+    : '';
+  const unField = showUn
+    ? `<div class="validity-op-new-field">
+        <label class="validity-op-new-label" for="${fieldCun}">Quantidade (UN)</label>
+        <input type="number" id="${fieldCun}" class="validity-op-input validity-op-new-qty-un" min="0" step="1" inputmode="numeric" autocomplete="off" aria-label="Quantidade em unidades do lote" />
+      </div>`
+    : '';
+  return `<div class="validity-op-expand-summary">
+      <div class="validity-op-expand-line"><span class="muted">Base contagem (dia)</span><strong>${escapeHtml(row.contagemLabel)}</strong></div>
+      <div class="validity-op-expand-line"><span class="muted">Distribuído</span><strong>${escapeHtml(row.distribLabel)}</strong></div>
+      <div class="validity-op-expand-line"><span class="muted">Saldo</span><strong>${escapeHtml(row.saldoLabel)}</strong></div>
+    </div>
+    ${lotsHtml}
+    <div class="validity-op-new-lot">
+      <div class="validity-op-new-lot-title">Novo lote</div>
+      <div class="validity-op-new-lot-grid">
+        ${qtyRow}
+        <div class="validity-op-new-field validity-op-new-field--date">
+          <label class="validity-op-new-label" for="${fieldExp}">Data de validade</label>
+          <input type="text" id="${fieldExp}" class="validity-op-input validity-op-date-input validity-op-new-exp" data-coderef="${enc}"
+            inputmode="numeric" maxlength="10" enterkeyhint="done" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data de validade do lote" />
+        </div>
+        <button type="button" class="btn btn-primary validity-op-save-lot" data-coderef="${enc}">Salvar lote</button>
+      </div>
+      <p class="validity-op-expand-audit muted">Último lanç. validade: ${escapeHtml(row.lastLaunchLabel)} · Próx. venc. (ref.): ${escapeHtml(row.validadeLabel)}</p>
+    </div>`;
+}
+
 function renderValidityOperationalView() {
   const ul = document.getElementById('validity-op-list');
   const totalEl = document.getElementById('validity-op-products-total');
@@ -6210,101 +6832,152 @@ function renderValidityOperationalView() {
   sortValidityOperationalModels(models);
   const visible = filterValidityOperationalModels(models);
 
-  if (totalEl) totalEl.textContent = String(visible.length);
+  if (totalEl) totalEl.textContent = `${visible.length} ${visible.length === 1 ? 'item' : 'itens'}`;
 
-  const launchedOnOp = visible.filter((r) => r.hasLaunchOnOpDay).length;
-  const totalV = visible.length;
-  updateValidityOpProgress(launchedOnOp, totalV, opKey, todayBr);
+  const withBase = visible.filter((r) => r.hasCountBase);
+  const completeN = withBase.filter((r) => r.distStatus.key === 'complete').length;
+  updateValidityOpProgress(completeN, withBase.length, opKey, todayBr);
 
+  updateValidityOpStickyMeta();
   updateValidityReadonlyState();
   ul.innerHTML = '';
   if (!visible.length) {
     ul.innerHTML =
-      '<li class="count-all-done-msg"><span class="muted">Nenhum produto no filtro atual.</span></li>';
+      '<li class="validity-op-empty"><span class="muted">Nenhum produto no filtro atual.</span></li>';
+    bindValidityOperationalListOnce();
     return;
   }
 
-  visible.forEach((row, vi) => {
+  let lastBucket = null;
+  let vi = 0;
+  visible.forEach((row) => {
+    if (row.bucket !== lastBucket) {
+      lastBucket = row.bucket;
+      const sec = document.createElement('li');
+      sec.className = 'validity-op-section-head';
+      sec.setAttribute('role', 'presentation');
+      sec.innerHTML = `<span class="validity-op-section-title">${VALIDITY_OP_SECTION_TITLES[row.bucket] || row.bucket}</span>`;
+      ul.appendChild(sec);
+    }
     const p = row.product;
     const name = escapeHtml((p.cod_grup_descricao || row.cod || '').trim());
     const codEsc = escapeHtml(row.cod);
     const enc = encodeURIComponent(row.cod);
+    const grupo = escapeHtml((p.cod_grup_segmento || p.segmento || '').trim() || '—');
+    const marca = escapeHtml((p.cod_grup_marca || '').trim() || '—');
     let zone = '';
-    if (row.isOverdueStrict && !row.hasLaunchOnOpDay) zone = ' validity-op-item--overdue';
-    else if (row.noHistory && !row.hasLaunchOnOpDay) zone = ' validity-op-item--nohistory';
+    if (row.isOverdueStrict && !row.hasLaunchOnOpDay) zone += ' validity-op-item--overdue';
+    if (row.noHistory && !row.hasLaunchOnOpDay) zone += ' validity-op-item--nohistory';
+    if (row.distStatus.key === 'partial') zone += ' validity-op-item--partial';
+    if (row.distStatus.key === 'complete') zone += ' validity-op-item--complete';
     const li = document.createElement('li');
-    li.className = `count-product-item validity-op-item${zone}`;
+    li.className = `validity-op-item validity-op-queue-item${zone}`;
     li.dataset.codProduto = row.cod;
+    li.dataset.baseCx = String(row.baseCx);
+    li.dataset.baseUn = String(row.baseUn);
     const hintHtml = row.hintLine
       ? `<p class="validity-op-hint muted">${escapeHtml(row.hintLine)}</p>`
       : '';
-    const fieldId = `validity-op-exp-date-${vi}`;
-    const fieldName = `validity-op-exp-date-${vi}`;
-    const fieldIdCx = `validity-op-cx-${vi}`;
     li.innerHTML = `
-      <div class="validity-op-main" role="button" tabindex="0" aria-expanded="false" aria-label="Abrir lançamento de validade">
-        <div class="count-product-label">
-          <span class="count-product-title-row">
-            <span class="count-product-desc">${name}</span>
-            <span class="count-product-cod">· ${codEsc}</span>
-          </span>
+      <div class="validity-op-main" role="button" tabindex="0" aria-expanded="false" aria-label="Abrir lotes de validade do produto">
+        <div class="validity-op-queue-top">
+          <span class="validity-op-queue-name">${name}</span>
+          <span class="validity-op-queue-cod">${codEsc}</span>
         </div>
-        <div class="validity-op-badges-row">${row.badgeHtml}</div>
-        <div class="validity-op-meta">
-          <div class="validity-op-meta-line"><span class="validity-op-meta-k">Contagem</span><span class="validity-op-meta-v">${escapeHtml(row.contagemLabel)}</span></div>
-          <div class="validity-op-meta-line"><span class="validity-op-meta-k">Último lançamento</span><span class="validity-op-meta-v">${escapeHtml(row.lastLaunchLabel)}</span></div>
-          <div class="validity-op-meta-line"><span class="validity-op-meta-k">Validade</span><span class="validity-op-meta-v">${escapeHtml(row.validadeLabel)}</span></div>
-          <div class="validity-op-meta-line"><span class="validity-op-meta-k">Log atual</span><span class="validity-op-meta-v">${escapeHtml(row.logAtualLabel)}</span></div>
-          <div class="validity-op-meta-line"><span class="validity-op-meta-k">Log anterior</span><span class="validity-op-meta-v">${escapeHtml(row.logAnteriorLabel)}</span></div>
+        <p class="validity-op-queue-sub muted">${grupo} · ${marca}</p>
+        <div class="validity-op-queue-metrics">
+          <div><span class="vom-k">Base</span><span class="vom-v">${escapeHtml(row.contagemLabel)}</span></div>
+          <div><span class="vom-k">Distrib.</span><span class="vom-v">${escapeHtml(row.distribLabel)}</span></div>
+          <div><span class="vom-k">Saldo</span><span class="vom-v">${escapeHtml(row.saldoLabel)}</span></div>
+          <div><span class="vom-k">Próx. venc.</span><span class="vom-v">${escapeHtml(row.validadeLabel)}</span></div>
         </div>
+        ${row.badgeHtml}
         ${hintHtml}
       </div>
-      <div class="validity-op-item-expand" aria-hidden="true">
-        <div class="validity-op-expand-row">
-          <div class="validity-op-expand-field">
-            <label class="validity-op-expand-kicker" for="${fieldId}">Data de validade</label>
-            <input type="text" id="${fieldId}" name="${fieldName}" class="count-filter-input validity-op-date-input" data-coderef="${enc}"
-              inputmode="numeric" maxlength="10" enterkeyhint="done" autocomplete="off"
-              placeholder="DD/MM/AAAA" aria-label="Data de validade, digite dia, mês e ano" />
-          </div>
-          <div class="validity-op-expand-field">
-            <label class="validity-op-expand-kicker" for="${fieldIdCx}">Caixas</label>
-            <input type="number" id="${fieldIdCx}" class="count-filter-input validity-op-cx-input" data-coderef="${enc}"
-              inputmode="numeric" min="0" step="1" placeholder="Opcional" aria-label="Quantidade de caixas nesta validade, opcional" />
-          </div>
-          <button type="button" class="btn btn-primary validity-op-save" data-coderef="${enc}">Enviar</button>
-        </div>
-      </div>`;
+      <div class="validity-op-item-expand" aria-hidden="true">${buildValidityOperationalExpandHtml(row, vi)}</div>`;
     ul.appendChild(li);
+    vi += 1;
   });
 
   bindValidityOperationalListOnce();
 }
 
+function updateValidityOpStickyMeta() {
+  const dateEl = document.getElementById('validity-op-operational-date-label');
+  if (dateEl) {
+    const k = getActiveValidityOpDateKey();
+    dateEl.textContent = formatDateBrFromIso(k);
+  }
+  const syncEl = document.getElementById('validity-op-sync-hint');
+  if (syncEl) {
+    syncEl.textContent = `Sincronização: ${formatValidityLastSyncDisplay()}`;
+  }
+  const hint = document.getElementById('validity-op-count-hint');
+  if (hint) {
+    hint.textContent = validityDayCountState.ok
+      ? 'Base de quantidade = contagem consolidada no servidor para o dia acima (mesma regra da contagem).'
+      : 'Não foi possível carregar a contagem consolidada do dia; saldos de lote podem ficar indisponíveis até reconectar.';
+  }
+}
+
 let validityOpSaveGuard = { t: 0, key: '' };
 
-function saveValidityOpItemFromDom(item, inp) {
-  if (!item || !inp) return;
-  const cref = inp.getAttribute('data-coderef') || '';
-  const cod = cref
-    ? normalizeItemCode(decodeURIComponent(cref))
-    : normalizeItemCode(item.dataset.codProduto || '');
+function saveValidityOperationalNewLot(item) {
+  if (!item) return;
+  const cod = normalizeItemCode(item.dataset.codProduto || '');
   if (!cod) return;
-  const exp = parseValidityDateInputToIso(inp.value);
+  const expInp = item.querySelector('.validity-op-new-exp');
+  const exp = parseValidityDateInputToIso(expInp && expInp.value);
   if (!exp) {
-    setValidityFeedback('Informe a data completa em DD/MM/AAAA.', true);
+    setValidityFeedback('Informe a data de validade em DD/MM/AAAA.', true);
     return;
   }
-  const gk = `${cod}|${exp}`;
+  const baseCx = Math.max(0, Math.round(Number(item.dataset.baseCx || 0)));
+  const baseUn = Math.max(0, Math.round(Number(item.dataset.baseUn || 0)));
+  const cxInp = item.querySelector('.validity-op-new-qty-cx');
+  const unInp = item.querySelector('.validity-op-new-qty-un');
+  const qcx = cxInp ? Math.max(0, Math.round(Number(cxInp.value) || 0)) : 0;
+  const qun = unInp ? Math.max(0, Math.round(Number(unInp.value) || 0)) : 0;
+  if (baseCx > 0 && baseUn <= 0 && qcx <= 0) {
+    setValidityFeedback('Informe a quantidade em caixas.', true);
+    return;
+  }
+  if (baseUn > 0 && baseCx <= 0 && qun <= 0) {
+    setValidityFeedback('Informe a quantidade em unidades.', true);
+    return;
+  }
+  if (baseCx > 0 && baseUn > 0 && qcx <= 0 && qun <= 0) {
+    setValidityFeedback('Informe quantidade em CX e/ou UN.', true);
+    return;
+  }
+  const lines = getMergedValidityLinesForProduct(cod);
+  const opKey = getActiveValidityOpDateKey();
+  const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
+  const sums = sumValidityLineQuantities(linesOp);
+  if (baseCx > 0 && sums.cx + qcx > baseCx) {
+    setValidityFeedback(
+      `Máximo ${baseCx} CX (já distribuído ${sums.cx}; restam ${Math.max(0, baseCx - sums.cx)}).`,
+      true,
+    );
+    return;
+  }
+  if (baseUn > 0 && sums.un + qun > baseUn) {
+    setValidityFeedback(
+      `Máximo ${baseUn} UN (já distribuído ${sums.un}; restam ${Math.max(0, baseUn - sums.un)}).`,
+      true,
+    );
+    return;
+  }
+  const gk = `${cod}|${exp}|${qcx}|${qun}`;
   const now = Date.now();
   if (validityOpSaveGuard.key === gk && now - validityOpSaveGuard.t < 900) {
     return;
   }
   validityOpSaveGuard = { t: now, key: gk };
-  const cxInp = item.querySelector('.validity-op-cx-input');
-  const qcx = cxInp ? Math.max(0, Math.round(Number(cxInp.value) || 0)) : 0;
-  registerValidityLineLocal(cod, exp, qcx);
+  registerValidityLineLocal(cod, exp, qcx, qun);
   if (cxInp) cxInp.value = '';
+  if (unInp) unInp.value = '';
+  if (expInp) expInp.value = '';
   const ul = document.getElementById('validity-op-list');
   ul?.querySelectorAll('.validity-op-item--open').forEach((n) => {
     n.classList.remove('validity-op-item--open');
@@ -6338,23 +7011,34 @@ function bindValidityOperationalListOnce() {
   });
 
   ul.addEventListener('click', (e) => {
-    const saveBtn = e.target.closest('.validity-op-save');
+    const rem = e.target.closest('.btn-validity-remove-line');
+    if (rem) {
+      e.preventDefault();
+      e.stopPropagation();
+      const lid = rem.getAttribute('data-line-id');
+      const cid = rem.getAttribute('data-client-id');
+      const cref = rem.getAttribute('data-coderef') || '';
+      const cod = normalizeItemCode(decodeURIComponent(cref));
+      removeValidityLine(lid ? Number(lid) : null, cid || null, cod);
+      return;
+    }
+    const saveBtn = e.target.closest('.validity-op-save-lot');
     if (saveBtn) {
       e.preventDefault();
       e.stopPropagation();
       const item = saveBtn.closest('.validity-op-item');
-      const inp = item && item.querySelector('.validity-op-date-input');
-      if (item && inp) saveValidityOpItemFromDom(item, inp);
+      if (item) saveValidityOperationalNewLot(item);
       return;
     }
+    if (e.target.closest('.validity-op-item-expand')) return;
     if (e.target.closest('.validity-op-date-input')) return;
+    if (e.target.closest('.validity-op-new-qty-cx') || e.target.closest('.validity-op-new-qty-un')) return;
 
     const item = e.target.closest('.validity-op-item');
     if (!item) return;
-    if (e.target.closest('.validity-op-item-expand')) return;
 
     const main = item.querySelector('.validity-op-main');
-    if (!main) return;
+    if (!main || !e.target.closest('.validity-op-main')) return;
     const expand = item.querySelector('.validity-op-item-expand');
     const wasOpen = item.classList.contains('validity-op-item--open');
     closeAllExcept(null);
@@ -6362,30 +7046,37 @@ function bindValidityOperationalListOnce() {
       item.classList.add('validity-op-item--open');
       main.setAttribute('aria-expanded', 'true');
       if (expand) expand.setAttribute('aria-hidden', 'false');
-      const cref = encodeURIComponent(item.dataset.codProduto || '');
-      const inp = item.querySelector(`input.validity-op-date-input[data-coderef="${cref}"]`);
-      if (inp) {
-        const rowCod = normalizeItemCode(decodeURIComponent(cref));
-        const lines = getMergedValidityLinesForProduct(rowCod);
-        const opKey = getActiveValidityOpDateKey();
-        const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
-        const anchor = linesOp.length ? operationalAnchorLine(linesOp, getBrazilDateKey()) : null;
-        const sug = anchor ? String(anchor.expiration_date || '').slice(0, 10) : '';
-        inp.value = sug ? formatDateBrFromIso(sug) : '';
-        setTimeout(() => inp.focus(), 80);
-      }
+      const codRaw = normalizeItemCode(item.dataset.codProduto || '');
+      const lines = getMergedValidityLinesForProduct(codRaw);
+      const opKey = getActiveValidityOpDateKey();
+      const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
+      const sums = sumValidityLineQuantities(linesOp);
+      const baseCx = Math.max(0, Math.round(Number(item.dataset.baseCx || 0)));
+      const baseUn = Math.max(0, Math.round(Number(item.dataset.baseUn || 0)));
+      const remCx = Math.max(0, baseCx - sums.cx);
+      const remUn = Math.max(0, baseUn - sums.un);
+      const cxInp = item.querySelector('.validity-op-new-qty-cx');
+      const unInp = item.querySelector('.validity-op-new-qty-un');
+      if (cxInp) cxInp.value = remCx > 0 ? String(remCx) : baseCx > 0 ? '0' : '';
+      if (unInp) unInp.value = remUn > 0 ? String(remUn) : baseUn > 0 ? '0' : '';
+      const expInp = item.querySelector('.validity-op-new-exp');
+      if (expInp) expInp.value = '';
+      setTimeout(() => {
+        const focusEl = item.querySelector('.validity-op-new-exp');
+        if (focusEl) focusEl.focus();
+      }, 80);
     } else {
       main.setAttribute('aria-expanded', 'false');
     }
   });
 
   ul.addEventListener('keydown', (e) => {
-    const inp = e.target.closest('.validity-op-date-input');
+    const inp = e.target.closest('.validity-op-new-exp');
     if (inp && e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
       const item = inp.closest('.validity-op-item');
-      if (item) saveValidityOpItemFromDom(item, inp);
+      if (item) saveValidityOperationalNewLot(item);
       return;
     }
     const main = e.target.closest('.validity-op-main');
@@ -6399,6 +7090,7 @@ async function loadValidityOperationalModule() {
   showDashboard();
   scrollDashboardToTop();
   await loadValidityProductsCatalog();
+  await loadValidityDayCountTotals();
   await loadValidityLastLaunchFromServer();
   await loadValidityLinesFromServer(false);
   renderValidityOperationalView();
@@ -6698,6 +7390,77 @@ function buildValidityDetailBodyHtml(row, todayBr) {
   return `${resumoOperacional}${refMetrics}<p class="validity-detail-hint muted">Datas neste dia operacional</p><div class="validity-lines-table-wrap"><table class="validity-lines-table"><thead><tr><th>Vencimento</th><th>Faixa</th><th>Caixas</th><th>Nome</th><th>Quando</th><th></th></tr></thead><tbody>${linesHtml}</tbody></table></div>${addBlock}`;
 }
 
+function buildValidityAnalysisSidePanelHtml(row, todayBr) {
+  const p = row.product;
+  const cod = row.cod;
+  const lines = row.lines || [];
+  const snap = getValidityLastCountSnapshot(cod);
+  const vKey = validityRowVisualKey(row, todayBr);
+  const band =
+    lines.length > 0 ? validityRiskLabel(operationalValidityPrimaryCategory(lines, todayBr)) : 'Sem validade';
+  const bandClass = lines.length
+    ? validityRiskChipClass(operationalValidityPrimaryCategory(lines, todayBr))
+    : 'va-risk-badge va-risk-badge--no-validity';
+  const anchorLn = operationalAnchorLine(lines, todayBr);
+  const nextBr = anchorLn
+    ? formatDateBrFromIso(String(anchorLn.expiration_date || '').slice(0, 10))
+    : lines.length > 0
+      ? 'Vencidos'
+      : '—';
+  const dias = validityDaysToExpiryDisplay(lines, todayBr);
+  const q = validityQtyAllocatedAndRemaining(row, getActiveValidityOpDateKey());
+  const launch = getLatestValidityLaunchMeta(cod);
+  const lastLaunchBr = mergedLastValidityLaunchDateIso(cod);
+  const countRef = snap
+    ? `${formatIntegerBR(snap.cx)} CX / ${formatIntegerBR(snap.un)} UN`
+    : 'Sem contagem';
+  const grupo = validityProductGroupLabel(p);
+  const codRefEnc = encodeURIComponent(cod);
+  const recentLines = [...lines]
+    .sort((a, b) => String(b.observed_at || '').localeCompare(String(a.observed_at || '')))
+    .slice(0, 4);
+  const recentHtml = recentLines.length
+    ? `<ul class="va-side-recent">${recentLines
+        .map((ln) => {
+          const rk = validityRiskCategory(ln.expiration_date, todayBr);
+          const chip = validityRiskChipClass(rk);
+          return `<li><span class="${chip}">${escapeHtml(
+            formatDateBrFromIso(String(ln.expiration_date || '').slice(0, 10)),
+          )}</span> <span class="muted">${escapeHtml(
+            formatDateTimeBr(ln.observed_at),
+          )}</span></li>`;
+        })
+        .join('')}</ul>`
+    : '<p class="muted va-side-muted">Sem lançamentos recentes.</p>';
+
+  return `<div class="va-side-hero va-side-hero--${escapeHtml(vKey)}">
+    <div class="va-side-kicker">Produto selecionado</div>
+    <h3 class="va-side-title">${escapeHtml((p?.cod_grup_descricao || cod).trim())}</h3>
+    <p class="va-side-meta"><span class="va-side-code">${escapeHtml(cod)}</span> · <span class="va-side-grupo">${escapeHtml(grupo)}</span></p>
+    <div class="va-side-badge-row"><span class="${bandClass}">${escapeHtml(band)}</span></div>
+    <dl class="va-side-dl">
+      <div><dt>Próxima validade</dt><dd>${escapeHtml(nextBr)}</dd></div>
+      <div><dt>Dias para vencer</dt><dd>${escapeHtml(dias)}</dd></div>
+      <div><dt>Quantidade com validade (dia)</dt><dd>${escapeHtml(q.withLabel)}</dd></div>
+      <div><dt>Quantidade sem validade (restante)</dt><dd>${escapeHtml(q.withoutLabel)}</dd></div>
+      <div><dt>Contagem referência</dt><dd>${escapeHtml(countRef)}</dd></div>
+      <div><dt>Último lançamento (op.)</dt><dd>${escapeHtml(lastLaunchBr ? formatDateBrFromIso(lastLaunchBr) : '—')}</dd></div>
+      <div><dt>Registro mais recente</dt><dd>${escapeHtml(formatDateTimeBr(launch.whenIso))}</dd></div>
+      <div><dt>Responsável</dt><dd>${escapeHtml(launch.who)}</dd></div>
+    </dl>
+    <div class="va-side-recent-block">
+      <div class="va-side-h">Histórico recente</div>
+      ${recentHtml}
+    </div>
+    <div class="va-side-actions">
+      <button type="button" class="btn btn-secondary btn-sm validity-btn-history validity-analysis-btn-history" data-coderef="${codRefEnc}">Ver histórico completo</button>
+      <button type="button" class="btn btn-secondary btn-sm validity-analysis-btn-export-item" data-coderef="${codRefEnc}">Exportar item (Excel)</button>
+      <button type="button" class="btn btn-primary btn-sm validity-analysis-btn-open-op" data-coderef="${codRefEnc}">Abrir no lançamento</button>
+    </div>
+  </div>
+  <div class="va-side-detail-block">${buildValidityDetailBodyHtml(row, todayBr)}</div>`;
+}
+
 function renderValidityAnalysisDetailPanel(row) {
   const inner = document.getElementById('validity-analysis-detail-inner');
   const lead = document.getElementById('validity-analysis-detail-lead');
@@ -6708,11 +7471,8 @@ function renderValidityAnalysisDetailPanel(row) {
     if (lead) lead.textContent = '';
     return;
   }
-  const name = escapeHtml((row.product?.cod_grup_descricao || row.cod || '').trim());
-  if (lead) {
-    lead.innerHTML = `<strong>${name}</strong> · <span class="validity-launch-detail-code">${escapeHtml(row.cod)}</span>`;
-  }
-  inner.innerHTML = buildValidityDetailBodyHtml(row, getBrazilDateKey());
+  if (lead) lead.textContent = '';
+  inner.innerHTML = buildValidityAnalysisSidePanelHtml(row, getBrazilDateKey());
 }
 
 function openValidityHistoryDialog(row) {
@@ -6779,22 +7539,30 @@ function renderValidityAnalysisView() {
     statsEl.textContent = `Neste filtro: ${withl} com validade lançada · ${noline} sem lançamento`;
   }
 
+  const execEl = document.getElementById('validity-analysis-exec-summary');
+  if (execEl) {
+    const lines = buildValidityExecutiveNarrativeLines(rows, todayBr);
+    execEl.innerHTML = `<ul class="validity-exec-list">${lines.map((t) => `<li>${escapeHtml(t)}</li>`).join('')}</ul>`;
+  }
+
   tbody.innerHTML = '';
   if (!rows.length) {
     tbody.innerHTML =
-      '<tr><td colspan="6" class="muted">Nenhum produto no filtro atual.</td></tr>';
+      '<tr><td colspan="12" class="muted">Nenhum produto no filtro atual.</td></tr>';
     syncValidityKpiChipStyles();
     updateValidityReadonlyState();
     setValidityAnalysisSelection(null);
     return;
   }
 
+  const opKey = getActiveValidityOpDateKey();
   for (const row of rows) {
     const p = row.product;
     const cod = row.cod;
     const lines = row.lines;
     const snap = getValidityLastCountSnapshot(cod);
     const st = validityStatusMainShort(operationalValidityPrimaryCategory(lines, todayBr), lines.length > 0, !!snap);
+    const vKey = validityRowVisualKey(row, todayBr);
     const anchorLn = operationalAnchorLine(lines, todayBr);
     const nextBr = anchorLn
       ? formatDateBrFromIso(String(anchorLn.expiration_date || '').slice(0, 10))
@@ -6803,19 +7571,34 @@ function renderValidityAnalysisView() {
         : '—';
     const band =
       lines.length > 0 ? validityRiskLabel(operationalValidityPrimaryCategory(lines, todayBr)) : '—';
+    const bandChip = lines.length
+      ? `<span class="validity-analysis-faixa-chip ${validityRiskChipClass(operationalValidityPrimaryCategory(lines, todayBr))}">${escapeHtml(band)}</span>`
+      : '—';
     const countRef = snap
       ? `${formatIntegerBR(snap.cx)} CX / ${formatIntegerBR(snap.un)} UN`
       : 'Sem contagem';
+    const grupo = escapeHtml(validityProductGroupLabel(p));
+    const dias = escapeHtml(validityDaysToExpiryDisplay(lines, todayBr));
+    const q = validityQtyAllocatedAndRemaining(row, opKey);
+    const launch = getLatestValidityLaunchMeta(cod);
+    const lastOp = mergedLastValidityLaunchDateIso(cod);
+    const lastOpBr = lastOp ? formatDateBrFromIso(lastOp) : '—';
 
     const tr = document.createElement('tr');
-    tr.className = 'validity-analysis-row';
+    tr.className = `validity-analysis-row va-row va-row--${vKey}`;
     tr.dataset.code = cod;
     tr.innerHTML = `<td class="validity-analysis-cell-name">${escapeHtml((p.cod_grup_descricao || cod).trim())}</td>
-      <td>${escapeHtml(cod)}</td>
-      <td><span class="validity-analysis-status-pill">${escapeHtml(st.label)}</span></td>
+      <td class="va-td-code">${escapeHtml(cod)}</td>
+      <td class="va-td-grupo muted">${grupo}</td>
+      <td><span class="validity-analysis-status-pill va-status--${st.key}">${escapeHtml(st.label)}</span></td>
       <td>${escapeHtml(nextBr)}</td>
-      <td>${escapeHtml(band)}</td>
-      <td class="muted">${escapeHtml(countRef)}</td>`;
+      <td class="va-td-num">${dias}</td>
+      <td>${bandChip}</td>
+      <td class="muted va-td-qty">${escapeHtml(q.withLabel)}</td>
+      <td class="muted va-td-qty">${escapeHtml(q.withoutLabel)}</td>
+      <td class="muted">${escapeHtml(countRef)}</td>
+      <td class="muted va-td-dt">${escapeHtml(lastOpBr)}</td>
+      <td class="muted va-td-who">${escapeHtml(launch.who)}</td>`;
     tbody.appendChild(tr);
   }
 
@@ -6838,6 +7621,7 @@ function scrollDashboardToTop() {
 
 async function loadValidityShared() {
   await loadLastCountPerProduct();
+  await loadValidityDayCountTotals();
   await loadValidityLinesFromServer(getActiveValiditySubKey() === 'validity-analysis');
   await loadValidityProductsCatalog();
 }
@@ -6855,25 +7639,31 @@ async function loadValidityModuleForSub(subKey) {
   });
 }
 
-function registerValidityLineLocal(codRaw, expirationDateStr, quantityCx) {
+function registerValidityLineLocal(codRaw, expirationDateStr, quantityCx, quantityUn) {
   if (!isValidityOperationalEditable()) {
     setValidityFeedback('Lancamento apenas na data de hoje (America/Sao_Paulo).', true);
     return;
   }
   const cod = normalizeItemCode(codRaw);
   if (!cod) return;
-  if (!expirationDateStr || String(expirationDateStr).trim().length < 8) {
-    setValidityFeedback('Informe a data de vencimento.', true);
+  const expIso = parseValidityDateInputToIso(String(expirationDateStr || '').trim());
+  if (!expIso) {
+    setValidityFeedback('Informe a data de vencimento válida (DD/MM/AAAA).', true);
     return;
   }
   const dayKey = getActiveValidityOpDateKey();
   const events = loadValidityEventsForDate(dayKey);
   const qcx = Math.max(0, Math.round(Number(quantityCx) || 0));
+  const qun = Math.max(0, Math.round(Number(quantityUn) || 0));
+  if (qcx <= 0 && qun <= 0) {
+    setValidityFeedback('Informe quantidade maior que zero (CX e/ou UN).', true);
+    return;
+  }
   const ev = {
     client_event_id: makeEventId(),
     cod_produto: cod,
-    expiration_date: String(expirationDateStr).slice(0, 10),
-    quantity_un: 0,
+    expiration_date: expIso,
+    quantity_un: qun,
     quantity_cx: qcx,
     lot_code: null,
     note: null,
@@ -7052,7 +7842,7 @@ function bindValidityShellClicks(shell) {
       const expEl = document.getElementById(`validity-exp-panel-${codRefEnc}`);
       const cxEl = document.getElementById(`validity-cx-panel-${codRefEnc}`);
       const qcx = cxEl ? Math.max(0, Math.round(Number(cxEl.value) || 0)) : 0;
-      registerValidityLineLocal(cod, expEl && expEl.value, qcx);
+      registerValidityLineLocal(cod, expEl && expEl.value, qcx, 0);
       if (expEl) expEl.value = '';
       if (cxEl) cxEl.value = '';
       return;
@@ -7064,6 +7854,20 @@ function bindValidityShellClicks(shell) {
       const cref = rem.getAttribute('data-coderef') || '';
       const cod = normalizeItemCode(decodeURIComponent(cref));
       removeValidityLine(lid ? Number(lid) : null, cid || null, cod);
+      return;
+    }
+    const exItem = e.target.closest('.validity-analysis-btn-export-item');
+    if (exItem) {
+      e.stopPropagation();
+      const cref = exItem.getAttribute('data-coderef') || '';
+      exportValidityAnalysisExcelForSingleCod(decodeURIComponent(cref));
+      return;
+    }
+    const openOp = e.target.closest('.validity-analysis-btn-open-op');
+    if (openOp) {
+      e.stopPropagation();
+      const cref = openOp.getAttribute('data-coderef') || '';
+      openValidityOperationalForProduct(decodeURIComponent(cref));
       return;
     }
     const analysisRow = e.target.closest('.validity-analysis-row');
@@ -7112,10 +7916,10 @@ function bindValidityEvents() {
     opForm.dataset.voFormBound = '1';
     opForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const open = document.querySelector('#validity-op-list .validity-op-item--open .validity-op-date-input');
+      const open = document.querySelector('#validity-op-list .validity-op-item--open .validity-op-new-exp');
       if (open && document.activeElement === open) {
         const item = open.closest('.validity-op-item');
-        if (item) saveValidityOpItemFromDom(item, open);
+        if (item) saveValidityOperationalNewLot(item);
       }
     });
     document.getElementById('validity-op-item-code')?.addEventListener('input', () => renderValidityOperationalView());
@@ -7123,6 +7927,30 @@ function bindValidityEvents() {
   }
 
   document.getElementById('btn-validity-analysis-sync')?.addEventListener('click', () => syncValidityPending());
+  document.getElementById('btn-validity-analysis-export')?.addEventListener('click', () => exportValidityAnalysisExcelFromUi());
+  document.getElementById('btn-validity-analysis-email-prep')?.addEventListener('click', () => openValidityEmailPrepDialog());
+
+  const emailDlg = document.getElementById('validity-email-prep-dialog');
+  if (emailDlg && emailDlg.dataset.bound !== '1') {
+    emailDlg.dataset.bound = '1';
+    emailDlg.querySelector('.validity-email-dialog-close')?.addEventListener('click', () => emailDlg.close());
+    emailDlg.addEventListener('click', (ev) => {
+      if (ev.target === emailDlg) emailDlg.close();
+    });
+    document.getElementById('validity-email-generate')?.addEventListener('click', () => exportValidityAnalysisExcelFromUi());
+    document.getElementById('validity-email-copy')?.addEventListener('click', async () => {
+      const to = document.getElementById('validity-email-to')?.value?.trim() || '';
+      const subj = document.getElementById('validity-email-subject')?.value?.trim() || '';
+      const body = document.getElementById('validity-email-body')?.value || '';
+      const text = `Para: ${to}\nAssunto: ${subj}\n\n${body}`;
+      try {
+        await navigator.clipboard.writeText(text);
+        setValidityFeedback('Texto copiado para a area de transferencia.');
+      } catch {
+        setValidityFeedback('Nao foi possivel copiar. Selecione o texto manualmente.', true);
+      }
+    });
+  }
 
   const histDlg = document.getElementById('validity-history-dialog');
   if (histDlg && histDlg.dataset.bound !== '1') {
