@@ -995,42 +995,55 @@
           <!-- Sub: Importar Estoque -->
           <div id="sub-import-txt" class="sub-section import-txt-page">
             <section class="card import-txt-hero" aria-labelledby="import-txt-title">
-              <div class="import-txt-hero-head">
-                <div class="import-txt-hero-head-text">
-                  <p class="import-txt-eyebrow">Histórico · saldo físico</p>
-                  <h2 id="import-txt-title" class="import-txt-hero-title">Importar estoque (TXT)</h2>
-                  <p class="muted import-txt-hero-lead">
-                    Envie o arquivo de inventário em texto para gravar o saldo do dia e manter a análise de contagem alinhada ao relatório.
-                    Códigos novos passam ao cadastro como <strong>inativos</strong> (não entram na contagem) até regularização em Cadastro → Produtos.
-                  </p>
+              <header class="import-txt-panel-head">
+                <div class="import-txt-panel-head__row">
+                  <div class="import-txt-panel-head__titles">
+                    <p class="import-txt-eyebrow">Histórico · saldo físico</p>
+                    <h2 id="import-txt-title" class="import-txt-panel-title">Importar estoque (TXT)</h2>
+                    <p class="muted import-txt-panel-lead">
+                      Envie o arquivo de inventário em texto para gravar o saldo do dia e manter a análise de contagem alinhada ao relatório.
+                      Códigos novos passam ao cadastro como <strong>inativos</strong> (não entram na contagem) até regularização em Cadastro → Produtos.
+                    </p>
+                  </div>
+                  <div class="import-txt-panel-head__chips">
+                    <span class="chip import-txt-chip">Arquivo .txt</span>
+                  </div>
                 </div>
-                <span class="chip import-txt-chip">Arquivo .txt</span>
+              </header>
+              <div class="import-txt-panel-body">
+                <form id="import-txt-form" class="import-txt-form" autocomplete="off">
+                  <div class="import-txt-form-grid">
+                    <div class="field import-txt-field-date">
+                      <label for="import-txt-date">Data Referência</label>
+                      <input id="import-txt-date" name="reference_date" type="date" required />
+                    </div>
+                    <div class="field import-txt-field-file">
+                      <span class="import-txt-static-label">Arquivo TXT</span>
+                      <div class="import-txt-file-row">
+                        <label for="import-txt-file" class="btn-secondary btn-dark file-btn">Selecionar Arquivo TXT</label>
+                        <input id="import-txt-file" name="file" type="file" accept=".txt" hidden />
+                        <span id="import-txt-filename" class="muted import-txt-filename">Nenhum arquivo...</span>
+                      </div>
+                    </div>
+                    <div class="import-txt-form-actions">
+                      <button type="submit" id="btn-import-txt">Importar Histórico</button>
+                    </div>
+                  </div>
+                </form>
+                <div id="import-txt-feedback" class="field-feedback import-txt-feedback" aria-live="polite"></div>
               </div>
-              <form id="import-txt-form" class="product-form import-txt-form-block" autocomplete="off">
-                <div class="field">
-                  <label for="import-txt-date">Data Referência</label>
-                  <input id="import-txt-date" name="reference_date" type="date" required />
-                </div>
-                <div class="field">
-                  <label for="import-txt-file" class="btn-secondary btn-dark file-btn">Selecionar Arquivo TXT</label>
-                  <input id="import-txt-file" name="file" type="file" accept=".txt" hidden />
-                  <span id="import-txt-filename" class="muted" style="margin-left:8px; font-size:14px;">Nenhum arquivo...</span>
-                </div>
-                <button type="submit" id="btn-import-txt">Importar Histórico</button>
-              </form>
-              <div id="import-txt-feedback" class="field-feedback" aria-live="polite"></div>
             </section>
-            
-            <section class="card" style="margin-top:16px">
+
+            <section class="card import-txt-history-card">
               <div class="card-head">
                 <h3>Histórico de Importações</h3>
               </div>
               <ul id="import-txt-list" class="list">
                 <li><span>Nenhuma importação registrada ainda.</span></li>
               </ul>
-              <div id="import-txt-details" class="field-feedback" style="margin-top:12px; display:none;">
-                <h4 style="margin:0 0 8px 0;">Detalhes da Importação</h4>
-                <div id="import-txt-details-meta" class="muted" style="margin-bottom:8px;"></div>
+              <div id="import-txt-details" class="field-feedback import-txt-details-panel" style="display:none;">
+                <h4 class="import-txt-details-title">Detalhes da Importação</h4>
+                <div id="import-txt-details-meta" class="muted import-txt-details-meta"></div>
                 <ul id="import-txt-details-items" class="list"></ul>
               </div>
             </section>
