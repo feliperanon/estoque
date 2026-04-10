@@ -2233,25 +2233,9 @@ def validity_last_launch_by_product(
     return {"last_by_code": last_by_code}
 
 
-@router.get("/validity-display-expiry-by-product")
-def validity_display_expiry_by_product(
-    session: Session = Depends(get_session),
-    _: User = Depends(require_stock_analysis_access),
-) -> dict:
-    """
-    Mapa código → data de vencimento para exibição (alinhado ao módulo Validade no front:
-    primeiro vencimento hoje ou futuro; se só há linhas vencidas, a mais antiga).
-    """
-    _ensure_validity_lines_table()
-    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
-    try:
-        rows = session.exec(select(ValidityLine.cod_produto, ValidityLine.expiration_date)).all()
-    except SQLAlchemyError as exc:
-        logger.exception("Erro ao agregar validade por produto")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao consultar validades agregadas: {exc}",
-        ) from exc
+def _build_validity_display_expiry_by_code(session: Session, br_today: date) -> dict[str, str]:
+    """Data de exibição por código: primeiro vencimento ≥ hoje; se só há vencidos, o mais antigo."""
+    rows = session.exec(select(ValidityLine.cod_produto, ValidityLine.expiration_date)).all()
     by_code: dict[str, list[date]] = defaultdict(list)
     for cod_raw, exp in rows:
         if exp is None:
@@ -2272,7 +2256,66 @@ def validity_display_expiry_by_product(
             chosen = uniq[0]
         if chosen is not None:
             out[cod] = chosen.isoformat()
+    return out
+
+
+@router.get("/validity-display-expiry-by-product")
+def validity_display_expiry_by_product(
+    session: Session = Depends(get_session),
+    _: User = Depends(require_stock_analysis_access),
+) -> dict:
+    """
+    Mapa código → data de vencimento para exibição (alinhado ao módulo Validade no front:
+    primeiro vencimento hoje ou futuro; se só há linhas vencidas, a mais antiga).
+    """
+    _ensure_validity_lines_table()
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    try:
+        out = _build_validity_display_expiry_by_code(session, br_today)
+    except SQLAlchemyError as exc:
+        logger.exception("Erro ao agregar validade por produto")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao consultar validades agregadas: {exc}",
+        ) from exc
     return {"today": br_today.isoformat(), "by_code": out}
+
+
+@router.get("/validity-kpi-expiring-30d")
+def validity_kpi_expiring_30d(
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """
+    Quantidade de produtos ativos cuja data de validade exibida (mesma regra do módulo Validade)
+    está entre hoje e hoje+30 dias (inclusive). Não inclui já vencidos.
+    """
+    from app.api.routes.products import _catalog_status_is_ativo_clause
+
+    _ensure_validity_lines_table()
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    try:
+        by_code = _build_validity_display_expiry_by_code(session, br_today)
+        active_rows = session.exec(select(Product.cod_produto).where(_catalog_status_is_ativo_clause())).all()
+        active_set = {_normalize_item_code(c) for c in active_rows if c}
+    except SQLAlchemyError as exc:
+        logger.exception("Erro ao calcular KPI de validade 30d")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao consultar validade para KPI: {exc}",
+        ) from exc
+    n = 0
+    for cod, iso in by_code.items():
+        if cod not in active_set:
+            continue
+        try:
+            chosen = date.fromisoformat(iso[:10])
+        except ValueError:
+            continue
+        delta = (chosen - br_today).days
+        if 0 <= delta <= 30:
+            n += 1
+    return {"today": br_today.isoformat(), "window_days": 30, "count": n}
 
 
 @router.delete("/validity-lines/{line_id}", status_code=204)

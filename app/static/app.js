@@ -413,6 +413,7 @@ const API_VALIDITY_EVENTS = '/audit/validity-events';
 const API_VALIDITY_LINES = '/audit/validity-lines';
 const API_VALIDITY_LAST_LAUNCH = '/audit/validity-last-launch-by-product';
 const API_VALIDITY_DISPLAY_EXPIRY_BY_PRODUCT = '/audit/validity-display-expiry-by-product';
+const API_VALIDITY_KPI_EXPIRING_30D = '/audit/validity-kpi-expiring-30d';
 const API_VALIDITY_ANALYSIS_EXPORT_XLSX = '/audit/validity-analysis/export.xlsx';
 const API_SYNC_BREAKS = '/audit/break-events';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
@@ -991,6 +992,7 @@ function showModuleHome(moduleKey) {
   }
   if (moduleKey === 'contagem') {
     stopCountRecountSignalsPolling();
+    refreshContagemValidityExpiringKpi();
   }
 }
 
@@ -1922,6 +1924,34 @@ function updateCountKpi(products = countProductsCache) {
   } else {
     kpiCountEta.textContent =
       'Previsão de término: após o primeiro lançamento e ~1 min de operação';
+  }
+}
+
+/** KPI na home de Contagem: produtos ativos com data de validade exibida entre hoje e +30 dias. */
+async function refreshContagemValidityExpiringKpi() {
+  const el = document.getElementById('kpi-validity-expiring-30d');
+  if (!el) return;
+  const token = getToken();
+  if (!token || isAccessTokenExpired(token)) {
+    el.textContent = '—';
+    return;
+  }
+  if (unauthorizedRedirectInProgress) return;
+  try {
+    const response = await apiFetch(API_VALIDITY_KPI_EXPIRING_30D, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) {
+      el.textContent = '—';
+      return;
+    }
+    const data = await response.json();
+    const n = Number(data.count);
+    el.textContent = Number.isFinite(n) ? String(Math.max(0, Math.floor(n))) : '—';
+  } catch {
+    el.textContent = '—';
   }
 }
 
@@ -6792,6 +6822,8 @@ function buildValidityOperationalExpandHtml(row, vi) {
         <input type="number" id="${fieldCun}" class="validity-op-input validity-op-new-qty-un" min="0" step="1" inputmode="numeric" autocomplete="off" aria-label="Quantidade em unidades do lote" />
       </div>`
     : '';
+  const qtyInner = `${cxField}${unField}`;
+  const qtyRow = qtyInner ? `<div class="validity-op-new-qty-row">${qtyInner}</div>` : '';
   return `<div class="validity-op-expand-summary">
       <div class="validity-op-expand-line"><span class="muted">Base contagem (dia)</span><strong>${escapeHtml(row.contagemLabel)}</strong></div>
       <div class="validity-op-expand-line"><span class="muted">Distribuído</span><strong>${escapeHtml(row.distribLabel)}</strong></div>
