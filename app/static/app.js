@@ -6944,12 +6944,6 @@ function updateValidityOpStickyMeta() {
   if (syncEl) {
     syncEl.textContent = `Sincronização: ${formatValidityLastSyncDisplay()}`;
   }
-  const hint = document.getElementById('validity-op-count-hint');
-  if (hint) {
-    hint.textContent = validityDayCountState.ok
-      ? 'Base de quantidade = contagem consolidada no servidor para o dia acima (mesma regra da contagem).'
-      : 'Não foi possível carregar a contagem consolidada do dia; saldos de lote podem ficar indisponíveis até reconectar.';
-  }
 }
 
 let validityOpSaveGuard = { t: 0, key: '' };

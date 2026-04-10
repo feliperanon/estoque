@@ -8743,17 +8743,11 @@ details[open] > .validity-analytic-summary::after {
   min-width: 0;
 }
 .validity-op-sticky {
-  position: sticky;
-  top: calc(env(safe-area-inset-top, 0px) + 52px);
-  z-index: 40;
+  position: relative;
+  z-index: 1;
   background: linear-gradient(180deg, #faf8ff 0%, #f8fafc 100%);
   border-bottom: 1px solid rgba(91, 33, 182, 0.12);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-}
-@media (max-width: 1023px) {
-  .validity-op-sticky {
-    top: calc(env(safe-area-inset-top, 0px) + 54px);
-  }
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
 }
 .validity-op-sticky-inner {
   padding: 10px 12px 12px;
@@ -8762,31 +8756,24 @@ details[open] > .validity-analytic-summary::after {
   box-sizing: border-box;
 }
 .validity-op-sticky-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-.validity-op-sticky-title {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--ink, #0f172a);
-}
-.validity-op-sticky-sub {
-  margin: 2px 0 0;
-  font-size: 0.8125rem;
-  line-height: 1.35;
+  margin-bottom: 8px;
+  min-width: 0;
 }
 .validity-op-sticky-chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+.validity-op-sticky-chips > * {
+  flex: 0 0 auto;
 }
 .validity-op-date-pill {
   display: inline-flex;
@@ -8816,27 +8803,21 @@ details[open] > .validity-analytic-summary::after {
   color: #64748b;
   font-weight: 500;
 }
-.validity-op-count-hint {
-  margin: 0 0 8px;
-  font-size: 0.75rem;
-  line-height: 1.35;
-}
 .validity-op-form {
   display: block;
   width: 100%;
 }
 .validity-op-filters-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-end;
   gap: 10px;
   margin-bottom: 10px;
-}
-@media (max-width: 520px) {
-  .validity-op-filters-grid {
-    grid-template-columns: 1fr;
-  }
+  min-width: 0;
 }
 .validity-op-field {
+  flex: 1 1 0;
   min-width: 0;
 }
 .validity-op-label {
