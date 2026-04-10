@@ -393,31 +393,32 @@
           <!-- Sub: Quebra — mesma estrutura visual da Contagem (#sub-count) -->
           <div id="sub-break" class="sub-section">
             <div class="info-card master-container count-main-card count-main-card--outer">
-              <form id="break-op-form" class="count-form" autocomplete="off" novalidate>
-              <div class="count-main-card-inner count-main-card-extended count-op-header">
-                <div class="count-main-title-row">
-                  <span class="count-main-title">Produtos para quebra</span>
-                  <span id="break-products-total" class="count-main-chip" aria-live="polite"></span>
+              <form id="break-op-form" class="count-form validity-op-form break-op-form" autocomplete="off" novalidate>
+              <div class="count-main-card-inner count-main-card-extended count-op-header break-op-header">
+                <div class="validity-op-sticky-head break-op-sticky-head">
+                  <div class="validity-op-sticky-chips break-op-sticky-chips">
+                    <span id="break-products-total" class="validity-op-meta-chip break-op-meta-chip" aria-live="polite">0 itens</span>
+                  </div>
                 </div>
-                <div class="count-main-filters-row">
-                  <div class="count-main-filter-col count-main-filter-col--produto">
-                    <label class="count-filter-label count-filter-label--bold" for="break-item-code">Produto</label>
-                    <div class="count-filter-input-wrapper">
-                      <span class="count-filter-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
-                      <input id="break-item-code" name="break-item-code" type="text" class="count-filter-input" placeholder="Buscar produto..." autocomplete="off" aria-label="Produto quebra" />
+                <div class="validity-op-filters-grid break-op-filters">
+                  <div class="validity-op-field break-op-field--produto">
+                    <label class="validity-op-label" for="break-item-code">Produto</label>
+                    <div class="validity-op-input-wrap">
+                      <span class="validity-op-input-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
+                      <input id="break-item-code" name="break-item-code" type="text" class="validity-op-input" placeholder="Buscar..." autocomplete="off" aria-label="Produto quebra" />
                     </div>
                   </div>
-                  <div class="count-main-filter-col count-main-filter-col--grupo">
-                    <label class="count-filter-label count-filter-label--bold" for="break-group">Grupo</label>
-                    <div class="count-filter-input-wrapper">
-                      <span class="count-filter-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
-                      <input id="break-group" name="break-group" type="text" class="count-filter-input" placeholder="Buscar grupo..." autocomplete="off" aria-label="Grupo quebra" />
+                  <div class="validity-op-field break-op-field--grupo">
+                    <label class="validity-op-label" for="break-group">Grupo</label>
+                    <div class="validity-op-input-wrap">
+                      <span class="validity-op-input-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
+                      <input id="break-group" name="break-group" type="text" class="validity-op-input" placeholder="Filtrar..." autocomplete="off" aria-label="Grupo quebra" />
                       <div id="break-group-chip-container" class="count-group-chip-slot"></div>
                     </div>
                   </div>
                 </div>
                 <fieldset class="break-scope-fieldset" aria-labelledby="break-scope-legend">
-                  <legend class="count-filter-label count-filter-label--bold break-scope-legend" id="break-scope-legend">Lista</legend>
+                  <legend class="validity-op-label break-scope-legend" id="break-scope-legend">Lista</legend>
                   <div class="break-scope-options">
                     <label class="break-scope-pill" for="break-scope-mate-couro">
                       <input type="radio" name="break-scope" id="break-scope-mate-couro" value="mate-couro" />

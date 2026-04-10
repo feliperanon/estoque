@@ -3161,7 +3161,10 @@ function renderBreakProducts(products) {
   showDashboard();
   ul.hidden = false;
   ul.innerHTML = '';
-  if (totalSpan) totalSpan.textContent = `${ativos.length}`;
+  if (totalSpan) {
+    const n = ativos.length;
+    totalSpan.textContent = `${n} ${n === 1 ? 'item' : 'itens'}`;
+  }
   setBreakFeedback('');
 
   if (!ativos.length) {
@@ -3537,7 +3540,9 @@ function filtrarProdutosQuebra() {
     if (show) totalVisiveis += 1;
   });
   const totalSpan = document.getElementById('break-products-total');
-  if (totalSpan) totalSpan.textContent = `${totalVisiveis}`;
+  if (totalSpan) {
+    totalSpan.textContent = `${totalVisiveis} ${totalVisiveis === 1 ? 'item' : 'itens'}`;
+  }
 }
 
 async function loadBreakHistoryList() {
