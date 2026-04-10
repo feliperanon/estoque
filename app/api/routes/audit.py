@@ -350,6 +350,31 @@ def _aggregate_count_events_by_code(
     return counted_by_code
 
 
+def _dimensions_with_count_touch_on_date(session: Session, count_on_date: date) -> dict[str, set[str]]:
+    """Por código, quais dimensões (caixa / unidade) tiveram ao menos um evento no dia (inclui confirmação qty 0)."""
+    by_code: dict[str, set[str]] = defaultdict(set)
+    count_logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_count",
+                ChangeLog.action == "count_event",
+            )
+        ).all()
+    )
+    for log in count_logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        br_d = _brazil_date_from_observed_at(str(payload.get("observed_at") or ""))
+        if br_d is None or br_d != count_on_date:
+            continue
+        raw_item = str(payload.get("item_code") or "")
+        code = _normalize_item_code(raw_item)
+        if not code:
+            continue
+        ct = _extract_count_type(raw_item)
+        by_code[code].add(ct)
+    return dict(by_code)
+
+
 def _load_imported_by_code_for_reference_date(session: Session, ref_date: date) -> dict[str, dict] | None:
     """Itens agregados da última importação TXT cuja data de referência é `ref_date`."""
     current_import = session.exec(
@@ -919,6 +944,7 @@ def _compute_stock_analysis(
     else:
         count_day = _parse_iso_date_arg(reference_date) or br_today
     counted_by_code = _aggregate_count_events_by_code(session, count_on_date=count_day)
+    dim_touches_by_code = _dimensions_with_count_touch_on_date(session, count_day)
 
     all_codes = set(imported_by_code.keys()) | set(counted_by_code.keys())
     rows: list[dict] = []
@@ -953,10 +979,17 @@ def _compute_stock_analysis(
         diff_caixa = counted_caixa - import_caixa
         diff_unidade = counted_unidade - import_unidade
         total_diff_abs = abs(diff_caixa) + abs(diff_unidade)
+        touches = dim_touches_by_code.get(code, set())
         status = "ok"
         if imported and counted_caixa == 0 and counted_unidade == 0:
-            status = "missing_in_count"
-            missing_in_count += 1
+            if import_caixa != 0 or import_unidade != 0:
+                status = "missing_in_count"
+                missing_in_count += 1
+            else:
+                # TXT 0/0: exige confirmação explícita em CX e UN (evento no dia, pode ser quantidade 0).
+                if "caixa" not in touches or "unidade" not in touches:
+                    status = "missing_in_count"
+                    missing_in_count += 1
         elif not imported and (counted_caixa != 0 or counted_unidade != 0):
             status = "extra_in_count"
             extra_in_count += 1
@@ -1685,9 +1718,7 @@ def ingest_count_events(
 
     try:
         for event in payload.events:
-            if event.quantity == 0:
-                # Ignora eventos neutros para evitar ruido e validacao desnecessaria.
-                continue
+            # quantity == 0: confirmação explícita (TXT zero na dimensão); persiste para análise / auditoria.
             dt_utc, _br_date = _parse_and_validate_observed_at(event.observed_at)
             obs_stored = dt_utc.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 

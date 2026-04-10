@@ -2656,6 +2656,15 @@ function countExplicitZeroKey(codRaw, countType) {
   return `count_explicit_zero_${getActiveCountDateKey()}_${normalizeItemCode(codRaw)}_${normalizeCountType(countType)}`;
 }
 
+/** client_event_id estável para sincronizar confirmação de zero (evita duplicar no servidor). */
+function makeStableExplicitZeroEventId(dayKey, itemCode, countType) {
+  const d = String(dayKey || '').slice(0, 10);
+  const c = normalizeItemCode(itemCode);
+  const ct = normalizeCountType(countType);
+  const base = `ez0_${d}_${c}_${ct}`;
+  return base.length > 100 ? base.slice(0, 100) : base;
+}
+
 function countExplicitZeroStored(codRaw, countType) {
   try {
     return localStorage.getItem(countExplicitZeroKey(codRaw, countType)) === '1';
@@ -8420,7 +8429,7 @@ function tryConfirmExplicitZeroOnBlur(codRefEnc, countTypeRaw) {
   if (!pair) return;
   const s = countType === 'caixa' ? pair.import_caixa : pair.import_unidade;
   if (Math.max(0, Math.round(Number(s) || 0)) !== 0) return;
-  setCountExplicitZero(itemCode, countType, true);
+  registerCountDelta(itemCode, 0, countType);
 }
 
 function parseOperationQtyFromInputEl(inp) {
@@ -8428,7 +8437,7 @@ function parseOperationQtyFromInputEl(inp) {
   const digitsOnly = String(inp.value ?? '').trim().replace(/\D/g, '');
   if (digitsOnly === '') return null;
   const n = Number.parseInt(digitsOnly, 10);
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return null;
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) return null;
   return n;
 }
 
@@ -8447,13 +8456,22 @@ function dispatchCountRowPlusClick(inp) {
 function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
   const opQty = parseOperationQtyFromInputEl(inp);
   if (opQty == null) {
-    setFeedback('Digite uma quantidade maior que zero para aplicar com + ou −.', true);
+    setFeedback(
+      'Digite a quantidade da operação. Use 0 e + para confirmar saldo zero quando o TXT estiver 0 nesta dimensão.',
+      true,
+    );
     return;
   }
   const refDecoded = decodeURIComponent(String(codRefEnc || ''));
   const itemCode = normalizeItemCode(refDecoded);
   const ct = normalizeCountType(countTypeRaw || 'caixa');
   const current = getNetByProductAndType(itemCode, ct);
+  if (direction > 0 && opQty === 0) {
+    registerCountDelta(itemCode, 0, ct);
+    if (inp) inp.value = '';
+    refreshCountProductListView();
+    return;
+  }
   let delta;
   if (direction > 0) {
     delta = opQty;
@@ -8483,15 +8501,47 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
     return;
   }
 
-  if (!Number.isInteger(quantity) || quantity === 0) {
-    setFeedback('Informe uma quantidade inteira diferente de zero.', true);
+  if (!Number.isInteger(quantity)) {
+    setFeedback('Informe uma quantidade inteira.', true);
     return;
   }
 
   const dayKey = getActiveCountDateKey();
   const events = loadCountEventsForDate(dayKey);
+
+  let clientEventId = makeEventId();
+  if (quantity === 0) {
+    if (!countImportBalancesState.hasTxt) {
+      setFeedback('Confirme zero só com base TXT carregada para o dia.', true);
+      return;
+    }
+    const pair = getCountSaldoPair(itemCode);
+    if (!pair) {
+      setFeedback('Produto sem linha na importação: não dá para confirmar zero frente ao TXT.', true);
+      return;
+    }
+    const saldo =
+      countType === 'unidade'
+        ? Math.max(0, Math.round(Number(pair.import_unidade) || 0))
+        : Math.max(0, Math.round(Number(pair.import_caixa) || 0));
+    if (saldo !== 0) {
+      setFeedback('Só confirme com 0 quando o saldo TXT nesta dimensão (CX ou UN) for zero.', true);
+      return;
+    }
+    if (getNetByProductAndType(itemCode, countType) !== 0) {
+      setFeedback('Ajuste a contagem antes: confirmação 0 exige total zerado nesta dimensão.', true);
+      return;
+    }
+    clientEventId = makeStableExplicitZeroEventId(dayKey, itemCode, countType);
+    if (events.some((e) => e.client_event_id === clientEventId)) {
+      setCountExplicitZero(itemCode, countType, true);
+      setFeedback('Zero nesta dimensão já está registrado (pendente ou enviado).', false, true);
+      return;
+    }
+  }
+
   const event = {
-    client_event_id: makeEventId(),
+    client_event_id: clientEventId,
     item_code: itemCode,
     count_type: countType,
     quantity,
@@ -8505,6 +8555,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   saveCountEventsForDate(dayKey, events);
   const netAfterType = getNetByProductAndType(itemCode, countType);
   if (netAfterType !== 0) setCountExplicitZero(itemCode, countType, false);
+  else if (quantity === 0) setCountExplicitZero(itemCode, countType, true);
   renderCounts();
   let productName = itemCode;
   if (typeof countProductsCache !== 'undefined' && Array.isArray(countProductsCache)) {
@@ -8520,7 +8571,12 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   const countTypeLabel = countType === 'unidade' ? 'Unidade' : 'Caixa';
   const netCx = Math.max(0, Math.round(Number(getNetByProductAndType(itemCode, 'caixa')) || 0));
   const netUn = Math.max(0, Math.round(Number(getNetByProductAndType(itemCode, 'unidade')) || 0));
-  const deltaStr = quantity > 0 ? `+${quantity}` : String(quantity);
+  const deltaStr =
+    quantity === 0
+      ? 'confirmação 0'
+      : quantity > 0
+        ? `+${quantity}`
+        : String(quantity);
   setFeedback(
     `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total operação ${formatIntegerBR(netCx)} CX e ${formatIntegerBR(netUn)} UN`,
     false,
@@ -8574,7 +8630,7 @@ async function importBackup(file) {
     for (const event of incoming) {
       if (!event || typeof event !== 'object') continue;
       if (!event.client_event_id || knownIds.has(event.client_event_id)) continue;
-      if (!event.item_code || !Number.isInteger(event.quantity) || event.quantity === 0) continue;
+      if (!event.item_code || !Number.isInteger(event.quantity)) continue;
       const day = event.count_date || getBrazilDateKey();
       if (!bucket[day]) bucket[day] = [];
       bucket[day].push({
@@ -8762,8 +8818,9 @@ function bindCountEvents() {
       const ct = inp.getAttribute('data-count-type') || 'caixa';
       tryConfirmExplicitZeroOnBlur(ref, ct);
       const genAtBlur = countAdjustGestureGeneration;
-      const hadOpQty = parseOperationQtyFromInputEl(inp) != null;
-      if (!hadOpQty) {
+      const opParsedBlur = parseOperationQtyFromInputEl(inp);
+      /* 0 = confirmação explícita: não dispara o + automático do blur (evita duplicar ez0_). */
+      if (opParsedBlur == null || opParsedBlur === 0) {
         refreshCountListAfterEdit();
         return;
       }
