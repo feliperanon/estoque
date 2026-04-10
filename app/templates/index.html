@@ -832,33 +832,17 @@
                 <div class="validity-analysis-hero-top">
                   <div class="validity-analysis-hero-intro">
                     <p class="validity-analysis-eyebrow">Validade · risco e auditoria</p>
-                    <h2 class="validity-analysis-page-title">Análise de validades</h2>
-                    <p class="validity-analysis-lead muted">Painel executivo: criticidade, cobertura e histórico. Dia operacional em America/Sao_Paulo.</p>
                   </div>
                   <div class="validity-analysis-hero-meta">
                     <p class="validity-sync-line muted" id="validity-analysis-last-sync" aria-live="polite">Última sincronização: —</p>
                     <p class="muted" id="validity-analysis-process-status" aria-live="polite">Status: —</p>
                   </div>
                 </div>
-                <div id="validity-analysis-exec-summary" class="validity-analysis-exec-summary" aria-live="polite"></div>
                 <div class="validity-analysis-hero-actions" role="group" aria-label="Ações da análise">
                   <button type="button" id="btn-validity-analysis-export" class="btn btn-primary">Exportar Excel</button>
                   <button type="button" id="btn-validity-analysis-sync" class="btn btn-secondary">Sincronizar</button>
                   <button type="button" id="btn-validity-analysis-email-prep" class="btn btn-secondary">Preparar envio por e-mail</button>
                   <span id="validity-analysis-pending-badge" class="chip validity-pending-chip" hidden>0 pendentes</span>
-                </div>
-                <div class="validity-risk-legend" aria-hidden="true">
-                  <span class="va-leg va-leg--expired">Vencido</span>
-                  <span class="va-leg va-leg--d30">≤30d</span>
-                  <span class="va-leg va-leg--d60">≤60d</span>
-                  <span class="va-leg va-leg--d90">≤90d</span>
-                  <span class="va-leg va-leg--d120">≤120d</span>
-                  <span class="va-leg va-leg--d150">≤150d</span>
-                  <span class="va-leg va-leg--d180">≤180d</span>
-                  <span class="va-leg va-leg--ok">&gt;180d</span>
-                  <span class="va-leg va-leg--no_validity">Sem val.</span>
-                  <span class="va-leg va-leg--no_count">Sem cont.</span>
-                  <span class="va-leg va-leg--oldbase">Base antiga</span>
                 </div>
                 <div class="validity-kpi-strip validity-kpi-strip--scroll validity-kpi-strip--exec" id="validity-analysis-kpi-strip" aria-label="Indicadores por faixa">
                   <button type="button" class="validity-kpi validity-kpi--chip va-kpi va-kpi--with" data-validity-kpi="with" id="validity-analysis-kpi-with-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-with">0</span><span class="validity-kpi-label">com validade</span></button>
@@ -868,10 +852,6 @@
                   <button type="button" class="validity-kpi validity-kpi--chip va-kpi va-kpi--d60" data-validity-kpi="d60" id="validity-analysis-kpi-d60-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d60">0</span><span class="validity-kpi-label">até 60d</span></button>
                   <button type="button" class="validity-kpi validity-kpi--chip va-kpi va-kpi--d90" data-validity-kpi="d90" id="validity-analysis-kpi-d90-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d90">0</span><span class="validity-kpi-label">até 90d</span></button>
                   <button type="button" class="validity-kpi validity-kpi--chip va-kpi va-kpi--d120" data-validity-kpi="d120" id="validity-analysis-kpi-d120-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d120">0</span><span class="validity-kpi-label">até 120d</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip va-kpi va-kpi--d150" data-validity-kpi="d150" id="validity-analysis-kpi-d150-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d150">0</span><span class="validity-kpi-label">até 150d</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip va-kpi va-kpi--d180" data-validity-kpi="d180" id="validity-analysis-kpi-d180-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-d180">0</span><span class="validity-kpi-label">até 180d</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip va-kpi va-kpi--oldbase" data-validity-kpi="oldbase" id="validity-analysis-kpi-oldbase-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-oldbase">0</span><span class="validity-kpi-label">base antiga</span></button>
-                  <button type="button" class="validity-kpi validity-kpi--chip va-kpi va-kpi--nocount" data-validity-kpi="nocount" id="validity-analysis-kpi-nocount-btn" aria-pressed="false"><span class="validity-kpi-value" id="validity-analysis-kpi-nocount">0</span><span class="validity-kpi-label">sem contagem</span></button>
                 </div>
                 <div class="count-main-filters-row validity-analysis-filters validity-analysis-filters--compact">
                   <div class="count-main-filter-col count-main-filter-col--produto">

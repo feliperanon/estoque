@@ -2743,7 +2743,8 @@ form#break-op-form.count-form {
 #sub-mate-couro-troca.count-audit-page,
 #sub-mate-couro-troca-trocas.count-audit-page,
 #sub-mate-couro-troca-historico.count-audit-page,
-#sub-break-history.break-history-page {
+#sub-break-history.break-history-page,
+#sub-validity-analysis.validity-analysis-page {
   --audit-radius: 12px;
   --audit-radius-sm: 10px;
   --audit-space-1: 0.25rem;
@@ -3123,28 +3124,49 @@ form#break-op-form.count-form {
   white-space: nowrap;
 }
 
-/* .btn-secondary global = texto branco (sidebar). Em cards claros da análise / base de troca / quebras: contraste legível */
+/* .btn-secondary global = texto branco (sidebar). Em cards claros da análise / base de troca / quebras / validades: contraste legível */
 #sub-count-audit .btn-secondary,
 #sub-mate-couro-troca .btn-secondary, #sub-mate-couro-troca-trocas .btn-secondary, #sub-mate-couro-troca-historico .btn-secondary,
-#sub-break-history .btn-secondary {
+#sub-break-history .btn-secondary,
+#sub-validity-analysis .btn-secondary {
   color: var(--audit-ink);
   border-color: var(--audit-border-strong);
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
+.validity-email-prep-dialog .btn-secondary {
+  color: #0f172a;
+  border-color: #cbd5e1;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
 #sub-count-audit .btn-secondary:hover,
 #sub-mate-couro-troca .btn-secondary:hover, #sub-mate-couro-troca-trocas .btn-secondary:hover, #sub-mate-couro-troca-historico .btn-secondary:hover,
-#sub-break-history .btn-secondary:hover {
+#sub-break-history .btn-secondary:hover,
+#sub-validity-analysis .btn-secondary:hover {
   background: var(--audit-card-alt);
   border-color: rgba(15, 118, 110, 0.4);
   color: var(--audit-ink);
 }
 
+.validity-email-prep-dialog .btn-secondary:hover {
+  background: #f8fafc;
+  border-color: rgba(15, 118, 110, 0.4);
+  color: #0f172a;
+}
+
 #sub-count-audit .btn-secondary:focus-visible,
 #sub-mate-couro-troca .btn-secondary:focus-visible, #sub-mate-couro-troca-trocas .btn-secondary:focus-visible, #sub-mate-couro-troca-historico .btn-secondary:focus-visible,
-#sub-break-history .btn-secondary:focus-visible {
+#sub-break-history .btn-secondary:focus-visible,
+#sub-validity-analysis .btn-secondary:focus-visible {
   outline: 2px solid var(--audit-focus);
+  outline-offset: 2px;
+}
+
+.validity-email-prep-dialog .btn-secondary:focus-visible {
+  outline: 2px solid #0f766e;
   outline-offset: 2px;
 }
 
@@ -8235,75 +8257,66 @@ details[open] > .validity-analytic-summary::after {
   gap: 16px 24px;
   margin-bottom: 0.75rem;
 }
-.validity-analysis-page-title {
-  margin: 0 0 0.35rem;
-  font-size: 1.35rem;
-  font-weight: 800;
-}
-.validity-analysis-lead {
-  margin: 0;
-  max-width: 52rem;
-  font-size: 0.9rem;
+.validity-analysis-hero-intro {
+  min-width: 0;
+  flex: 1 1 12rem;
 }
 .validity-analysis-hero-meta {
   flex: 0 1 280px;
   font-size: 0.82rem;
 }
 .validity-analysis-eyebrow {
-  margin: 0 0 0.25rem;
+  margin: 0;
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #64748b;
 }
-.validity-analysis-exec-summary {
-  margin: 0.35rem 0 0.75rem;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(241, 245, 249, 0.9), rgba(255, 255, 255, 0.95));
-  border: 1px solid rgba(15, 23, 42, 0.08);
-}
-.validity-exec-list {
-  margin: 0;
-  padding-left: 1.1rem;
-  font-size: 0.88rem;
-  line-height: 1.45;
-  color: #0f172a;
-}
-.validity-analysis-hero-actions {
+#sub-validity-analysis .validity-analysis-hero-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin: 0.25rem 0 0.75rem;
+  gap: 10px 12px;
+  margin: 0.35rem 0 0.85rem;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 }
-.validity-risk-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 8px;
-  margin-bottom: 0.5rem;
+#sub-validity-analysis .validity-analysis-hero-actions .btn {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
-.va-leg {
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  white-space: nowrap;
+#sub-validity-analysis .validity-analysis-hero-actions .btn-primary {
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent, #0f766e), #0a5c52);
+  border-color: rgba(11, 61, 46, 0.35);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
-.va-leg--expired { background: #fee2e2; color: #7f1d1d; }
-.va-leg--d30 { background: #fecaca; color: #991b1b; }
-.va-leg--d60 { background: #ffedd5; color: #9a3412; }
-.va-leg--d90 { background: #fef3c7; color: #92400e; }
-.va-leg--d120 { background: #fef9c3; color: #854d0e; }
-.va-leg--d150 { background: #dbeafe; color: #1e3a8a; }
-.va-leg--d180 { background: #ede9fe; color: #5b21b6; }
-.va-leg--ok { background: #dcfce7; color: #14532d; }
-.va-leg--no_validity { background: #e2e8f0; color: #334155; }
-.va-leg--no_count { background: #ccfbf1; color: #0f3d3a; }
-.va-leg--oldbase { background: #ede9fe; color: #4c1d95; }
+#sub-validity-analysis .validity-analysis-hero-actions .btn-primary:hover {
+  filter: brightness(1.06);
+}
+#sub-validity-analysis .validity-analysis-hero-actions .btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+#sub-validity-analysis .validity-analysis-hero-actions .validity-pending-chip {
+  margin-left: 2px;
+}
 
 #sub-validity-analysis .validity-kpi-strip--exec {
   gap: 8px;
@@ -8353,22 +8366,6 @@ details[open] > .validity-analytic-summary::after {
 #sub-validity-analysis .va-kpi--d120 {
   border-color: rgba(202, 138, 4, 0.45);
   background: linear-gradient(180deg, #fef9c3, #fff);
-}
-#sub-validity-analysis .va-kpi--d150 {
-  border-color: rgba(37, 99, 235, 0.45);
-  background: linear-gradient(180deg, #dbeafe, #fff);
-}
-#sub-validity-analysis .va-kpi--d180 {
-  border-color: rgba(124, 58, 237, 0.45);
-  background: linear-gradient(180deg, #ede9fe, #fff);
-}
-#sub-validity-analysis .va-kpi--oldbase {
-  border-color: rgba(91, 33, 182, 0.45);
-  background: linear-gradient(180deg, #f3e8ff, #fff);
-}
-#sub-validity-analysis .va-kpi--nocount {
-  border-color: rgba(15, 118, 110, 0.45);
-  background: linear-gradient(180deg, #ccfbf1, #fff);
 }
 
 .validity-analysis-filters {
@@ -8611,6 +8608,30 @@ details[open] > .validity-analytic-summary::after {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 12px;
+}
+.validity-email-prep-dialog .validity-email-prep-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.4rem;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, filter 0.15s ease, border-color 0.15s ease;
+}
+.validity-email-prep-dialog .validity-email-prep-actions .btn-primary {
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent), #0a5c52);
+  border-color: rgba(11, 61, 46, 0.35);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+.validity-email-prep-dialog .validity-email-prep-actions .btn-primary:hover {
+  filter: brightness(1.06);
 }
 .validity-analysis-detail {
   background: #fcfcfd;

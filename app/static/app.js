@@ -6518,21 +6518,7 @@ async function exportValidityAnalysisExcelFromUi() {
   const sortMode = (document.getElementById('validity-analysis-sort')?.value || 'priority').trim();
   const rows = sortValidityRows(filterValidityAnalysisRows(allRows), sortMode, todayBr);
   const narrative = buildValidityExecutiveNarrativeLines(rows, todayBr);
-  const numEl = (id) => Math.max(0, Math.round(Number(String(document.getElementById(id)?.textContent || '0').trim()) || 0));
-  const summaryKpis = {
-    with: numEl('validity-analysis-kpi-with'),
-    without: numEl('validity-analysis-kpi-without'),
-    expired: numEl('validity-analysis-kpi-expired'),
-    d30: numEl('validity-analysis-kpi-d30'),
-    d60: numEl('validity-analysis-kpi-d60'),
-    d90: numEl('validity-analysis-kpi-d90'),
-    d120: numEl('validity-analysis-kpi-d120'),
-    d150: numEl('validity-analysis-kpi-d150'),
-    d180: numEl('validity-analysis-kpi-d180'),
-    oldbase: numEl('validity-analysis-kpi-oldbase'),
-    nocount: numEl('validity-analysis-kpi-nocount'),
-    filtered_total: rows.length,
-  };
+  const summaryKpis = buildValiditySummaryKpisForExport(allRows, todayBr, rows.length);
   const payload = buildValidityAnalysisExportPayload(rows, todayBr, narrative, summaryKpis);
   await downloadValidityAnalysisExcel(payload);
 }
@@ -6576,21 +6562,7 @@ async function exportValidityAnalysisExcelForSingleCod(codRaw) {
   }
   const todayBr = getBrazilDateKey();
   const narrative = buildValidityExecutiveNarrativeLines([row], todayBr);
-  const numEl = (id) => Math.max(0, Math.round(Number(String(document.getElementById(id)?.textContent || '0').trim()) || 0));
-  const summaryKpis = {
-    with: numEl('validity-analysis-kpi-with'),
-    without: numEl('validity-analysis-kpi-without'),
-    expired: numEl('validity-analysis-kpi-expired'),
-    d30: numEl('validity-analysis-kpi-d30'),
-    d60: numEl('validity-analysis-kpi-d60'),
-    d90: numEl('validity-analysis-kpi-d90'),
-    d120: numEl('validity-analysis-kpi-d120'),
-    d150: numEl('validity-analysis-kpi-d150'),
-    d180: numEl('validity-analysis-kpi-d180'),
-    oldbase: numEl('validity-analysis-kpi-oldbase'),
-    nocount: numEl('validity-analysis-kpi-nocount'),
-    filtered_total: 1,
-  };
+  const summaryKpis = buildValiditySummaryKpisForExport([row], todayBr, 1);
   const payload = buildValidityAnalysisExportPayload([row], todayBr, narrative, summaryKpis);
   await downloadValidityAnalysisExcel(payload);
 }
@@ -7417,7 +7389,8 @@ function updateValidityReadonlyState() {
   }
 }
 
-function updateValidityKpis(allRows, todayBr) {
+/** Contagens por faixa / situação para KPIs e exportação Excel (mesma regra que a faixa na UI). */
+function countValidityRowsByKpiBuckets(allRows, todayBr) {
   let withLine = 0;
   let without = 0;
   let expired = 0;
@@ -7448,6 +7421,50 @@ function updateValidityKpis(allRows, todayBr) {
     if (op === 'd180') c180 += 1;
   }
 
+  return {
+    withLine,
+    without,
+    expired,
+    c30,
+    c60,
+    c90,
+    c120,
+    c150,
+    c180,
+    productsOldBase,
+    productsNoCount,
+  };
+}
+
+function buildValiditySummaryKpisForExport(allRows, todayBr, filteredTotal) {
+  const c = countValidityRowsByKpiBuckets(allRows, todayBr);
+  return {
+    with: c.withLine,
+    without: c.without,
+    expired: c.expired,
+    d30: c.c30,
+    d60: c.c60,
+    d90: c.c90,
+    d120: c.c120,
+    d150: c.c150,
+    d180: c.c180,
+    oldbase: c.productsOldBase,
+    nocount: c.productsNoCount,
+    filtered_total: filteredTotal,
+  };
+}
+
+function updateValidityKpis(allRows, todayBr) {
+  const {
+    withLine,
+    without,
+    expired,
+    c30,
+    c60,
+    c90,
+    c120,
+  } = countValidityRowsByKpiBuckets(allRows, todayBr);
+
   const set = (id, v) => {
     const n = document.getElementById(id);
     if (n) n.textContent = String(v);
@@ -7459,10 +7476,6 @@ function updateValidityKpis(allRows, todayBr) {
   set('validity-analysis-kpi-d60', c60);
   set('validity-analysis-kpi-d90', c90);
   set('validity-analysis-kpi-d120', c120);
-  set('validity-analysis-kpi-d150', c150);
-  set('validity-analysis-kpi-d180', c180);
-  set('validity-analysis-kpi-oldbase', productsOldBase);
-  set('validity-analysis-kpi-nocount', productsNoCount);
 
   const ls = document.getElementById('validity-analysis-last-sync');
   if (ls) ls.textContent = `Última sincronização: ${formatValidityLastSyncDisplay()}`;
@@ -7805,6 +7818,14 @@ function renderValidityAnalysisView() {
   const statusEl = document.getElementById('validity-analysis-process-status');
   if (!tbody) return;
 
+  const kpiStrip = document.getElementById('validity-analysis-kpi-strip');
+  if (kpiStrip && validityActiveKpiKey) {
+    const keys = [...kpiStrip.querySelectorAll('[data-validity-kpi]')]
+      .map((b) => b.getAttribute('data-validity-kpi'))
+      .filter(Boolean);
+    if (!keys.includes(validityActiveKpiKey)) validityActiveKpiKey = null;
+  }
+
   const isActive = (status) => {
     const s = String(status || '').trim().toLowerCase();
     if (!s || s === 'ativo' || s === 's' || s === 'sim' || s === '1' || s === 'true') return true;
@@ -7835,12 +7856,6 @@ function renderValidityAnalysisView() {
     const noline = rows.filter((r) => !r.lines.length).length;
     const withl = rows.length - noline;
     statsEl.textContent = `Neste filtro: ${withl} com validade lançada · ${noline} sem lançamento`;
-  }
-
-  const execEl = document.getElementById('validity-analysis-exec-summary');
-  if (execEl) {
-    const lines = buildValidityExecutiveNarrativeLines(rows, todayBr);
-    execEl.innerHTML = `<ul class="validity-exec-list">${lines.map((t) => `<li>${escapeHtml(t)}</li>`).join('')}</ul>`;
   }
 
   tbody.innerHTML = '';
