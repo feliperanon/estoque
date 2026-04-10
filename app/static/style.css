@@ -6092,6 +6092,8 @@ body.count-audit-drawer-open {
   line-height: 1;
   font-size: 1rem;
   justify-self: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn-count-adjust:active:not(:disabled) {
@@ -6938,6 +6940,8 @@ body.count-audit-drawer-open {
   border-top-right-radius: 0;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: none;
+  /* Prioriza rolagem vertical no celular; reduz conflito com botões +/− e pinch acidental */
+  touch-action: pan-y;
 }
 
 /* ═══ Shell unificado: cabeçalho de área + landing alinhada ao /app ═══ */

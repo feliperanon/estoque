@@ -527,6 +527,93 @@ const DEVICE_NAME_KEY = 'estoque_device_name_v1';
 let unauthorizedRedirectInProgress = false;
 let loadServerCountTotalsInFlight = null;
 let countTotalsVisibilityRefreshTimer = null;
+
+/** Assinatura estável dos totais de contagem no servidor (evita re-render da lista inteira sem mudança real). */
+function countServerCountSnapshotForListRefresh() {
+  const st = countServerCountState;
+  const bal = st && typeof st.balances === 'object' && st.balances ? st.balances : {};
+  const keys = Object.keys(bal).sort();
+  const parts = keys.map((k) => {
+    const v = bal[k];
+    const cx = Math.round(Number(v && v.caixa) || 0);
+    const un = Math.round(Number(v && v.unidade) || 0);
+    return `${k}:${cx}/${un}`;
+  });
+  return `${st && st.ok ? 1 : 0}|${parts.join('|')}`;
+}
+
+/** Preserva scroll/foco na lista de contagem após re-render completo (crítico no celular). */
+function getCountListRestoreContext() {
+  const sub = document.getElementById('sub-count');
+  if (!sub || !sub.classList.contains('active')) return null;
+  const ae = document.activeElement;
+  let focusCod = null;
+  let focusType = null;
+  if (ae && ae.classList && ae.classList.contains('count-product-qty')) {
+    const ref = ae.getAttribute('data-coderef');
+    if (ref) {
+      try {
+        focusCod = decodeURIComponent(ref);
+      } catch {
+        focusCod = ref;
+      }
+    }
+    focusType = ae.getAttribute('data-count-type') || 'caixa';
+  }
+  let anchorCod = null;
+  const items = document.querySelectorAll('#count-products-list > li.count-product-item');
+  for (const li of items) {
+    if (li.style.display === 'none') continue;
+    const r = li.getBoundingClientRect();
+    if (r.width <= 0 && r.height <= 0) continue;
+    if (r.bottom > 72 && r.top < window.innerHeight) {
+      anchorCod = li.dataset.codProduto || null;
+      break;
+    }
+  }
+  if (!anchorCod) {
+    for (const li of items) {
+      if (li.style.display === 'none') continue;
+      anchorCod = li.dataset.codProduto || null;
+      if (anchorCod) break;
+    }
+  }
+  return { focusCod, focusType, anchorCod };
+}
+
+function applyCountListRestoreContext(ctx) {
+  if (!ctx) return;
+  const run = () => {
+    if (ctx.anchorCod) {
+      const cod = String(ctx.anchorCod);
+      const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/"/g, '\\"');
+      const el = document.querySelector(`#count-products-list > li.count-product-item[data-cod-produto="${esc}"]`);
+      if (el && el.style.display !== 'none') {
+        try {
+          el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        } catch {
+          el.scrollIntoView();
+        }
+      }
+    }
+    if (ctx.focusCod) {
+      const ref = encodeURIComponent(String(ctx.focusCod));
+      const ct = String(ctx.focusType || 'caixa');
+      const refEsc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(ref) : ref;
+      const ctEsc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(ct) : ct;
+      const sel = `input.count-product-qty[data-coderef="${refEsc}"][data-count-type="${ctEsc}"]`;
+      const inp =
+        document.querySelector(`#count-products-list ${sel}`) ||
+        document.querySelector(`#count-products-list-done ${sel}`);
+      if (inp && !inp.readOnly && typeof inp.focus === 'function') {
+        inp.focus({ preventScroll: true });
+      }
+    }
+  };
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(run);
+  });
+}
 let activeApiBasePrimary = API_BASE_URL_PRIMARY;
 let activeApiBaseFallback = API_BASE_URL_FALLBACK;
 
@@ -2928,6 +3015,9 @@ function renderCountProducts(products) {
     if (feedback) feedback.textContent = 'ERRO: Elemento da lista de produtos não encontrado!';
     return;
   }
+  const restoreCtx =
+    document.getElementById('sub-count')?.classList.contains('active') ? getCountListRestoreContext() : null;
+  try {
   countProductsList.style.display = '';
   const subCount = document.getElementById('sub-count');
   if (subCount) subCount.style.display = '';
@@ -3109,6 +3199,9 @@ function renderCountProducts(products) {
   if (sidebarMenu) sidebarMenu.style.display = '';
   const dashboardContent = document.querySelector('.dashboard-content');
   if (dashboardContent) dashboardContent.style.display = '';
+  } finally {
+    if (restoreCtx) applyCountListRestoreContext(restoreCtx);
+  }
 }
 
 function updateCountReadOnlyState() {
@@ -8531,6 +8624,8 @@ function bindGlobalAdjustButtonKeyboardRetention() {
     (e) => {
       const btn = e.target.closest?.('.btn-count-adjust');
       if (!btn || btn.disabled) return;
+      /* Só na contagem/quebra: evita bloquear gestos em outras telas. */
+      if (!btn.closest('#sub-count') && !btn.closest('#sub-break')) return;
       touchAdjustStartBtn = btn;
       countAdjustGestureGeneration += 1;
       e.preventDefault();
@@ -8552,6 +8647,7 @@ function bindGlobalAdjustButtonKeyboardRetention() {
       const btn = e.target.closest?.('.btn-count-adjust');
       const start = touchAdjustStartBtn;
       if (!start) return;
+      if (!start.closest('#sub-count') && !start.closest('#sub-break')) return;
       if (!btn || btn !== start) {
         touchAdjustStartBtn = null;
         return;
@@ -8719,7 +8815,12 @@ function bindCountEvents() {
     updateNetworkStatus();
     syncPendingEvents();
     syncPendingBreakEvents();
-    loadServerCountTotals().then(() => refreshCountProductListView());
+    const snapBefore = countServerCountSnapshotForListRefresh();
+    loadServerCountTotals().then(() => {
+      if (countServerCountSnapshotForListRefresh() !== snapBefore) {
+        refreshCountProductListView();
+      }
+    });
     loadServerBreakTotals().then(() => {
       if (document.getElementById('sub-break')?.classList.contains('active')) {
         refreshBreakProductListView();
@@ -8743,7 +8844,12 @@ function bindCountEvents() {
     countTotalsVisibilityRefreshTimer = setTimeout(() => {
       countTotalsVisibilityRefreshTimer = null;
       if (!getToken() || unauthorizedRedirectInProgress) return;
-      loadServerCountTotals().then(() => refreshCountProductListView());
+      const snapBefore = countServerCountSnapshotForListRefresh();
+      loadServerCountTotals().then(() => {
+        if (countServerCountSnapshotForListRefresh() !== snapBefore) {
+          refreshCountProductListView();
+        }
+      });
     }, 200);
   });
 }
@@ -10775,8 +10881,18 @@ async function refreshRecountSignalsFromServer() {
     if (!r.ok) return;
     const data = await r.json();
     const codes = Array.isArray(data.codes) ? data.codes : [];
-    serverRecountSignalCodes = new Set(codes.map((c) => String(c)));
-    if (Array.isArray(countProductsCache) && countProductsCache.length) {
+    const nextSet = new Set(codes.map((c) => String(c)));
+    let recountSetChanged = nextSet.size !== serverRecountSignalCodes.size;
+    if (!recountSetChanged) {
+      for (const c of nextSet) {
+        if (!serverRecountSignalCodes.has(c)) {
+          recountSetChanged = true;
+          break;
+        }
+      }
+    }
+    serverRecountSignalCodes = nextSet;
+    if (recountSetChanged && Array.isArray(countProductsCache) && countProductsCache.length) {
       refreshCountProductListView();
     }
   } catch {
