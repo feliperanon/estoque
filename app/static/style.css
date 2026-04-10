@@ -8555,7 +8555,7 @@ details[open] > .validity-analytic-summary::after {
   font-size: 0.8125rem;
 }
 
-/* ── Quebra (#sub-break): sticky + filtros (produto + grupo), sem barra de progresso ── */
+/* ── Quebra (#sub-break): casca validity-op-sticky + filtros + barra de progresso (vermelho) ── */
 #sub-break {
   min-width: 0;
   --count-sticky-under-app: 52px;
@@ -9315,7 +9315,7 @@ details[open] > .validity-analytic-summary::after {
   align-self: center;
 }
 @media (max-width: 600px) {
-  #sub-break .break-op-header .validity-op-input {
+  #sub-break .break-op-sticky .validity-op-input {
     font-size: 16px;
   }
 }
