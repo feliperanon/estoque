@@ -3170,6 +3170,7 @@ function renderBreakProducts(products) {
   if (!ativos.length) {
     ul.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
     updateBreakReadOnlyState();
+    updateBreakOpProgressBar();
     return;
   }
 
@@ -3230,6 +3231,7 @@ function renderBreakProducts(products) {
 
   for (const product of ativos) appendCard(ul, product);
   updateBreakReadOnlyState();
+  updateBreakOpProgressBar();
 }
 
 function updateBreakReadOnlyState() {
@@ -3526,6 +3528,29 @@ function bindBreakEvents() {
   }
 }
 
+function updateBreakOpProgressBar() {
+  const list = document.getElementById('break-products-list');
+  const pctEl = document.getElementById('break-op-progress-pct');
+  const fillEl = document.getElementById('break-op-progress-fill');
+  const detailEl = document.getElementById('break-op-progress-detail');
+  if (!list || !pctEl || !fillEl || !detailEl) return;
+  const items = list.querySelectorAll(':scope > li.count-product-item');
+  let total = 0;
+  let vis = 0;
+  items.forEach((li) => {
+    total += 1;
+    if (li.style.display !== 'none') vis += 1;
+  });
+  const pct = total ? Math.round((vis / total) * 100) : 0;
+  pctEl.textContent = `${pct}%`;
+  fillEl.style.width = `${pct}%`;
+  fillEl.classList.remove('is-low', 'is-mid', 'is-high');
+  if (pct >= 67) fillEl.classList.add('is-high');
+  else if (pct >= 34) fillEl.classList.add('is-mid');
+  else fillEl.classList.add('is-low');
+  detailEl.textContent = `${vis} de ${total} produtos visíveis no filtro`;
+}
+
 function filtrarProdutosQuebra() {
   const grupo = (document.getElementById('break-group')?.value || '').trim().toLowerCase();
   let totalVisiveis = 0;
@@ -3543,6 +3568,7 @@ function filtrarProdutosQuebra() {
   if (totalSpan) {
     totalSpan.textContent = `${totalVisiveis} ${totalVisiveis === 1 ? 'item' : 'itens'}`;
   }
+  updateBreakOpProgressBar();
 }
 
 async function loadBreakHistoryList() {
