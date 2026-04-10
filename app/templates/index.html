@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=57" />
+    <link rel="stylesheet" href="/static/style.css?v=59" />
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -387,22 +387,22 @@
                     </div>
                     <fieldset class="break-scope-fieldset">
                       <legend class="sr-only" id="break-scope-legend">Escopo da lista de produtos</legend>
-                      <div class="break-scope-toolbar">
-                        <span class="validity-op-label break-scope-kicker" id="break-scope-visual-label">Lista</span>
-                        <div class="break-scope-options" role="group" aria-labelledby="break-scope-visual-label">
-                          <label class="break-scope-pill" for="break-scope-mate-couro">
-                            <input type="radio" name="break-scope" id="break-scope-mate-couro" value="mate-couro" />
-                            <span>Base de troca</span>
-                          </label>
-                          <label class="break-scope-pill" for="break-scope-outros">
-                            <input type="radio" name="break-scope" id="break-scope-outros" value="outros" />
-                            <span>Outros</span>
-                          </label>
-                          <label class="break-scope-pill" for="break-scope-todos">
-                            <input type="radio" name="break-scope" id="break-scope-todos" value="todos" checked />
-                            <span>Todos</span>
-                          </label>
-                        </div>
+                      <div class="break-scope-row" role="group" aria-labelledby="break-scope-visual-label">
+                        <span id="break-scope-visual-label" class="break-scope-kicker">Lista</span>
+                        <label class="break-scope-choice" for="break-scope-mate-couro">
+                          <input type="radio" name="break-scope" id="break-scope-mate-couro" value="mate-couro" />
+                          <span>Base de troca</span>
+                        </label>
+                        <span class="break-scope-sep" aria-hidden="true">·</span>
+                        <label class="break-scope-choice" for="break-scope-outros">
+                          <input type="radio" name="break-scope" id="break-scope-outros" value="outros" />
+                          <span>Outros</span>
+                        </label>
+                        <span class="break-scope-sep" aria-hidden="true">·</span>
+                        <label class="break-scope-choice" for="break-scope-todos">
+                          <input type="radio" name="break-scope" id="break-scope-todos" value="todos" checked />
+                          <span>Todos</span>
+                        </label>
                       </div>
                     </fieldset>
                     <div class="validity-op-progress-wrap break-op-progress-wrap" aria-live="polite">
@@ -1363,21 +1363,33 @@
           <!-- Sub: Produtos (listagem completa + busca + ações) -->
           <div id="sub-produtos" class="sub-section">
             <section class="card">
-              <h2>Produtos Cadastrados</h2>
-              <p class="muted">Pesquise, edite, ative/inative ou exclua produtos. Clique em um produto para ver o histórico.</p>
-              <div class="produtos-toolbar" role="group" aria-label="Busca e filtros de produtos">
-                <div class="search-row produtos-toolbar-search">
-                  <input id="produtos-search" type="text" placeholder="Código, SKU, descrição, Cia, Segmento, Marca ou valor do custo (ex.: 12,90)..." class="search-input" />
-                  <button id="btn-produtos-search" type="button" class="btn-secondary btn-dark">Buscar</button>
+              <div class="produtos-toolbar" role="group" aria-labelledby="produtos-toolbar-heading">
+                <div class="produtos-toolbar-head">
+                  <span class="produtos-status-filters-label" id="produtos-toolbar-heading">Busca e filtros</span>
                 </div>
-                <div class="produtos-extra-filters produtos-toolbar-filters" role="group" aria-label="Filtrar por Cia e Marca">
-                  <div class="field produtos-filter-field">
-                    <label for="produtos-filter-cia">Cia</label>
-                    <select id="produtos-filter-cia" class="search-select"></select>
+                <div class="produtos-toolbar-body">
+                  <div class="produtos-toolbar-search">
+                    <label for="produtos-search" class="produtos-toolbar-field-label">Termo de busca</label>
+                    <div class="search-row produtos-toolbar-search-row">
+                      <input
+                        id="produtos-search"
+                        type="text"
+                        class="search-input"
+                        placeholder="Código, SKU, descrição, Cia, segmento, marca ou custo (ex.: 12,90)"
+                        autocomplete="off"
+                      />
+                      <button id="btn-produtos-search" type="button" class="btn-secondary btn-dark">Buscar</button>
+                    </div>
                   </div>
-                  <div class="field produtos-filter-field">
-                    <label for="produtos-filter-marca">Marca</label>
-                    <select id="produtos-filter-marca" class="search-select"></select>
+                  <div class="produtos-extra-filters produtos-toolbar-filters" role="group" aria-label="Filtrar por Cia e Marca">
+                    <div class="field produtos-filter-field">
+                      <label for="produtos-filter-cia">Cia</label>
+                      <select id="produtos-filter-cia" class="search-select"></select>
+                    </div>
+                    <div class="field produtos-filter-field">
+                      <label for="produtos-filter-marca">Marca</label>
+                      <select id="produtos-filter-marca" class="search-select"></select>
+                    </div>
                   </div>
                 </div>
               </div>

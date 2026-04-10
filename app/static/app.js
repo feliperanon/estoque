@@ -3465,13 +3465,22 @@ function renderBreakProducts(products) {
     li.className = 'count-product-item break-product-item';
     li.dataset.codProduto = codRaw;
     li.innerHTML = `
-      <div class="count-product-label">
+      <div class="count-product-label break-product-label">
         <span class="count-product-title-row">
           <span class="count-product-desc">${desc}${codHtml}</span>
         </span>
       </div>
-      <div class="count-product-controls">
-        <div class="count-control-row count-control-row--neutral">
+      <div class="break-reason-row">
+        <div class="break-reason-head">
+          <label class="validity-op-label break-reason-label" for="break-reason-${escapeHtml(codSafeId)}">Motivo da quebra</label>
+          <span class="break-reason-hint">Escolha antes de + ou −</span>
+        </div>
+        <select id="break-reason-${escapeHtml(codSafeId)}" class="validity-op-input break-reason-select" aria-label="Motivo obrigatório antes de lançar quantidade" required>
+          ${breakReasonOptionsHtml}
+        </select>
+      </div>
+      <div class="count-product-controls break-product-controls">
+        <div class="count-control-row count-control-row--neutral break-product-qty-row">
           <span class="count-control-type">CX</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
           <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
@@ -3479,13 +3488,14 @@ function renderBreakProducts(products) {
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
           <div class="count-control-tail">
             <div class="count-product-readout count-product-readout--by-control break-product-readout" aria-live="polite" title="Total de quebra em caixas neste dia (sincronizado + pendente local)">
+              <span class="count-product-readout-label" aria-hidden="true">Dia</span>
               <span class="count-product-readout-inner">
                 <strong class="count-product-readout-value">${formatBreakIntegerBR(vCx)}</strong>
               </span>
             </div>
           </div>
         </div>
-        <div class="count-control-row count-control-row--neutral">
+        <div class="count-control-row count-control-row--neutral break-product-qty-row">
           <span class="count-control-type">UN</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
           <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
@@ -3493,18 +3503,13 @@ function renderBreakProducts(products) {
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
           <div class="count-control-tail">
             <div class="count-product-readout count-product-readout--by-control break-product-readout" aria-live="polite" title="Total de quebra em unidades neste dia (sincronizado + pendente local)">
+              <span class="count-product-readout-label" aria-hidden="true">Dia</span>
               <span class="count-product-readout-inner">
                 <strong class="count-product-readout-value">${formatBreakIntegerBR(vUn)}</strong>
               </span>
             </div>
           </div>
         </div>
-      </div>
-      <div class="break-reason-row">
-        <label class="validity-op-label break-reason-label" for="break-reason-${escapeHtml(codSafeId)}">Motivo da quebra</label>
-        <select id="break-reason-${escapeHtml(codSafeId)}" class="validity-op-input break-reason-select" aria-label="Motivo obrigatório antes de lançar quantidade" required>
-          ${breakReasonOptionsHtml}
-        </select>
       </div>
     `;
     parentUl.appendChild(li);
