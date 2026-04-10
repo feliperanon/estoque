@@ -8532,24 +8532,24 @@ details[open] > .validity-analytic-summary::after {
     grid-row: 2;
   }
 }
-/* Validade operacional: barra de progresso alinhada ao azul da contagem */
+/* Barra inferior validade operacional: roxo (identidade da fila #validity) */
 #sub-validity .validity-op-progress-fill.count-progress-fill--products {
-  background: linear-gradient(90deg, #93c5fd 0%, #2563eb 100%);
+  background: linear-gradient(90deg, #c4b5fd 0%, #8b5cf6 100%);
 }
 #sub-validity .validity-op-progress-fill.count-progress-fill--products.is-low {
-  background: linear-gradient(90deg, #bfdbfe 0%, #3b82f6 100%);
+  background: linear-gradient(90deg, #ddd6fe 0%, #a78bfa 100%);
 }
 #sub-validity .validity-op-progress-fill.count-progress-fill--products.is-mid {
-  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
 }
 #sub-validity .validity-op-progress-fill.count-progress-fill--products.is-high {
-  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
 }
 #sub-validity .count-progress-percent--products {
-  color: var(--primary-blue, #2563eb);
+  color: #6d28d9;
 }
 #sub-validity .count-progress-detail--products {
-  color: #1e40af;
+  color: #5b21b6;
 }
 #sub-validity .count-main-card-inner.count-op-header .count-filter-input-wrapper {
   min-height: 44px;
@@ -8641,7 +8641,7 @@ details[open] > .validity-analytic-summary::after {
   outline: none;
 }
 .validity-op-main:focus-visible {
-  outline: 2px solid rgba(37, 99, 235, 0.45);
+  outline: 2px solid rgba(124, 58, 237, 0.45);
   outline-offset: 2px;
 }
 #sub-validity .validity-op-item--overdue .validity-op-main:hover {
@@ -8721,8 +8721,8 @@ details[open] > .validity-analytic-summary::after {
   pointer-events: auto;
 }
 .validity-op-item.validity-op-item--open {
-  background: #fafbff;
-  box-shadow: inset 0 1px 0 rgba(37, 99, 235, 0.08);
+  background: #faf5ff;
+  box-shadow: inset 0 1px 0 rgba(124, 58, 237, 0.1);
 }
 .validity-op-expand-row {
   display: grid;
@@ -8802,8 +8802,8 @@ details[open] > .validity-analytic-summary::after {
 .validity-op-sticky {
   position: relative;
   z-index: 1;
-  background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
-  border-bottom: 1px solid rgba(37, 99, 235, 0.12);
+  background: linear-gradient(180deg, #faf8ff 0%, #f8fafc 100%);
+  border-bottom: 1px solid rgba(91, 33, 182, 0.12);
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
 }
 .validity-op-sticky-inner {
@@ -8840,9 +8840,9 @@ details[open] > .validity-analytic-summary::after {
   border-radius: 999px;
   font-size: 0.8125rem;
   font-weight: 700;
-  background: rgba(37, 99, 235, 0.12);
-  color: #1d4ed8;
-  border: 1px solid rgba(37, 99, 235, 0.28);
+  background: rgba(124, 58, 237, 0.12);
+  color: #5b21b6;
+  border: 1px solid rgba(124, 58, 237, 0.25);
 }
 .validity-op-meta-chip {
   display: inline-flex;
@@ -8927,29 +8927,29 @@ details[open] > .validity-analytic-summary::after {
 .validity-op-progress-pct {
   font-size: 0.9rem;
   font-weight: 800;
-  color: var(--primary-blue, #2563eb);
+  color: #6d28d9;
   font-variant-numeric: tabular-nums;
 }
 .validity-op-progress-track {
   height: 10px;
   border-radius: 999px;
-  background: #dbeafe;
+  background: #e9d5ff;
   overflow: hidden;
 }
 .validity-op-progress-fill--bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #93c5fd 0%, #2563eb 100%);
+  background: linear-gradient(90deg, #c4b5fd 0%, #7c3aed 100%);
   transition: width 0.28s ease;
 }
 .validity-op-progress-fill--bar.is-low {
-  background: linear-gradient(90deg, #bfdbfe 0%, #3b82f6 100%);
+  background: linear-gradient(90deg, #ddd6fe 0%, #a78bfa 100%);
 }
 .validity-op-progress-fill--bar.is-mid {
-  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
 }
 .validity-op-progress-fill--bar.is-high {
-  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
 }
 .validity-op-progress-detail {
   margin: 6px 0 0;
@@ -9174,7 +9174,7 @@ details[open] > .validity-analytic-summary::after {
 .validity-op-new-lot-title {
   font-size: 0.78rem;
   font-weight: 800;
-  color: #1d4ed8;
+  color: #5b21b6;
   margin-bottom: 8px;
 }
 .validity-op-new-lot-grid {
@@ -9232,16 +9232,16 @@ details[open] > .validity-analytic-summary::after {
   font-weight: 700;
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar {
-  background: linear-gradient(90deg, #93c5fd 0%, #2563eb 100%);
+  background: linear-gradient(90deg, #c4b5fd 0%, #8b5cf6 100%);
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar.is-low {
-  background: linear-gradient(90deg, #bfdbfe 0%, #3b82f6 100%);
+  background: linear-gradient(90deg, #ddd6fe 0%, #a78bfa 100%);
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar.is-mid {
-  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
 }
 #sub-validity .validity-op-progress-fill.validity-op-progress-fill--bar.is-high {
-  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
 }
 
 /* Produto em largura total na Validade e Quebra (igual #sub-count) */
