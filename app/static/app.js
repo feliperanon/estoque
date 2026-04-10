@@ -9332,7 +9332,6 @@ const countAuditDrawerRoot = document.getElementById('count-audit-drawer-root');
 const countAuditDrawerBackdrop = document.getElementById('count-audit-drawer-backdrop');
 const countAuditDrawerClose = document.getElementById('count-audit-drawer-close');
 const countAuditOperationalDate = document.getElementById('count-audit-operational-date');
-const countAuditAnalysisStatus = document.getElementById('count-audit-analysis-status');
 const countAuditLastSync = document.getElementById('count-audit-last-sync');
 const countAuditBaseSource = document.getElementById('count-audit-base-source');
 const countAuditBaseSourceNote = document.getElementById('count-audit-base-source-note');
@@ -9749,15 +9748,6 @@ function updateCountAuditHeaderContext() {
   }
   if (countAuditLastSync) {
     countAuditLastSync.textContent = countAuditState.loadedAt ? formatDateTime(countAuditState.loadedAt) : '--';
-  }
-  if (countAuditAnalysisStatus) {
-    let label = 'Aguardando carga';
-    if (dashboard.total > 0) {
-      if (dashboard.critical > 0 || dashboard.missing > 0) label = 'Ação imediata';
-      else if (dashboard.pending > 0) label = 'Em validação';
-      else label = 'Conferido';
-    }
-    countAuditAnalysisStatus.textContent = label;
   }
   if (countAuditBaseSource) {
     countAuditBaseSource.textContent = info.id == null
@@ -11719,6 +11709,15 @@ function parseConversionFactorInput(elementId) {
   return { ok: true, value: n };
 }
 
+const PRODUCT_HISTORY_FIELD_LABELS = {
+  conversion_factor: 'Fator de conversão',
+  price: 'Custo',
+};
+
+function productHistoryFieldLabel(fieldName) {
+  return PRODUCT_HISTORY_FIELD_LABELS[fieldName] || fieldName;
+}
+
 function produtoStatusBadgeMeta(p) {
   const raw = (p.status || '').trim();
   const sl = raw.toLowerCase();
@@ -11970,7 +11969,7 @@ async function showProductHistory(id, label) {
     } else {
       for (const h of items) {
         const li = document.createElement('li');
-        li.innerHTML = `<span><strong>${h.field_name}</strong>: "${h.old_value || '—'}" → "${h.new_value || '—'}" <small>(por ${h.changed_by || '?'} em ${formatDate(h.changed_at)})</small></span>`;
+        li.innerHTML = `<span><strong>${productHistoryFieldLabel(h.field_name)}</strong>: "${h.old_value || '—'}" → "${h.new_value || '—'}" <small>(por ${h.changed_by || '?'} em ${formatDate(h.changed_at)})</small></span>`;
         list.appendChild(li);
       }
     }
