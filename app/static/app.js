@@ -1033,7 +1033,12 @@ function showModuleHome(moduleKey) {
   }
   if (moduleKey === 'contagem') {
     stopCountRecountSignalsPolling();
+  }
+  if (moduleKey === 'contagem' || moduleKey === 'analise') {
     refreshContagemValidityExpiringKpi();
+  }
+  if (moduleKey === 'analise') {
+    updateCountKpi(countProductsCache);
   }
 }
 
@@ -1974,7 +1979,7 @@ function updateCountKpi(products = countProductsCache) {
   }
 }
 
-/** KPI na home de Contagem: produtos ativos com data de validade exibida entre hoje e +30 dias. */
+/** KPI na home de Análise: produtos ativos com data de validade exibida entre hoje e +30 dias. */
 async function refreshContagemValidityExpiringKpi() {
   const el = document.getElementById('kpi-validity-expiring-30d');
   if (!el) return;

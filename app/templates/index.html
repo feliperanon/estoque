@@ -117,22 +117,6 @@
         <!-- ── MÓDULO MÃE: CONTAGEM ── -->
         <section id="module-contagem" class="module-section">
           <div id="contagem-home" class="sub-section active">
-            <section class="contagem-kpi-grid">
-              <article class="card mini-kpi-card">
-                <h3>Contagem do estoque</h3>
-                <strong id="kpi-count-percent">0%</strong>
-                <small id="kpi-count-percent-sub" class="muted" hidden></small>
-                <small id="kpi-count-user">Servidor: — · Você: —</small>
-                <small id="kpi-count-window">Início: --:-- | Fim: --:--</small>
-                <small id="kpi-count-elapsed">Tempo em andamento: 00:00:00</small>
-                <small id="kpi-count-eta">Previsão de término: --:--</small>
-              </article>
-              <article class="card mini-kpi-card">
-                <h3>Vencimento próximo</h3>
-                <strong id="kpi-validity-expiring-30d">—</strong>
-                <small>Produtos ativos com validade entre hoje e 30 dias</small>
-              </article>
-            </section>
             <h3 class="contagem-grid-title">Escolha o módulo operacional</h3>
             <div class="module-grid module-grid-contagem">
               <button type="button" class="module-card" data-sub="count">
@@ -140,30 +124,30 @@
                 <span class="module-card-title">Contagem de Estoque</span>
                 <span class="module-card-desc">Registro físico com foco em velocidade e baixa digitação</span>
               </button>
-              <button type="button" class="module-card" data-sub="pull">
-                <span class="module-card-icon">📦</span>
-                <span class="module-card-title">Puxada</span>
-                <span class="module-card-desc">Transferência entre depósito e área de venda</span>
+              <button type="button" class="module-card" data-sub="break">
+                <span class="module-card-icon">💔</span>
+                <span class="module-card-title">Quebra</span>
+                <span class="module-card-desc">Baixa por dano, avaria ou impropriedade</span>
+              </button>
+              <button type="button" class="module-card" data-sub="validity">
+                <span class="module-card-icon">📅</span>
+                <span class="module-card-title">Validade</span>
+                <span class="module-card-desc">Lançamento rápido da data de validade por produto</span>
               </button>
               <button type="button" class="module-card" data-sub="return">
                 <span class="module-card-icon">↩️</span>
                 <span class="module-card-title">Devolução</span>
                 <span class="module-card-desc">Retorno de cliente/fornecedor com classificação</span>
               </button>
-              <button type="button" class="module-card" data-sub="break">
-                <span class="module-card-icon">💔</span>
-                <span class="module-card-title">Quebra</span>
-                <span class="module-card-desc">Baixa por dano, avaria ou impropriedade</span>
+              <button type="button" class="module-card" data-sub="pull">
+                <span class="module-card-icon">📦</span>
+                <span class="module-card-title">Puxada</span>
+                <span class="module-card-desc">Transferência entre depósito e área de venda</span>
               </button>
               <button type="button" class="module-card" data-sub="direct-sale">
                 <span class="module-card-icon">💰</span>
                 <span class="module-card-title">Venda Direta</span>
                 <span class="module-card-desc">Baixa imediata com segurança operacional</span>
-              </button>
-              <button type="button" class="module-card" data-sub="validity">
-                <span class="module-card-icon">📅</span>
-                <span class="module-card-title">Validade</span>
-                <span class="module-card-desc">Lançamento rápido da data de validade por produto</span>
               </button>
             </div>
           </div>
@@ -485,6 +469,22 @@
         <!-- ── MÓDULO MÃE: ANÁLISE ── -->
         <section id="module-analise" class="module-section">
           <div id="analise-home" class="sub-section active">
+            <section class="contagem-kpi-grid" aria-label="Resumo de contagem e validades">
+              <article class="card mini-kpi-card">
+                <h3>Contagem do estoque</h3>
+                <strong id="kpi-count-percent">0%</strong>
+                <small id="kpi-count-percent-sub" class="muted" hidden></small>
+                <small id="kpi-count-user">Servidor: — · Você: —</small>
+                <small id="kpi-count-window">Início: --:-- | Fim: --:--</small>
+                <small id="kpi-count-elapsed">Tempo em andamento: 00:00:00</small>
+                <small id="kpi-count-eta">Previsão de término: --:--</small>
+              </article>
+              <article class="card mini-kpi-card">
+                <h3>Vencimento próximo</h3>
+                <strong id="kpi-validity-expiring-30d">—</strong>
+                <small>Produtos ativos com validade entre hoje e 30 dias</small>
+              </article>
+            </section>
             <h3 class="contagem-grid-title">Relatórios e auditoria</h3>
             <div class="module-grid module-grid-contagem">
               <button type="button" class="module-card" data-sub="count-audit">
