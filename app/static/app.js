@@ -1760,8 +1760,8 @@ function computeCountProgressStats(products = countProductsCache) {
   let counted = 0;
   for (const code of uniqueProducts) {
     const pair = getCountSaldoPair(code);
-    const netCx = getNetByProductAndType(code, 'caixa');
-    const netUn = getNetByProductAndType(code, 'unidade');
+    const netCx = getCountNetMergedWithMateTrocaForTxtCompare(code, 'caixa');
+    const netUn = getCountNetMergedWithMateTrocaForTxtCompare(code, 'unidade');
     if (pair) {
       const dimCx = countDimensionMatchesSaldo(code, 'caixa', netCx, pair.import_caixa);
       const dimUn = countDimensionMatchesSaldo(code, 'unidade', netUn, pair.import_unidade);
@@ -2570,6 +2570,23 @@ function countDimensionMatchesSaldo(codRaw, countType, net, saldoVal) {
   return true;
 }
 
+/**
+ * Total para comparar com o TXT na contagem (badges OK/Divergência, barra de metades, pendentes).
+ * Igual à coluna Diferença da Análise de Contagem: lançamentos CX/UN + saldo Base de Troca V2 (Mate couro).
+ * @see reconcileCountAuditMetaDiffWithMergedCount
+ */
+function getCountNetMergedWithMateTrocaForTxtCompare(codRaw, countType) {
+  const net = Math.max(0, Math.round(Number(getNetByProductAndType(codRaw, countType)) || 0));
+  const mateSet = getMateCouroCodSet();
+  if (!mateCouroCatalogHasCode(mateSet, codRaw)) return net;
+  const bal = getMateTrocaV2CurForPayload(codRaw);
+  const ct = normalizeCountType(countType);
+  const t = ct === 'unidade'
+    ? Math.max(0, Math.round(Number(bal.un) || 0))
+    : Math.max(0, Math.round(Number(bal.cx) || 0));
+  return net + t;
+}
+
 /** Há lançamento local ou total já sincronizado no servidor (para saldo TXT zero). */
 function hasAnyCountActivityForType(codRaw, countType) {
   if (hasAnyCountEventsForType(codRaw, countType)) return true;
@@ -2632,6 +2649,17 @@ async function loadImportBalancesForCount() {
     };
   } catch {
     countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+  }
+}
+
+/** TXT, totais de contagem no servidor e saldo Base de Troca Mate — badges vs import alinhados à Análise de Contagem. */
+async function refreshCountTxtAndMateCaches() {
+  await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
+  try {
+    await ensureMateCouroCatalogLoaded();
+    await refreshMateTrocaBaseBalanceCardV2();
+  } catch {
+    /* offline ou falha Mate: compara só contagem pura até próximo refresh */
   }
 }
 
@@ -2911,14 +2939,16 @@ function renderCountProducts(products) {
     const codHtml = codRaw
       ? ` <span class="count-product-cod">· ${escapeHtml(codRaw)}</span>`
       : '';
-    const netCx = getNetByProductAndType(codRaw, 'caixa');
-    const netUn = getNetByProductAndType(codRaw, 'unidade');
+    const netCxDisplay = getNetByProductAndType(codRaw, 'caixa');
+    const netUnDisplay = getNetByProductAndType(codRaw, 'unidade');
+    const netCx = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'caixa');
+    const netUn = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'unidade');
     const pair = getCountSaldoPair(codRaw);
     const hasTxt = countImportBalancesState.hasTxt;
     const dimCx = countDimensionMatchesSaldo(codRaw, 'caixa', netCx, pair ? pair.import_caixa : 0);
     const dimUn = countDimensionMatchesSaldo(codRaw, 'unidade', netUn, pair ? pair.import_unidade : 0);
-    const vCx = Math.max(0, Math.round(Number(netCx) || 0));
-    const vUn = Math.max(0, Math.round(Number(netUn) || 0));
+    const vCx = Math.max(0, Math.round(Number(netCxDisplay) || 0));
+    const vUn = Math.max(0, Math.round(Number(netUnDisplay) || 0));
 
     let cardClass = 'count-product-item';
     const analystLiveRecount = serverRecountSignalCodes.has(codRaw);
@@ -3001,8 +3031,8 @@ function renderCountProducts(products) {
     const codRaw = String(product.cod_produto || '');
     const pair = getCountSaldoPair(codRaw);
     const hasTxt = countImportBalancesState.hasTxt;
-    const netCx = getNetByProductAndType(codRaw, 'caixa');
-    const netUn = getNetByProductAndType(codRaw, 'unidade');
+    const netCx = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'caixa');
+    const netUn = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'unidade');
     const dimCx = countDimensionMatchesSaldo(codRaw, 'caixa', netCx, pair ? pair.import_caixa : 0);
     const dimUn = countDimensionMatchesSaldo(codRaw, 'unidade', netUn, pair ? pair.import_unidade : 0);
     const fully = hasTxt && pair && dimCx === true && dimUn === true;
@@ -3137,7 +3167,7 @@ async function loadCountProducts(options = {}) {
     let products = await fetchCatalog(statusValue);
     if (products === null) {
       if (getToken()) {
-        await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
+        await refreshCountTxtAndMateCaches();
       }
       if (!skipCountRender) {
         renderCountProducts([]);
@@ -3146,7 +3176,7 @@ async function loadCountProducts(options = {}) {
       return;
     }
     if (!Array.isArray(products) || products.length === 0) {
-      await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
+      await refreshCountTxtAndMateCaches();
       if (!skipCountRender) {
         renderCountProducts([]);
         setFeedback('Nenhum produto ativo encontrado. Verifique se há produtos cadastrados como ATIVO.', true);
@@ -3154,7 +3184,7 @@ async function loadCountProducts(options = {}) {
       return;
     }
     countProductsCache = products;
-    await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
+    await refreshCountTxtAndMateCaches();
     await refreshRecountSignalsFromServer();
     if (!skipCountRender) {
       renderCountProducts(countProductsCache);
@@ -3169,7 +3199,7 @@ async function loadCountProducts(options = {}) {
     }
   } catch (e) {
     console.error('Erro ao carregar produtos:', e);
-    Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]).then(() => {
+    refreshCountTxtAndMateCaches().then(() => {
       if (!skipCountRender) renderCountProducts([]);
     });
     if (!skipCountRender) {
@@ -8535,7 +8565,7 @@ function bindCountEvents() {
   const countDateEl = document.getElementById('count-date');
   if (countDateEl) {
     countDateEl.addEventListener('change', async () => {
-      await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
+      await refreshCountTxtAndMateCaches();
       refreshRecountSignalsFromServer();
       refreshCountProductListView();
       updateCountReadOnlyState();
