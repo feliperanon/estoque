@@ -622,6 +622,93 @@ function applyCountListRestoreContext(ctx) {
     window.requestAnimationFrame(run);
   });
 }
+
+/** Igual à contagem: após re-render da lista de quebra o iOS costuma “pular” para outro item sem isso. */
+function getBreakListRestoreContext() {
+  const sub = document.getElementById('sub-break');
+  if (!sub || !sub.classList.contains('active')) return null;
+  const ae = document.activeElement;
+  let focusCod = null;
+  let focusType = null;
+  let focusReasonOnly = false;
+  if (ae && ae.classList && ae.classList.contains('count-product-qty')) {
+    const ref = ae.getAttribute('data-coderef');
+    if (ref) {
+      try {
+        focusCod = decodeURIComponent(ref);
+      } catch {
+        focusCod = ref;
+      }
+    }
+    focusType = ae.getAttribute('data-count-type') || 'caixa';
+  } else if (ae && ae.classList && ae.classList.contains('break-reason-select')) {
+    const li = ae.closest('li.count-product-item');
+    const c = li?.dataset?.codProduto;
+    if (c) {
+      focusCod = String(c);
+      focusReasonOnly = true;
+    }
+  }
+  let anchorCod = null;
+  const items = document.querySelectorAll('#break-products-list > li.count-product-item');
+  for (const li of items) {
+    if (li.style.display === 'none') continue;
+    const r = li.getBoundingClientRect();
+    if (r.width <= 0 && r.height <= 0) continue;
+    if (r.bottom > 72 && r.top < window.innerHeight) {
+      anchorCod = li.dataset.codProduto || null;
+      break;
+    }
+  }
+  if (!anchorCod) {
+    for (const li of items) {
+      if (li.style.display === 'none') continue;
+      anchorCod = li.dataset.codProduto || null;
+      if (anchorCod) break;
+    }
+  }
+  return { focusCod, focusType, anchorCod, focusReasonOnly };
+}
+
+function applyBreakListRestoreContext(ctx) {
+  if (!ctx) return;
+  const run = () => {
+    if (ctx.anchorCod) {
+      const cod = String(ctx.anchorCod);
+      const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/"/g, '\\"');
+      const el = document.querySelector(`#break-products-list > li.count-product-item[data-cod-produto="${esc}"]`);
+      if (el && el.style.display !== 'none') {
+        try {
+          el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        } catch {
+          el.scrollIntoView();
+        }
+      }
+    }
+    if (ctx.focusCod) {
+      const cod = String(ctx.focusCod);
+      const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/"/g, '\\"');
+      const li = document.querySelector(`#break-products-list > li.count-product-item[data-cod-produto="${esc}"]`);
+      if (!li || li.style.display === 'none') return;
+      if (ctx.focusReasonOnly) {
+        const rs = li.querySelector('select.break-reason-select');
+        if (rs && typeof rs.focus === 'function') rs.focus({ preventScroll: true });
+        return;
+      }
+      const ref = encodeURIComponent(cod);
+      const ct = String(ctx.focusType || 'caixa');
+      const refEsc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(ref) : ref;
+      const ctEsc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(ct) : ct;
+      const inp = li.querySelector(
+        `input.count-product-qty[data-coderef="${refEsc}"][data-count-type="${ctEsc}"]`,
+      );
+      if (inp && !inp.readOnly && typeof inp.focus === 'function') inp.focus({ preventScroll: true });
+    }
+  };
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(run);
+  });
+}
 let activeApiBasePrimary = API_BASE_URL_PRIMARY;
 let activeApiBaseFallback = API_BASE_URL_FALLBACK;
 
@@ -3415,7 +3502,25 @@ function setBreakFeedback(msg, isError = false) {
   el.style.color = '';
 }
 
-function renderBreakProducts(products) {
+function breakRestoreCtxFromQtyInput(inp) {
+  if (!inp || !inp.classList?.contains('count-product-qty')) return null;
+  const ref = inp.getAttribute('data-coderef');
+  if (!ref) return null;
+  try {
+    const cod = normalizeItemCode(decodeURIComponent(ref));
+    if (!cod) return null;
+    return {
+      focusCod: cod,
+      focusType: normalizeCountType(inp.getAttribute('data-count-type')),
+      anchorCod: cod,
+      focusReasonOnly: false,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function renderBreakProducts(products, explicitRestoreCtx) {
   const isActive = (status) => {
     const s = String(status || '').trim().toLowerCase();
     if (!s || s === 'ativo' || s === 's' || s === 'sim' || s === '1' || s === 'true' || s === 'ativado' || s === 'active') return true;
@@ -3431,7 +3536,15 @@ function renderBreakProducts(products) {
   const totalSpan = document.getElementById('break-products-total');
   if (!ul) return;
 
+  const restoreCtx =
+    explicitRestoreCtx != null
+      ? explicitRestoreCtx
+      : document.getElementById('sub-break')?.classList.contains('active')
+        ? getBreakListRestoreContext()
+        : null;
+
   const subBreak = document.getElementById('sub-break');
+  try {
   if (subBreak) subBreak.style.display = '';
   showDashboard();
   ul.hidden = false;
@@ -3446,6 +3559,7 @@ function renderBreakProducts(products) {
     ul.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
     updateBreakReadOnlyState();
     updateBreakOpProgressBar();
+    filtrarProdutosQuebra();
     return;
   }
 
@@ -3524,6 +3638,10 @@ function renderBreakProducts(products) {
   for (const product of ativos) appendCard(ul, product);
   updateBreakReadOnlyState();
   updateBreakOpProgressBar();
+  filtrarProdutosQuebra();
+  } finally {
+    if (restoreCtx) applyBreakListRestoreContext(restoreCtx);
+  }
 }
 
 function updateBreakReadOnlyState() {
