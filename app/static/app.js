@@ -5197,7 +5197,9 @@ function canonicalizeMateTrocaDaySnapshot(snap) {
 
 /**
  * Aplica delta de quebra Mate couro do dia no **servidor** (incorporacao_quebra), idempotente por
- * dia+cÃ³digo+delta. Atualiza snapshots locais sÃ³ apÃ³s POST ok; espelha pending do GET em seguida.
+ * dia+código+delta. Atualiza snapshots locais só após POST ok; espelha pending do GET em seguida.
+ * @returns {false|'noop'|'synced'} false = falha no POST; noop = nada a enviar (delta 0 neste aparelho);
+ *   synced = enviou incorporação(ões) nova(s).
  */
 async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
   await ensureMateCouroCatalogLoaded();
@@ -5259,11 +5261,13 @@ async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
     work[base] = { cx: pendCxAfter, un: pendUnAfter };
   }
 
+  let outcome = 'noop';
   if (payloads.length) {
     const res = await postMateTrocaEventsToServer(payloads);
     if (!res.ok) {
       return false;
     }
+    outcome = 'synced';
     for (const pl of payloads) {
       state.eventLog.push({
         client_event_id: pl.client_event_id,
@@ -5280,7 +5284,7 @@ async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
         device_name: pl.device_name,
         operational_date: opDay,
         created_at_local: nowIso,
-        actor_label: 'Carregar dia (quebra â†’ servidor)',
+        actor_label: 'Carregar dia (quebra → servidor)',
         synced: true,
       });
     }
@@ -5291,7 +5295,7 @@ async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
   writeMateCouroTrocaStorage(state);
 
   await refreshMateTrocaBaseScreenData();
-  return true;
+  return outcome;
 }
 
 async function ensureMateCouroCatalogLoaded() {
@@ -5645,9 +5649,15 @@ async function loadMateCouroBreakDayList() {
     const incorporacaoOk = await mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     if (lastSyncKpi) {
-      lastSyncKpi.textContent = incorporacaoOk === false
-        ? `${dayLabel} Â· ${nowStr} Â· falha ao gravar pendente no servidor`
-        : `${dayLabel} Â· ${nowStr}`;
+      if (incorporacaoOk === false) {
+        lastSyncKpi.textContent = `${dayLabel} · ${nowStr} · falha ao gravar pendente no servidor`;
+      } else if (incorporacaoOk === 'synced') {
+        lastSyncKpi.textContent = `${dayLabel} · ${nowStr} · incorporação enviada ao servidor`;
+      } else if (mateRowsDisplay.length > 0) {
+        lastSyncKpi.textContent = `${dayLabel} · ${nowStr} · sem delta novo (snapshot deste aparelho já igual à quebra do dia; se o saldo no servidor estiver errado, use Limpar snapshots e abra o dia de novo)`;
+      } else {
+        lastSyncKpi.textContent = `${dayLabel} · ${nowStr}`;
+      }
     }
     renderMateCouroDayList(dayLabel, mateRowsDisplay);
   } catch {
