@@ -11070,237 +11070,112 @@ body.bi-quebras-presentation-open {
     grid-row: 1 / 3;
   }
 }
-/* BI de Quebras - Executive Panel */
+/* BI de Quebras — mesmo fluxo visual da Análise de Contagem (scroll vertical, cartões claros) */
 #module-analise #sub-bi-quebras.sub-section.active.bi-quebras-page {
-  display: flex;
-  height: calc(100dvh - 104px);
-  max-height: calc(100dvh - 104px);
-  min-height: calc(100dvh - 104px);
-  overflow: hidden;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: min(calc(100dvh - 104px), max-content);
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 #sub-bi-quebras.bi-quebras-page {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
 }
 
 #sub-bi-quebras .bi-quebras-shell {
   position: relative;
-  flex: 1 1 auto;
   width: 100%;
-  max-width: none;
-  height: 100%;
+  max-width: 100%;
   min-height: 0;
-  padding: clamp(12px, 1.4vw, 18px);
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: clamp(10px, 1vw, 16px);
-  overflow: hidden;
-  background:
-    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(194, 59, 42, 0.1), transparent 26%),
-    linear-gradient(135deg, #eef4fb 0%, #f7fafc 38%, #edf2f7 100%);
-  border-radius: 22px;
-}
-
-#sub-bi-quebras .bi-quebras-shell::before,
-#sub-bi-quebras .bi-quebras-shell::after {
-  content: '';
-  position: absolute;
-  inset: auto;
-  pointer-events: none;
-  border-radius: 999px;
-  filter: blur(36px);
-  opacity: 0.45;
-}
-
-#sub-bi-quebras .bi-quebras-shell::before {
-  width: 220px;
-  height: 220px;
-  top: -80px;
-  right: -40px;
-  background: rgba(37, 99, 235, 0.18);
-}
-
-#sub-bi-quebras .bi-quebras-shell::after {
-  width: 180px;
-  height: 180px;
-  bottom: -70px;
-  left: -30px;
-  background: rgba(194, 59, 42, 0.15);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow: visible;
+  background: transparent;
+  border-radius: 0;
 }
 
 #sub-bi-quebras .bi-quebras-shell > * {
   position: relative;
-  z-index: 1;
-  min-height: 0;
-}
-
-#sub-bi-quebras .bi-quebras-header.card,
-#sub-bi-quebras .bi-quebras-footer.card,
-#sub-bi-quebras .bi-quebras-companies-card,
-#sub-bi-quebras .bi-quebras-side-card,
-#sub-bi-quebras .bi-quebras-company-drawer {
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(255,255,255,0.84) 100%);
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(16px);
+  min-width: 0;
 }
 
 #sub-bi-quebras .bi-quebras-header.card {
-  padding: 18px 20px;
-  display: grid;
-  gap: 14px;
-  overflow: hidden;
+  margin: 0;
 }
 
-#sub-bi-quebras .bi-quebras-header-top {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.9fr);
-  gap: 16px;
-  align-items: start;
+#sub-bi-quebras .count-audit-header__row .count-audit-page-subtitle {
+  margin: 0.35rem 0 0;
+  font-size: var(--audit-text-sm);
+  line-height: 1.45;
+  max-width: 52ch;
 }
 
-#sub-bi-quebras .bi-quebras-header-copy {
-  display: grid;
-  gap: 8px;
+/* Lista CIA: botão ocupa a linha inteira (acessível, sem quebrar grid) */
+#sub-bi-quebras #bi-quebras-segmento-list > li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-#sub-bi-quebras .bi-quebras-header-kicker,
-#sub-bi-quebras .bi-quebras-drawer-kicker {
-  display: inline-flex;
+#sub-bi-quebras #bi-quebras-segmento-list > li > button.bi-quebras-breakdown-row--interactive {
+  width: 100%;
+  margin: 0;
+  padding: 0.8rem 0.65rem;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  display: grid;
   align-items: center;
-  gap: 8px;
-  width: fit-content;
-  padding: 0.42rem 0.8rem;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.06);
-  color: #334155;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  grid-template-columns: inherit;
 }
 
-#sub-bi-quebras .bi-quebras-title {
-  margin: 0;
-  font-size: clamp(1.9rem, 2vw, 2.4rem);
-  line-height: 1;
-  letter-spacing: -0.04em;
-  font-weight: 900;
-  color: #0f172a;
+
+#sub-bi-quebras .bi-quebras-header.card.count-audit-header {
+  padding: var(--audit-space-5) var(--audit-space-6);
 }
 
-#sub-bi-quebras .bi-quebras-header-subtitle {
-  margin: 0;
-  font-size: 0.94rem;
-  line-height: 1.5;
-  color: #475569;
-  max-width: 64ch;
-}
-
-#sub-bi-quebras .bi-quebras-header-stamps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-#sub-bi-quebras .bi-quebras-stamp {
-  min-width: 0;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(15, 23, 42, 0.04);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  display: grid;
-  gap: 4px;
-}
-
-#sub-bi-quebras .bi-quebras-stamp-label,
-#sub-bi-quebras .bi-quebras-label,
-#sub-bi-quebras .bi-quebras-drawer-stat-label,
-#sub-bi-quebras .bi-quebras-insight-label,
-#sub-bi-quebras .bi-quebras-kpi-label,
-#sub-bi-quebras .bi-quebras-trend-metric-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 800;
-  color: #64748b;
-}
-
-#sub-bi-quebras .bi-quebras-stamp-value,
-#sub-bi-quebras .bi-quebras-drawer-stat-value {
-  font-size: 0.98rem;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.02em;
-}
-
-#sub-bi-quebras .bi-quebras-toolbar {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(148px, 168px)) minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: end;
-}
-
-#sub-bi-quebras .bi-quebras-field {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
+#sub-bi-quebras .bi-quebras-toolbar.count-audit-header__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--audit-space-4);
 }
 
 #sub-bi-quebras .bi-quebras-field--scope {
+  flex: 1 1 240px;
   min-width: 0;
 }
 
-#sub-bi-quebras .bi-quebras-scope-toggle,
-#sub-bi-quebras .bi-quebras-actions,
-#sub-bi-quebras .bi-quebras-tabs,
-#sub-bi-quebras .bi-quebras-inline-pager {
+#sub-bi-quebras .bi-quebras-scope-toggle {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
+  gap: var(--audit-space-2);
 }
 
-#sub-bi-quebras .bi-quebras-date-input {
-  min-height: 42px;
-  padding-inline: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #0f172a;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+#sub-bi-quebras .bi-quebras-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--audit-space-2);
 }
 
-#sub-bi-quebras .bi-quebras-date-input:focus-visible,
 #sub-bi-quebras .bi-quebras-scope-btn:focus-visible,
-#sub-bi-quebras .bi-quebras-tab-btn:focus-visible,
-#sub-bi-quebras .bi-quebras-company-row:focus-visible {
+#sub-bi-quebras .bi-quebras-btn-load:focus-visible,
+#sub-bi-quebras .bi-quebras-breakdown-row--interactive:focus-visible {
   outline: 2px solid rgba(37, 99, 235, 0.65);
   outline-offset: 2px;
-}
-
-#sub-bi-quebras .bi-quebras-scope-btn,
-#sub-bi-quebras .bi-quebras-btn-load,
-#sub-bi-quebras .bi-quebras-btn-mode,
-#sub-bi-quebras .bi-quebras-page-btn,
-#sub-bi-quebras .bi-quebras-drawer-close {
-  min-height: 40px;
-  padding: 0.5rem 0.9rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-
-#sub-bi-quebras .bi-quebras-scope-btn.is-active,
-#sub-bi-quebras .bi-quebras-tab-btn.is-active {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  border-color: #0f172a;
-  color: #f8fafc;
 }
 
 #sub-bi-quebras .bi-quebras-feedback {
@@ -11308,609 +11183,27 @@ body.bi-quebras-presentation-open {
 }
 
 #sub-bi-quebras .bi-quebras-feedback.field-feedback--error {
-  border-color: rgba(194, 59, 42, 0.24);
+  border: 1px solid rgba(194, 59, 42, 0.24);
+  border-radius: var(--audit-radius-sm);
+  padding: 0.5rem 0.75rem;
   background: rgba(254, 242, 242, 0.92);
   color: #991b1b;
 }
 
 #sub-bi-quebras .bi-quebras-feedback.field-feedback--ok {
-  border-color: rgba(15, 118, 110, 0.24);
+  border: 1px solid rgba(15, 118, 110, 0.24);
+  border-radius: var(--audit-radius-sm);
+  padding: 0.5rem 0.75rem;
   background: rgba(240, 253, 250, 0.92);
   color: #115e59;
 }
 
-#sub-bi-quebras .bi-quebras-kpi-strip {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+#sub-bi-quebras .bi-quebras-chart-wrap:not(.bi-quebras-chart-wrap--doughnut) {
+  min-height: 260px;
 }
 
-#sub-bi-quebras .bi-quebras-kpi-card {
-  min-width: 0;
-  min-height: 128px;
-  padding: 16px 18px;
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  gap: 8px;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.82) 100%);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
-}
-
-#sub-bi-quebras .bi-quebras-kpi-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  font-weight: 900;
-  color: #0f172a;
-  background: rgba(15, 23, 42, 0.06);
-}
-
-#sub-bi-quebras .bi-quebras-kpi-card--loss .bi-quebras-kpi-icon,
-#sub-bi-quebras .bi-quebras-kpi-card--loss .bi-quebras-kpi-value,
-#sub-bi-quebras .bi-quebras-product-loss,
-#sub-bi-quebras .bi-quebras-company-product-loss {
-  color: #b42318;
-}
-
-#sub-bi-quebras .bi-quebras-kpi-card--products .bi-quebras-kpi-icon,
-#sub-bi-quebras .bi-quebras-kpi-card--products .bi-quebras-kpi-value { color: #1d4ed8; }
-#sub-bi-quebras .bi-quebras-kpi-card--cx .bi-quebras-kpi-icon,
-#sub-bi-quebras .bi-quebras-kpi-card--cx .bi-quebras-kpi-value { color: #b45309; }
-#sub-bi-quebras .bi-quebras-kpi-card--un .bi-quebras-kpi-icon,
-#sub-bi-quebras .bi-quebras-kpi-card--un .bi-quebras-kpi-value { color: #0f766e; }
-#sub-bi-quebras .bi-quebras-kpi-card--company .bi-quebras-kpi-icon,
-#sub-bi-quebras .bi-quebras-kpi-card--company .bi-quebras-kpi-value { color: #4f46e5; }
-
-#sub-bi-quebras .bi-quebras-kpi-value {
-  font-size: clamp(1.45rem, 1.8vw, 2rem);
-  line-height: 1;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  color: #0f172a;
-}
-
-#sub-bi-quebras .bi-quebras-kpi-sub,
-#sub-bi-quebras .bi-quebras-card-sub,
-#sub-bi-quebras .bi-quebras-company-meta,
-#sub-bi-quebras .bi-quebras-product-copy span,
-#sub-bi-quebras .bi-quebras-company-product-meta,
-#sub-bi-quebras .bi-quebras-trend-metric-sub,
-#sub-bi-quebras .bi-quebras-executive-copy span,
-#sub-bi-quebras .bi-quebras-executive-metric span {
-  color: #64748b;
-}
-
-#sub-bi-quebras .bi-quebras-main {
-  position: relative;
-  z-index: 0;
-  isolation: isolate;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(280px, 0.88fr);
-  gap: 16px;
-  align-items: stretch;
-  overflow: hidden;
-}
-
-#sub-bi-quebras .bi-quebras-companies-card,
-#sub-bi-quebras .bi-quebras-side-card {
-  padding: 16px 18px;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 14px;
-  overflow: hidden;
-}
-
-#sub-bi-quebras .bi-quebras-section-head,
-#sub-bi-quebras .bi-quebras-footer-head,
-#sub-bi-quebras .bi-quebras-drawer-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-#sub-bi-quebras .bi-quebras-section-head h3,
-#sub-bi-quebras .bi-quebras-footer-head h3,
-#sub-bi-quebras .bi-quebras-drawer-title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  color: #0f172a;
-}
-
-#sub-bi-quebras .bi-quebras-section-head--tabs {
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-}
-
-#sub-bi-quebras .bi-quebras-section-head--tabs .bi-quebras-tabs {
-  margin-left: auto;
-}
-
-@media (max-width: 1100px) {
-  #sub-bi-quebras .bi-quebras-section-head--tabs {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  #sub-bi-quebras .bi-quebras-section-head--tabs .bi-quebras-tabs {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-start;
-  }
-}
-
-#sub-bi-quebras .bi-quebras-tab-btn {
-  min-height: 38px;
-  padding: 0.5rem 0.85rem;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 999px;
-  background: rgba(255,255,255,0.72);
-  color: #334155;
-  font-size: 0.76rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
-}
-
-#sub-bi-quebras .bi-quebras-tab-btn:hover,
-#sub-bi-quebras .bi-quebras-page-btn:hover,
-#sub-bi-quebras .bi-quebras-scope-btn:hover,
-#sub-bi-quebras .bi-quebras-btn-load:hover,
-#sub-bi-quebras .bi-quebras-btn-mode:hover,
-#sub-bi-quebras .bi-quebras-drawer-close:hover {
-  transform: translateY(-1px);
-}
-
-#sub-bi-quebras .bi-quebras-page-btn[disabled] {
-  opacity: 0.45;
-  cursor: default;
-  transform: none;
-}
-
-#sub-bi-quebras .bi-quebras-page-indicator {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #475569;
-}
-
-#sub-bi-quebras .bi-quebras-side-stage,
-#sub-bi-quebras .bi-quebras-tab-panel,
-#sub-bi-quebras .bi-quebras-panel-list-card,
-#sub-bi-quebras .bi-quebras-drawer-list-wrap {
-  min-height: 0;
-  overflow: hidden;
-}
-
-#sub-bi-quebras .bi-quebras-drawer-list-wrap {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
-}
-
-#sub-bi-quebras .bi-quebras-company-board {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
-}
-
-#sub-bi-quebras .bi-quebras-company-row {
-  width: 100%;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) minmax(150px, 0.8fr) 126px;
-  gap: 12px;
-  align-items: center;
-  padding: 14px 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(255,255,255,0.64);
-  cursor: pointer;
-  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-}
-
-#sub-bi-quebras .bi-quebras-company-row:hover {
-  transform: translateY(-1px);
-  border-color: rgba(37, 99, 235, 0.25);
-  box-shadow: 0 16px 26px rgba(15, 23, 42, 0.08);
-}
-
-#sub-bi-quebras .bi-quebras-company-row.is-selected {
-  border-color: rgba(37, 99, 235, 0.42);
-  background: linear-gradient(135deg, rgba(37,99,235,0.08) 0%, rgba(255,255,255,0.88) 100%);
-}
-
-#sub-bi-quebras .bi-quebras-company-rank,
-#sub-bi-quebras .bi-quebras-product-rank,
-#sub-bi-quebras .bi-quebras-company-product-pos {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.06);
-  font-size: 0.73rem;
-  font-weight: 800;
-  color: #475569;
-}
-
-#sub-bi-quebras .bi-quebras-company-main,
-#sub-bi-quebras .bi-quebras-company-product-main,
-#sub-bi-quebras .bi-quebras-product-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-#sub-bi-quebras .bi-quebras-company-name,
-#sub-bi-quebras .bi-quebras-product-copy strong,
-#sub-bi-quebras .bi-quebras-company-product-desc,
-#sub-bi-quebras .bi-quebras-executive-copy strong,
-#sub-bi-quebras .bi-quebras-insight-text {
-  font-weight: 800;
-  color: #0f172a;
-}
-
-#sub-bi-quebras .bi-quebras-company-bar,
-#sub-bi-quebras .bi-quebras-executive-bar {
-  position: relative;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.16);
-  overflow: hidden;
-}
-
-#sub-bi-quebras .bi-quebras-company-bar span,
-#sub-bi-quebras .bi-quebras-executive-bar span {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #0f172a 0%, #334155 100%);
-}
-
-#sub-bi-quebras .bi-quebras-company-value,
-#sub-bi-quebras .bi-quebras-executive-metric {
-  display: grid;
-  gap: 4px;
-  justify-items: end;
-  text-align: right;
-  color: #334155;
-  font-variant-numeric: tabular-nums;
-}
-
-#sub-bi-quebras .bi-quebras-side-stage {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
-  grid-template-columns: minmax(0, 1fr);
-  min-height: 0;
-}
-
-#sub-bi-quebras .bi-quebras-tab-panel {
-  height: 100%;
-  min-height: 0;
-  align-self: stretch;
-}
-
-#sub-bi-quebras .bi-quebras-tab-panel[hidden] {
-  display: none !important;
-}
-
-#sub-bi-quebras .bi-quebras-tab-panel.is-active {
-  display: grid;
-}
-
-#sub-bi-quebras #bi-quebras-tab-trend {
-  grid-template-rows: minmax(220px, 1fr) auto;
-  gap: 12px;
-}
-
-#sub-bi-quebras #bi-quebras-tab-reasons.is-active,
-#sub-bi-quebras #bi-quebras-tab-products.is-active {
-  grid-template-rows: minmax(0, 1fr);
-  align-content: stretch;
-}
-
-#sub-bi-quebras #bi-quebras-tab-reasons.is-active .bi-quebras-reason-stage {
-  min-height: 240px;
-  height: 100%;
-}
-
-#sub-bi-quebras .bi-quebras-mini-chart-card .bi-quebras-chart-wrap--mini {
-  min-height: 200px;
-}
-
-#sub-bi-quebras .bi-quebras-chart-wrap {
-  position: relative;
-  min-height: 0;
-  border-radius: 20px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.86) 100%);
-  overflow: hidden;
-}
-
-#sub-bi-quebras .bi-quebras-chart-wrap--executive {
-  padding: 14px 16px;
-  min-height: clamp(220px, 32vh, 400px);
-  height: 100%;
-  box-sizing: border-box;
-}
-
-#sub-bi-quebras .bi-quebras-chart-wrap--mini {
-  height: 100%;
-  min-height: 0;
-  padding: 12px;
-}
-
-#sub-bi-quebras .bi-quebras-chart-wrap canvas {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-#sub-bi-quebras .bi-quebras-chart-empty {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  text-align: center;
-  color: #64748b;
-  font-weight: 600;
-}
-
-#sub-bi-quebras .bi-quebras-trend-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-#sub-bi-quebras .bi-quebras-trend-metric {
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(255,255,255,0.72);
-  display: grid;
-  gap: 4px;
-}
-
-#sub-bi-quebras .bi-quebras-trend-metric-value {
-  font-size: 1rem;
-  font-weight: 900;
-  color: #0f172a;
-  letter-spacing: -0.03em;
-}
-
-#sub-bi-quebras .bi-quebras-reason-stage {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(210px, 0.84fr) minmax(0, 1fr);
-  gap: 12px;
-}
-
-#sub-bi-quebras .bi-quebras-mini-chart-card,
-#sub-bi-quebras .bi-quebras-panel-list-card {
-  min-height: 0;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(255,255,255,0.68);
-  padding: 12px;
-  display: grid;
-}
-
-#sub-bi-quebras .bi-quebras-panel-list-card {
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 12px;
-}
-
-#sub-bi-quebras .bi-quebras-panel-list-card--full {
-  height: 100%;
-}
-
-#sub-bi-quebras .bi-quebras-executive-list,
-#sub-bi-quebras .bi-quebras-company-products-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
-}
-
-#sub-bi-quebras .bi-quebras-executive-row,
-#sub-bi-quebras .bi-quebras-product-card,
-#sub-bi-quebras .bi-quebras-company-product-row {
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(255,255,255,0.8);
-}
-
-#sub-bi-quebras .bi-quebras-executive-row {
-  padding: 12px 14px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
-}
-
-#sub-bi-quebras .bi-quebras-product-card {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto auto;
-  gap: 12px;
-  align-items: center;
-  padding: 12px 14px;
-}
-
-#sub-bi-quebras .bi-quebras-product-metrics {
-  display: grid;
-  gap: 4px;
-  justify-items: end;
-  color: #475569;
-  font-size: 0.82rem;
-  font-variant-numeric: tabular-nums;
-}
-
-#sub-bi-quebras .bi-quebras-company-drawer {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  bottom: 8px;
-  width: min(100%, 420px);
-  max-width: calc(100% - 16px);
-  padding: 16px;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: 12px;
-  overflow: hidden;
-  border-radius: 22px;
-  z-index: 4;
-  box-shadow: -12px 0 40px rgba(15, 23, 42, 0.12);
-  transform: translateX(calc(100% + 24px));
-  opacity: 0;
-  pointer-events: none;
-  transition: transform 0.28s ease, opacity 0.28s ease, box-shadow 0.28s ease;
-}
-
-#sub-bi-quebras .bi-quebras-company-drawer.is-open {
-  transform: translateX(0);
-  opacity: 1;
-  pointer-events: auto;
-  box-shadow: -16px 0 48px rgba(15, 23, 42, 0.16);
-}
-
-#sub-bi-quebras .bi-quebras-drawer-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-#sub-bi-quebras .bi-quebras-drawer-stat {
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(15, 23, 42, 0.04);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  display: grid;
-  gap: 4px;
-}
-
-#sub-bi-quebras .bi-quebras-company-product-row {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 78px 78px 118px;
-  gap: 10px;
-  align-items: center;
-  padding: 12px 14px;
-  font-size: 0.82rem;
-}
-
-#sub-bi-quebras .bi-quebras-company-product-cx,
-#sub-bi-quebras .bi-quebras-company-product-un,
-#sub-bi-quebras .bi-quebras-company-product-loss {
-  text-align: right;
-  color: #334155;
-  font-variant-numeric: tabular-nums;
-}
-
-#sub-bi-quebras .bi-quebras-company-product-loss {
-  font-weight: 800;
-}
-
-#sub-bi-quebras .bi-quebras-empty-state,
-#sub-bi-quebras .bi-quebras-executive-empty,
-#sub-bi-quebras .bi-quebras-company-products-empty {
-  display: grid;
-  place-items: center;
-  min-height: 120px;
-  padding: 16px;
-  text-align: center;
-  color: #64748b;
-  border-radius: 18px;
-  border: 1px dashed rgba(148, 163, 184, 0.28);
-  background: rgba(255,255,255,0.68);
-}
-
-#sub-bi-quebras .bi-quebras-footer.card {
-  padding: 16px 18px;
-  display: grid;
-  gap: 12px;
-  overflow: hidden;
-}
-
-#sub-bi-quebras .bi-quebras-insights {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-#sub-bi-quebras .bi-quebras-insight-card {
-  padding: 14px 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(255,255,255,0.74);
-  display: grid;
-  gap: 8px;
-}
-
-#sub-bi-quebras .bi-quebras-insight-text {
-  margin: 0;
-  font-size: 0.92rem;
-  line-height: 1.45;
-}
-
-#sub-bi-quebras .bi-quebras-no-price-alert {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(217, 119, 6, 0.22);
-  background: rgba(255, 251, 235, 0.88);
-}
-
-#sub-bi-quebras .bi-quebras-alert-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(217, 119, 6, 0.12);
-  color: #b45309;
-  font-weight: 900;
-  flex-shrink: 0;
-}
-
-#sub-bi-quebras .bi-quebras-alert-text strong {
-  display: block;
-  margin-bottom: 4px;
-  color: #92400e;
-}
-
-#sub-bi-quebras .bi-quebras-no-price-list {
-  margin: 0;
-  color: #7c5b16;
-  font-size: 0.84rem;
-  line-height: 1.45;
+#sub-bi-quebras .bi-quebras-chart-wrap--doughnut {
+  min-height: 220px;
 }
 
 #sub-bi-quebras .bi-quebras-shell.is-presentation-mode,
@@ -11922,115 +11215,13 @@ body.bi-quebras-presentation-open {
   padding: 22px;
 }
 
-@media (max-width: 1360px) {
-  #sub-bi-quebras .bi-quebras-header-top {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  #sub-bi-quebras .bi-quebras-toolbar {
-    grid-template-columns: repeat(2, minmax(148px, 168px)) minmax(0, 1fr);
-  }
-
+@media (max-width: 720px) {
   #sub-bi-quebras .bi-quebras-actions {
-    justify-content: flex-end;
-    grid-column: 1 / -1;
-  }
-
-  #sub-bi-quebras .bi-quebras-company-drawer {
-    width: min(440px, 44%);
-  }
-}
-
-@media (max-width: 1180px) {
-  #sub-bi-quebras .bi-quebras-kpi-strip {
-    gap: 10px;
-  }
-
-  #sub-bi-quebras .bi-quebras-kpi-card {
-    min-height: 118px;
-    padding: 14px 16px;
-  }
-
-  #sub-bi-quebras .bi-quebras-main {
-    grid-template-columns: minmax(0, 1fr) minmax(340px, 0.86fr);
-  }
-
-  #sub-bi-quebras .bi-quebras-company-row {
-    grid-template-columns: 36px minmax(0, 1fr) minmax(120px, 0.76fr) 112px;
-  }
-
-  #sub-bi-quebras .bi-quebras-company-drawer {
-    width: min(430px, 48%);
-  }
-}
-
-@media (max-width: 1040px) {
-  #sub-bi-quebras .bi-quebras-main {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 14px;
-  }
-
-  #sub-bi-quebras .bi-quebras-side-card {
-    min-height: 400px;
-  }
-
-  #sub-bi-quebras .bi-quebras-reason-stage {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(200px, 1fr);
-  }
-
-  #sub-bi-quebras .bi-quebras-mini-chart-card {
-    min-height: 240px;
-  }
-}
-
-@media (max-width: 960px) {
-  #module-analise #sub-bi-quebras.sub-section.active.bi-quebras-page {
-    height: auto;
-    max-height: none;
-    min-height: 0;
-    overflow: visible;
-  }
-
-  #sub-bi-quebras.bi-quebras-page,
-  #sub-bi-quebras .bi-quebras-shell,
-  #sub-bi-quebras .bi-quebras-main {
-    overflow: visible;
-  }
-
-  #sub-bi-quebras .bi-quebras-shell {
-    height: auto;
-    max-height: none;
-    grid-template-rows: auto;
-  }
-
-  #sub-bi-quebras .bi-quebras-kpi-strip,
-  #sub-bi-quebras .bi-quebras-insights {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  #sub-bi-quebras .bi-quebras-main,
-  #sub-bi-quebras .bi-quebras-reason-stage,
-  #sub-bi-quebras .bi-quebras-header-stamps {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  #sub-bi-quebras .bi-quebras-trend-metrics {
-    grid-template-columns: 1fr;
-  }
-
-  #sub-bi-quebras .bi-quebras-company-drawer {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
+    margin-left: 0;
     width: 100%;
-    transform: none;
-    opacity: 1;
-    pointer-events: auto;
   }
-
-  #sub-bi-quebras .bi-quebras-company-drawer[hidden] {
-    display: none;
+  #sub-bi-quebras .bi-quebras-actions .bi-quebras-btn-load {
+    flex: 1;
+    justify-content: center;
   }
 }
