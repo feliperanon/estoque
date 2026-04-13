@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=62" />
+    <link rel="stylesheet" href="/static/style.css?v=63" />
     <script src="/static/vendor/chart.umd.min.js?v=4.4.3" defer></script>
     <title>{{ app_name }}</title>
   </head>
@@ -1401,11 +1401,12 @@
 
               <!-- Gráfico de linha: prejuízo por dia -->
               <section class="card bi-quebras-chart-card count-audit-list-card" aria-labelledby="bi-quebras-chart-title">
-                <div class="card-head bi-quebras-chart-head count-audit-list-head">
+                <div class="card-head bi-quebras-chart-head count-audit-list-head bi-quebras-card-head-row">
                   <div>
                     <h3 id="bi-quebras-chart-title">Prejuízo estimado por dia (R$)</h3>
                     <p class="bi-quebras-card-sub count-audit-card-sub muted">Série temporal dos lançamentos de quebra no período selecionado</p>
                   </div>
+                  <button type="button" class="btn-secondary bi-quebras-btn-present" data-bi-quebras-present="line" title="Abrir gráfico em tela cheia para apresentação">Apresentar</button>
                 </div>
                 <div class="bi-quebras-chart-wrap">
                   <canvas id="bi-quebras-chart-line" role="img" aria-label="Gráfico de prejuízo por dia"></canvas>
@@ -1422,7 +1423,10 @@
                       <h3 id="bi-quebras-ranking-title">Top produtos por prejuízo</h3>
                       <p class="bi-quebras-card-sub count-audit-card-sub muted">Ranking dos 20 maiores ofensores (curva ABC parcial)</p>
                     </div>
-                    <span id="bi-quebras-ranking-count" class="chip count-audit-total-chip">0</span>
+                    <div class="bi-quebras-ranking-head-actions">
+                      <button type="button" class="btn-secondary bi-quebras-btn-present" data-bi-quebras-present="ranking" title="Abrir ranking em tela cheia para apresentação">Apresentar</button>
+                      <span id="bi-quebras-ranking-count" class="chip count-audit-total-chip">0</span>
+                    </div>
                   </div>
                   <div class="bi-quebras-ranking-header" aria-hidden="true">
                     <span>#</span>
@@ -1441,9 +1445,12 @@
                 <div class="bi-quebras-breakdown-grid">
 
                   <section class="card bi-quebras-segmento-card count-audit-list-card" aria-labelledby="bi-quebras-segmento-title">
-                    <div class="card-head count-audit-card-head count-audit-card-head--tight">
-                      <h3 id="bi-quebras-segmento-title">Por CIA</h3>
-                      <p class="bi-quebras-card-sub count-audit-card-sub muted">Distribuição de prejuízo por companhia e acesso aos produtos da CIA</p>
+                    <div class="card-head count-audit-card-head count-audit-card-head--tight bi-quebras-card-head-row">
+                      <div>
+                        <h3 id="bi-quebras-segmento-title">Por CIA</h3>
+                        <p class="bi-quebras-card-sub count-audit-card-sub muted">Distribuição de prejuízo por companhia — clique na fatia ou na lista para ver os produtos da CIA</p>
+                      </div>
+                      <button type="button" class="btn-secondary bi-quebras-btn-present" data-bi-quebras-present="segmento" title="Abrir gráfico e lista em tela cheia">Apresentar</button>
                     </div>
                     <div class="bi-quebras-chart-wrap bi-quebras-chart-wrap--doughnut">
                       <canvas id="bi-quebras-chart-segmento" role="img" aria-label="Gráfico de prejuízo por CIA"></canvas>
@@ -1466,9 +1473,12 @@
                   </section>
 
                   <section class="card bi-quebras-reason-card count-audit-list-card" aria-labelledby="bi-quebras-reason-title">
-                    <div class="card-head count-audit-card-head count-audit-card-head--tight">
-                      <h3 id="bi-quebras-reason-title">Por motivo</h3>
-                      <p class="bi-quebras-card-sub count-audit-card-sub muted">Ocorrências e impacto R$ por motivo registrado</p>
+                    <div class="card-head count-audit-card-head count-audit-card-head--tight bi-quebras-card-head-row">
+                      <div>
+                        <h3 id="bi-quebras-reason-title">Por motivo</h3>
+                        <p class="bi-quebras-card-sub count-audit-card-sub muted">Ocorrências e impacto R$ por motivo registrado</p>
+                      </div>
+                      <button type="button" class="btn-secondary bi-quebras-btn-present" data-bi-quebras-present="reason" title="Abrir gráfico em tela cheia">Apresentar</button>
                     </div>
                     <div class="bi-quebras-chart-wrap bi-quebras-chart-wrap--doughnut">
                       <canvas id="bi-quebras-chart-reason" role="img" aria-label="Gráfico de prejuízo por motivo"></canvas>
@@ -1488,6 +1498,41 @@
                 <div class="bi-quebras-alert-text">
                   <strong>Produtos sem preço no cadastro</strong>
                   <p id="bi-quebras-no-price-list" class="bi-quebras-no-price-list"></p>
+                </div>
+              </div>
+
+              <!-- Modo apresentação: gráficos / ranking em tela cheia -->
+              <div id="bi-quebras-presentation" class="bi-quebras-presentation" hidden role="dialog" aria-modal="true" aria-labelledby="bi-quebras-presentation-title" data-presentation-mode="">
+                <div class="bi-quebras-presentation-bar">
+                  <h2 id="bi-quebras-presentation-title" class="bi-quebras-presentation-title">Apresentação</h2>
+                  <div class="bi-quebras-presentation-bar-actions">
+                    <button type="button" id="btn-bi-quebras-presentation-fs" class="btn-secondary" title="Tela cheia do navegador (ESC para sair)">Tela cheia</button>
+                    <button type="button" id="btn-bi-quebras-presentation-close" class="btn-secondary btn-dark">Fechar</button>
+                  </div>
+                </div>
+                <p id="bi-quebras-presentation-sub" class="bi-quebras-presentation-sub muted"></p>
+                <div class="bi-quebras-presentation-body">
+                  <div id="bi-quebras-presentation-chart-wrap" class="bi-quebras-presentation-chart-wrap">
+                    <canvas id="bi-quebras-presentation-canvas" aria-hidden="true"></canvas>
+                  </div>
+                  <div id="bi-quebras-presentation-ranking-wrap" class="bi-quebras-presentation-ranking-wrap" hidden>
+                    <div class="bi-quebras-presentation-ranking-header" aria-hidden="true">
+                      <span>#</span><span>Produto</span><span>CIA</span><span>CX</span><span>UN</span><span>R$</span>
+                    </div>
+                    <ul id="bi-quebras-presentation-ranking-list" class="bi-quebras-list" role="list"></ul>
+                  </div>
+                  <aside id="bi-quebras-presentation-cia-aside" class="bi-quebras-presentation-cia-aside" hidden>
+                    <p class="muted bi-quebras-presentation-cia-hint">Toque em uma fatia do gráfico ou em uma CIA abaixo para listar os produtos.</p>
+                    <div id="bi-quebras-presentation-cia-chips" class="bi-quebras-presentation-cia-chips" role="group" aria-label="Selecionar companhia"></div>
+                    <div class="bi-quebras-presentation-prod-toolbar">
+                      <h4 id="bi-quebras-presentation-prod-title" class="bi-quebras-presentation-prod-title">Produtos da CIA</h4>
+                      <div class="bi-quebras-presentation-sort" role="group" aria-label="Ordenação">
+                        <button type="button" class="btn-secondary is-active" data-bi-quebras-pres-sort="loss">Prejuízo</button>
+                        <button type="button" class="btn-secondary" data-bi-quebras-pres-sort="volume">Volume CX+UN</button>
+                      </div>
+                    </div>
+                    <ul id="bi-quebras-presentation-prod-list" class="bi-quebras-company-products-list" role="list" aria-label="Produtos da CIA na apresentação"></ul>
+                  </aside>
                 </div>
               </div>
 
@@ -1845,7 +1890,7 @@
       </main>
     </div>
 
-    <script src="/static/app.js?v=79"></script>
+    <script src="/static/app.js?v=81"></script>
     <script src="/static/pwa-install.js?v=6"></script>
   </body>
 </html>
