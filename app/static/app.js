@@ -596,11 +596,15 @@ function applyCountListRestoreContext(ctx) {
       const cod = String(ctx.anchorCod);
       const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/"/g, '\\"');
       const el = document.querySelector(`#count-products-list > li.count-product-item[data-cod-produto="${esc}"]`);
-      if (el && el.style.display !== 'none') {
+      if (el && el.isConnected && el.style.display !== 'none') {
         try {
           el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         } catch {
-          el.scrollIntoView();
+          try {
+            el.scrollIntoView();
+          } catch {
+            /* ignore: nó pode ter sido removido (rAF adiado) */
+          }
         }
       }
     }
@@ -613,8 +617,12 @@ function applyCountListRestoreContext(ctx) {
       const inp =
         document.querySelector(`#count-products-list ${sel}`) ||
         document.querySelector(`#count-products-list-done ${sel}`);
-      if (inp && !inp.readOnly && typeof inp.focus === 'function') {
-        inp.focus({ preventScroll: true });
+      if (inp && inp.isConnected && !inp.readOnly && typeof inp.focus === 'function') {
+        try {
+          inp.focus({ preventScroll: true });
+        } catch {
+          /* ignore */
+        }
       }
     }
   };
@@ -677,11 +685,15 @@ function applyBreakListRestoreContext(ctx) {
       const cod = String(ctx.anchorCod);
       const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/"/g, '\\"');
       const el = document.querySelector(`#break-products-list > li.count-product-item[data-cod-produto="${esc}"]`);
-      if (el && el.style.display !== 'none') {
+      if (el && el.isConnected && el.style.display !== 'none') {
         try {
           el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         } catch {
-          el.scrollIntoView();
+          try {
+            el.scrollIntoView();
+          } catch {
+            /* ignore: nó pode ter sido removido (rAF adiado) */
+          }
         }
       }
     }
@@ -689,10 +701,16 @@ function applyBreakListRestoreContext(ctx) {
       const cod = String(ctx.focusCod);
       const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/"/g, '\\"');
       const li = document.querySelector(`#break-products-list > li.count-product-item[data-cod-produto="${esc}"]`);
-      if (!li || li.style.display === 'none') return;
+      if (!li || !li.isConnected || li.style.display === 'none') return;
       if (ctx.focusReasonOnly) {
         const rs = li.querySelector('select.break-reason-select');
-        if (rs && typeof rs.focus === 'function') rs.focus({ preventScroll: true });
+        if (rs && rs.isConnected && typeof rs.focus === 'function') {
+          try {
+            rs.focus({ preventScroll: true });
+          } catch {
+            /* ignore */
+          }
+        }
         return;
       }
       const ref = encodeURIComponent(cod);
@@ -702,7 +720,13 @@ function applyBreakListRestoreContext(ctx) {
       const inp = li.querySelector(
         `input.count-product-qty[data-coderef="${refEsc}"][data-count-type="${ctEsc}"]`,
       );
-      if (inp && !inp.readOnly && typeof inp.focus === 'function') inp.focus({ preventScroll: true });
+      if (inp && inp.isConnected && !inp.readOnly && typeof inp.focus === 'function') {
+        try {
+          inp.focus({ preventScroll: true });
+        } catch {
+          /* ignore */
+        }
+      }
     }
   };
   window.requestAnimationFrame(() => {
