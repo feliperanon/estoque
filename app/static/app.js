@@ -1,4 +1,4 @@
-﻿/** Data civil em America/Sao_Paulo (YYYY-MM-DD). */
+/** Data civil em America/Sao_Paulo (YYYY-MM-DD). */
 function getBrazilDateKey(d = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Sao_Paulo',
@@ -5933,9 +5933,9 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     if (kindRaw === 'chegada') {
       mov = `Registro de chegada: entrada CX ${formatBreakIntegerBR(ev.qty_cx_in)} Â· UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`;
     } else if (kindRaw === 'incorporacao_quebra') {
-      mov = `Ao usar <strong>Carregar</strong>, o pendente ganhou o que estava na quebra daquele dia na base: ${mateTrocaSignedCxUnParts(ev.qty_cx_in, ev.qty_un_in)}.`;
+      mov = `Ao usar Carregar, o pendente ganhou o que estava na quebra daquele dia na base: ${mateTrocaSignedCxUnParts(ev.qty_cx_in, ev.qty_un_in)}.`;
     } else if (kindRaw === 'quebra_operacional') {
-      mov = `Na tela <strong>Quebra</strong>, para aquele dia, ficou anotado: CX ${formatBreakIntegerBR(ev.qty_cx_in)} Â· UN ${formatBreakIntegerBR(ev.qty_un_in)} (total do dia na base).`;
+      mov = `Na tela Quebra, para aquele dia, ficou anotado: CX ${formatBreakIntegerBR(ev.qty_cx_in)} Â· UN ${formatBreakIntegerBR(ev.qty_un_in)} (total do dia na base).`;
     } else if (kindRaw === 'zerar') {
       mov = 'Zerar: a conta do pendente foi colocada em zero.';
     } else if (kindRaw === 'definir') {
