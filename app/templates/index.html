@@ -1355,6 +1355,14 @@
                     <label class="bi-quebras-label count-audit-label" for="bi-quebras-date-to">Até</label>
                     <input id="bi-quebras-date-to" name="bi-quebras-date-to" type="date" class="search-input bi-quebras-date-input count-audit-date-input" aria-label="Data final do período" />
                   </div>
+                  <div class="bi-quebras-field bi-quebras-field--scope">
+                    <span class="bi-quebras-label count-audit-label">Visualização CIA</span>
+                    <div class="bi-quebras-scope-toggle" role="group" aria-label="Filtro visual por CIA">
+                      <button type="button" class="btn-secondary bi-quebras-scope-btn is-active" data-bi-quebras-cia-scope="todas" aria-pressed="true">Todas CIA</button>
+                      <button type="button" class="btn-secondary bi-quebras-scope-btn" data-bi-quebras-cia-scope="mate-couro" aria-pressed="false">CIA Mate couro</button>
+                      <button type="button" class="btn-secondary bi-quebras-scope-btn" data-bi-quebras-cia-scope="outras" aria-pressed="false">Outras CIA</button>
+                    </div>
+                  </div>
                   <div class="bi-quebras-actions count-audit-header__actions">
                     <button type="button" id="btn-bi-quebras-load" class="btn-secondary btn-dark bi-quebras-btn-load count-audit-btn-refresh">Carregar BI</button>
                   </div>
@@ -1419,7 +1427,7 @@
                   <div class="bi-quebras-ranking-header" aria-hidden="true">
                     <span>#</span>
                     <span>Produto</span>
-                    <span>Segmento</span>
+                    <span>CIA</span>
                     <span>CX</span>
                     <span>UN</span>
                     <span>R$ Estimado</span>
@@ -1434,14 +1442,26 @@
 
                   <section class="card bi-quebras-segmento-card count-audit-list-card" aria-labelledby="bi-quebras-segmento-title">
                     <div class="card-head count-audit-card-head count-audit-card-head--tight">
-                      <h3 id="bi-quebras-segmento-title">Por segmento</h3>
-                      <p class="bi-quebras-card-sub count-audit-card-sub muted">Distribuição de prejuízo por categoria de produto</p>
+                      <h3 id="bi-quebras-segmento-title">Por CIA</h3>
+                      <p class="bi-quebras-card-sub count-audit-card-sub muted">Distribuição de prejuízo por companhia e acesso aos produtos da CIA</p>
                     </div>
                     <div class="bi-quebras-chart-wrap bi-quebras-chart-wrap--doughnut">
-                      <canvas id="bi-quebras-chart-segmento" role="img" aria-label="Gráfico de prejuízo por segmento"></canvas>
+                      <canvas id="bi-quebras-chart-segmento" role="img" aria-label="Gráfico de prejuízo por CIA"></canvas>
                     </div>
                     <div class="bi-quebras-breakdown-list-panel">
-                      <ul id="bi-quebras-segmento-list" class="bi-quebras-breakdown-list" role="list" aria-label="Lista de prejuízo por segmento"></ul>
+                      <ul id="bi-quebras-segmento-list" class="bi-quebras-breakdown-list" role="list" aria-label="Lista de prejuízo por CIA"></ul>
+                    </div>
+                    <div class="bi-quebras-company-products">
+                      <div class="bi-quebras-company-products-head">
+                        <div>
+                          <h4 id="bi-quebras-company-products-title">Produtos da CIA</h4>
+                          <p class="bi-quebras-card-sub count-audit-card-sub muted">Clique em uma CIA acima para ver os produtos do grupo.</p>
+                        </div>
+                        <span id="bi-quebras-company-products-count" class="chip count-audit-total-chip">0</span>
+                      </div>
+                      <div class="bi-quebras-company-products-panel">
+                        <ul id="bi-quebras-company-products-list" class="bi-quebras-company-products-list" role="list" aria-label="Produtos da CIA selecionada"></ul>
+                      </div>
                     </div>
                   </section>
 

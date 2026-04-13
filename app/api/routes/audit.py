@@ -1901,6 +1901,38 @@ def _mate_couro_allowed_product_codes(session: Session) -> set[str]:
     return allowed
 
 
+def _normalize_bi_quebras_cia_scope(raw: str | None) -> str:
+    scope = (raw or "").strip().lower()
+    if scope in ("", BI_QUEBRAS_CIA_SCOPE_ALL, "todos", "all"):
+        return BI_QUEBRAS_CIA_SCOPE_ALL
+    if scope in (BI_QUEBRAS_CIA_SCOPE_MATE_COURO, "mate_couro", "mate couro", "mate"):
+        return BI_QUEBRAS_CIA_SCOPE_MATE_COURO
+    if scope in (BI_QUEBRAS_CIA_SCOPE_OUTRAS, "outras-cias", "outras_cias", "other"):
+        return BI_QUEBRAS_CIA_SCOPE_OUTRAS
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="Filtro de CIA invalido para BI de quebras.",
+    )
+
+
+def _normalize_bi_quebras_cia_label(raw: str | None) -> str:
+    return (raw or "").strip() or "Sem CIA"
+
+
+def _is_mate_couro_cia(raw: str | None) -> bool:
+    return _normalize_bi_quebras_cia_label(raw).casefold() == MATE_COURO_CIA.casefold()
+
+
+def _matches_bi_quebras_cia_scope(raw_cia: str | None, scope: str) -> bool:
+    normalized_scope = _normalize_bi_quebras_cia_scope(scope)
+    if normalized_scope == BI_QUEBRAS_CIA_SCOPE_ALL:
+        return True
+    is_mate = _is_mate_couro_cia(raw_cia)
+    if normalized_scope == BI_QUEBRAS_CIA_SCOPE_MATE_COURO:
+        return is_mate
+    return not is_mate
+
+
 def _mate_couro_break_totals_date_range(session: Session, d_from: date, d_to: date) -> dict[str, dict[str, int]]:
     """Soma CX/UN de quebras (ChangeLog) no intervalo inclusive, só produtos CIA Mate couro."""
     if d_from > d_to:
@@ -2900,6 +2932,9 @@ _ALLOWED_MATE_TROCA_KINDS = frozenset(
     {"chegada", "definir", "zerar", "ajuste_pendente", "incorporacao_quebra"}
 )
 MAX_MATE_TROCA_BATCH_SCAN = 12_000
+BI_QUEBRAS_CIA_SCOPE_ALL = "todas"
+BI_QUEBRAS_CIA_SCOPE_MATE_COURO = "mate-couro"
+BI_QUEBRAS_CIA_SCOPE_OUTRAS = "outras"
 
 
 def _ensure_mate_couro_troca_logs_table() -> None:
@@ -3946,6 +3981,10 @@ def bi_quebras_dashboard(
         default=None,
         description="Fim do intervalo YYYY-MM-DD (America/Sao_Paulo). Padrão: hoje.",
     ),
+    cia_scope: str = Query(
+        default=BI_QUEBRAS_CIA_SCOPE_ALL,
+        description="Filtro visual por CIA: todas, mate-couro, outras.",
+    ),
     session: Session = Depends(get_session),
     _: User = Depends(require_roles("conferente", "administrativo", "admin")),
 ) -> dict:
@@ -3957,10 +3996,12 @@ def bi_quebras_dashboard(
     - ``summary``: totais gerais (produtos únicos, total_cx, total_un, prejuizo_brl estimado).
     - ``by_day``: série temporal de prejuízo estimado por dia operacional.
     - ``top_products``: top-N produtos por prejuízo estimado (curva ABC parcial).
+    - ``by_company``: quebras agrupadas por CIA (% e R$) com lista de produtos por CIA.
     - ``by_category``: quebras agrupadas por cod_grup_segmento (% e R$).
     - ``by_reason``: quebras agrupadas por motivo (% e R$).
     - ``products_without_price``: códigos com quebra mas sem preço cadastrado.
     """
+    normalized_cia_scope = _normalize_bi_quebras_cia_scope(cia_scope)
     br_today = datetime.now(timezone.utc).astimezone(_BR).date()
     d_to_val = _parse_iso_date_arg(date_to) if date_to else br_today
     if d_to_val is None:
@@ -3997,6 +4038,13 @@ def bi_quebras_dashboard(
                     "conversion_factor": float(p.conversion_factor) if p.conversion_factor is not None else None,
                 }
 
+    if normalized_cia_scope != BI_QUEBRAS_CIA_SCOPE_ALL:
+        raw_events = [
+            e
+            for e in raw_events
+            if _matches_bi_quebras_cia_scope(product_map.get(e["cod_produto"], {}).get("cia"), normalized_cia_scope)
+        ]
+
     def _estimate_loss(cod: str, qty_cx: int, qty_un: int) -> float | None:
         """Prejuízo estimado em R$ (unidades equivalentes × preço unitário)."""
         info = product_map.get(cod)
@@ -4028,6 +4076,7 @@ def bi_quebras_dashboard(
         rec["descricao"] = info.get("descricao", cod)
         rec["segmento"] = info.get("segmento", "Sem segmento")
         rec["marca"] = info.get("marca", "Sem marca")
+        rec["cia"] = _normalize_bi_quebras_cia_label(info.get("cia"))
         if info.get("price") is None:
             products_without_price.append(cod)
 
@@ -4075,6 +4124,7 @@ def bi_quebras_dashboard(
         {
             "cod_produto": cod,
             "descricao": rec["descricao"],
+            "cia": rec["cia"],
             "segmento": rec["segmento"],
             "cx": int(rec["cx"]),
             "un": int(rec["un"]),
@@ -4104,6 +4154,64 @@ def bi_quebras_dashboard(
         }
         for seg, v in sorted(seg_agg.items(), key=lambda kv: kv[1]["loss_brl"], reverse=True)
     ]
+
+    # 6.1) Agrupamento por CIA com lista de produtos clicável no front
+    company_agg: dict[str, dict] = {}
+    for cod, rec in by_code.items():
+        cia = _normalize_bi_quebras_cia_label(rec.get("cia"))
+        if cia not in company_agg:
+            company_agg[cia] = {
+                "loss_brl": 0.0,
+                "items": 0,
+                "total_cx": 0,
+                "total_un": 0,
+                "has_price": False,
+                "products": [],
+            }
+        company_agg[cia]["items"] += 1
+        company_agg[cia]["total_cx"] += int(rec["cx"])
+        company_agg[cia]["total_un"] += int(rec["un"])
+        loss = rec.get("loss_brl")
+        if loss is not None:
+            company_agg[cia]["loss_brl"] += loss
+            company_agg[cia]["has_price"] = True
+        company_agg[cia]["products"].append(
+            {
+                "cod_produto": cod,
+                "descricao": rec["descricao"],
+                "segmento": rec["segmento"],
+                "cia": cia,
+                "cx": int(rec["cx"]),
+                "un": int(rec["un"]),
+                "loss_brl": loss,
+            }
+        )
+
+    total_company_loss = sum(v["loss_brl"] for v in company_agg.values() if v["has_price"])
+    by_company = []
+    for cia, v in sorted(company_agg.items(), key=lambda kv: kv[1]["loss_brl"], reverse=True):
+        products = sorted(
+            v["products"],
+            key=lambda p: (
+                -(p.get("loss_brl") or 0),
+                -(p.get("cx") or 0),
+                -(p.get("un") or 0),
+                str(p.get("descricao") or "").lower(),
+            ),
+        )
+        by_company.append(
+            {
+                "cia": cia,
+                "items": v["items"],
+                "total_cx": int(v["total_cx"]),
+                "total_un": int(v["total_un"]),
+                "loss_brl": round(v["loss_brl"], 2) if v["has_price"] else None,
+                "pct": round(v["loss_brl"] / total_company_loss * 100, 1)
+                if total_company_loss > 0 and v["has_price"]
+                else None,
+                "products": products,
+            }
+        )
 
     # 7) Agrupamento por motivo
     reason_agg: dict[str, dict] = {}
@@ -4155,6 +4263,7 @@ def bi_quebras_dashboard(
     return {
         "date_from": d_from_val.isoformat(),
         "date_to": d_to_val.isoformat(),
+        "cia_scope": normalized_cia_scope,
         "summary": {
             "unique_products": len(by_code),
             "total_cx": int(total_cx),
@@ -4165,6 +4274,7 @@ def bi_quebras_dashboard(
         },
         "by_day": by_day,
         "top_products": top_products,
+        "by_company": by_company,
         "by_category": by_category,
         "by_reason": by_reason,
         "products_without_price": products_without_price[:50],
