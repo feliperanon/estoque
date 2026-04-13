@@ -5070,9 +5070,9 @@ function mateTrocaChegouAMaisText(ev) {
   if (exUn > 0) exParts.push(`${formatBreakIntegerBR(exUn)} UN`);
   const exHuman = exParts.join(' e ');
   return (
-    `Chegou a mais: o pendente de troca era ${formatBreakIntegerBR(pbc)} CX / ${formatBreakIntegerBR(pbu)} UN; ` +
-    `registraram chegada de ${formatBreakIntegerBR(qcx)} CX / ${formatBreakIntegerBR(qun)} UN ` +
-    `(houve ${exHuman} a mais do que o necessário para só abater o pendente).`
+    `Chegou a mais: na conta do pendente faltavam ${formatBreakIntegerBR(pbc)} CX e ${formatBreakIntegerBR(pbu)} UN; ` +
+    `mas informaram chegada de ${formatBreakIntegerBR(qcx)} CX e ${formatBreakIntegerBR(qun)} UN ` +
+    `— entrou ${exHuman} a mais do que bastava para só “pagar” o que estava pendente.`
   );
 }
 
@@ -5369,6 +5369,53 @@ function filterEventsMateCouro(events) {
   return (events || []).filter((ev) => mateCouroCatalogHasCode(set, ev.cod_produto));
 }
 
+/**
+ * Lista do dia na Base de troca: uma linha por código, CX/UN somados (mesma ideia do GET break-day-totals).
+ * Evita duas linhas idênticas para o mesmo produto quando a API devolve mais de um registro consolidável.
+ */
+function aggregateMateCouroDayBreakRowsForDisplay(events) {
+  const map = new Map();
+  for (const ev of events || []) {
+    const rawCod = String(ev.cod_produto || '').trim();
+    const canon = normalizeNumericProductCodeKey(rawCod) || normalizeItemCode(rawCod);
+    if (!canon) continue;
+    const { cx, un } = parseAuditBreakCxUn(ev);
+    if (!map.has(canon)) {
+      map.set(canon, { cx: 0, un: 0, actors: new Set(), desc: '' });
+    }
+    const agg = map.get(canon);
+    agg.cx += cx;
+    agg.un += un;
+    const act = String(ev.actor || '').trim();
+    if (act) {
+      for (const part of act.split(/\s*,\s*/)) {
+        const p = part.trim();
+        if (p) agg.actors.add(p);
+      }
+    }
+    const d = String(ev.product_desc || '').trim();
+    if (d && d.length > (agg.desc || '').length) agg.desc = d;
+  }
+  const out = [];
+  for (const [canon, agg] of map) {
+    if (agg.cx === 0 && agg.un === 0) continue;
+    let actorOut = '—';
+    if (agg.actors.size === 1) actorOut = [...agg.actors][0];
+    else if (agg.actors.size > 1) actorOut = [...agg.actors].sort().join(', ');
+    out.push({
+      cod_produto: canon,
+      cx: agg.cx,
+      un: agg.un,
+      actor: actorOut,
+      product_desc: agg.desc || '',
+    });
+  }
+  out.sort((a, b) =>
+    String(a.cod_produto).localeCompare(String(b.cod_produto), undefined, { numeric: true }),
+  );
+  return out;
+}
+
 /** Converte linhas GET /audit/break-events (intervalo + cod) em eventos para o diálogo de histórico da Base de Troca. */
 function breakScreenEventsToMateTrocaOverlay(events) {
   const out = [];
@@ -5518,7 +5565,7 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
       `</div>` +
       `<div class="count-audit-cell">` +
       `<span class="count-audit-cell-label">Quebra</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional (mesma lógica da tela Quebra)">` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Totais de quebra deste produto no dia (soma dos lançamentos; mesma base do GET break-day-totals / coluna Quebra na análise). Não é o saldo da coluna Troca.">` +
       `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(cx)}</strong>` +
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(un)}</strong>` +
       `</div></div>` +
@@ -5593,7 +5640,8 @@ async function loadMateCouroBreakDayList() {
     const data = await response.json();
     const events = Array.isArray(data.events) ? data.events : [];
     const mateEvents = filterEventsMateCouro(events);
-    lastMateTrocaDayItemsCount = mateEvents.length;
+    const mateRowsDisplay = aggregateMateCouroDayBreakRowsForDisplay(mateEvents);
+    lastMateTrocaDayItemsCount = mateRowsDisplay.length;
     const incorporacaoOk = await mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     if (lastSyncKpi) {
@@ -5601,7 +5649,7 @@ async function loadMateCouroBreakDayList() {
         ? `${dayLabel} · ${nowStr} · falha ao gravar pendente no servidor`
         : `${dayLabel} · ${nowStr}`;
     }
-    renderMateCouroDayList(dayLabel, mateEvents);
+    renderMateCouroDayList(dayLabel, mateRowsDisplay);
   } catch {
     lastMateTrocaDayItemsCount = null;
     renderMateCouroDayList(dayLabel, []);
@@ -5855,11 +5903,11 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   }
   if (!events.length) {
     body.innerHTML =
-      `<p class="mate-troca-pending-history-empty muted">Nenhum lançamento para este código nos últimos 120 dias ` +
-      `(Base de troca no servidor, histórico deste aparelho ou quebra na tela Quebra). ` +
-      `Se houve quebra na base de troca, confira o dia em <strong>Quebra</strong> ou <strong>Histórico de quebra</strong>. ` +
-      `Na base de troca, use <strong>Carregar</strong> para incorporar o dia ao pendente; ` +
-      `use <strong>Chegada</strong>, <strong>Saldo</strong>, <strong>Zerar</strong> ou <strong>Ajustar pendente</strong> para movimentos gravados no servidor.</p>`;
+      `<p class="mate-troca-pending-history-empty muted">Não achamos nada para este código nos últimos 120 dias ` +
+      `(nem na base de troca no servidor, nem neste aparelho, nem na tela <strong>Quebra</strong>). ` +
+      `Se você sabe que houve quebra, olhe o dia em <strong>Quebra</strong> ou em <strong>Histórico de quebra</strong>. ` +
+      `Para o pendente “pegar” a quebra do dia, use <strong>Carregar</strong> na base de troca. ` +
+      `Para mudar o pendente de outro jeito, use <strong>Chegada</strong>, <strong>Saldo</strong>, <strong>Zerar</strong> ou <strong>Ajustar pendente</strong> (isso grava no servidor).</p>`;
     return;
   }
   const sorted = [...events].sort((a, b) =>
@@ -5875,11 +5923,11 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     if (kindRaw === 'chegada') {
       mov = `Registro de chegada: entrada CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`;
     } else if (kindRaw === 'incorporacao_quebra') {
-      mov = `Incorporação ao pendente ao Carregar o dia (quebra da base de troca no servidor): ${mateTrocaSignedCxUnParts(ev.qty_cx_in, ev.qty_un_in)}.`;
+      mov = `Ao usar <strong>Carregar</strong>, o pendente ganhou o que estava na quebra daquele dia na base: ${mateTrocaSignedCxUnParts(ev.qty_cx_in, ev.qty_un_in)}.`;
     } else if (kindRaw === 'quebra_operacional') {
-      mov = `Quebra registrada na tela Quebra (total do dia operacional da base de troca): CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}.`;
+      mov = `Na tela <strong>Quebra</strong>, para aquele dia, ficou anotado: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (total do dia na base).`;
     } else if (kindRaw === 'zerar') {
-      mov = 'Zerar: pendente levado a zero.';
+      mov = 'Zerar: a conta do pendente foi colocada em zero.';
     } else if (kindRaw === 'definir') {
       mov = `Definir saldo: informado CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
     } else if (kindRaw === 'ajuste_pendente') {
@@ -5889,7 +5937,7 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     }
     const pend =
       kindRaw === 'quebra_operacional'
-        ? 'Base de troca: este valor é o registro de quebra no dia; o pendente acumulativo só muda ao usar Carregar (ou Chegada / Saldo / Zerar / Ajuste).'
+        ? 'Lembrete simples: isto é só o que quebrou naquele dia. O número do pendente só muda quando alguém usa Carregar, Chegada, Saldo, Zerar ou Ajuste — só ver a quebra aqui não altera o pendente sozinho.'
         : `Pendente: ${formatBreakIntegerBR(ev.pend_cx_before)} CX / ${formatBreakIntegerBR(ev.pend_un_before)} UN → ${formatBreakIntegerBR(ev.pend_cx_after)} CX / ${formatBreakIntegerBR(ev.pend_un_after)} UN`;
     const actor = escapeHtml(String(ev.actor_username || '—'));
     const syncBadge = ev._pendingSync
@@ -5915,8 +5963,8 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     );
   });
   body.innerHTML =
-    `<p class="mate-troca-pending-history-lead muted">Ordem cronológica (mais antigo primeiro). ` +
-    `Inclui base de troca no servidor, quebra na tela Quebra (últimos 120 dias) e lançamentos neste aparelho ainda não sincronizados.</p>` +
+    `<p class="mate-troca-pending-history-lead muted">É como uma linha do tempo: primeiro o que aconteceu há mais tempo, depois o mais novo. ` +
+    `Entra o que está na base de troca no servidor, o que aparece na tela <strong>Quebra</strong> (últimos 120 dias) e o que foi feito neste aparelho mas ainda não sincronizou com o servidor.</p>` +
     `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
 }
 
