@@ -3619,7 +3619,7 @@ function renderBreakProducts(products, explicitRestoreCtx) {
           <label class="validity-op-label break-reason-label" for="break-reason-${escapeHtml(codSafeId)}">Motivo da quebra</label>
           <span class="break-reason-hint">Padrão: produtos avariados — troque se for vencidos</span>
         </div>
-        <select id="break-reason-${escapeHtml(codSafeId)}" class="validity-op-input break-reason-select" aria-label="Motivo da quebra (padrão: produtos avariados)" required>
+        <select id="break-reason-${escapeHtml(codSafeId)}" name="break-reason-${escapeHtml(codSafeId)}" class="validity-op-input break-reason-select" aria-label="Motivo da quebra (padrão: produtos avariados)" required>
           ${breakReasonOptionsHtml}
         </select>
       </div>
@@ -3627,7 +3627,7 @@ function renderBreakProducts(products, explicitRestoreCtx) {
         <div class="count-control-row count-control-row--neutral break-product-qty-row">
           <span class="count-control-type">CX</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
-          <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+          <input type="number" id="break-qty-${escapeHtml(codSafeId)}-caixa" name="break-qty-${escapeHtml(codSafeId)}-caixa" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
             data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
           <div class="count-control-tail">
@@ -3642,7 +3642,7 @@ function renderBreakProducts(products, explicitRestoreCtx) {
         <div class="count-control-row count-control-row--neutral break-product-qty-row">
           <span class="count-control-type">UN</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
-          <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+          <input type="number" id="break-qty-${escapeHtml(codSafeId)}-unidade" name="break-qty-${escapeHtml(codSafeId)}-unidade" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
             data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
           <div class="count-control-tail">
@@ -3977,10 +3977,7 @@ function bindBreakEvents() {
       if (next && typeof next.closest === 'function' && next.closest('.btn-count-adjust') && breakShell.contains(next)) {
         return;
       }
-      const hadOpQty = parseOperationQtyFromInputEl(inp) != null;
-      if (!hadOpQty) {
-        refreshBreakProductListView(breakRestoreCtxFromQtyInput(inp));
-      }
+      /* Não re-renderizar a lista ao sair com campo vazio: no mobile o DOM é recriado e o próximo toque falha (igual contagem). */
       // Sem aplicar ao sair do campo: blur não dispara + (evita envio “sozinho” e permite usar − com valor digitado).
     });
     breakShell.addEventListener('keydown', (e) => {
