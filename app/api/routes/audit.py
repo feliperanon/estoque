@@ -3989,7 +3989,7 @@ def bi_quebras_dashboard(
     - ``summary``: totais gerais (produtos únicos, total_cx, total_un, prejuizo_brl estimado).
     - ``by_day``: série temporal de prejuízo estimado por dia operacional.
     - ``top_products``: top-N produtos por prejuízo estimado (curva ABC parcial).
-    - ``by_company``: quebras agrupadas por CIA (% e R$) com lista de produtos por CIA.
+    - ``by_company``: quebras por CIA (% e R$) e produtos; omite CIA sem prejuízo e sem CX/UN.
     - ``by_category``: quebras agrupadas por cod_grup_segmento (% e R$).
     - ``by_reason``: quebras agrupadas por motivo (% e R$).
     - ``products_without_price``: códigos com quebra mas sem preço cadastrado.
@@ -4183,6 +4183,12 @@ def bi_quebras_dashboard(
     total_company_loss = sum(v["loss_brl"] for v in company_agg.values() if v["has_price"])
     by_company = []
     for cia, v in sorted(company_agg.items(), key=lambda kv: kv[1]["loss_brl"], reverse=True):
+        loss_amt = float(v["loss_brl"])
+        total_cx = int(v["total_cx"])
+        total_un = int(v["total_un"])
+        # Sem quebra efetiva: não listar CIA (evita linhas 0 R$ · 0 CX · 0 UN).
+        if loss_amt <= 0 and total_cx == 0 and total_un == 0:
+            continue
         products = sorted(
             v["products"],
             key=lambda p: (
@@ -4196,8 +4202,8 @@ def bi_quebras_dashboard(
             {
                 "cia": cia,
                 "items": v["items"],
-                "total_cx": int(v["total_cx"]),
-                "total_un": int(v["total_un"]),
+                "total_cx": total_cx,
+                "total_un": total_un,
                 "loss_brl": round(v["loss_brl"], 2) if v["has_price"] else None,
                 "pct": round(v["loss_brl"] / total_company_loss * 100, 1)
                 if total_company_loss > 0 and v["has_price"]

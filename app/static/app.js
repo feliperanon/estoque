@@ -13100,6 +13100,19 @@ const BI_QUEBRAS_PALETTE = [
 ];
 const BI_QUEBRAS_CIA_SCOPE_VALUES = new Set(['todas', 'mate-couro', 'outras']);
 
+/** CIA com quebra efetiva: prejuízo > 0 ou volume CX/UN > 0. */
+function _biQuebrasCompanyHasEffectiveBreak(row) {
+  if (!row || typeof row !== 'object') return false;
+  const loss = row.loss_brl != null && !Number.isNaN(Number(row.loss_brl)) ? Number(row.loss_brl) : 0;
+  const cx = Number(row.total_cx) || 0;
+  const un = Number(row.total_un) || 0;
+  return loss > 0 || cx > 0 || un > 0;
+}
+
+function _biQuebrasFilterCompaniesWithEffectiveBreak(items) {
+  return (Array.isArray(items) ? items : []).filter(_biQuebrasCompanyHasEffectiveBreak);
+}
+
 function _biQuebrasFormatBRL(val) {
   if (val == null || isNaN(val)) return '—';
   return 'R$ ' + Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -13777,7 +13790,9 @@ async function loadBiQuebras() {
   // Ranking Top Produtos
   _biQuebrasRenderRanking(data.top_products || []);
 
-  _biQuebrasCurrentCompanies = Array.isArray(data.by_company) ? data.by_company : [];
+  _biQuebrasCurrentCompanies = _biQuebrasFilterCompaniesWithEffectiveBreak(
+    Array.isArray(data.by_company) ? data.by_company : [],
+  );
 
   // Doughnut — CIA (clique na fatia = mesma ação da lista: produtos da CIA)
   _biQuebrasChartSegmento = _biQuebrasRenderDoughnut(
