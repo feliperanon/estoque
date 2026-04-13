@@ -1,9 +1,11 @@
 import json
 import logging
-from datetime import date
+import math
+from datetime import date, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import SQLModel, Session, select
 
@@ -42,6 +44,51 @@ def _normalize_import_item_metrics(metrics: Any) -> dict[str, Any] | None:
         return {"raw": [], "caixa": 0, "unidade": 0, "metrics_parse_error": True}
     logger.warning("metrics com tipo inesperado %s; usando fallback", type(metrics).__name__)
     return {"raw": [], "caixa": 0, "unidade": 0, "metrics_parse_error": True}
+
+
+def _sanitize_json_value(obj: Any, _depth: int = 0) -> Any:
+    """
+    Evita falha na serialização JSON da resposta (NaN/inf, date/datetime aninhados, chaves não-str).
+    """
+    if _depth > 48:
+        return None
+    if obj is None:
+        return None
+    if isinstance(obj, bool):
+        return obj
+    if isinstance(obj, (bytes, bytearray)):
+        return obj.decode("utf-8", errors="replace")
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, int) and not isinstance(obj, bool):
+        return obj
+    if isinstance(obj, str):
+        return obj
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, date):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        out: dict[str, Any] = {}
+        for k, v in obj.items():
+            out[str(k)] = _sanitize_json_value(v, _depth + 1)
+        return out
+    if isinstance(obj, (list, tuple, set)):
+        return [_sanitize_json_value(v, _depth + 1) for v in obj]
+    return str(obj)
+
+
+def _unwrap_import_item_row(row: Any) -> InventoryImportItem:
+    """Compat: alguns drivers/versões devolvem Row/tuple em vez do modelo."""
+    if isinstance(row, InventoryImportItem):
+        return row
+    if isinstance(row, (list, tuple)) and len(row) > 0:
+        first = row[0]
+        if isinstance(first, InventoryImportItem):
+            return first
+    raise TypeError(f"Linha de item de importação inesperada: {type(row).__name__}")
 
 
 @router.delete("/imports/{import_id}", status_code=204)
@@ -196,22 +243,36 @@ def get_import_details(
         if not inv_import:
             raise HTTPException(status_code=404, detail="Importação não encontrada")
 
-        items = session.exec(
+        raw_rows = session.exec(
             select(InventoryImportItem).where(InventoryImportItem.inventory_import_id == import_id)
         ).all()
+        items = [_unwrap_import_item_row(r) for r in raw_rows]
 
-        details_items = []
+        codes = sorted({(it.cod_produto or "").strip() for it in items if (it.cod_produto or "").strip()})
+        products_by_cod: dict[str, Product] = {}
+        if codes:
+            prod_rows = session.exec(select(Product).where(Product.cod_produto.in_(codes))).all()
+            for row in prod_rows:
+                p = row[0] if isinstance(row, (list, tuple)) and row else row
+                if not isinstance(p, Product):
+                    continue
+                ck = (p.cod_produto or "").strip()
+                if ck:
+                    products_by_cod[ck] = p
+
+        details_items: list[dict[str, Any]] = []
         for item in items:
             cod = (item.cod_produto or "").strip()
             desc = (item.descricao or "").strip()
-            product = session.exec(select(Product).where(Product.cod_produto == cod)).first() if cod else None
+            product = products_by_cod.get(cod) if cod else None
             pre_registered = bool(product and (product.source_system or "") == "txt_import")
+            norm_metrics = _normalize_import_item_metrics(item.metrics)
             details_items.append({
                 "id": item.id,
                 "inventory_import_id": item.inventory_import_id,
                 "cod_produto": cod,
                 "descricao": desc,
-                "metrics": _normalize_import_item_metrics(item.metrics),
+                "metrics": _sanitize_json_value(norm_metrics) if norm_metrics is not None else None,
                 "created_at": item.created_at,
                 "pre_registered": pre_registered,
                 "product_id": product.id if product else None,
@@ -231,10 +292,23 @@ def get_import_details(
         )
     except HTTPException:
         raise
+    except ValidationError as exc:
+        logger.exception("Validação Pydantic ao montar detalhe da importação %s", import_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Falha ao montar resposta da importação (dados inconsistentes).",
+        ) from exc
     except SQLAlchemyError as exc:
         session.rollback()
         logger.exception("Falha SQL ao carregar detalhe da importação %s", import_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Falha de banco ao carregar importação. Erro: {exc}",
+        ) from exc
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Erro inesperado ao carregar detalhe da importação %s", import_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao carregar importação. Verifique os logs do servidor.",
         ) from exc
