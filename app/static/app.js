@@ -48,6 +48,8 @@ function isBreakOperationalEditable() {
 
 const BREAK_SCOPE_STORAGE_KEY = 'break_scope_filter';
 const BREAK_SCOPE_VALUES = ['mate-couro', 'outros', 'todos'];
+/** Debounce do filtro “Produto” na Quebra: evita re-render a cada tecla (mobile perde o toque no próximo campo). */
+let breakItemSearchDebounceTimer = null;
 
 /** Normaliza descrição do produto para comparar com a lista fixa da quebra (Mate couro). */
 function normalizeBreakProductDescForScope(raw) {
@@ -681,27 +683,21 @@ function getBreakListRestoreContext() {
 function applyBreakListRestoreContext(ctx) {
   if (!ctx) return;
   const run = () => {
-    if (ctx.anchorCod) {
-      const cod = String(ctx.anchorCod);
-      const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/"/g, '\\"');
-      const el = document.querySelector(`#break-products-list > li.count-product-item[data-cod-produto="${esc}"]`);
-      if (el && el.isConnected && el.style.display !== 'none') {
-        try {
-          el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-        } catch {
-          try {
-            el.scrollIntoView();
-          } catch {
-            /* ignore: nó pode ter sido removido (rAF adiado) */
-          }
-        }
-      }
-    }
+    /* Só rolar a lista quando vamos restaurar foco num campo/motivo. Scroll só com “âncora” sem foco empurrava a viewport e o próximo toque errava o produto (especialmente no celular). */
     if (ctx.focusCod) {
       const cod = String(ctx.focusCod);
       const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/"/g, '\\"');
       const li = document.querySelector(`#break-products-list > li.count-product-item[data-cod-produto="${esc}"]`);
       if (!li || !li.isConnected || li.style.display === 'none') return;
+      try {
+        li.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      } catch {
+        try {
+          li.scrollIntoView();
+        } catch {
+          /* ignore */
+        }
+      }
       if (ctx.focusReasonOnly) {
         const rs = li.querySelector('select.break-reason-select');
         if (rs && rs.isConnected && typeof rs.focus === 'function') {
@@ -3544,7 +3540,8 @@ function breakRestoreCtxFromQtyInput(inp) {
   }
 }
 
-function renderBreakProducts(products, explicitRestoreCtx) {
+/** @param {unknown[]} products @param {ReturnType<typeof getBreakListRestoreContext>|null} listRestoreCtx contexto de foco/scroll após render (null = não restaurar). */
+function renderBreakProducts(products, listRestoreCtx) {
   const isActive = (status) => {
     const s = String(status || '').trim().toLowerCase();
     if (!s || s === 'ativo' || s === 's' || s === 'sim' || s === '1' || s === 'true' || s === 'ativado' || s === 'active') return true;
@@ -3559,13 +3556,6 @@ function renderBreakProducts(products, explicitRestoreCtx) {
   const ul = document.getElementById('break-products-list');
   const totalSpan = document.getElementById('break-products-total');
   if (!ul) return;
-
-  const restoreCtx =
-    explicitRestoreCtx != null
-      ? explicitRestoreCtx
-      : document.getElementById('sub-break')?.classList.contains('active')
-        ? getBreakListRestoreContext()
-        : null;
 
   const subBreak = document.getElementById('sub-break');
   try {
@@ -3664,7 +3654,7 @@ function renderBreakProducts(products, explicitRestoreCtx) {
   updateBreakOpProgressBar();
   filtrarProdutosQuebra();
   } finally {
-    if (restoreCtx) applyBreakListRestoreContext(restoreCtx);
+    if (listRestoreCtx) applyBreakListRestoreContext(listRestoreCtx);
   }
 }
 
@@ -3691,12 +3681,27 @@ function updateBreakReadOnlyState() {
   }
 }
 
-function refreshBreakProductListView(explicitRestoreCtx) {
+/**
+ * @param {ReturnType<typeof getBreakListRestoreContext>|null} [explicitRestoreCtx] quando definido e não null, usa este contexto de restauração
+ * @param {boolean} [skipAutoRestore] se true, não chama getBreakListRestoreContext() (recomendado para filtro por busca — evita scroll/foco competindo com o toque)
+ */
+function refreshBreakProductListView(explicitRestoreCtx, skipAutoRestore) {
   const input = document.getElementById('break-item-code');
   const term = (input && input.value || '').trim();
   const scoped = filterBreakCatalogByScope(countProductsCache, getSelectedBreakScope());
   const toShow = term ? filterCountProductsByTerm(term, scoped) : scoped;
-  renderBreakProducts(toShow, explicitRestoreCtx);
+
+  let listRestoreCtx = null;
+  if (explicitRestoreCtx != null) {
+    listRestoreCtx = explicitRestoreCtx;
+  } else if (
+    !skipAutoRestore
+    && document.getElementById('sub-break')?.classList.contains('active')
+  ) {
+    listRestoreCtx = getBreakListRestoreContext();
+  }
+
+  renderBreakProducts(toShow, listRestoreCtx);
 }
 
 /** @returns {boolean} true se a lista precisa ser re-renderizada no chamador (após sucesso com alteração de totais). */
@@ -3913,7 +3918,12 @@ function bindBreakEvents() {
   const itemCodeInput = document.getElementById('break-item-code');
   if (itemCodeInput) {
     itemCodeInput.addEventListener('input', () => {
-      refreshBreakProductListView();
+      if (breakItemSearchDebounceTimer) clearTimeout(breakItemSearchDebounceTimer);
+      breakItemSearchDebounceTimer = setTimeout(() => {
+        breakItemSearchDebounceTimer = null;
+        if (!document.getElementById('sub-break')?.classList.contains('active')) return;
+        refreshBreakProductListView(null, true);
+      }, 220);
     });
   }
 
