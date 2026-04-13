@@ -2348,14 +2348,23 @@ def bulk_delete_break_events(
             detail="operational_date invalido (use YYYY-MM-DD).",
         )
 
+    raw_codes = [str(x).strip() for x in (body.cod_produtos or []) if str(x).strip()]
     cod_filters: set[str] = set()
-    for raw in body.cod_produtos or []:
-        c = _normalize_numeric_product_code_key(str(raw).strip())
+    for raw in raw_codes:
+        c = _normalize_numeric_product_code_key(raw)
         if c:
             cod_filters.add(c)
 
     phrase = (body.confirm_phrase or "").strip()
-    if not cod_filters:
+    scoped_by_code = len(raw_codes) > 0
+    if scoped_by_code:
+        if not cod_filters:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Nenhum codigo valido em cod_produtos.",
+            )
+        targets = _collect_break_event_logs_for_day_and_codes(session, op_d, cod_filters)
+    else:
         if phrase != BREAK_BULK_DELETE_DAY_PHRASE:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -2365,8 +2374,6 @@ def bulk_delete_break_events(
                 ),
             )
         targets = _collect_break_event_logs_for_day_and_codes(session, op_d, None)
-    else:
-        targets = _collect_break_event_logs_for_day_and_codes(session, op_d, cod_filters)
 
     if not targets:
         return {
