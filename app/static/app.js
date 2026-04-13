@@ -1,4 +1,4 @@
-/** Data civil em America/Sao_Paulo (YYYY-MM-DD). */
+﻿/** Data civil em America/Sao_Paulo (YYYY-MM-DD). */
 function getBrazilDateKey(d = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Sao_Paulo',
@@ -8,7 +8,7 @@ function getBrazilDateKey(d = new Date()) {
   }).format(d);
 }
 
-/** Primeiro e último dia do mês civil atual em America/Sao_Paulo (YYYY-MM-DD). */
+/** Primeiro e Ãºltimo dia do mÃªs civil atual em America/Sao_Paulo (YYYY-MM-DD). */
 function getBrazilMonthBoundsDateKeys() {
   const key = getBrazilDateKey();
   const [ys, ms] = key.split('-');
@@ -48,10 +48,10 @@ function isBreakOperationalEditable() {
 
 const BREAK_SCOPE_STORAGE_KEY = 'break_scope_filter';
 const BREAK_SCOPE_VALUES = ['mate-couro', 'outros', 'todos'];
-/** Debounce do filtro “Produto” na Quebra: evita re-render a cada tecla (mobile perde o toque no próximo campo). */
+/** Debounce do filtro â€œProdutoâ€ na Quebra: evita re-render a cada tecla (mobile perde o toque no prÃ³ximo campo). */
 let breakItemSearchDebounceTimer = null;
 
-/** Normaliza descrição do produto para comparar com a lista fixa da quebra (Mate couro). */
+/** Normaliza descriÃ§Ã£o do produto para comparar com a lista fixa da quebra (Mate couro). */
 function normalizeBreakProductDescForScope(raw) {
   return String(raw || '')
     .trim()
@@ -59,7 +59,7 @@ function normalizeBreakProductDescForScope(raw) {
     .toUpperCase();
 }
 
-/** Lista fechada: só estes itens aparecem ao escolher "Mate couro" na Quebra (descrição após normalização). */
+/** Lista fechada: sÃ³ estes itens aparecem ao escolher "Mate couro" na Quebra (descriÃ§Ã£o apÃ³s normalizaÃ§Ã£o). */
 const BREAK_MATE_COURO_DESC_NORMALIZED = new Set([
   'MATE COURO PET 2L TRADICIONAL',
   'MATE COURO PET 2L GUARANA',
@@ -82,8 +82,8 @@ function isProductOnBreakMateCouroAllowlist(product) {
 }
 
 /**
- * Linha CIA Mate couro para excluir de "Outros produtos": lista fechada + qualquer descrição com
- * "MATE COURO" (novos SKUs) + marca Nick no início da descrição.
+ * Linha CIA Mate couro para excluir de "Outros produtos": lista fechada + qualquer descriÃ§Ã£o com
+ * "MATE COURO" (novos SKUs) + marca Nick no inÃ­cio da descriÃ§Ã£o.
  */
 function isProductBreakMateCouroCiaExcludedFromOutros(product) {
   if (isProductOnBreakMateCouroAllowlist(product)) return true;
@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
   groupInput.addEventListener('change', filtrarProdutos);
 });
 
-// Autocomplete Grupo — Quebra (mesmo catálogo GROUPS)
+// Autocomplete Grupo â€” Quebra (mesmo catÃ¡logo GROUPS)
 document.addEventListener('DOMContentLoaded', () => {
   const groupInput = document.getElementById('break-group');
   if (!groupInput) return;
@@ -228,9 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
   groupInput.addEventListener('change', filtrarProdutosQuebra);
 });
 
-// Filtro de produtos por grupo (contagem: apenas ativos na API e na renderização)
+// Filtro de produtos por grupo (contagem: apenas ativos na API e na renderizaÃ§Ã£o)
 
-/** CX e UN zerados no total exibido na contagem (equivalente ao readout; inclui Mate quando aplicável). */
+/** CX e UN zerados no total exibido na contagem (equivalente ao readout; inclui Mate quando aplicÃ¡vel). */
 function countProductRowNetCxUnZero(codRaw) {
   const cod = String(codRaw || '');
   if (!cod) return true;
@@ -250,9 +250,9 @@ function filtrarProdutos() {
   const visiveis = [];
   document.querySelectorAll('#count-products-list .count-product-item').forEach(item => {
     let show = true;
-    // Filtro de ativos: só mostra ativos (is-inactive = oculto)
+    // Filtro de ativos: sÃ³ mostra ativos (is-inactive = oculto)
     if (item.classList.contains('is-inactive')) show = false;
-    // Filtro de grupo: se preenchido, só mostra se o grupo bate
+    // Filtro de grupo: se preenchido, sÃ³ mostra se o grupo bate
     if (grupo) {
       const desc = item.querySelector('.count-product-desc')?.textContent?.toLowerCase() || '';
       show = show && desc.includes(grupo);
@@ -272,7 +272,7 @@ function filtrarProdutos() {
   if (totalSpan) {
     totalSpan.textContent = `${totalVisiveis} ${totalVisiveis === 1 ? 'item' : 'itens'}`;
   }
-  // Atualiza barra de progresso após filtro
+  // Atualiza barra de progresso apÃ³s filtro
   updateCountProgress(visiveis.map(item => {
     const inp = item.querySelector('input.count-product-qty[data-coderef]');
     const codRef = inp?.getAttribute('data-coderef');
@@ -305,7 +305,7 @@ function filtrarProdutos() {
   }
 }
 
-// Data da contagem predefinida: hoje em America/Sao_Paulo (não UTC)
+// Data da contagem predefinida: hoje em America/Sao_Paulo (nÃ£o UTC)
 document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('count-date');
   if (dateInput && !dateInput.value) {
@@ -329,9 +329,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// === Grupos disponíveis para filtro (pode ser movido para API futuramente)
+// === Grupos disponÃ­veis para filtro (pode ser movido para API futuramente)
 const GROUPS = [
-  "Socorro Beb", "Dikoko", "Britvic", "Inga", "Santissima", "Mate couro", "Wow", "Grafrutalle", "Piraque", "Kydoidera", "Cory", "Selmi", "Brothers Paiol", "Salinas", "Arbor", "Heineken", "Cepal", "Arcor", "Nestle", "Tres Lobos", "Don Rigollo", "Jack Power", "Blue Bev", "Vanfall", "Itts", "Xeque Mate", "Perfetti", "Tampico", "Tapioca", "Tial", "Pergola", "Xa de Cana", "Açai Futuro", "Mais Coco", "Baly", "Ferreira", "Knofler", "Sunhot", "Seleta", "SP TT"
+  "Socorro Beb", "Dikoko", "Britvic", "Inga", "Santissima", "Mate couro", "Wow", "Grafrutalle", "Piraque", "Kydoidera", "Cory", "Selmi", "Brothers Paiol", "Salinas", "Arbor", "Heineken", "Cepal", "Arcor", "Nestle", "Tres Lobos", "Don Rigollo", "Jack Power", "Blue Bev", "Vanfall", "Itts", "Xeque Mate", "Perfetti", "Tampico", "Tapioca", "Tial", "Pergola", "Xa de Cana", "AÃ§ai Futuro", "Mais Coco", "Baly", "Ferreira", "Knofler", "Sunhot", "Seleta", "SP TT"
 ];
 
 // Estado dos grupos selecionados
@@ -342,7 +342,7 @@ function renderGroupChips() {
   if (!chipsContainer) return;
   chipsContainer.innerHTML = '';
   if (selectedGroups.length === 0) {
-    // Mostra todos para seleção
+    // Mostra todos para seleÃ§Ã£o
     GROUPS.forEach(group => {
       const chip = document.createElement('button');
       chip.className = 'count-group-chip';
@@ -355,14 +355,14 @@ function renderGroupChips() {
       chipsContainer.appendChild(chip);
     });
   } else {
-    // Mostra chips selecionados com botão de remover
+    // Mostra chips selecionados com botÃ£o de remover
     selectedGroups.forEach(group => {
       const chip = document.createElement('span');
       chip.className = 'count-group-chip';
       chip.textContent = group;
       const removeBtn = document.createElement('button');
       removeBtn.className = 'count-group-chip-remove';
-      removeBtn.innerHTML = '×';
+      removeBtn.innerHTML = 'Ã—';
       removeBtn.onclick = () => {
         selectedGroups = selectedGroups.filter(g => g !== group);
         renderGroupChips();
@@ -371,13 +371,13 @@ function renderGroupChips() {
       chip.appendChild(removeBtn);
       chipsContainer.appendChild(chip);
     });
-    // Adicionar botão para adicionar mais
+    // Adicionar botÃ£o para adicionar mais
     if (selectedGroups.length < GROUPS.length) {
       const addBtn = document.createElement('button');
       addBtn.className = 'count-group-chip';
       addBtn.textContent = '+ Adicionar';
       addBtn.onclick = () => {
-        // Mostra lista de grupos não selecionados
+        // Mostra lista de grupos nÃ£o selecionados
         const menu = document.createElement('div');
         menu.style.position = 'absolute';
         menu.style.background = '#fff';
@@ -419,14 +419,14 @@ function renderGroupChips() {
   }
 }
 
-// Chips de grupo na tela de contagem (não alterar login/dashboard aqui: init() já chama showLogin/showDashboard)
+// Chips de grupo na tela de contagem (nÃ£o alterar login/dashboard aqui: init() jÃ¡ chama showLogin/showDashboard)
 document.addEventListener('DOMContentLoaded', () => {
   renderGroupChips();
 });
 /**
- * app.js — Controle de SPA do sistema Estoque.
- * Gerencia alternância entre tela de login e dashboard,
- * autenticação via API e persistência de sessão no localStorage.
+ * app.js â€” Controle de SPA do sistema Estoque.
+ * Gerencia alternÃ¢ncia entre tela de login e dashboard,
+ * autenticaÃ§Ã£o via API e persistÃªncia de sessÃ£o no localStorage.
  * Inclui modo de contagem offline-first com sincronizacao posterior.
  */
 
@@ -451,42 +451,42 @@ const API_VALIDITY_KPI_EXPIRING_30D = '/audit/validity-kpi-expiring-30d';
 const API_VALIDITY_ANALYSIS_EXPORT_XLSX = '/audit/validity-analysis/export.xlsx';
 const API_SYNC_BREAKS = '/audit/break-events';
 const API_BREAK_EVENTS_BULK_DELETE = '/audit/break-events/bulk-delete';
-/** Confirmação obrigatória (servidor) para apagar todas as quebras de um dia operacional. */
+/** ConfirmaÃ§Ã£o obrigatÃ³ria (servidor) para apagar todas as quebras de um dia operacional. */
 const BREAK_BULK_DELETE_DAY_PHRASE = 'APAGAR TODAS AS QUEBRAS DO DIA';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
 const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product';
 const API_MATE_TROCA_BASE_V2 = '/audit/mate-troca-base-v2';
 const API_MATE_TROCA_RECONCILE_FROM_BREAKS = '/audit/mate-troca-reconcile-from-breaks';
-/** Último estado confiável da Base de Troca V2 (persistido) — evita 0/0 fantasma em refresh parcial. */
+/** Ãšltimo estado confiÃ¡vel da Base de Troca V2 (persistido) â€” evita 0/0 fantasma em refresh parcial. */
 const MATE_TROCA_BASE_V2_LAST_VALID_KEY = 'estoque_mate_troca_base_v2_last_valid_v1';
-/** Saldo de troca no servidor — espelho para análise de contagem / espelho local; preenchido pelo fluxo V2. */
+/** Saldo de troca no servidor â€” espelho para anÃ¡lise de contagem / espelho local; preenchido pelo fluxo V2. */
 let mateTrocaServerPendingCache = {};
-/** Códigos com quebra Mate couro no período De–Até (só presença) — espelho do V2 para compat. */
+/** CÃ³digos com quebra Mate couro no perÃ­odo Deâ€“AtÃ© (sÃ³ presenÃ§a) â€” espelho do V2 para compat. */
 let mateTrocaDiscoveryCodesCache = new Set();
-/** Base de Troca V2 — saldos explícitos do último GET ok (inclui 0/0 do servidor). */
+/** Base de Troca V2 â€” saldos explÃ­citos do Ãºltimo GET ok (inclui 0/0 do servidor). */
 let mateTrocaBaseBalanceCacheV2 = {};
-/** Descoberta de códigos no período (V2). */
+/** Descoberta de cÃ³digos no perÃ­odo (V2). */
 let mateTrocaBaseDiscoveryCodesV2 = new Set();
-/** Por código: último estado confiável exibido / servidor (merge). */
+/** Por cÃ³digo: Ãºltimo estado confiÃ¡vel exibido / servidor (merge). */
 let mateTrocaBaseLastValidStateV2 = {};
-/** Últimas linhas já fundidas (KPI + busca sem novo fetch). */
+/** Ãšltimas linhas jÃ¡ fundidas (KPI + busca sem novo fetch). */
 let mateTrocaBaseV2LastMergedRows = [];
 let mateTrocaBaseV2LastValidHydrated = false;
 const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
-/** Submódulo operacional no hash (#quebra); elemento DOM continua id="sub-break". */
+/** SubmÃ³dulo operacional no hash (#quebra); elemento DOM continua id="sub-break". */
 const QUEBRA_SUB_KEY = 'quebra';
-/** Motivos fechados — obrigatório em cada lançamento de quantidade na Quebra. */
+/** Motivos fechados â€” obrigatÃ³rio em cada lanÃ§amento de quantidade na Quebra. */
 const BREAK_REASON_DEFAULT = 'Produtos avariados';
 const BREAK_REASON_OPTIONS = ['Produtos vencidos', 'Produtos avariados'];
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
-/** Dias sem nova contagem para considerar a base "antiga" (painel analítico). */
+/** Dias sem nova contagem para considerar a base "antiga" (painel analÃ­tico). */
 const VALIDITY_OLD_BASE_DAYS = 14;
 const API_PRODUCTS = '/products';
 /** Alinhado ao `le` em GET /products e /products/catalog (products.py). */
 const PRODUCTS_LIST_LIMIT = 20000;
-/** Detalhe da importação TXT: renderizar até N itens (evita travar o navegador em arquivos enormes). */
+/** Detalhe da importaÃ§Ã£o TXT: renderizar atÃ© N itens (evita travar o navegador em arquivos enormes). */
 const IMPORT_TXT_DETAIL_ITEMS_LIMIT = 20000;
 const API_PRODUCTS_CATALOG = '/products/catalog';
 const API_AUTH_ME = '/auth/me';
@@ -510,22 +510,22 @@ if ('scrollRestoration' in history) {
 const TOKEN_KEY  = 'estoque_token';
 const USER_KEY   = 'estoque_user';
 const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
-/** Saldo CX/UN do último TXT (ou data em #count-date), para comparar na contagem (sem exibir valores na UI). */
+/** Saldo CX/UN do Ãºltimo TXT (ou data em #count-date), para comparar na contagem (sem exibir valores na UI). */
 let countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
 let validityProductsCache = [];
 let validityServerLines = [];
-/** Última data operacional com lançamento de validade por código (servidor). */
+/** Ãšltima data operacional com lanÃ§amento de validade por cÃ³digo (servidor). */
 let validityLastLaunchByCode = {};
-/** Última contagem global por produto: CX/UN + count_date (ChangeLog, servidor). */
+/** Ãšltima contagem global por produto: CX/UN + count_date (ChangeLog, servidor). */
 let validityLastCountState = { ok: false, balances: {} };
 /** Totais CX/UN da contagem consolidada no servidor para o dia operacional da validade (GET count-server-totals). */
 let validityDayCountState = { ok: false, balances: {}, meta: null, dayKey: null };
 let loadValidityDayCountInFlight = null;
-/** KPI clicável ativo (filtro rápido); null = nenhum. */
+/** KPI clicÃ¡vel ativo (filtro rÃ¡pido); null = nenhum. */
 let validityActiveKpiKey = null;
-/** Produto selecionado na tabela da análise (painel lateral). */
+/** Produto selecionado na tabela da anÃ¡lise (painel lateral). */
 let validityAnalysisSelectedCod = null;
-/** Totais CX/UN já sincronizados no servidor (todos os conferentes). */
+/** Totais CX/UN jÃ¡ sincronizados no servidor (todos os conferentes). */
 let countServerCountState = { ok: false, balances: {}, meta: null };
 let breakServerBreakState = { ok: false, balances: {} };
 let loadServerBreakTotalsInFlight = null;
@@ -533,12 +533,12 @@ const COUNT_EVENTS_DAY_KEY = 'estoque_count_events_day_v1';
 /** Mapa por dia (YYYY-MM-DD): { "2026-04-01": [ eventos... ] } */
 const COUNT_EVENTS_BUCKET_KEY = 'estoque_count_events_by_day_v2';
 const DEVICE_NAME_KEY = 'estoque_device_name_v1';
-/** Evita múltiplos clearSession/showLogin quando várias respostas 401 chegam ao mesmo tempo. */
+/** Evita mÃºltiplos clearSession/showLogin quando vÃ¡rias respostas 401 chegam ao mesmo tempo. */
 let unauthorizedRedirectInProgress = false;
 let loadServerCountTotalsInFlight = null;
 let countTotalsVisibilityRefreshTimer = null;
 
-/** Assinatura estável dos totais de contagem no servidor (evita re-render da lista inteira sem mudança real). */
+/** Assinatura estÃ¡vel dos totais de contagem no servidor (evita re-render da lista inteira sem mudanÃ§a real). */
 function countServerCountSnapshotForListRefresh() {
   const st = countServerCountState;
   const bal = st && typeof st.balances === 'object' && st.balances ? st.balances : {};
@@ -552,7 +552,7 @@ function countServerCountSnapshotForListRefresh() {
   return `${st && st.ok ? 1 : 0}|${parts.join('|')}`;
 }
 
-/** Preserva scroll/foco na lista de contagem após re-render completo (crítico no celular). */
+/** Preserva scroll/foco na lista de contagem apÃ³s re-render completo (crÃ­tico no celular). */
 function getCountListRestoreContext() {
   const sub = document.getElementById('sub-count');
   if (!sub || !sub.classList.contains('active')) return null;
@@ -605,7 +605,7 @@ function applyCountListRestoreContext(ctx) {
           try {
             el.scrollIntoView();
           } catch {
-            /* ignore: nó pode ter sido removido (rAF adiado) */
+            /* ignore: nÃ³ pode ter sido removido (rAF adiado) */
           }
         }
       }
@@ -633,7 +633,7 @@ function applyCountListRestoreContext(ctx) {
   });
 }
 
-/** Igual à contagem: após re-render da lista de quebra o iOS costuma “pular” para outro item sem isso. */
+/** Igual Ã  contagem: apÃ³s re-render da lista de quebra o iOS costuma â€œpularâ€ para outro item sem isso. */
 function getBreakListRestoreContext() {
   const sub = document.getElementById('sub-break');
   if (!sub || !sub.classList.contains('active')) return null;
@@ -683,7 +683,7 @@ function getBreakListRestoreContext() {
 function applyBreakListRestoreContext(ctx) {
   if (!ctx) return;
   const run = () => {
-    /* Só rolar a lista quando vamos restaurar foco num campo/motivo. Scroll só com “âncora” sem foco empurrava a viewport e o próximo toque errava o produto (especialmente no celular). */
+    /* SÃ³ rolar a lista quando vamos restaurar foco num campo/motivo. Scroll sÃ³ com â€œÃ¢ncoraâ€ sem foco empurrava a viewport e o prÃ³ximo toque errava o produto (especialmente no celular). */
     if (ctx.focusCod) {
       const cod = String(ctx.focusCod);
       const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/"/g, '\\"');
@@ -840,7 +840,7 @@ function patchAccessFormAutofillHints() {
   }
 }
 
-// ── Elementos ──────────────────────────────────────────────────
+// â”€â”€ Elementos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const viewLogin     = document.getElementById('view-login');
 const viewDashboard = document.getElementById('view-dashboard');
 const loginForm     = document.getElementById('login-form');
@@ -880,7 +880,7 @@ const productImportFeedback = document.getElementById('product-import-feedback')
 const productsList = document.getElementById('products-list');
 const productsTotal = document.getElementById('products-total');
 const countAuditDate = document.getElementById('count-audit-date');
-// Inicializa campo de data para hoje por padrão
+// Inicializa campo de data para hoje por padrÃ£o
 if (countAuditDate) {
   const today = new Date().toISOString().slice(0, 10);
   countAuditDate.value = today;
@@ -925,18 +925,18 @@ let breakSyncInProgress = false;
 let selectedProductFile = null;
 let currentRole = 'conferente';
 let countProductsCache = [];
-/** Catálogo CIA Mate couro (base de troca); inclui inativos para alinhar fator de conversão ao servidor. */
+/** CatÃ¡logo CIA Mate couro (base de troca); inclui inativos para alinhar fator de conversÃ£o ao servidor. */
 let mateCouroProductsCache = [];
-/** Evita cache antigo só com ativos antes da normalização CX/UN. */
+/** Evita cache antigo sÃ³ com ativos antes da normalizaÃ§Ã£o CX/UN. */
 let mateCouroCatalogLoadComplete = false;
-/** Último número de itens Mate couro no dia carregado (para KPIs). */
+/** Ãšltimo nÃºmero de itens Mate couro no dia carregado (para KPIs). */
 let lastMateTrocaDayItemsCount = null;
 let currentAllowedPages = [];
 let countKpiTicker = null;
 let countAuditPollingTimer = null;
-/** Intervalo da Análise de Contagem: atualização quase em tempo real (outros dispositivos / servidor). */
+/** Intervalo da AnÃ¡lise de Contagem: atualizaÃ§Ã£o quase em tempo real (outros dispositivos / servidor). */
 const COUNT_AUDIT_POLL_MS = 8000;
-/** Evita que o polling da análise apague logo a confirmação de “recontagem enviada”. */
+/** Evita que o polling da anÃ¡lise apague logo a confirmaÃ§Ã£o de â€œrecontagem enviadaâ€. */
 let countAuditRecountFeedbackPreserveUntil = 0;
 let countAuditRecountFeedbackPreserveMessage = '';
 let countAuditVisibilityBound = false;
@@ -972,7 +972,7 @@ const REGISTER_ACCESS_GROUPS = [
     editId: 'edit-access-main',
     items: [
       { key: 'contagem', label: 'Contagem' },
-      { key: 'analise', label: 'Análise' },
+      { key: 'analise', label: 'AnÃ¡lise' },
       { key: 'cadastro', label: 'Cadastro' },
       { key: 'acesso', label: 'Acesso' },
     ],
@@ -983,19 +983,19 @@ const REGISTER_ACCESS_GROUPS = [
     items: [
       { key: 'count', label: 'Contagem de Estoque' },
       { key: 'pull', label: 'Puxada' },
-      { key: 'return', label: 'Devolução' },
-      { key: QUEBRA_SUB_KEY, label: 'Quebra (lançamento)' },
+      { key: 'return', label: 'DevoluÃ§Ã£o' },
+      { key: QUEBRA_SUB_KEY, label: 'Quebra (lanÃ§amento)' },
       { key: 'direct-sale', label: 'Venda Direta' },
-      { key: 'validity', label: 'Validade (lançamento)' },
+      { key: 'validity', label: 'Validade (lanÃ§amento)' },
     ],
   },
   {
     registerId: 'register-access-analise',
     editId: 'edit-access-analise',
     items: [
-      { key: 'count-audit', label: 'Análise de Contagem' },
+      { key: 'count-audit', label: 'AnÃ¡lise de Contagem' },
       { key: 'import-txt', label: 'Importar Estoque (TXT)' },
-      { key: 'validity-analysis', label: 'Análise de Validades' },
+      { key: 'validity-analysis', label: 'AnÃ¡lise de Validades' },
       { key: 'mate-couro-troca', label: 'Base de troca' },
       { key: 'break-history', label: 'Registro de quebras' },
       { key: 'bi-quebras', label: 'BI de Quebras' },
@@ -1007,7 +1007,7 @@ const REGISTER_ACCESS_GROUPS = [
     items: [
       { key: 'cadastro-produto', label: 'Cadastro de Produto' },
       { key: 'produtos', label: 'Produtos' },
-      { key: 'parametros-produto', label: 'Parâmetros de Produto' },
+      { key: 'parametros-produto', label: 'ParÃ¢metros de Produto' },
     ],
   },
 ];
@@ -1047,7 +1047,7 @@ const REGISTER_PROFILE_PRESETS = {
     'break-history',
     'bi-quebras',
     'mate-couro-troca',
-    /* count-audit / validity-analysis: só com permissão explícita ou perfil administrativo */
+    /* count-audit / validity-analysis: sÃ³ com permissÃ£o explÃ­cita ou perfil administrativo */
   ],
 };
 
@@ -1092,36 +1092,36 @@ function subSectionDomId(subKey) {
   return subKey === QUEBRA_SUB_KEY ? 'break' : subKey;
 }
 
-/** Não liberar só por ter "contagem" em allowed_pages (auditoria / análise). */
+/** NÃ£o liberar sÃ³ por ter "contagem" em allowed_pages (auditoria / anÃ¡lise). */
 const SUB_KEYS_REQUIRE_EXPLICIT_ALLOWED = new Set(['count-audit', 'validity-analysis']);
 
 const PAGE_TITLES = {
-  inicio: 'Página inicial',
+  inicio: 'PÃ¡gina inicial',
   contagem: 'Contagem',
-  analise: 'Análise',
+  analise: 'AnÃ¡lise',
   cadastro: 'Cadastro',
   acesso: 'Acesso',
   count: 'Contagem',
   pull: 'Puxada',
-  return: 'Devolução',
+  return: 'DevoluÃ§Ã£o',
   quebra: 'Quebra',
   'break-history': 'Registro de quebras',
   'bi-quebras': 'BI de Quebras',
   'mate-couro-troca': 'Base de troca',
-  'mate-couro-troca-historico': 'Histórico no servidor',
+  'mate-couro-troca-historico': 'HistÃ³rico no servidor',
   'mate-couro-troca-trocas': 'Trocas encerradas',
   'direct-sale': 'Venda Direta',
   validity: 'Validade',
-  'validity-analysis': 'Análise de Validades',
+  'validity-analysis': 'AnÃ¡lise de Validades',
   'import-txt': 'Importar Estoque',
-  'count-audit': 'Análise de Contagem',
+  'count-audit': 'AnÃ¡lise de Contagem',
   'cadastro-produto': 'Cadastro de Produto',
   produtos: 'Produtos',
-  'parametros-produto': 'Parâmetros',
+  'parametros-produto': 'ParÃ¢metros',
 };
 
 const PRODUCT_DEFAULTS_KEY = 'estoque_product_defaults_v1';
-/** Acumulativo de troca (Mate couro): pending + dias já incorporados — só neste aparelho. */
+/** Acumulativo de troca (Mate couro): pending + dias jÃ¡ incorporados â€” sÃ³ neste aparelho. */
 const MATE_COURO_TROCA_STORAGE_KEY = 'estoque_mate_couro_troca_v3';
 const MATE_COURO_TROCA_STORAGE_PREV_KEY = 'estoque_mate_couro_troca_v2';
 const MATE_COURO_TROCA_STORAGE_LEGACY_KEY = 'estoque_mate_couro_troca_acum_v1';
@@ -1152,22 +1152,22 @@ const PRODUCT_PARAM_LABELS = {
 
 const ACCESS_CATEGORIES = [
   {
-    category: 'Operação',
+    category: 'OperaÃ§Ã£o',
     subcategories: [
       { module: 'Contagem de Estoque', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Puxada', roles: ['conferente', 'administrativo', 'admin'] },
-      { module: 'Devolução', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'DevoluÃ§Ã£o', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Quebra', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Venda Direta', roles: ['conferente', 'administrativo', 'admin'] },
-      { module: 'Validade (lançamento)', roles: ['conferente', 'administrativo', 'admin'] },
+      { module: 'Validade (lanÃ§amento)', roles: ['conferente', 'administrativo', 'admin'] },
     ],
   },
   {
-    category: 'Análise e auditoria',
+    category: 'AnÃ¡lise e auditoria',
     subcategories: [
-      { module: 'Análise de Contagem', roles: ['administrativo', 'admin'] },
+      { module: 'AnÃ¡lise de Contagem', roles: ['administrativo', 'admin'] },
       { module: 'Importar Estoque (TXT)', roles: ['conferente', 'administrativo', 'admin'] },
-      { module: 'Análise de Validades', roles: ['administrativo', 'admin'] },
+      { module: 'AnÃ¡lise de Validades', roles: ['administrativo', 'admin'] },
       { module: 'Base de troca', roles: ['conferente', 'administrativo', 'admin'] },
       { module: 'Registro de quebras (consulta)', roles: ['conferente', 'administrativo', 'admin'] },
     ],
@@ -1176,18 +1176,18 @@ const ACCESS_CATEGORIES = [
     category: 'Cadastro',
     subcategories: [
       { module: 'Cadastro de produtos', roles: ['administrativo', 'admin'] },
-      { module: 'Importação de produtos', roles: ['administrativo', 'admin'] },
+      { module: 'ImportaÃ§Ã£o de produtos', roles: ['administrativo', 'admin'] },
     ],
   },
   {
-    category: 'Governança',
+    category: 'GovernanÃ§a',
     subcategories: [
       { module: 'Matriz de acessos', roles: ['administrativo', 'admin'] },
     ],
   },
 ];
 
-// ── Troca de views ─────────────────────────────────────────────
+// â”€â”€ Troca de views â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function showLogin() {
   viewDashboard.style.display = 'none';
   viewLogin.style.display     = 'flex';
@@ -1209,7 +1209,7 @@ function canAccessModule(moduleKey) {
   if (currentAllowedPages.length) {
     const allowedKeys = PAGE_KEYS_BY_MODULE[moduleKey] || [moduleKey];
     if (allowedKeys.some((key) => currentAllowedPages.includes(key))) return true;
-    /* Legado: permissão "contagem" incluía cartões que hoje estão no módulo Análise. */
+    /* Legado: permissÃ£o "contagem" incluÃ­a cartÃµes que hoje estÃ£o no mÃ³dulo AnÃ¡lise. */
     if (moduleKey === 'analise' && currentAllowedPages.includes('contagem')) return true;
     return false;
   }
@@ -1226,7 +1226,7 @@ function setActiveSub(subKey) {
     closeCountAuditDetailDrawer();
   }
 
-  // Para o polling de análise se estava ativo em outro submódulo
+  // Para o polling de anÃ¡lise se estava ativo em outro submÃ³dulo
   if (countAuditPollingTimer && subKey !== 'count-audit') {
     clearInterval(countAuditPollingTimer);
     countAuditPollingTimer = null;
@@ -1256,7 +1256,7 @@ function setActiveSub(subKey) {
   } else if (subKey === 'mate-couro-troca') {
     loadMateCouroTrocaPage();
   } else if (subKey === 'mate-couro-troca-historico') {
-    /* Lista do histórico: carregamento explícito pelo usuário (Carregar histórico). */
+    /* Lista do histÃ³rico: carregamento explÃ­cito pelo usuÃ¡rio (Carregar histÃ³rico). */
   } else if (subKey === 'mate-couro-troca-trocas') {
     loadMateTrocaTrocasPage();
   } else if (subKey === 'count-audit') {
@@ -1290,7 +1290,7 @@ function showModuleHome(moduleKey) {
 
 function setActiveModule(moduleKey, updateHistory = true) {
   const normalized = String(moduleKey || '').trim().toLowerCase();
-  // Submódulo removido: links antigos (#preco-produtos) vão para Cadastro
+  // SubmÃ³dulo removido: links antigos (#preco-produtos) vÃ£o para Cadastro
   if (normalized === 'preco-produtos') {
     if (updateHistory) {
       history.replaceState(null, '', `${APP_BASE_PATH}#cadastro`);
@@ -1298,7 +1298,7 @@ function setActiveModule(moduleKey, updateHistory = true) {
     setActiveModule('cadastro', false);
     return;
   }
-  // Módulo Recontagem removido: hash antigo (#recount) volta à home de Contagem
+  // MÃ³dulo Recontagem removido: hash antigo (#recount) volta Ã  home de Contagem
   if (normalized === 'recount') {
     if (updateHistory) {
       history.replaceState(null, '', `${APP_BASE_PATH}#contagem`);
@@ -1306,7 +1306,7 @@ function setActiveModule(moduleKey, updateHistory = true) {
     setActiveModule('contagem', false);
     return;
   }
-  // Hash legado: lançamento rápido de validade unificado em #validity
+  // Hash legado: lanÃ§amento rÃ¡pido de validade unificado em #validity
   if (normalized === 'validity-launch') {
     if (updateHistory) {
       history.replaceState(null, '', `${APP_BASE_PATH}#validity`);
@@ -1314,7 +1314,7 @@ function setActiveModule(moduleKey, updateHistory = true) {
     setActiveModule('validity', false);
     return;
   }
-  /* #break (bookmark antigo / links externos) → consulta Registro de quebras; lançamento operacional em #quebra */
+  /* #break (bookmark antigo / links externos) â†’ consulta Registro de quebras; lanÃ§amento operacional em #quebra */
   if (normalized === 'break') {
     history.replaceState(null, '', `${APP_BASE_PATH}#break-history`);
     setActiveModule('break-history', false);
@@ -1381,7 +1381,7 @@ function setActiveModule(moduleKey, updateHistory = true) {
   }
 }
 
-/** Bases com `validity` legado ganham acesso ao submódulo de análise de validades. */
+/** Bases com `validity` legado ganham acesso ao submÃ³dulo de anÃ¡lise de validades. */
 function expandUserAllowedPagesForValidity(pages) {
   const arr = [...pages];
   if (arr.includes('validity')) {
@@ -1445,7 +1445,7 @@ function canAccessHash(hashKey) {
     if (expanded.includes(k)) return true;
     const parent = SUB_TO_PARENT[k];
     if (parent && expanded.includes(parent)) return true;
-    /* Legado: páginas de Análise ficavam sob o hub Contagem. */
+    /* Legado: pÃ¡ginas de AnÃ¡lise ficavam sob o hub Contagem. */
     if (parent === 'analise' && expanded.includes('contagem')) return true;
     return false;
   }
@@ -1900,7 +1900,7 @@ function closeUserEditPanel() {
   userEditOriginalUsername = '';
 }
 
-// ── Sessão ─────────────────────────────────────────────────────
+// â”€â”€ SessÃ£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /** Decodifica payload JWT (sem validar assinatura) para ler `exp`. */
 function decodeJwtPayload(token) {
   try {
@@ -1916,7 +1916,7 @@ function decodeJwtPayload(token) {
   }
 }
 
-/** True se o token já passou do horário de expiração (margem 60s). */
+/** True se o token jÃ¡ passou do horÃ¡rio de expiraÃ§Ã£o (margem 60s). */
 function isAccessTokenExpired(token) {
   const p = decodeJwtPayload(token);
   if (!p || typeof p.exp !== 'number') return false;
@@ -1997,9 +1997,9 @@ function computeCountProgressStats(products = countProductsCache) {
   const hasTxt = countImportBalancesState.hasTxt;
 
   /*
-   * Sem TXT: percent = produtos com lançamento / total.
+   * Sem TXT: percent = produtos com lanÃ§amento / total.
    * Com TXT: percent (barra principal) = metades CX/UN que batem o import; productPercent/counted = produtos
-   * com qualquer lançamento (não só os já conferidos contra o TXT).
+   * com qualquer lanÃ§amento (nÃ£o sÃ³ os jÃ¡ conferidos contra o TXT).
    */
   if (!hasTxt) {
     let counted = 0;
@@ -2053,25 +2053,25 @@ function computeCountProgressStats(products = countProductsCache) {
   };
 }
 
-/** Descrição sob a barra de metades (CX/UN vs TXT). */
+/** DescriÃ§Ã£o sob a barra de metades (CX/UN vs TXT). */
 function countProgressDetailDimLabel(stats) {
   const { total, counted, usesDimProgress, dimCompleted, dimTotal } = stats;
   if (!total) {
     return countImportBalancesState.hasTxt
       ? '0 de 0 metades (CX e UN)'
-      : '0 de 0 produtos com lançamento';
+      : '0 de 0 produtos com lanÃ§amento';
   }
   if (usesDimProgress && dimTotal > 0) {
     return `${dimCompleted} de ${dimTotal} metades (CX e UN)`;
   }
-  return `${counted} de ${total} produtos com lançamento`;
+  return `${counted} de ${total} produtos com lanÃ§amento`;
 }
 
-/** Descrição sob a barra de produtos: produtos com lançamento (não exige acerto com TXT). */
+/** DescriÃ§Ã£o sob a barra de produtos: produtos com lanÃ§amento (nÃ£o exige acerto com TXT). */
 function countProgressDetailProductsLabel(stats) {
   const { total, counted } = stats;
   if (!total) return '0 de 0 produtos';
-  return `${counted} de ${total} produtos com lançamento`;
+  return `${counted} de ${total} produtos com lanÃ§amento`;
 }
 
 function formatClock(dateValue) {
@@ -2089,10 +2089,10 @@ function formatDurationFromMs(msValue) {
   return `${h}:${m}:${s}`;
 }
 
-/** Linha do mini-KPI: quem sincronizou no servidor (dia da #count-date) vs. sessão local. */
+/** Linha do mini-KPI: quem sincronizou no servidor (dia da #count-date) vs. sessÃ£o local. */
 function formatKpiCountUserLine() {
   const me = getUser();
-  const sess = (me && (me.full_name || me.name || me.username)) || '—';
+  const sess = (me && (me.full_name || me.name || me.username)) || 'â€”';
   if (!kpiCountUser) return;
   const meta = countServerCountState.ok ? countServerCountState.meta : null;
   const actors = meta && Array.isArray(meta.actors) ? meta.actors.filter(Boolean) : [];
@@ -2101,10 +2101,10 @@ function formatKpiCountUserLine() {
       actors.length <= 2
         ? actors.join(', ')
         : `${actors.slice(0, 2).join(', ')} +${actors.length - 2}`;
-    kpiCountUser.textContent = `Servidor (${actors.length} conferente${actors.length === 1 ? '' : 's'}): ${shown} · Você: ${sess}`;
+    kpiCountUser.textContent = `Servidor (${actors.length} conferente${actors.length === 1 ? '' : 's'}): ${shown} Â· VocÃª: ${sess}`;
     return;
   }
-  kpiCountUser.textContent = `Sem lançamentos sincronizados neste dia no servidor · Você: ${sess}`;
+  kpiCountUser.textContent = `Sem lanÃ§amentos sincronizados neste dia no servidor Â· VocÃª: ${sess}`;
 }
 
 function estimateCountFinish(events, totalProducts) {
@@ -2122,7 +2122,7 @@ function estimateCountFinish(events, totalProducts) {
   const firstTimes = [...byItem.values()].sort((a, b) => a - b);
   if (firstTimes.length < 2 || totalProducts <= firstTimes.length) return null;
 
-  // "Aprendizado" online: média móvel exponencial do tempo por produto.
+  // "Aprendizado" online: mÃ©dia mÃ³vel exponencial do tempo por produto.
   let emaSecondsPerProduct = 0;
   let seen = 0;
   for (let i = 1; i < firstTimes.length; i += 1) {
@@ -2142,7 +2142,7 @@ function estimateCountFinish(events, totalProducts) {
   return new Date(etaMs);
 }
 
-/** Previsão pelo ritmo médio (produtos com lançamento / tempo desde o início). */
+/** PrevisÃ£o pelo ritmo mÃ©dio (produtos com lanÃ§amento / tempo desde o inÃ­cio). */
 function estimateCountFinishFromProgress(stats, startMs, nowMs) {
   const total = stats.total;
   const done = stats.counted;
@@ -2171,7 +2171,7 @@ function updateCountKpi(products = countProductsCache) {
   if (kpiSub) {
     if (showDimSub) {
       kpiSub.hidden = false;
-      kpiSub.textContent = `Metades CX/UN vs importação: ${percent}%`;
+      kpiSub.textContent = `Metades CX/UN vs importaÃ§Ã£o: ${percent}%`;
     } else {
       kpiSub.hidden = true;
       kpiSub.textContent = '';
@@ -2195,12 +2195,12 @@ function updateCountKpi(products = countProductsCache) {
   const ends = [lastLocal, serverLast].filter((t) => Number.isFinite(t));
 
   if (!starts.length) {
-    kpiCountWindow.textContent = 'Início: --:-- | Fim: --:--';
+    kpiCountWindow.textContent = 'InÃ­cio: --:-- | Fim: --:--';
     kpiCountElapsed.textContent = 'Tempo em andamento: 00:00:00';
     kpiCountEta.textContent =
       kpiDisplayPercent > 0 || percent > 0
-        ? 'Previsão de término: aguardando horários dos lançamentos sincronizados'
-        : 'Previsão de término: --:--';
+        ? 'PrevisÃ£o de tÃ©rmino: aguardando horÃ¡rios dos lanÃ§amentos sincronizados'
+        : 'PrevisÃ£o de tÃ©rmino: --:--';
     return;
   }
 
@@ -2211,11 +2211,11 @@ function updateCountKpi(products = countProductsCache) {
   const nowMs = Date.now();
   const elapsedMs = (finished ? endMs : nowMs) - startMs;
 
-  kpiCountWindow.textContent = `Início: ${formatClock(startMs)} | Fim: ${finished ? formatClock(endMs) : '--:--'}`;
+  kpiCountWindow.textContent = `InÃ­cio: ${formatClock(startMs)} | Fim: ${finished ? formatClock(endMs) : '--:--'}`;
   kpiCountElapsed.textContent = `Tempo em andamento: ${formatDurationFromMs(elapsedMs)}`;
 
   if (finished) {
-    kpiCountEta.textContent = `Previsão de término: concluído às ${formatClock(endMs)}`;
+    kpiCountEta.textContent = `PrevisÃ£o de tÃ©rmino: concluÃ­do Ã s ${formatClock(endMs)}`;
     return;
   }
 
@@ -2225,30 +2225,30 @@ function updateCountKpi(products = countProductsCache) {
   }
 
   if (etaDate) {
-    kpiCountEta.textContent = `Previsão de término: ${formatClock(etaDate)}`;
+    kpiCountEta.textContent = `PrevisÃ£o de tÃ©rmino: ${formatClock(etaDate)}`;
     return;
   }
 
   const doneUnits = stats.counted;
   const totalUnits = stats.total;
   if (totalUnits > 0 && doneUnits >= 1 && elapsedMs < 1000) {
-    kpiCountEta.textContent = 'Previsão de término: calculando…';
+    kpiCountEta.textContent = 'PrevisÃ£o de tÃ©rmino: calculandoâ€¦';
   } else if (totalUnits > 0 && doneUnits >= 1) {
     kpiCountEta.textContent =
-      'Previsão de término: indisponível (ritmo ainda irregular — continue lançando)';
+      'PrevisÃ£o de tÃ©rmino: indisponÃ­vel (ritmo ainda irregular â€” continue lanÃ§ando)';
   } else {
     kpiCountEta.textContent =
-      'Previsão de término: após o primeiro lançamento e ~1 min de operação';
+      'PrevisÃ£o de tÃ©rmino: apÃ³s o primeiro lanÃ§amento e ~1 min de operaÃ§Ã£o';
   }
 }
 
-/** KPI na home de Análise: produtos ativos com data de validade exibida entre hoje e +30 dias. */
+/** KPI na home de AnÃ¡lise: produtos ativos com data de validade exibida entre hoje e +30 dias. */
 async function refreshContagemValidityExpiringKpi() {
   const el = document.getElementById('kpi-validity-expiring-30d');
   if (!el) return;
   const token = getToken();
   if (!token || isAccessTokenExpired(token)) {
-    el.textContent = '—';
+    el.textContent = 'â€”';
     return;
   }
   if (unauthorizedRedirectInProgress) return;
@@ -2259,14 +2259,14 @@ async function refreshContagemValidityExpiringKpi() {
     });
     if (handleUnauthorizedResponse(response)) return;
     if (!response.ok) {
-      el.textContent = '—';
+      el.textContent = 'â€”';
       return;
     }
     const data = await response.json();
     const n = Number(data.count);
-    el.textContent = Number.isFinite(n) ? String(Math.max(0, Math.floor(n))) : '—';
+    el.textContent = Number.isFinite(n) ? String(Math.max(0, Math.floor(n))) : 'â€”';
   } catch {
-    el.textContent = '—';
+    el.textContent = 'â€”';
   }
 }
 
@@ -2285,7 +2285,7 @@ function applyCountProgressFillTier(el, pct) {
   else el.classList.add('is-low');
 }
 
-/** Barra: produtos com distribuição de validade concluída (soma de lotes = base da contagem do dia). */
+/** Barra: produtos com distribuiÃ§Ã£o de validade concluÃ­da (soma de lotes = base da contagem do dia). */
 function updateValidityOpProgress(completeCount, totalWithBase, opKey, todayBr) {
   const fill = document.getElementById('validity-op-progress-fill-products');
   const pctEl = document.getElementById('validity-op-progress-percent-products');
@@ -2314,7 +2314,7 @@ function updateCountProgress(products = countProductsCache) {
   if (!fillDim) return;
   const stats = computeCountProgressStats(products);
   const { total, percent, productPercent, usesDimProgress } = stats;
-  // Segunda barra só com importação TXT: metades (CX/UN) na primeira, produtos com lançamento na segunda.
+  // Segunda barra sÃ³ com importaÃ§Ã£o TXT: metades (CX/UN) na primeira, produtos com lanÃ§amento na segunda.
   const dual = Boolean(
     total && countImportBalancesState.hasTxt && usesDimProgress && stats.dimTotal > 0,
   );
@@ -2382,7 +2382,7 @@ function normalizeItemCode(value) {
   return raw.toUpperCase();
 }
 
-/** Mesma regra do servidor: códigos só numéricos viram uma chave única (010 ≡ 10). */
+/** Mesma regra do servidor: cÃ³digos sÃ³ numÃ©ricos viram uma chave Ãºnica (010 â‰¡ 10). */
 function normalizeNumericProductCodeKey(code) {
   const base = normalizeItemCode(code);
   if (!base) return '';
@@ -2394,7 +2394,7 @@ function normalizeCountType(value) {
   return (value || '').trim().toLowerCase() === 'unidade' ? 'unidade' : 'caixa';
 }
 
-/** CX/UN de evento de quebra (API /audit/break-events): evita perder um eixo quando só um vem no JSON. */
+/** CX/UN de evento de quebra (API /audit/break-events): evita perder um eixo quando sÃ³ um vem no JSON. */
 function parseAuditBreakCxUn(ev) {
   if (!ev || typeof ev !== 'object') return { cx: 0, un: 0 };
   const rawCx = Number(ev.cx);
@@ -2418,7 +2418,7 @@ function makeCountTotalKey(itemCode, countType) {
   return `${normalizeItemCode(itemCode)}::${normalizeCountType(countType)}`;
 }
 
-/** Soma apenas eventos locais ainda não sincronizados (evita duplicar o que já está no servidor). */
+/** Soma apenas eventos locais ainda nÃ£o sincronizados (evita duplicar o que jÃ¡ estÃ¡ no servidor). */
 function getUnsyncedNetByProductAndType(productCode, countType) {
   const base = normalizeItemCode(productCode);
   const ct = normalizeCountType(countType);
@@ -2442,12 +2442,12 @@ function getServerNetForProductAndType(productCode, countType) {
 }
 
 /**
- * Contagem operacional líquida (sem Base de Troca), para a data ativa (#count-date):
+ * Contagem operacional lÃ­quida (sem Base de Troca), para a data ativa (#count-date):
  * - Com API ok: total da equipe no servidor (GET count-server-totals, dia SP) + apenas eventos
- *   locais desta data ainda não sincronizados (evita duplicar o que já entrou no servidor).
- * - Sem API (offline/erro): soma de todos os eventos locais dessa data (inclui já sincronizados no bucket).
- * O readout na lista de contagem usa getCountNetMergedWithMateTrocaForTxtCompare (esta função + troca Mate).
- * Gravação em registerCountDelta usa o mesmo dayKey que loadCountEvents() (getActiveCountDateKey).
+ *   locais desta data ainda nÃ£o sincronizados (evita duplicar o que jÃ¡ entrou no servidor).
+ * - Sem API (offline/erro): soma de todos os eventos locais dessa data (inclui jÃ¡ sincronizados no bucket).
+ * O readout na lista de contagem usa getCountNetMergedWithMateTrocaForTxtCompare (esta funÃ§Ã£o + troca Mate).
+ * GravaÃ§Ã£o em registerCountDelta usa o mesmo dayKey que loadCountEvents() (getActiveCountDateKey).
  */
 function getNetByProductAndType(productCode, countType) {
   const base = normalizeItemCode(productCode);
@@ -2482,7 +2482,7 @@ function getUnsyncedNetBreakByProductAndType(productCode, countType) {
   return sum;
 }
 
-/** Pendências locais não sincronizadas para um dia operacional específico (mesma regra da tela Quebra). */
+/** PendÃªncias locais nÃ£o sincronizadas para um dia operacional especÃ­fico (mesma regra da tela Quebra). */
 function getUnsyncedNetBreakByProductAndTypeForDate(productCode, countType, dayKey) {
   const base = normalizeItemCode(productCode);
   const ct = normalizeCountType(countType);
@@ -2497,9 +2497,9 @@ function getUnsyncedNetBreakByProductAndTypeForDate(productCode, countType, dayK
 }
 
 /**
- * Totais de quebra no mapa do servidor (break-day-totals) para o código da linha.
- * Tenta equivalente numérico (ex.: 030 vs 30) para não zerar a coluna Quebra quando TXT e ChangeLog divergem
- * só na forma do código.
+ * Totais de quebra no mapa do servidor (break-day-totals) para o cÃ³digo da linha.
+ * Tenta equivalente numÃ©rico (ex.: 030 vs 30) para nÃ£o zerar a coluna Quebra quando TXT e ChangeLog divergem
+ * sÃ³ na forma do cÃ³digo.
  */
 function resolveBreakDayBalanceEntry(balancesMap, productCode) {
   const base = normalizeItemCode(productCode);
@@ -2528,7 +2528,7 @@ function resolveBreakDayBalanceEntry(balancesMap, productCode) {
 /**
  * Total de quebra CX/UN no dia (servidor + pendente local), alinhado ao readout da tela Quebra.
  * @param {boolean} serverOk - GET break-day-totals ok para este dia
- * @param {Record<string, {caixa?: number, unidade?: number}>} balancesMap - mapa código → totais do servidor
+ * @param {Record<string, {caixa?: number, unidade?: number}>} balancesMap - mapa cÃ³digo â†’ totais do servidor
  */
 function getNetBreakByProductAndTypeForOperationalDay(productCode, countType, dayKey, serverOk, balancesMap) {
   const base = normalizeItemCode(productCode);
@@ -2556,7 +2556,7 @@ function getServerNetBreakForProductAndType(productCode, countType) {
 }
 
 /**
- * Readout de quebra no dia operacional (hoje, America/Sao_Paulo): servidor + pendente local não sincronizado.
+ * Readout de quebra no dia operacional (hoje, America/Sao_Paulo): servidor + pendente local nÃ£o sincronizado.
  */
 function getNetBreakByProductAndType(productCode, countType) {
   const base = normalizeItemCode(productCode);
@@ -2732,7 +2732,7 @@ function renderUsersList(users) {
   if (!usersList) return;
   usersList.innerHTML = '';
   if (!users.length) {
-    usersList.innerHTML = '<li><span>Nenhum usuário cadastrado.</span><strong>0</strong></li>';
+    usersList.innerHTML = '<li><span>Nenhum usuÃ¡rio cadastrado.</span><strong>0</strong></li>';
     return;
   }
   for (const user of users) {
@@ -2741,7 +2741,7 @@ function renderUsersList(users) {
     li.setAttribute('role', 'button');
     li.tabIndex = 0;
     li.dataset.userId = String(user.id);
-    const title = user.full_name || user.name || user.username || 'Usuário';
+    const title = user.full_name || user.name || user.username || 'UsuÃ¡rio';
     const nameSpan = document.createElement('span');
     nameSpan.className = 'users-list-name';
     nameSpan.textContent = title;
@@ -2802,7 +2802,7 @@ function countExplicitZeroKey(codRaw, countType) {
   return `count_explicit_zero_${getActiveCountDateKey()}_${normalizeItemCode(codRaw)}_${normalizeCountType(countType)}`;
 }
 
-/** client_event_id estável para sincronizar confirmação de zero (evita duplicar no servidor). */
+/** client_event_id estÃ¡vel para sincronizar confirmaÃ§Ã£o de zero (evita duplicar no servidor). */
 function makeStableExplicitZeroEventId(dayKey, itemCode, countType) {
   const d = String(dayKey || '').slice(0, 10);
   const c = normalizeItemCode(itemCode);
@@ -2829,7 +2829,7 @@ function setCountExplicitZero(codRaw, countType, on) {
   }
 }
 
-/** null = sem TXT / sem linha no arquivo; true = bate; false = não bate */
+/** null = sem TXT / sem linha no arquivo; true = bate; false = nÃ£o bate */
 function countDimensionMatchesSaldo(codRaw, countType, net, saldoVal) {
   if (!countImportBalancesState.hasTxt) return null;
   const pair = getCountSaldoPair(codRaw);
@@ -2844,8 +2844,8 @@ function countDimensionMatchesSaldo(codRaw, countType, net, saldoVal) {
 }
 
 /**
- * Total para comparar com o TXT na contagem (badges OK/Divergência, barra de metades, pendentes).
- * Igual à coluna Diferença da Análise de Contagem: lançamentos CX/UN + saldo Base de Troca V2 (Mate couro).
+ * Total para comparar com o TXT na contagem (badges OK/DivergÃªncia, barra de metades, pendentes).
+ * Igual Ã  coluna DiferenÃ§a da AnÃ¡lise de Contagem: lanÃ§amentos CX/UN + saldo Base de Troca V2 (Mate couro).
  * @see reconcileCountAuditMetaDiffWithMergedCount
  */
 function getCountNetMergedWithMateTrocaForTxtCompare(codRaw, countType) {
@@ -2860,7 +2860,7 @@ function getCountNetMergedWithMateTrocaForTxtCompare(codRaw, countType) {
   return net + t;
 }
 
-/** Há lançamento local ou total já sincronizado no servidor (para saldo TXT zero). */
+/** HÃ¡ lanÃ§amento local ou total jÃ¡ sincronizado no servidor (para saldo TXT zero). */
 function hasAnyCountActivityForType(codRaw, countType) {
   if (hasAnyCountEventsForType(codRaw, countType)) return true;
   const base = normalizeItemCode(codRaw);
@@ -2874,7 +2874,7 @@ function hasAnyCountActivityForType(codRaw, countType) {
   return false;
 }
 
-/** Produto com ao menos uma dimensão contada (evento, servidor ou zero explícito). Não exige acerto com TXT. */
+/** Produto com ao menos uma dimensÃ£o contada (evento, servidor ou zero explÃ­cito). NÃ£o exige acerto com TXT. */
 function productHasAnyCountLaunch(codRaw) {
   if (hasAnyCountActivityForType(codRaw, 'caixa') || hasAnyCountActivityForType(codRaw, 'unidade')) {
     return true;
@@ -2925,14 +2925,14 @@ async function loadImportBalancesForCount() {
   }
 }
 
-/** TXT, totais de contagem no servidor e saldo Base de Troca Mate — badges vs import alinhados à Análise de Contagem. */
+/** TXT, totais de contagem no servidor e saldo Base de Troca Mate â€” badges vs import alinhados Ã  AnÃ¡lise de Contagem. */
 async function refreshCountTxtAndMateCaches() {
   await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
   try {
     await ensureMateCouroCatalogLoaded();
     await refreshMateTrocaBaseBalanceCardV2();
   } catch {
-    /* offline ou falha Mate: compara só contagem pura até próximo refresh */
+    /* offline ou falha Mate: compara sÃ³ contagem pura atÃ© prÃ³ximo refresh */
   }
 }
 
@@ -3029,7 +3029,7 @@ async function loadValidityDayCountTotals() {
   }
 }
 
-/** Última contagem do sistema para o produto, ou null. */
+/** Ãšltima contagem do sistema para o produto, ou null. */
 function getValidityLastCountSnapshot(codRaw) {
   const base = normalizeItemCode(codRaw);
   if (!validityLastCountState.ok || !validityLastCountState.balances[base]) {
@@ -3043,14 +3043,14 @@ function getValidityLastCountSnapshot(codRaw) {
 }
 
 function formatDateBrFromIso(iso) {
-  if (!iso || String(iso).length < 8) return '—';
+  if (!iso || String(iso).length < 8) return 'â€”';
   const s = String(iso).slice(0, 10);
   const [y, m, d] = s.split('-');
-  if (!y || !m || !d) return '—';
+  if (!y || !m || !d) return 'â€”';
   return `${d}/${m}/${y}`;
 }
 
-/** Campo livre de validade: aceita DD/MM/AAAA ou YYYY-MM-DD → YYYY-MM-DD ou null. */
+/** Campo livre de validade: aceita DD/MM/AAAA ou YYYY-MM-DD â†’ YYYY-MM-DD ou null. */
 function parseValidityDateInputToIso(raw) {
   const s = String(raw || '').trim();
   if (!s) return null;
@@ -3152,10 +3152,10 @@ function updateValidityPendingBadges() {
 }
 
 function renderCountProducts(products) {
-  // Filtra itens ativos considerando sinônimos do backend (null/vazio, 'S', '1', 'Sim', etc)
+  // Filtra itens ativos considerando sinÃ´nimos do backend (null/vazio, 'S', '1', 'Sim', etc)
   const isActive = (status) => {
     const s = String(status || '').trim().toLowerCase();
-    // No backend, null ou vazio é considerado Ativo por padrão no catálogo
+    // No backend, null ou vazio Ã© considerado Ativo por padrÃ£o no catÃ¡logo
     if (!s || s === 'ativo' || s === 's' || s === 'sim' || s === '1' || s === 'true' || s === 'ativado' || s === 'active') return true;
     return false;
   };
@@ -3163,11 +3163,11 @@ function renderCountProducts(products) {
   const ativos = Array.isArray(products)
     ? products.filter(p => isActive(p.status))
     : [];
-  /* Ordem por código do produto (igual análise de contagem: numérico-aware em pt-BR). */
+  /* Ordem por cÃ³digo do produto (igual anÃ¡lise de contagem: numÃ©rico-aware em pt-BR). */
   ativos.sort(compareAuditCodProduto);
   if (!countProductsList) {
     const feedback = document.getElementById('count-feedback');
-    if (feedback) feedback.textContent = 'ERRO: Elemento da lista de produtos não encontrado!';
+    if (feedback) feedback.textContent = 'ERRO: Elemento da lista de produtos nÃ£o encontrado!';
     return;
   }
   const restoreCtx =
@@ -3176,7 +3176,7 @@ function renderCountProducts(products) {
   countProductsList.style.display = '';
   const subCount = document.getElementById('sub-count');
   if (subCount) subCount.style.display = '';
-  // Não usar style.display = '' aqui: em style.css #view-dashboard { display: none } e some o app inteiro.
+  // NÃ£o usar style.display = '' aqui: em style.css #view-dashboard { display: none } e some o app inteiro.
   showDashboard();
   countProductsList.hidden = false;
   countProductsList.innerHTML = '';
@@ -3195,7 +3195,7 @@ function renderCountProducts(products) {
     const countShellEmpty = document.querySelector('#sub-count .count-products-shell');
     if (countShellEmpty) countShellEmpty.dataset.doneSectionVisible = '0';
     filtrarProdutos();
-    // Garante que o menu de módulos e dashboard continuam visíveis
+    // Garante que o menu de mÃ³dulos e dashboard continuam visÃ­veis
     const moduleNav = document.getElementById('module-nav');
     if (moduleNav) moduleNav.style.display = '';
     const sidebarMenu = document.getElementById('sidebar-menu');
@@ -3216,7 +3216,7 @@ function renderCountProducts(products) {
     const desc = escapeHtml(product.cod_grup_descricao || '');
     const codRef = encodeURIComponent(codRaw);
     const codHtml = codRaw
-      ? ` <span class="count-product-cod">· ${escapeHtml(codRaw)}</span>`
+      ? ` <span class="count-product-cod">Â· ${escapeHtml(codRaw)}</span>`
       : '';
     const netCx = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'caixa');
     const netUn = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'unidade');
@@ -3228,10 +3228,10 @@ function renderCountProducts(products) {
     const vUn = Math.max(0, Math.round(Number(netUn) || 0));
     const isMateForReadout = mateCouroCatalogHasCode(getMateCouroCodSet(), codRaw);
     const titleCx = isMateForReadout
-      ? 'Total físico em caixas: contagem (equipe + pendente neste aparelho) + saldo Base de Troca Mate. Os botões +/− alteram só a contagem operacional.'
+      ? 'Total fÃ­sico em caixas: contagem (equipe + pendente neste aparelho) + saldo Base de Troca Mate. Os botÃµes +/âˆ’ alteram sÃ³ a contagem operacional.'
       : 'Total em caixas: equipe (sincronizado) + pendente neste aparelho';
     const titleUn = isMateForReadout
-      ? 'Total físico em unidades: contagem (equipe + pendente neste aparelho) + saldo Base de Troca Mate. Os botões +/− alteram só a contagem operacional.'
+      ? 'Total fÃ­sico em unidades: contagem (equipe + pendente neste aparelho) + saldo Base de Troca Mate. Os botÃµes +/âˆ’ alteram sÃ³ a contagem operacional.'
       : 'Total em unidades: equipe (sincronizado) + pendente neste aparelho';
 
     let cardClass = 'count-product-item';
@@ -3249,14 +3249,14 @@ function renderCountProducts(products) {
 
     const badgeCx = hasTxt && pair
       ? (dimCx === false
-        ? '<span class="count-row-badge count-row-badge--recount">Divergência</span>'
+        ? '<span class="count-row-badge count-row-badge--recount">DivergÃªncia</span>'
         : dimCx === true
           ? '<span class="count-row-badge count-row-badge--ok">OK</span>'
           : '')
       : '';
     const badgeUn = hasTxt && pair
       ? (dimUn === false
-        ? '<span class="count-row-badge count-row-badge--recount">Divergência</span>'
+        ? '<span class="count-row-badge count-row-badge--recount">DivergÃªncia</span>'
         : dimUn === true
           ? '<span class="count-row-badge count-row-badge--ok">OK</span>'
           : '')
@@ -3265,7 +3265,7 @@ function renderCountProducts(products) {
     const li = document.createElement('li');
     li.className = cardClass;
     li.dataset.codProduto = codRaw;
-    /* Input sempre vazio na lista: total só no readout; após +/− ou lançamento por teclado o campo não replica o saldo. */
+    /* Input sempre vazio na lista: total sÃ³ no readout; apÃ³s +/âˆ’ ou lanÃ§amento por teclado o campo nÃ£o replica o saldo. */
     li.innerHTML = `
       <div class="count-product-label">
         <span class="count-product-title-row">
@@ -3276,7 +3276,7 @@ function renderCountProducts(products) {
       <div class="count-product-controls">
         <div class="count-control-row ${rowClassFromMatch(dimCx)}">
           <span class="count-control-type">CX</span>
-          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">âˆ’</button>
           <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
             data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
@@ -3291,7 +3291,7 @@ function renderCountProducts(products) {
         </div>
         <div class="count-control-row ${rowClassFromMatch(dimUn)}">
           <span class="count-control-type">UN</span>
-          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">âˆ’</button>
           <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
             data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
@@ -3347,7 +3347,7 @@ function renderCountProducts(products) {
   const countShell = document.querySelector('#sub-count .count-products-shell');
   if (countShell) countShell.dataset.doneSectionVisible = done.length ? '1' : '0';
   filtrarProdutos();
-  // Garante que o menu de módulos e dashboard continuam visíveis
+  // Garante que o menu de mÃ³dulos e dashboard continuam visÃ­veis
   const moduleNav = document.getElementById('module-nav');
   if (moduleNav) moduleNav.style.display = '';
   const sidebarMenu = document.getElementById('sidebar-menu');
@@ -3366,7 +3366,7 @@ function updateCountReadOnlyState() {
     shell.classList.toggle('count-products-shell--readonly', !editable);
     shell.querySelectorAll('input.count-product-qty').forEach((el) => {
       el.readOnly = !editable;
-      el.title = editable ? '' : 'Somente consulta: selecione a data de hoje para lançar.';
+      el.title = editable ? '' : 'Somente consulta: selecione a data de hoje para lanÃ§ar.';
     });
     shell.querySelectorAll('.btn-count-adjust').forEach((el) => {
       el.disabled = !editable;
@@ -3377,7 +3377,7 @@ function updateCountReadOnlyState() {
     const show = !editable;
     banner.hidden = !show;
     banner.textContent = show
-      ? `Modo consulta (${getActiveCountDateKey()}). Para lançar, use a data de hoje (${getBrazilDateKey()}).`
+      ? `Modo consulta (${getActiveCountDateKey()}). Para lanÃ§ar, use a data de hoje (${getBrazilDateKey()}).`
       : '';
   }
 }
@@ -3425,7 +3425,7 @@ async function loadCountProducts(options = {}) {
   }
 
   const q = '';
-  /* Contagem operacional: sempre catálogo ativo no backend; sem toggle no front */
+  /* Contagem operacional: sempre catÃ¡logo ativo no backend; sem toggle no front */
   const statusValue = 'ativo';
   const fetchCatalog = async (statusParam) => {
     const buildUrl = (lim) => {
@@ -3469,7 +3469,7 @@ async function loadCountProducts(options = {}) {
       await refreshCountTxtAndMateCaches();
       if (!skipCountRender) {
         renderCountProducts([]);
-        setFeedback('Nenhum produto ativo encontrado. Verifique se há produtos cadastrados como ATIVO.', true);
+        setFeedback('Nenhum produto ativo encontrado. Verifique se hÃ¡ produtos cadastrados como ATIVO.', true);
       }
       return;
     }
@@ -3498,7 +3498,7 @@ async function loadCountProducts(options = {}) {
   }
 }
 
-/** Garante catálogo ativo em memória para enriquecer nomes na Análise de Contagem. */
+/** Garante catÃ¡logo ativo em memÃ³ria para enriquecer nomes na AnÃ¡lise de Contagem. */
 async function ensureCountProductsCatalogForAudit() {
   if (Array.isArray(countProductsCache) && countProductsCache.length > 0) return;
   await loadCountProducts({ skipCountRender: true });
@@ -3540,7 +3540,7 @@ function breakRestoreCtxFromQtyInput(inp) {
   }
 }
 
-/** @param {unknown[]} products @param {ReturnType<typeof getBreakListRestoreContext>|null} listRestoreCtx contexto de foco/scroll após render (null = não restaurar). */
+/** @param {unknown[]} products @param {ReturnType<typeof getBreakListRestoreContext>|null} listRestoreCtx contexto de foco/scroll apÃ³s render (null = nÃ£o restaurar). */
 function renderBreakProducts(products, listRestoreCtx) {
   const isActive = (status) => {
     const s = String(status || '').trim().toLowerCase();
@@ -3587,7 +3587,7 @@ function renderBreakProducts(products, listRestoreCtx) {
     const desc = escapeHtml(product.cod_grup_descricao || '');
     const codRef = encodeURIComponent(codRaw);
     const codHtml = codRaw
-      ? ` <span class="count-product-cod">· ${escapeHtml(codRaw)}</span>`
+      ? ` <span class="count-product-cod">Â· ${escapeHtml(codRaw)}</span>`
       : '';
     const codSafeId = (codRaw.replace(/[^a-zA-Z0-9_-]/g, '_') || 'item').slice(0, 80);
     const netCx = getNetBreakByProductAndType(codRaw, 'caixa');
@@ -3607,16 +3607,16 @@ function renderBreakProducts(products, listRestoreCtx) {
       <div class="break-reason-row">
         <div class="break-reason-head">
           <label class="validity-op-label break-reason-label" for="break-reason-${escapeHtml(codSafeId)}">Motivo da quebra</label>
-          <span class="break-reason-hint">Padrão: produtos avariados — troque se for vencidos</span>
+          <span class="break-reason-hint">PadrÃ£o: produtos avariados â€” troque se for vencidos</span>
         </div>
-        <select id="break-reason-${escapeHtml(codSafeId)}" name="break-reason-${escapeHtml(codSafeId)}" class="validity-op-input break-reason-select" aria-label="Motivo da quebra (padrão: produtos avariados)" required>
+        <select id="break-reason-${escapeHtml(codSafeId)}" name="break-reason-${escapeHtml(codSafeId)}" class="validity-op-input break-reason-select" aria-label="Motivo da quebra (padrÃ£o: produtos avariados)" required>
           ${breakReasonOptionsHtml}
         </select>
       </div>
       <div class="count-product-controls break-product-controls">
         <div class="count-control-row count-control-row--neutral break-product-qty-row">
           <span class="count-control-type">CX</span>
-          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">âˆ’</button>
           <input type="number" id="break-qty-${escapeHtml(codSafeId)}-caixa" name="break-qty-${escapeHtml(codSafeId)}-caixa" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
             data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
@@ -3631,7 +3631,7 @@ function renderBreakProducts(products, listRestoreCtx) {
         </div>
         <div class="count-control-row count-control-row--neutral break-product-qty-row">
           <span class="count-control-type">UN</span>
-          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">âˆ’</button>
           <input type="number" id="break-qty-${escapeHtml(codSafeId)}-unidade" name="break-qty-${escapeHtml(codSafeId)}-unidade" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
             data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
@@ -3665,7 +3665,7 @@ function updateBreakReadOnlyState() {
     shell.classList.toggle('count-products-shell--readonly', !editable);
     shell.querySelectorAll('input.count-product-qty').forEach((el) => {
       el.readOnly = !editable;
-      el.title = editable ? '' : 'Somente consulta: selecione a data de hoje para lançar.';
+      el.title = editable ? '' : 'Somente consulta: selecione a data de hoje para lanÃ§ar.';
     });
     shell.querySelectorAll('.btn-count-adjust').forEach((el) => {
       el.disabled = !editable;
@@ -3676,14 +3676,14 @@ function updateBreakReadOnlyState() {
     const show = !editable;
     banner.hidden = !show;
     banner.textContent = show
-      ? `Modo consulta (${getActiveBreakDateKey()}). Para lançar, use a data de hoje (${getBrazilDateKey()}).`
+      ? `Modo consulta (${getActiveBreakDateKey()}). Para lanÃ§ar, use a data de hoje (${getBrazilDateKey()}).`
       : '';
   }
 }
 
 /**
- * @param {ReturnType<typeof getBreakListRestoreContext>|null} [explicitRestoreCtx] quando definido e não null, usa este contexto de restauração
- * @param {boolean} [skipAutoRestore] se true, não chama getBreakListRestoreContext() (recomendado para filtro por busca — evita scroll/foco competindo com o toque)
+ * @param {ReturnType<typeof getBreakListRestoreContext>|null} [explicitRestoreCtx] quando definido e nÃ£o null, usa este contexto de restauraÃ§Ã£o
+ * @param {boolean} [skipAutoRestore] se true, nÃ£o chama getBreakListRestoreContext() (recomendado para filtro por busca â€” evita scroll/foco competindo com o toque)
  */
 function refreshBreakProductListView(explicitRestoreCtx, skipAutoRestore) {
   const input = document.getElementById('break-item-code');
@@ -3704,11 +3704,11 @@ function refreshBreakProductListView(explicitRestoreCtx, skipAutoRestore) {
   renderBreakProducts(toShow, listRestoreCtx);
 }
 
-/** @returns {boolean} true se a lista precisa ser re-renderizada no chamador (após sucesso com alteração de totais). */
+/** @returns {boolean} true se a lista precisa ser re-renderizada no chamador (apÃ³s sucesso com alteraÃ§Ã£o de totais). */
 function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction, anchorEl) {
   const opQty = parseOperationQtyFromInputEl(inp);
   if (opQty == null) {
-    setBreakFeedback('Digite uma quantidade maior que zero para aplicar com + ou −.', true);
+    setBreakFeedback('Digite uma quantidade maior que zero para aplicar com + ou âˆ’.', true);
     return false;
   }
   const item =
@@ -3717,7 +3717,7 @@ function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction, anchorE
   const reasonSel = item?.querySelector('select.break-reason-select');
   const reason = (reasonSel?.value || '').trim();
   if (!reason) {
-    setBreakFeedback('Selecione o motivo da quebra antes de lançar quantidade.', true);
+    setBreakFeedback('Selecione o motivo da quebra antes de lanÃ§ar quantidade.', true);
     if (reasonSel && typeof reasonSel.focus === 'function') reasonSel.focus({ preventScroll: true });
     return false;
   }
@@ -3743,7 +3743,7 @@ function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction, anchorE
 
 function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa', reasonText = '') {
   if (!isBreakOperationalEditable()) {
-    setBreakFeedback('Só é possível lançar quebra na data de hoje (America/Sao_Paulo).', true);
+    setBreakFeedback('SÃ³ Ã© possÃ­vel lanÃ§ar quebra na data de hoje (America/Sao_Paulo).', true);
     return;
   }
   const itemCode = normalizeItemCode(itemCodeInput);
@@ -3762,7 +3762,7 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   }
 
   if (!reason) {
-    setBreakFeedback('Selecione o motivo da quebra antes de lançar quantidade.', true);
+    setBreakFeedback('Selecione o motivo da quebra antes de lanÃ§ar quantidade.', true);
     return;
   }
 
@@ -3800,7 +3800,7 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   const deltaStr =
     quantity < 0 ? formatSignedIntegerBR(quantity) : formatBreakIntegerBR(quantity);
   setBreakFeedback(
-    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total quebra ${formatBreakIntegerBR(netCx)} CX e ${formatBreakIntegerBR(netUn)} UN`,
+    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} Â· Total quebra ${formatBreakIntegerBR(netCx)} CX e ${formatBreakIntegerBR(netUn)} UN`,
     false,
   );
 
@@ -3808,11 +3808,11 @@ function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   if (lastLaunch) {
     lastLaunch.hidden = false;
     lastLaunch.innerHTML =
-      `<span class="count-last-launch-kicker">Último lançamento</span>` +
+      `<span class="count-last-launch-kicker">Ãšltimo lanÃ§amento</span>` +
       `<span class="count-last-launch-body">` +
       `<strong class="count-last-launch-name">${escapeHtml(productName)}</strong> ` +
       `<span class="count-last-launch-delta">(${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'})</span>` +
-      ` · Total no dia: <strong>${formatBreakIntegerBR(netCx)} CX</strong> · <strong>${formatBreakIntegerBR(netUn)} UN</strong>` +
+      ` Â· Total no dia: <strong>${formatBreakIntegerBR(netCx)} CX</strong> Â· <strong>${formatBreakIntegerBR(netUn)} UN</strong>` +
       `</span>`;
   }
 
@@ -3836,7 +3836,7 @@ async function syncPendingBreakEvents() {
   const pendingBad = pending.length - pendingValid.length;
   if (pendingBad > 0) {
     setBreakFeedback(
-      `${pendingBad} lançamento(s) pendente(s) sem motivo (versão antiga). Eles não serão enviados; refaça o lançamento com motivo.`,
+      `${pendingBad} lanÃ§amento(s) pendente(s) sem motivo (versÃ£o antiga). Eles nÃ£o serÃ£o enviados; refaÃ§a o lanÃ§amento com motivo.`,
       true,
     );
   }
@@ -3868,7 +3868,7 @@ async function syncPendingBreakEvents() {
 
     if (!response.ok) {
       if (response.status === 401) {
-        setBreakFeedback('Sessão expirada. Continue offline e faça login depois para sincronizar.', true);
+        setBreakFeedback('SessÃ£o expirada. Continue offline e faÃ§a login depois para sincronizar.', true);
       } else {
         setBreakFeedback('Falha ao sincronizar quebras. Os dados continuam salvos localmente.', true);
       }
@@ -3878,11 +3878,11 @@ async function syncPendingBreakEvents() {
     const data = await response.json();
     const syncedIds = new Set(data.synced_ids || []);
     markBreakEventsSyncedInBucket(syncedIds);
-    setBreakFeedback(`Sincronização: ${syncedIds.size} evento(s) enviado(s).`);
+    setBreakFeedback(`SincronizaÃ§Ã£o: ${syncedIds.size} evento(s) enviado(s).`);
     await loadServerBreakTotals();
     refreshBreakProductListView();
   } catch {
-    setBreakFeedback('Sem conexão no momento. Quebra continua salva neste aparelho.', true);
+    setBreakFeedback('Sem conexÃ£o no momento. Quebra continua salva neste aparelho.', true);
   } finally {
     breakSyncInProgress = false;
   }
@@ -3987,8 +3987,8 @@ function bindBreakEvents() {
       if (next && typeof next.closest === 'function' && next.closest('.btn-count-adjust') && breakShell.contains(next)) {
         return;
       }
-      /* Não re-renderizar a lista ao sair com campo vazio: no mobile o DOM é recriado e o próximo toque falha (igual contagem). */
-      // Sem aplicar ao sair do campo: blur não dispara + (evita envio “sozinho” e permite usar − com valor digitado).
+      /* NÃ£o re-renderizar a lista ao sair com campo vazio: no mobile o DOM Ã© recriado e o prÃ³ximo toque falha (igual contagem). */
+      // Sem aplicar ao sair do campo: blur nÃ£o dispara + (evita envio â€œsozinhoâ€ e permite usar âˆ’ com valor digitado).
     });
     breakShell.addEventListener('keydown', (e) => {
       const inp = e.target;
@@ -4033,7 +4033,7 @@ function updateBreakOpProgressBar() {
   if (pct >= 67) fillEl.classList.add('is-high');
   else if (pct >= 34) fillEl.classList.add('is-mid');
   else fillEl.classList.add('is-low');
-  detailEl.textContent = `${vis} de ${total} produtos visíveis no filtro`;
+  detailEl.textContent = `${vis} de ${total} produtos visÃ­veis no filtro`;
 }
 
 function filtrarProdutosQuebra() {
@@ -4086,7 +4086,7 @@ function parseBreakHistoryBulkCodesRaw(raw) {
 async function runBreakHistoryBulkDelete() {
   const token = getToken();
   if (!token) {
-    window.alert('Faça login.');
+    window.alert('FaÃ§a login.');
     return;
   }
   if (!['administrativo', 'admin'].includes(currentRole)) return;
@@ -4097,7 +4097,7 @@ async function runBreakHistoryBulkDelete() {
   let confirmPhrase = '';
   if (!codes.length) {
     const ph = window.prompt(
-      `ATENÇÃO: Todas as quebras do dia ${d} serão removidas no servidor para todos os usuários.\n\n` +
+      `ATENÃ‡ÃƒO: Todas as quebras do dia ${d} serÃ£o removidas no servidor para todos os usuÃ¡rios.\n\n` +
         `Digite a frase exata para confirmar:\n${BREAK_BULK_DELETE_DAY_PHRASE}`,
     );
     if (ph == null) return;
@@ -4108,8 +4108,8 @@ async function runBreakHistoryBulkDelete() {
     }
   } else if (
     !window.confirm(
-      `Remover no servidor todas as quebras do dia ${d} apenas dos códigos: ${codes.join(', ')}?\n\n` +
-        'Esta ação vale para todo o sistema e não pode ser desfeita.',
+      `Remover no servidor todas as quebras do dia ${d} apenas dos cÃ³digos: ${codes.join(', ')}?\n\n` +
+        'Esta aÃ§Ã£o vale para todo o sistema e nÃ£o pode ser desfeita.',
     )
   ) {
     return;
@@ -4129,7 +4129,7 @@ async function runBreakHistoryBulkDelete() {
     });
     if (handleUnauthorizedResponse(response)) return;
     if (!response.ok) {
-      let msg = 'Não foi possível apagar.';
+      let msg = 'NÃ£o foi possÃ­vel apagar.';
       try {
         const err = await response.json();
         if (typeof err.detail === 'string') msg = err.detail;
@@ -4144,10 +4144,10 @@ async function runBreakHistoryBulkDelete() {
       return;
     }
     const data = await response.json();
-    window.alert(data.message || `Removidos ${data.deleted || 0} lançamento(s).`);
+    window.alert(data.message || `Removidos ${data.deleted || 0} lanÃ§amento(s).`);
     await loadBreakHistoryList();
   } catch {
-    window.alert('Sem conexão.');
+    window.alert('Sem conexÃ£o.');
   }
 }
 
@@ -4195,8 +4195,8 @@ async function loadBreakHistoryList() {
       return;
     }
     if (!response.ok) {
-      setBreakHistoryFeedback(true, 'Não foi possível carregar o registro.', true);
-      if (metaCount) metaCount.textContent = '—';
+      setBreakHistoryFeedback(true, 'NÃ£o foi possÃ­vel carregar o registro.', true);
+      if (metaCount) metaCount.textContent = 'â€”';
       if (rangeInfo) rangeInfo.textContent = 'Falha ao carregar. Tente novamente.';
       return;
     }
@@ -4208,13 +4208,13 @@ async function loadBreakHistoryList() {
     if (metaCount) metaCount.textContent = `${events.length}`;
     if (rangeInfo) {
       rangeInfo.textContent = events.length
-        ? `${events.length} produto(s) com lançamento de quebra neste dia.`
-        : 'Nenhum lançamento para este dia.';
+        ? `${events.length} produto(s) com lanÃ§amento de quebra neste dia.`
+        : 'Nenhum lanÃ§amento para este dia.';
     }
     if (chip) chip.textContent = `${events.length}`;
 
     if (!events.length) {
-      list.innerHTML = '<li class="count-audit-empty"><span>Nenhuma quebra registrada neste dia.</span><strong>—</strong></li>';
+      list.innerHTML = '<li class="count-audit-empty"><span>Nenhuma quebra registrada neste dia.</span><strong>â€”</strong></li>';
       return;
     }
 
@@ -4225,9 +4225,9 @@ async function loadBreakHistoryList() {
       const descEsc = escapeHtml(descRaw);
       const nameHtml = descRaw ? descEsc : cod;
       const { cx, un } = parseAuditBreakCxUn(ev);
-      const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
+      const actor = ev.actor ? escapeHtml(String(ev.actor)) : 'â€”';
       const reasonRaw = String(ev.reason || '').trim();
-      const reasonHtml = reasonRaw ? escapeHtml(reasonRaw) : '—';
+      const reasonHtml = reasonRaw ? escapeHtml(reasonRaw) : 'â€”';
       const li = document.createElement('li');
       li.className = 'count-audit-item break-history-item';
       li.setAttribute('data-state', 'ok');
@@ -4246,7 +4246,7 @@ async function loadBreakHistoryList() {
         `</div>` +
         `<div class="count-audit-cell">` +
         `<span class="count-audit-cell-label">Quebra</span>` +
-        `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional (mesma lógica da tela Quebra)">` +
+        `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional (mesma lÃ³gica da tela Quebra)">` +
         `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(cx)}</strong>` +
         `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(un)}</strong>` +
         `</div></div>` +
@@ -4262,8 +4262,8 @@ async function loadBreakHistoryList() {
       list.appendChild(li);
     }
   } catch {
-    setBreakHistoryFeedback(true, 'Sem conexão.', true);
-    if (metaCount) metaCount.textContent = '—';
+    setBreakHistoryFeedback(true, 'Sem conexÃ£o.', true);
+    if (metaCount) metaCount.textContent = 'â€”';
     if (rangeInfo) rangeInfo.textContent = 'Verifique a rede e tente de novo.';
   }
 }
@@ -4488,14 +4488,14 @@ function renderMateTrocaBaseBalanceCardV2(mergedRows) {
   if (rangeEl) {
     const dr =
       fromEl && toEl && fromEl.value && toEl.value
-        ? `${formatDateBR(fromEl.value)} – ${formatDateBR(toEl.value)}`
+        ? `${formatDateBR(fromEl.value)} â€“ ${formatDateBR(toEl.value)}`
         : '';
-    rangeEl.textContent = dr ? `Período lista: ${dr}` : '';
+    rangeEl.textContent = dr ? `PerÃ­odo lista: ${dr}` : '';
   }
   ul.innerHTML = '';
   if (!mergedRows.length) {
     ul.innerHTML =
-      '<li class="count-audit-empty"><span>Sem itens no período ou busca. Ajuste <strong>De</strong>/<strong>Até</strong>, <strong>Atualizar lista</strong> ou <strong>Carregar</strong> o dia.</span><strong>—</strong></li>';
+      '<li class="count-audit-empty"><span>Sem itens no perÃ­odo ou busca. Ajuste <strong>De</strong>/<strong>AtÃ©</strong>, <strong>Atualizar lista</strong> ou <strong>Carregar</strong> o dia.</span><strong>â€”</strong></li>';
     return;
   }
   for (const r of mergedRows) {
@@ -4505,7 +4505,7 @@ function renderMateTrocaBaseBalanceCardV2(mergedRows) {
     const saldoHtml = r.saldoKnown
       ? `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(r.cx)}</strong>` +
         `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(r.un)}</strong>`
-      : `<span class="mate-troca-balance-v2-unknown" title="Saldo ainda não confirmado no servidor nesta sessão">CX — · UN —</span>`;
+      : `<span class="mate-troca-balance-v2-unknown" title="Saldo ainda nÃ£o confirmado no servidor nesta sessÃ£o">CX â€” Â· UN â€”</span>`;
     const li = document.createElement('li');
     li.className = 'count-audit-item mate-couro-pending-item mate-troca-balance-v2-item';
     li.setAttribute('data-state', 'ok');
@@ -4612,13 +4612,13 @@ async function fetchMateTrocaPendingByProductMap() {
     : {};
 }
 
-/** Atualiza caches da Base de Troca (card V2 + espelhos para análise de contagem). */
+/** Atualiza caches da Base de Troca (card V2 + espelhos para anÃ¡lise de contagem). */
 async function refreshMateTrocaBaseScreenData() {
   await refreshMateTrocaBaseBalanceCardV2();
   return mateTrocaServerPendingCache;
 }
 
-/** Saldo “antes” para POST Mate troca — prioriza cache V2 do último GET ok, senão último estado válido. */
+/** Saldo â€œantesâ€ para POST Mate troca â€” prioriza cache V2 do Ãºltimo GET ok, senÃ£o Ãºltimo estado vÃ¡lido. */
 function getMateTrocaV2CurForPayload(cod) {
   const ck = normalizeNumericProductCodeKey(cod) || normalizeItemCode(String(cod || ''));
   if (!ck) return { cx: 0, un: 0 };
@@ -4648,10 +4648,10 @@ function mateTrocaV2SaldoKnownForCod(cod) {
 }
 
 /**
- * Espelha o pendente do servidor no localStorage (histórico/offline parcial).
- * A API só devolve produtos com saldo > 0; um mapa vazio não significa “apagar tudo no aparelho”.
- * Só removemos chaves que já tinham sido confirmadas no servidor e sumiram da resposta (ex.: Zerar).
- * Pendente só local (nunca veio no servidor) permanece até sincronizar ou limpar manualmente.
+ * Espelha o pendente do servidor no localStorage (histÃ³rico/offline parcial).
+ * A API sÃ³ devolve produtos com saldo > 0; um mapa vazio nÃ£o significa â€œapagar tudo no aparelhoâ€.
+ * SÃ³ removemos chaves que jÃ¡ tinham sido confirmadas no servidor e sumiram da resposta (ex.: Zerar).
+ * Pendente sÃ³ local (nunca veio no servidor) permanece atÃ© sincronizar ou limpar manualmente.
  */
 function mirrorMateTrocaPendingToLocalStorage(serverMap) {
   const state = readMateCouroTrocaStorage();
@@ -4686,18 +4686,18 @@ function updateMateTrocaReconcileFromBreaksButton() {
   btn.hidden = !['administrativo', 'admin'].includes(currentRole);
 }
 
-/** Administrativo/Admin: POST soma das quebras no intervalo → evento definir no servidor. */
+/** Administrativo/Admin: POST soma das quebras no intervalo â†’ evento definir no servidor. */
 async function runMateTrocaReconcileFromBreaks() {
   const token = getToken();
   if (!token) {
-    window.alert('Faça login.');
+    window.alert('FaÃ§a login.');
     return;
   }
-  const rawCod = window.prompt('Código do produto (base de troca):', '10');
+  const rawCod = window.prompt('CÃ³digo do produto (base de troca):', '10');
   if (rawCod == null) return;
   const cod = normalizeNumericProductCodeKey(rawCod) || normalizeItemCode(rawCod);
   if (!cod) {
-    window.alert('Código inválido.');
+    window.alert('CÃ³digo invÃ¡lido.');
     return;
   }
   const defDay = getBrazilDateKey();
@@ -4705,21 +4705,21 @@ async function runMateTrocaReconcileFromBreaks() {
   if (d0 == null) return;
   const d0c = String(d0).trim().slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d0c)) {
-    window.alert('Data inicial inválida.');
+    window.alert('Data inicial invÃ¡lida.');
     return;
   }
   const d1 = window.prompt('Data final (AAAA-MM-DD), inclusive:', d0c);
   if (d1 == null) return;
   const d1c = String(d1).trim().slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d1c)) {
-    window.alert('Data final inválida.');
+    window.alert('Data final invÃ¡lida.');
     return;
   }
   if (
     !window.confirm(
-      `Definir o pendente do código ${cod} como a SOMA das quebras de ${d0c} a ${d1c}?\n\n` +
-        `Isso não desconta chegadas já registradas na base de troca — use para corrigir pendente incoerente com as quebras.\n\n` +
-        `Grava um evento "definir" no servidor para todos os usuários.`,
+      `Definir o pendente do cÃ³digo ${cod} como a SOMA das quebras de ${d0c} a ${d1c}?\n\n` +
+        `Isso nÃ£o desconta chegadas jÃ¡ registradas na base de troca â€” use para corrigir pendente incoerente com as quebras.\n\n` +
+        `Grava um evento "definir" no servidor para todos os usuÃ¡rios.`,
     )
   ) {
     return;
@@ -4739,7 +4739,7 @@ async function runMateTrocaReconcileFromBreaks() {
     });
     if (handleUnauthorizedResponse(response)) return;
     if (!response.ok) {
-      let msg = 'Não foi possível repor o pendente.';
+      let msg = 'NÃ£o foi possÃ­vel repor o pendente.';
       try {
         const err = await response.json();
         if (typeof err.detail === 'string') msg = err.detail;
@@ -4753,19 +4753,19 @@ async function runMateTrocaReconcileFromBreaks() {
     const tgt = data.pending_target_from_breaks || {};
     window.alert(
       data.skipped
-        ? data.message || 'Já estava correto.'
-        : `Pronto. Pendente definido: CX ${formatBreakIntegerBR(Number(tgt.cx) || 0)} · UN ${formatBreakIntegerBR(Number(tgt.un) || 0)}.`,
+        ? data.message || 'JÃ¡ estava correto.'
+        : `Pronto. Pendente definido: CX ${formatBreakIntegerBR(Number(tgt.cx) || 0)} Â· UN ${formatBreakIntegerBR(Number(tgt.un) || 0)}.`,
     );
     await refreshMateTrocaBaseBalanceCardV2();
   } catch {
-    window.alert('Sem conexão.');
+    window.alert('Sem conexÃ£o.');
   }
 }
 
 /**
- * Id da incorporação ao Carregar dia: inclui geração global (Limpar snapshots) e revisão por código
- * (Zerar pendente daquele produto) para permitir reenviar o mesmo delta após zerar — o servidor ignora
- * client_event_id duplicado, sem isso o Carregar não refaz o lançamento.
+ * Id da incorporaÃ§Ã£o ao Carregar dia: inclui geraÃ§Ã£o global (Limpar snapshots) e revisÃ£o por cÃ³digo
+ * (Zerar pendente daquele produto) para permitir reenviar o mesmo delta apÃ³s zerar â€” o servidor ignora
+ * client_event_id duplicado, sem isso o Carregar nÃ£o refaz o lanÃ§amento.
  */
 function mateTrocaIncorporacaoClientEventId(dayKey, codBase, dcx, dun) {
   const st = readMateCouroTrocaStorage();
@@ -4907,7 +4907,7 @@ function writeMateCouroTrocaStorage(state) {
 
 function mateTrocaLocalActorLabel() {
   const u = getUser();
-  return (u && (u.full_name || u.name || u.username)) || '—';
+  return (u && (u.full_name || u.name || u.username)) || 'â€”';
 }
 
 function markMateTrocaLocalEventsSynced(ids) {
@@ -5011,19 +5011,19 @@ function mergeMateTrocaHistoryForCod(cod, serverEvents, overlayEvents) {
 function mateTrocaHistoryDayLabel(ev) {
   if (ev.operational_date) return formatDateBR(ev.operational_date);
   const iso = ev.created_at;
-  if (!iso) return '—';
+  if (!iso) return 'â€”';
   try {
     return new Intl.DateTimeFormat('pt-BR', {
       timeZone: 'America/Sao_Paulo',
       dateStyle: 'short',
     }).format(new Date(iso));
   } catch {
-    return '—';
+    return 'â€”';
   }
 }
 
 function mateTrocaHistoryDateTimeLabel(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'â€”';
   try {
     return new Date(iso).toLocaleString('pt-BR', {
       timeZone: 'America/Sao_Paulo',
@@ -5031,7 +5031,7 @@ function mateTrocaHistoryDateTimeLabel(iso) {
       timeStyle: 'short',
     });
   } catch {
-    return '—';
+    return 'â€”';
   }
 }
 
@@ -5049,10 +5049,10 @@ function mateTrocaKindLabelPt(kind) {
   if (k === 'chegada') return 'Chegada';
   if (k === 'definir') return 'Definir saldo';
   if (k === 'zerar') return 'Zerar';
-  if (k === 'ajuste_pendente') return 'Ajuste por código';
+  if (k === 'ajuste_pendente') return 'Ajuste por cÃ³digo';
   if (k === 'incorporacao_quebra') return 'Quebra (Carregar dia)';
   if (k === 'quebra_operacional') return 'Quebra (tela Quebra)';
-  return k || '—';
+  return k || 'â€”';
 }
 
 /** Texto claro quando a chegada ultrapassa o pendente (por CX e por UN). */
@@ -5072,7 +5072,7 @@ function mateTrocaChegouAMaisText(ev) {
   return (
     `Chegou a mais: na conta do pendente faltavam ${formatBreakIntegerBR(pbc)} CX e ${formatBreakIntegerBR(pbu)} UN; ` +
     `mas informaram chegada de ${formatBreakIntegerBR(qcx)} CX e ${formatBreakIntegerBR(qun)} UN ` +
-    `— entrou ${exHuman} a mais do que bastava para só “pagar” o que estava pendente.`
+    `â€” entrou ${exHuman} a mais do que bastava para sÃ³ â€œpagarâ€ o que estava pendente.`
   );
 }
 
@@ -5119,7 +5119,7 @@ function buildMateTrocaServerPayload(kind, cod, cur, next, qtyCxIn, qtyUnIn) {
 async function postMateTrocaEventsToServer(events) {
   const token = getToken();
   if (!token) {
-    return { ok: false, message: 'Faça login para registrar no servidor.' };
+    return { ok: false, message: 'FaÃ§a login para registrar no servidor.' };
   }
   try {
     const response = await apiFetch(API_MATE_TROCA_EVENTS, {
@@ -5131,10 +5131,10 @@ async function postMateTrocaEventsToServer(events) {
       body: JSON.stringify({ events }),
     });
     if (handleUnauthorizedResponse(response)) {
-      return { ok: false, message: 'Sessão expirada. Faça login novamente.' };
+      return { ok: false, message: 'SessÃ£o expirada. FaÃ§a login novamente.' };
     }
     if (!response.ok) {
-      let message = 'Não foi possível gravar no servidor.';
+      let message = 'NÃ£o foi possÃ­vel gravar no servidor.';
       try {
         const err = await response.json();
         const d = err.detail;
@@ -5147,7 +5147,7 @@ async function postMateTrocaEventsToServer(events) {
     }
     return { ok: true };
   } catch {
-    return { ok: false, message: 'Sem conexão. Tente de novo.' };
+    return { ok: false, message: 'Sem conexÃ£o. Tente de novo.' };
   }
 }
 
@@ -5164,22 +5164,22 @@ function aggregateMateCouroEventsByCode(events) {
   return m;
 }
 
-/** Sinal + valor absoluto para texto de movimento (ex.: +3 CX / −1 UN). */
+/** Sinal + valor absoluto para texto de movimento (ex.: +3 CX / âˆ’1 UN). */
 function mateTrocaSignedCxUnParts(dcx, dun) {
   const cx = Math.round(Number(dcx) || 0);
   const un = Math.round(Number(dun) || 0);
   const cxPart =
     cx === 0
       ? null
-      : `${cx > 0 ? '+' : '−'}${formatBreakIntegerBR(Math.abs(cx))} CX`;
+      : `${cx > 0 ? '+' : 'âˆ’'}${formatBreakIntegerBR(Math.abs(cx))} CX`;
   const unPart =
     un === 0
       ? null
-      : `${un > 0 ? '+' : '−'}${formatBreakIntegerBR(Math.abs(un))} UN`;
-  return [cxPart, unPart].filter(Boolean).join(' · ') || '0 CX · 0 UN';
+      : `${un > 0 ? '+' : 'âˆ’'}${formatBreakIntegerBR(Math.abs(un))} UN`;
+  return [cxPart, unPart].filter(Boolean).join(' Â· ') || '0 CX Â· 0 UN';
 }
 
-/** Snapshot por dia: unifica chaves numéricas (010 vs 10) somando se houver colisão legada. */
+/** Snapshot por dia: unifica chaves numÃ©ricas (010 vs 10) somando se houver colisÃ£o legada. */
 function canonicalizeMateTrocaDaySnapshot(snap) {
   if (!snap || typeof snap !== 'object') return {};
   const out = {};
@@ -5197,7 +5197,7 @@ function canonicalizeMateTrocaDaySnapshot(snap) {
 
 /**
  * Aplica delta de quebra Mate couro do dia no **servidor** (incorporacao_quebra), idempotente por
- * dia+código+delta. Atualiza snapshots locais só após POST ok; espelha pending do GET em seguida.
+ * dia+cÃ³digo+delta. Atualiza snapshots locais sÃ³ apÃ³s POST ok; espelha pending do GET em seguida.
  */
 async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
   await ensureMateCouroCatalogLoaded();
@@ -5280,7 +5280,7 @@ async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
         device_name: pl.device_name,
         operational_date: opDay,
         created_at_local: nowIso,
-        actor_label: 'Carregar dia (quebra → servidor)',
+        actor_label: 'Carregar dia (quebra â†’ servidor)',
         synced: true,
       });
     }
@@ -5338,7 +5338,7 @@ function mateCouroCatalogHasCode(set, evCod) {
   return false;
 }
 
-/** UN por 1 CX no cadastro; null se não houver fator utilizável. */
+/** UN por 1 CX no cadastro; null se nÃ£o houver fator utilizÃ¡vel. */
 function getMateCouroConversionFactorForCod(cod) {
   const ck = normalizeNumericProductCodeKey(String(cod || ''));
   if (!ck) return null;
@@ -5370,8 +5370,8 @@ function filterEventsMateCouro(events) {
 }
 
 /**
- * Lista do dia na Base de troca: uma linha por código, CX/UN somados (mesma ideia do GET break-day-totals).
- * Evita duas linhas idênticas para o mesmo produto quando a API devolve mais de um registro consolidável.
+ * Lista do dia na Base de troca: uma linha por cÃ³digo, CX/UN somados (mesma ideia do GET break-day-totals).
+ * Evita duas linhas idÃªnticas para o mesmo produto quando a API devolve mais de um registro consolidÃ¡vel.
  */
 function aggregateMateCouroDayBreakRowsForDisplay(events) {
   const map = new Map();
@@ -5399,7 +5399,7 @@ function aggregateMateCouroDayBreakRowsForDisplay(events) {
   const out = [];
   for (const [canon, agg] of map) {
     if (agg.cx === 0 && agg.un === 0) continue;
-    let actorOut = '—';
+    let actorOut = 'â€”';
     if (agg.actors.size === 1) actorOut = [...agg.actors][0];
     else if (agg.actors.size > 1) actorOut = [...agg.actors].sort().join(', ');
     out.push({
@@ -5416,7 +5416,7 @@ function aggregateMateCouroDayBreakRowsForDisplay(events) {
   return out;
 }
 
-/** Converte linhas GET /audit/break-events (intervalo + cod) em eventos para o diálogo de histórico da Base de Troca. */
+/** Converte linhas GET /audit/break-events (intervalo + cod) em eventos para o diÃ¡logo de histÃ³rico da Base de Troca. */
 function breakScreenEventsToMateTrocaOverlay(events) {
   const out = [];
   const set = getMateCouroCodSet();
@@ -5456,7 +5456,7 @@ function breakScreenEventsToMateTrocaOverlay(events) {
   return out;
 }
 
-/** Códigos na Base de Troca: ``pending`` > 0 OU presença em ``discoverySet`` (quebra no período De/Até). O saldo exibido vem só de ``pending``. */
+/** CÃ³digos na Base de Troca: ``pending`` > 0 OU presenÃ§a em ``discoverySet`` (quebra no perÃ­odo De/AtÃ©). O saldo exibido vem sÃ³ de ``pending``. */
 function collectMateCouroBaseProductCodes(pendingMap, discoverySet) {
   const codeSet = new Set();
   const ingestPending = (map) => {
@@ -5510,17 +5510,17 @@ function updateMateCouroKpis() {
 
   setText(
     'mate-troca-kpi-items-day',
-    lastMateTrocaDayItemsCount == null ? '—' : String(lastMateTrocaDayItemsCount),
+    lastMateTrocaDayItemsCount == null ? 'â€”' : String(lastMateTrocaDayItemsCount),
   );
   setText('mate-troca-kpi-pending-count', String(nProd));
   setText('mate-troca-kpi-pend-cx', formatBreakIntegerBR(sumCx));
   setText('mate-troca-kpi-pend-un', formatBreakIntegerBR(sumUn));
-  setText('mate-troca-kpi-catalog', catalogLen ? String(catalogLen) : '—');
+  setText('mate-troca-kpi-catalog', catalogLen ? String(catalogLen) : 'â€”');
   setText(
     'mate-troca-kpi-resume',
     nProd
-      ? `${nProd} prod. · ${formatBreakIntegerBR(sumCx)} CX / ${formatBreakIntegerBR(sumUn)} UN`
-      : '—',
+      ? `${nProd} prod. Â· ${formatBreakIntegerBR(sumCx)} CX / ${formatBreakIntegerBR(sumUn)} UN`
+      : 'â€”',
   );
 }
 
@@ -5530,13 +5530,13 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
   if (!list) return;
   if (rangeInfo) {
     rangeInfo.textContent = mateEvents.length
-      ? `${mateEvents.length} produto(s) com lançamento na base de troca neste dia.`
-      : 'Nenhum lançamento na base de troca para este dia.';
+      ? `${mateEvents.length} produto(s) com lanÃ§amento na base de troca neste dia.`
+      : 'Nenhum lanÃ§amento na base de troca para este dia.';
   }
   list.innerHTML = '';
   if (!mateEvents.length) {
     list.innerHTML =
-      '<li class="count-audit-empty"><span>Nenhuma quebra da base de troca registrada neste dia.</span><strong>—</strong></li>';
+      '<li class="count-audit-empty"><span>Nenhuma quebra da base de troca registrada neste dia.</span><strong>â€”</strong></li>';
     return;
   }
   for (const ev of mateEvents) {
@@ -5546,7 +5546,7 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
     const descEsc = escapeHtml(descRaw);
     const nameHtml = descRaw ? descEsc : cod;
     const { cx, un } = parseAuditBreakCxUn(ev);
-    const actor = ev.actor ? escapeHtml(String(ev.actor)) : '—';
+    const actor = ev.actor ? escapeHtml(String(ev.actor)) : 'â€”';
     const li = document.createElement('li');
     li.className = 'count-audit-item break-history-item';
     li.setAttribute('data-state', 'ok');
@@ -5565,7 +5565,7 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
       `</div>` +
       `<div class="count-audit-cell">` +
       `<span class="count-audit-cell-label">Quebra</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Totais de quebra deste produto no dia (soma dos lançamentos; mesma base do GET break-day-totals / coluna Quebra na análise). Não é o saldo da coluna Troca.">` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Totais de quebra deste produto no dia (soma dos lanÃ§amentos; mesma base do GET break-day-totals / coluna Quebra na anÃ¡lise). NÃ£o Ã© o saldo da coluna Troca.">` +
       `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(cx)}</strong>` +
       `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(un)}</strong>` +
       `</div></div>` +
@@ -5578,7 +5578,7 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
   }
 }
 
-/** @deprecated Card legado substituído por V2 — mantido só para chamadas residuais. */
+/** @deprecated Card legado substituÃ­do por V2 â€” mantido sÃ³ para chamadas residuais. */
 function getMateCouroPendingRowsFiltered() {
   const searchEl = document.getElementById('mate-couro-troca-pending-search');
   const term = ((searchEl && searchEl.value) || '').trim().toLowerCase();
@@ -5591,7 +5591,7 @@ function getMateCouroPendingRowsFiltered() {
   );
 }
 
-/** @deprecated Render legado — delega ao card V2 (sem lista antiga). */
+/** @deprecated Render legado â€” delega ao card V2 (sem lista antiga). */
 function renderMateCouroPendingList() {
   renderMateTrocaBaseBalanceCardV2FromCache();
 }
@@ -5646,8 +5646,8 @@ async function loadMateCouroBreakDayList() {
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     if (lastSyncKpi) {
       lastSyncKpi.textContent = incorporacaoOk === false
-        ? `${dayLabel} · ${nowStr} · falha ao gravar pendente no servidor`
-        : `${dayLabel} · ${nowStr}`;
+        ? `${dayLabel} Â· ${nowStr} Â· falha ao gravar pendente no servidor`
+        : `${dayLabel} Â· ${nowStr}`;
     }
     renderMateCouroDayList(dayLabel, mateRowsDisplay);
   } catch {
@@ -5679,12 +5679,12 @@ async function loadMateTrocaTrocasPage() {
   if (!ul) return;
   const token = getToken();
   if (!token) {
-    ul.innerHTML = '<li class="count-audit-empty"><span>Faça login.</span></li>';
-    setFb('Faça login para ver trocas encerradas.', true);
+    ul.innerHTML = '<li class="count-audit-empty"><span>FaÃ§a login.</span></li>';
+    setFb('FaÃ§a login para ver trocas encerradas.', true);
     return;
   }
-  setFb('Carregando…', false);
-  ul.innerHTML = '<li class="count-audit-empty"><span>Carregando…</span></li>';
+  setFb('Carregandoâ€¦', false);
+  ul.innerHTML = '<li class="count-audit-empty"><span>Carregandoâ€¦</span></li>';
   try {
     const response = await apiFetch(`${API_MATE_TROCA_BATCHES}?limit=200`, {
       headers: getAuthHeaders(),
@@ -5692,7 +5692,7 @@ async function loadMateTrocaTrocasPage() {
     });
     if (handleUnauthorizedResponse(response)) return;
     if (!response.ok) {
-      setFb('Não foi possível carregar o consolidado.', true);
+      setFb('NÃ£o foi possÃ­vel carregar o consolidado.', true);
       ul.innerHTML = '<li class="count-audit-empty"><span>Falha ao carregar.</span></li>';
       return;
     }
@@ -5701,8 +5701,8 @@ async function loadMateTrocaTrocasPage() {
     setFb('', false);
     renderMateTrocaBatchesList(batches);
   } catch {
-    setFb('Sem conexão.', true);
-    ul.innerHTML = '<li class="count-audit-empty"><span>Sem conexão.</span></li>';
+    setFb('Sem conexÃ£o.', true);
+    ul.innerHTML = '<li class="count-audit-empty"><span>Sem conexÃ£o.</span></li>';
   }
 }
 
@@ -5712,16 +5712,16 @@ function renderMateTrocaBatchesList(batches) {
   ul.innerHTML = '';
   if (!batches.length) {
     ul.innerHTML =
-      '<li class="count-audit-empty"><span>Nenhuma troca encerrada no período analisado (pendente zerado no servidor).</span></li>';
+      '<li class="count-audit-empty"><span>Nenhuma troca encerrada no perÃ­odo analisado (pendente zerado no servidor).</span></li>';
     return;
   }
   for (const b of batches) {
     const cod = escapeHtml(String(b.cod_produto || ''));
-    const desc = escapeHtml(String(b.product_desc || '').trim() || '—');
+    const desc = escapeHtml(String(b.product_desc || '').trim() || 'â€”');
     const code = escapeHtml(String(b.batch_code || ''));
-    const closed = b.closed_at ? mateTrocaHistoryDateTimeLabel(b.closed_at) : '—';
+    const closed = b.closed_at ? mateTrocaHistoryDateTimeLabel(b.closed_at) : 'â€”';
     const closing = escapeHtml(mateTrocaKindLabelPt(b.closing_kind));
-    const by = escapeHtml(String(b.closed_by || '—').trim() || '—');
+    const by = escapeHtml(String(b.closed_by || 'â€”').trim() || 'â€”');
     const li = document.createElement('li');
     li.className = 'mate-troca-batch-item count-audit-item';
     li.setAttribute('role', 'button');
@@ -5730,7 +5730,7 @@ function renderMateTrocaBatchesList(batches) {
     li.innerHTML =
       `<div class="mate-troca-batch-row mate-troca-batch-row--trocas">` +
       `<div class="mate-troca-batch-cell mate-troca-batch-cell--code">` +
-      `<span class="count-audit-cell-label">Código da troca</span>` +
+      `<span class="count-audit-cell-label">CÃ³digo da troca</span>` +
       `<strong class="mate-troca-batch-code">${code}</strong>` +
       `</div>` +
       `<div class="mate-troca-batch-cell mate-troca-batch-cell--product">` +
@@ -5741,12 +5741,12 @@ function renderMateTrocaBatchesList(batches) {
       `<div class="mate-troca-batch-cell mate-troca-batch-cell--when">` +
       `<span class="count-audit-cell-label">Encerrou</span>` +
       `<span class="mate-troca-batch-when">${escapeHtml(closed)}</span>` +
-      `<span class="muted mate-troca-batch-who">${by} · ${closing}</span>` +
+      `<span class="muted mate-troca-batch-who">${by} Â· ${closing}</span>` +
       `</div>` +
       `<div class="mate-troca-batch-cell mate-troca-batch-cell--move">` +
-      `<span class="count-audit-cell-label">Entrada (Σ)</span>` +
-      `<span class="mate-troca-batch-qty">CX ${formatBreakIntegerBR(b.sum_qty_cx_in)} · UN ${formatBreakIntegerBR(b.sum_qty_un_in)}</span>` +
-      `<span class="muted mate-troca-batch-events">${escapeHtml(String(b.event_count || 0))} lanç.</span>` +
+      `<span class="count-audit-cell-label">Entrada (Î£)</span>` +
+      `<span class="mate-troca-batch-qty">CX ${formatBreakIntegerBR(b.sum_qty_cx_in)} Â· UN ${formatBreakIntegerBR(b.sum_qty_un_in)}</span>` +
+      `<span class="muted mate-troca-batch-events">${escapeHtml(String(b.event_count || 0))} lanÃ§.</span>` +
       `</div>` +
       `</div>`;
     ul.appendChild(li);
@@ -5760,12 +5760,12 @@ async function openMateTrocaBatchDetail(closeLogId) {
   const body = document.getElementById('mate-troca-batch-detail-dialog-body');
   const title = document.getElementById('mate-troca-batch-detail-dialog-title');
   if (!dlg || !body) return;
-  body.innerHTML = '<p class="muted">Carregando…</p>';
+  body.innerHTML = '<p class="muted">Carregandoâ€¦</p>';
   if (title) title.textContent = 'Detalhe da troca';
   dlg.showModal();
   const token = getToken();
   if (!token) {
-    body.innerHTML = '<p class="is-error">Faça login.</p>';
+    body.innerHTML = '<p class="is-error">FaÃ§a login.</p>';
     return;
   }
   try {
@@ -5778,7 +5778,7 @@ async function openMateTrocaBatchDetail(closeLogId) {
       return;
     }
     if (!response.ok) {
-      body.innerHTML = '<p class="is-error">Não foi possível carregar.</p>';
+      body.innerHTML = '<p class="is-error">NÃ£o foi possÃ­vel carregar.</p>';
       return;
     }
     const data = await response.json();
@@ -5786,20 +5786,20 @@ async function openMateTrocaBatchDetail(closeLogId) {
     if (title) {
       const by = (data.closed_by && String(data.closed_by).trim()) || '';
       title.textContent = by
-        ? `Troca ${data.batch_code || ''} · ${data.cod_produto || ''} · Encerrou: ${by}`
-        : `Troca ${data.batch_code || ''} · ${data.cod_produto || ''}`;
+        ? `Troca ${data.batch_code || ''} Â· ${data.cod_produto || ''} Â· Encerrou: ${by}`
+        : `Troca ${data.batch_code || ''} Â· ${data.cod_produto || ''}`;
     }
     const parts = evs.map((ev) => {
       const kind = mateTrocaKindLabelPt(ev.kind);
       const dayOp = escapeHtml(mateTrocaHistoryDayLabel(ev));
       const when = escapeHtml(mateTrocaHistoryDateTimeLabel(ev.created_at));
-      const actor = escapeHtml(String(ev.actor_username || '—'));
+      const actor = escapeHtml(String(ev.actor_username || 'â€”'));
       const chegouMaisPlain = mateTrocaChegouAMaisText(ev);
       const mov =
         String(ev.kind || '').trim() === 'chegada'
-          ? `Chegada: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`
-          : `${mateTrocaKindLabelPt(ev.kind)}: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
-      const pend = `Pendente ${formatBreakIntegerBR(ev.pend_cx_before)}/${formatBreakIntegerBR(ev.pend_un_before)} → ${formatBreakIntegerBR(ev.pend_cx_after)}/${formatBreakIntegerBR(ev.pend_un_after)}`;
+          ? `Chegada: CX ${formatBreakIntegerBR(ev.qty_cx_in)} Â· UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`
+          : `${mateTrocaKindLabelPt(ev.kind)}: CX ${formatBreakIntegerBR(ev.qty_cx_in)} Â· UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
+      const pend = `Pendente ${formatBreakIntegerBR(ev.pend_cx_before)}/${formatBreakIntegerBR(ev.pend_un_before)} â†’ ${formatBreakIntegerBR(ev.pend_cx_after)}/${formatBreakIntegerBR(ev.pend_un_after)}`;
       return (
         `<li class="mate-troca-pending-history-item">` +
         `<div class="mate-troca-pending-history-item-head">` +
@@ -5816,10 +5816,10 @@ async function openMateTrocaBatchDetail(closeLogId) {
       );
     });
     body.innerHTML =
-      `<p class="mate-troca-pending-history-lead muted">Lançamentos desta troca até o pendente zerar no servidor. Cada linha mostra por quem foi registrado.</p>` +
+      `<p class="mate-troca-pending-history-lead muted">LanÃ§amentos desta troca atÃ© o pendente zerar no servidor. Cada linha mostra por quem foi registrado.</p>` +
       `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
   } catch {
-    body.innerHTML = '<p class="is-error">Sem conexão.</p>';
+    body.innerHTML = '<p class="is-error">Sem conexÃ£o.</p>';
   }
 }
 
@@ -5829,11 +5829,11 @@ function renderMateTrocaServerLog(events) {
   ul.innerHTML = '';
   if (!events.length) {
     ul.innerHTML =
-      '<li class="count-audit-empty"><span>Nenhum registro para o filtro.</span><strong>—</strong></li>';
+      '<li class="count-audit-empty"><span>Nenhum registro para o filtro.</span><strong>â€”</strong></li>';
     return;
   }
   for (const ev of events) {
-    let when = '—';
+    let when = 'â€”';
     if (ev.created_at) {
       try {
         when = new Date(ev.created_at).toLocaleString('pt-BR', {
@@ -5852,8 +5852,8 @@ function renderMateTrocaServerLog(events) {
     const movText = chegouMais
       ? `CX ${formatBreakIntegerBR(ev.qty_cx_in)} / UN ${formatBreakIntegerBR(ev.qty_un_in)}. ${chegouMais}`
       : `CX ${formatBreakIntegerBR(ev.qty_cx_in)} / UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
-    const pendText = `${formatBreakIntegerBR(ev.pend_cx_before)}/${formatBreakIntegerBR(ev.pend_un_before)} → ${formatBreakIntegerBR(ev.pend_cx_after)}/${formatBreakIntegerBR(ev.pend_un_after)}`;
-    const actor = escapeHtml(String(ev.actor_username || '—'));
+    const pendText = `${formatBreakIntegerBR(ev.pend_cx_before)}/${formatBreakIntegerBR(ev.pend_un_before)} â†’ ${formatBreakIntegerBR(ev.pend_cx_after)}/${formatBreakIntegerBR(ev.pend_un_after)}`;
+    const actor = escapeHtml(String(ev.actor_username || 'â€”'));
     const li = document.createElement('li');
     li.className = 'count-audit-item';
     li.innerHTML =
@@ -5899,14 +5899,14 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   if (!body) return;
   const name = (productName || '').trim() || cod;
   if (title) {
-    title.textContent = `Histórico · ${cod} · ${name}`;
+    title.textContent = `HistÃ³rico Â· ${cod} Â· ${name}`;
   }
   if (!events.length) {
     body.innerHTML =
-      `<p class="mate-troca-pending-history-empty muted">Não achamos nada para este código nos últimos 120 dias ` +
+      `<p class="mate-troca-pending-history-empty muted">NÃ£o achamos nada para este cÃ³digo nos Ãºltimos 120 dias ` +
       `(nem na base de troca no servidor, nem neste aparelho, nem na tela <strong>Quebra</strong>). ` +
-      `Se você sabe que houve quebra, olhe o dia em <strong>Quebra</strong> ou em <strong>Histórico de quebra</strong>. ` +
-      `Para o pendente “pegar” a quebra do dia, use <strong>Carregar</strong> na base de troca. ` +
+      `Se vocÃª sabe que houve quebra, olhe o dia em <strong>Quebra</strong> ou em <strong>HistÃ³rico de quebra</strong>. ` +
+      `Para o pendente â€œpegarâ€ a quebra do dia, use <strong>Carregar</strong> na base de troca. ` +
       `Para mudar o pendente de outro jeito, use <strong>Chegada</strong>, <strong>Saldo</strong>, <strong>Zerar</strong> ou <strong>Ajustar pendente</strong> (isso grava no servidor).</p>`;
     return;
   }
@@ -5921,27 +5921,27 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     const chegouMaisPlain = mateTrocaChegouAMaisText(ev);
     let mov = '';
     if (kindRaw === 'chegada') {
-      mov = `Registro de chegada: entrada CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`;
+      mov = `Registro de chegada: entrada CX ${formatBreakIntegerBR(ev.qty_cx_in)} Â· UN ${formatBreakIntegerBR(ev.qty_un_in)} (abatido do pendente).`;
     } else if (kindRaw === 'incorporacao_quebra') {
       mov = `Ao usar <strong>Carregar</strong>, o pendente ganhou o que estava na quebra daquele dia na base: ${mateTrocaSignedCxUnParts(ev.qty_cx_in, ev.qty_un_in)}.`;
     } else if (kindRaw === 'quebra_operacional') {
-      mov = `Na tela <strong>Quebra</strong>, para aquele dia, ficou anotado: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)} (total do dia na base).`;
+      mov = `Na tela <strong>Quebra</strong>, para aquele dia, ficou anotado: CX ${formatBreakIntegerBR(ev.qty_cx_in)} Â· UN ${formatBreakIntegerBR(ev.qty_un_in)} (total do dia na base).`;
     } else if (kindRaw === 'zerar') {
       mov = 'Zerar: a conta do pendente foi colocada em zero.';
     } else if (kindRaw === 'definir') {
-      mov = `Definir saldo: informado CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
+      mov = `Definir saldo: informado CX ${formatBreakIntegerBR(ev.qty_cx_in)} Â· UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
     } else if (kindRaw === 'ajuste_pendente') {
-      mov = `Ajuste por código: informado CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
+      mov = `Ajuste por cÃ³digo: informado CX ${formatBreakIntegerBR(ev.qty_cx_in)} Â· UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
     } else {
-      mov = `Quantidades: CX ${formatBreakIntegerBR(ev.qty_cx_in)} · UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
+      mov = `Quantidades: CX ${formatBreakIntegerBR(ev.qty_cx_in)} Â· UN ${formatBreakIntegerBR(ev.qty_un_in)}`;
     }
     const pend =
       kindRaw === 'quebra_operacional'
-        ? 'Lembrete simples: isto é só o que quebrou naquele dia. O número do pendente só muda quando alguém usa Carregar, Chegada, Saldo, Zerar ou Ajuste — só ver a quebra aqui não altera o pendente sozinho.'
-        : `Pendente: ${formatBreakIntegerBR(ev.pend_cx_before)} CX / ${formatBreakIntegerBR(ev.pend_un_before)} UN → ${formatBreakIntegerBR(ev.pend_cx_after)} CX / ${formatBreakIntegerBR(ev.pend_un_after)} UN`;
-    const actor = escapeHtml(String(ev.actor_username || '—'));
+        ? 'Lembrete simples: isto Ã© sÃ³ o que quebrou naquele dia. O nÃºmero do pendente sÃ³ muda quando alguÃ©m usa Carregar, Chegada, Saldo, Zerar ou Ajuste â€” sÃ³ ver a quebra aqui nÃ£o altera o pendente sozinho.'
+        : `Pendente: ${formatBreakIntegerBR(ev.pend_cx_before)} CX / ${formatBreakIntegerBR(ev.pend_un_before)} UN â†’ ${formatBreakIntegerBR(ev.pend_cx_after)} CX / ${formatBreakIntegerBR(ev.pend_un_after)} UN`;
+    const actor = escapeHtml(String(ev.actor_username || 'â€”'));
     const syncBadge = ev._pendingSync
-      ? `<span class="mate-troca-sync-pill" title="Ainda não confirmado no servidor">Aguardando sync</span>`
+      ? `<span class="mate-troca-sync-pill" title="Ainda nÃ£o confirmado no servidor">Aguardando sync</span>`
       : '';
     return (
       `<li class="mate-troca-pending-history-item">` +
@@ -5963,8 +5963,8 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
     );
   });
   body.innerHTML =
-    `<p class="mate-troca-pending-history-lead muted">É como uma linha do tempo: primeiro o que aconteceu há mais tempo, depois o mais novo. ` +
-    `Entra o que está na base de troca no servidor, o que aparece na tela <strong>Quebra</strong> (últimos 120 dias) e o que foi feito neste aparelho mas ainda não sincronizou com o servidor.</p>` +
+    `<p class="mate-troca-pending-history-lead muted">Ã‰ como uma linha do tempo: primeiro o que aconteceu hÃ¡ mais tempo, depois o mais novo. ` +
+    `Entra o que estÃ¡ na base de troca no servidor, o que aparece na tela <strong>Quebra</strong> (Ãºltimos 120 dias) e o que foi feito neste aparelho mas ainda nÃ£o sincronizou com o servidor.</p>` +
     `<ul class="mate-troca-pending-history-list" role="list">${parts.join('')}</ul>`;
 }
 
@@ -5986,9 +5986,9 @@ async function openMateTrocaPendingProductHistory(codRaw) {
 
   const dlgTitle = document.getElementById('mate-troca-pending-history-dialog-title');
   if (dlgTitle) {
-    dlgTitle.textContent = desc ? `Histórico · ${cod} · ${desc}` : `Histórico · ${cod}`;
+    dlgTitle.textContent = desc ? `HistÃ³rico Â· ${cod} Â· ${desc}` : `HistÃ³rico Â· ${cod}`;
   }
-  body.innerHTML = '<p class="muted mate-troca-pending-history-loading">Carregando histórico…</p>';
+  body.innerHTML = '<p class="muted mate-troca-pending-history-loading">Carregando histÃ³ricoâ€¦</p>';
   dlg.showModal();
 
   const token = getToken();
@@ -5996,7 +5996,7 @@ async function openMateTrocaPendingProductHistory(codRaw) {
     const mergedOffline = mergeMateTrocaHistoryForCod(cod, [], []);
     if (!mergedOffline.length) {
       body.innerHTML =
-        '<p class="mate-troca-pending-history-empty is-error">Faça login para ver o histórico no servidor ou registre um lançamento neste aparelho.</p>';
+        '<p class="mate-troca-pending-history-empty is-error">FaÃ§a login para ver o histÃ³rico no servidor ou registre um lanÃ§amento neste aparelho.</p>';
       return;
     }
     renderMateTrocaPendingHistoryInDialog(mergedOffline, cod, desc);
@@ -6045,7 +6045,7 @@ async function openMateTrocaPendingProductHistory(codRaw) {
         renderMateTrocaPendingHistoryInDialog(mergedErr, cod, desc);
       } else {
         body.innerHTML =
-          '<p class="mate-troca-pending-history-empty is-error">Não foi possível carregar o histórico. Tente de novo.</p>';
+          '<p class="mate-troca-pending-history-empty is-error">NÃ£o foi possÃ­vel carregar o histÃ³rico. Tente de novo.</p>';
       }
       return;
     }
@@ -6058,7 +6058,7 @@ async function openMateTrocaPendingProductHistory(codRaw) {
     if (mergedCatch.length) {
       renderMateTrocaPendingHistoryInDialog(mergedCatch, cod, desc);
     } else {
-      body.innerHTML = '<p class="mate-troca-pending-history-empty is-error">Sem conexão.</p>';
+      body.innerHTML = '<p class="mate-troca-pending-history-empty is-error">Sem conexÃ£o.</p>';
     }
   }
 }
@@ -6079,7 +6079,7 @@ async function loadMateTrocaServerLogList() {
 
   const token = getToken();
   if (!token) {
-    setFb(true, 'Faça login para carregar o histórico.', true);
+    setFb(true, 'FaÃ§a login para carregar o histÃ³rico.', true);
     renderMateTrocaServerLog([]);
     return;
   }
@@ -6092,7 +6092,7 @@ async function loadMateTrocaServerLogList() {
   const codF = ((codEl && codEl.value) || '').trim();
   if (codF) params.set('cod_produto', normalizeItemCode(codF));
 
-  setFb(true, 'Carregando histórico...', false);
+  setFb(true, 'Carregando histÃ³rico...', false);
   try {
     const response = await apiFetch(`${API_MATE_TROCA_EVENTS}?${params.toString()}`, {
       headers: getAuthHeaders(),
@@ -6103,7 +6103,7 @@ async function loadMateTrocaServerLogList() {
       return;
     }
     if (!response.ok) {
-      setFb(true, 'Não foi possível carregar o histórico.', true);
+      setFb(true, 'NÃ£o foi possÃ­vel carregar o histÃ³rico.', true);
       renderMateTrocaServerLog([]);
       return;
     }
@@ -6112,7 +6112,7 @@ async function loadMateTrocaServerLogList() {
     setFb(false, '', false);
     renderMateTrocaServerLog(evs);
   } catch {
-    setFb(true, 'Sem conexão.', true);
+    setFb(true, 'Sem conexÃ£o.', true);
     renderMateTrocaServerLog([]);
   }
 }
@@ -6188,7 +6188,7 @@ function bindMateCouroTrocaEvents() {
       void (async () => {
         if (
           !window.confirm(
-            'Limpar neste aparelho os snapshots de “Carregar dia”? O pendente no servidor não é apagado. Ao Carregar cada dia de novo, as incorporações ganham novo id neste aparelho e o servidor volta a aceitar os deltas (útil após zerar ou corrigir).',
+            'Limpar neste aparelho os snapshots de â€œCarregar diaâ€? O pendente no servidor nÃ£o Ã© apagado. Ao Carregar cada dia de novo, as incorporaÃ§Ãµes ganham novo id neste aparelho e o servidor volta a aceitar os deltas (Ãºtil apÃ³s zerar ou corrigir).',
           )
         ) {
           return;
@@ -6206,11 +6206,11 @@ function bindMateCouroTrocaEvents() {
     btnAdjust.dataset.mateTrocaBound = '1';
     btnAdjust.addEventListener('click', () => {
       void (async () => {
-        const rawCod = window.prompt('Código do produto (base de troca):', '');
+        const rawCod = window.prompt('CÃ³digo do produto (base de troca):', '');
         if (rawCod == null) return;
         const cod = normalizeItemCode(rawCod);
         if (!cod) {
-          window.alert('Código inválido.');
+          window.alert('CÃ³digo invÃ¡lido.');
           return;
         }
         await ensureMateCouroCatalogLoaded();
@@ -6218,7 +6218,7 @@ function bindMateCouroTrocaEvents() {
           (x) => normalizeItemCode(String(x.cod_produto || '')) === cod,
         );
         if (!inCatalog) {
-          window.alert('Código não encontrado no catálogo da base de troca (CIA Mate couro).');
+          window.alert('CÃ³digo nÃ£o encontrado no catÃ¡logo da base de troca (CIA Mate couro).');
           return;
         }
         await refreshMateTrocaBaseBalanceCardV2();
@@ -6300,7 +6300,7 @@ function bindMateCouroTrocaEvents() {
 
         if (action === 'recebeu' && !mateTrocaV2SaldoKnownForCod(cod)) {
           window.alert(
-            'Saldo deste código ainda não está confirmado no servidor. Use Atualizar lista ou defina o saldo antes da chegada.',
+            'Saldo deste cÃ³digo ainda nÃ£o estÃ¡ confirmado no servidor. Use Atualizar lista ou defina o saldo antes da chegada.',
           );
           return;
         }
@@ -6310,7 +6310,7 @@ function bindMateCouroTrocaEvents() {
         if (action === 'zerar') {
           if (
             !window.confirm(
-              `Zerar pendente de troca para ${cod}? Em seguida use Carregar nos dias de quebra neste aparelho: as incorporações serão aceitas de novo (novo id).`,
+              `Zerar pendente de troca para ${cod}? Em seguida use Carregar nos dias de quebra neste aparelho: as incorporaÃ§Ãµes serÃ£o aceitas de novo (novo id).`,
             )
           ) {
             return;
@@ -6475,7 +6475,7 @@ function getMergedValidityLinesForProduct(codRaw) {
   return [...server, ...localNorm];
 }
 
-/** Dias até o vencimento (negativo = já vencido). */
+/** Dias atÃ© o vencimento (negativo = jÃ¡ vencido). */
 function validityExpiryDiffDays(expDateStr, todayBr) {
   if (!expDateStr || !todayBr) return null;
   const a = new Date(`${expDateStr}T12:00:00`);
@@ -6484,8 +6484,8 @@ function validityExpiryDiffDays(expDateStr, todayBr) {
 }
 
 /**
- * Faixas para bebidas (não sobrepostas): a mais restritiva aplica.
- * expired | d30 … d180 | ok (>180d)
+ * Faixas para bebidas (nÃ£o sobrepostas): a mais restritiva aplica.
+ * expired | d30 â€¦ d180 | ok (>180d)
  */
 function validityRiskCategory(expDateStr, todayBr) {
   const diff = validityExpiryDiffDays(expDateStr, todayBr);
@@ -6502,15 +6502,15 @@ function validityRiskCategory(expDateStr, todayBr) {
 
 function validityRiskLabel(cat) {
   const m = {
-    unknown: '—',
+    unknown: 'â€”',
     expired: 'Vencido',
-    d30: 'Crítico (≤30d)',
-    d60: 'Muito alto (≤60d)',
-    d90: 'Alto (≤90d)',
-    d120: 'Atenção (≤120d)',
-    d150: 'Monitorar (≤150d)',
-    d180: 'Controle próximo (≤180d)',
-    ok: 'Confortável',
+    d30: 'CrÃ­tico (â‰¤30d)',
+    d60: 'Muito alto (â‰¤60d)',
+    d90: 'Alto (â‰¤90d)',
+    d120: 'AtenÃ§Ã£o (â‰¤120d)',
+    d150: 'Monitorar (â‰¤150d)',
+    d180: 'Controle prÃ³ximo (â‰¤180d)',
+    ok: 'ConfortÃ¡vel',
   };
   return m[cat] || String(cat);
 }
@@ -6531,10 +6531,10 @@ function validityRiskChipClass(cat) {
 }
 
 function formatDateTimeBr(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'â€”';
   try {
     const d = new Date(String(iso).trim());
-    if (Number.isNaN(d.getTime())) return '—';
+    if (Number.isNaN(d.getTime())) return 'â€”';
     return d.toLocaleString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -6544,7 +6544,7 @@ function formatDateTimeBr(iso) {
       timeZone: 'America/Sao_Paulo',
     });
   } catch {
-    return '—';
+    return 'â€”';
   }
 }
 
@@ -6557,7 +6557,7 @@ function countBaseAgeDays(countDateIso, todayBr) {
 }
 
 function formatCountBaseAgeLabel(ageDays) {
-  if (ageDays === null || ageDays < 0) return '—';
+  if (ageDays === null || ageDays < 0) return 'â€”';
   if (ageDays === 0) return 'Hoje';
   if (ageDays === 1) return 'Ontem';
   if (ageDays < 30) return `${ageDays} dias`;
@@ -6600,8 +6600,8 @@ function worstValidityRiskAmongLines(lines, todayBr) {
 }
 
 /**
- * Próximo vencimento ainda não passou (hoje ou futuro), por data crescente.
- * Ignora linhas só históricas vencidas quando existe lançamento válido mais novo.
+ * PrÃ³ximo vencimento ainda nÃ£o passou (hoje ou futuro), por data crescente.
+ * Ignora linhas sÃ³ histÃ³ricas vencidas quando existe lanÃ§amento vÃ¡lido mais novo.
  */
 function operationalAnchorLine(lines, todayBr) {
   if (!lines?.length) return null;
@@ -6616,8 +6616,8 @@ function operationalAnchorLine(lines, todayBr) {
 }
 
 /**
- * Faixa/status principal do card e priorização: baseado no próximo vencimento ativo.
- * Linhas antigas vencidas não dominam se já existe data futura/hoje.
+ * Faixa/status principal do card e priorizaÃ§Ã£o: baseado no prÃ³ximo vencimento ativo.
+ * Linhas antigas vencidas nÃ£o dominam se jÃ¡ existe data futura/hoje.
  */
 function operationalValidityPrimaryCategory(lines, todayBr) {
   if (!lines?.length) return 'none';
@@ -6641,15 +6641,15 @@ function validityStatusMainShort(worst, hasLines, hasSnap) {
   if (!hasSnap) return { key: 'no_count', label: 'Sem contagem' };
   const m = {
     expired: 'Vencido',
-    d30: 'Crítico',
+    d30: 'CrÃ­tico',
     d60: 'Muito alto',
     d90: 'Alto',
-    d120: 'Atenção',
+    d120: 'AtenÃ§Ã£o',
     d150: 'Monitorar',
-    d180: 'Controle próximo',
-    ok: 'Confortável',
-    none: '—',
-    unknown: '—',
+    d180: 'Controle prÃ³ximo',
+    ok: 'ConfortÃ¡vel',
+    none: 'â€”',
+    unknown: 'â€”',
   };
   return { key: worst, label: m[worst] || worst };
 }
@@ -6658,7 +6658,7 @@ function validityRecommendedAction(row, todayBr) {
   const { lines, cod } = row;
   const snap = getValidityLastCountSnapshot(cod);
   if (!lines.length) {
-    return { key: 'launch', tone: 'neutral', label: 'Lançar datas de validade' };
+    return { key: 'launch', tone: 'neutral', label: 'LanÃ§ar datas de validade' };
   }
   if (!snap) {
     return { key: 'no_count', tone: 'warn', label: 'Conferir estoque (sem contagem)' };
@@ -6676,7 +6676,7 @@ function validityRecommendedAction(row, todayBr) {
   if (w === 'd120' || w === 'd150' || w === 'd180') {
     return { key: 'monitor', tone: 'soft', label: 'Monitorar' };
   }
-  return { key: 'calm', tone: 'muted', label: 'Sem urgência' };
+  return { key: 'calm', tone: 'muted', label: 'Sem urgÃªncia' };
 }
 
 function validityCardTone(worst, hasLines, hasSnap, baseOld) {
@@ -6689,7 +6689,7 @@ function validityCardTone(worst, hasLines, hasSnap, baseOld) {
   return 'calm';
 }
 
-/** Chave visual alinhada à régua de risco da Análise (KPIs, tabela, Excel). */
+/** Chave visual alinhada Ã  rÃ©gua de risco da AnÃ¡lise (KPIs, tabela, Excel). */
 function validityRowVisualKey(row, todayBr) {
   const lines = row.lines || [];
   const snap = getValidityLastCountSnapshot(row.cod);
@@ -6700,26 +6700,26 @@ function validityRowVisualKey(row, todayBr) {
 }
 
 function validityProductGroupLabel(p) {
-  if (!p) return '—';
+  if (!p) return 'â€”';
   const parts = [p.cod_grup_familia, p.cod_grup_segmento, p.cod_grup_marca]
     .map((x) => String(x || '').trim())
     .filter(Boolean);
-  return parts.length ? parts.join(' · ') : '—';
+  return parts.length ? parts.join(' Â· ') : 'â€”';
 }
 
 function validityDaysToExpiryDisplay(lines, todayBr) {
-  if (!lines?.length) return '—';
+  if (!lines?.length) return 'â€”';
   const anchor = operationalAnchorLine(lines, todayBr);
   if (anchor) {
     const d = validityExpiryDiffDays(anchor.expiration_date, todayBr);
-    return d === null ? '—' : String(d);
+    return d === null ? 'â€”' : String(d);
   }
   let minD = null;
   for (const ln of lines) {
     const d = validityExpiryDiffDays(ln.expiration_date, todayBr);
     if (d !== null && (minD === null || d < minD)) minD = d;
   }
-  return minD === null ? '—' : String(minD);
+  return minD === null ? 'â€”' : String(minD);
 }
 
 function validityQtyAllocatedAndRemaining(row, opKey) {
@@ -6738,15 +6738,15 @@ function validityQtyAllocatedAndRemaining(row, opKey) {
   const withParts = [];
   if (sums.cx > 0) withParts.push(`${formatIntegerBR(sums.cx)} CX`);
   if (sums.un > 0) withParts.push(`${formatIntegerBR(sums.un)} UN`);
-  const withLabel = withParts.length ? withParts.join(' · ') : linesOp.length ? '0' : '—';
-  let withoutLabel = '—';
+  const withLabel = withParts.length ? withParts.join(' Â· ') : linesOp.length ? '0' : 'â€”';
+  let withoutLabel = 'â€”';
   if (hasBase && (remCx > 0 || remUn > 0)) {
     const rp = [];
     if (baseCx > 0 && remCx > 0) rp.push(`${formatIntegerBR(remCx)} CX`);
     if (baseUn > 0 && remUn > 0) rp.push(`${formatIntegerBR(remUn)} UN`);
-    withoutLabel = rp.join(' · ') || '—';
+    withoutLabel = rp.join(' Â· ') || 'â€”';
   } else if (!hasBase && linesOp.length) {
-    withoutLabel = '—';
+    withoutLabel = 'â€”';
   }
   return { withLabel, withoutLabel, sums, remCx, remUn, hasBase };
 }
@@ -6774,8 +6774,8 @@ function getLatestValidityLaunchMeta(codRaw) {
     if (normalizeItemCode(ln.cod_produto) !== cod) continue;
     consider(ln.observed_at, ln.actor_username, ln.device_name, false);
   }
-  if (!best) return { whenIso: null, who: '—' };
-  const who = (best.actor && String(best.actor).trim()) || (best.dev && String(best.dev).trim()) || (best.isLocal ? 'Este aparelho' : '—');
+  if (!best) return { whenIso: null, who: 'â€”' };
+  const who = (best.actor && String(best.actor).trim()) || (best.dev && String(best.dev).trim()) || (best.isLocal ? 'Este aparelho' : 'â€”');
   return { whenIso: best.obs, who };
 }
 
@@ -6813,30 +6813,30 @@ function buildValidityExecutiveNarrativeLines(rows, todayBr) {
 
   if (nExpired > 0 || nD30 > 0) {
     out.push(
-      `No filtro atual: ${nExpired} produto(s) vencido(s) e ${nD30} com vencimento em até 30 dias (${nRisk60} com criticidade até 60 dias).`,
+      `No filtro atual: ${nExpired} produto(s) vencido(s) e ${nD30} com vencimento em atÃ© 30 dias (${nRisk60} com criticidade atÃ© 60 dias).`,
     );
   }
   if (nWithout > 0) {
-    out.push(`${nWithout} produto(s) ainda estão sem validade lançada.`);
+    out.push(`${nWithout} produto(s) ainda estÃ£o sem validade lanÃ§ada.`);
   }
   if (nNoCount > 0) {
-    out.push(`${nNoCount} produto(s) estão sem contagem de referência.`);
+    out.push(`${nNoCount} produto(s) estÃ£o sem contagem de referÃªncia.`);
   }
   if (groupScore.size) {
     let worstG = null;
     let worstS = Infinity;
     for (const [g, sc] of groupScore) {
-      if (g && g !== '—' && sc < worstS) {
+      if (g && g !== 'â€”' && sc < worstS) {
         worstS = sc;
         worstG = g;
       }
     }
     if (worstG) {
-      out.push(`O grupo com maior criticidade no filtro atual é ${worstG}.`);
+      out.push(`O grupo com maior criticidade no filtro atual Ã© ${worstG}.`);
     }
   }
   if (!out.length) {
-    out.push('Nenhum alerta adicional no filtro atual — revisar KPIs acima para o panorama completo.');
+    out.push('Nenhum alerta adicional no filtro atual â€” revisar KPIs acima para o panorama completo.');
   }
   return out;
 }
@@ -6850,7 +6850,7 @@ function buildValidityAnalysisExportPayload(rows, todayBr, executiveLines, summa
     const vKey = validityRowVisualKey(row, todayBr);
     const anchorLn = operationalAnchorLine(lines, todayBr);
     const nextIso = anchorLn ? String(anchorLn.expiration_date || '').slice(0, 10) : '';
-    const band = lines.length > 0 ? validityRiskLabel(operationalValidityPrimaryCategory(lines, todayBr)) : '—';
+    const band = lines.length > 0 ? validityRiskLabel(operationalValidityPrimaryCategory(lines, todayBr)) : 'â€”';
     const q = validityQtyAllocatedAndRemaining(row, opKey);
     const launch = getLatestValidityLaunchMeta(row.cod);
     const countRef = snap ? `${formatIntegerBR(snap.cx)} CX / ${formatIntegerBR(snap.un)} UN` : 'Sem contagem';
@@ -6866,7 +6866,7 @@ function buildValidityAnalysisExportPayload(rows, todayBr, executiveLines, summa
         ? formatDateBrFromIso(nextIso)
         : lines.length > 0
           ? 'Vencidos'
-          : '—',
+          : 'â€”',
       dias_para_vencer: validityDaysToExpiryDisplay(lines, todayBr),
       faixa: band,
       faixa_key: lines.length ? operationalValidityPrimaryCategory(lines, todayBr) : 'none',
@@ -6875,7 +6875,7 @@ function buildValidityAnalysisExportPayload(rows, todayBr, executiveLines, summa
       contagem_referencia: countRef,
       ultimo_lancamento_op: (() => {
         const iso = mergedLastValidityLaunchDateIso(row.cod);
-        return iso ? formatDateBrFromIso(iso) : '—';
+        return iso ? formatDateBrFromIso(iso) : 'â€”';
       })(),
       ultimo_lancamento_observado_em: launch.whenIso,
       responsavel_ultimo: launch.who,
@@ -6998,14 +6998,14 @@ function openValidityEmailPrepDialog() {
   const subj = document.getElementById('validity-email-subject');
   const body = document.getElementById('validity-email-body');
   if (subj && !subj.value.trim()) {
-    subj.value = `Análise de validades — ${op}`;
+    subj.value = `AnÃ¡lise de validades â€” ${op}`;
   }
   if (body && !body.value.trim()) {
     body.value =
-      `Segue em anexo a análise de validades (${op}).\n\n` +
-      `Última sincronização: ${formatValidityLastSyncDisplay()}\n\n` +
+      `Segue em anexo a anÃ¡lise de validades (${op}).\n\n` +
+      `Ãšltima sincronizaÃ§Ã£o: ${formatValidityLastSyncDisplay()}\n\n` +
       `---\n` +
-      `Gere o Excel pela tela antes de enviar (botão "Gerar Excel agora" abaixo, se ainda não exportou).`;
+      `Gere o Excel pela tela antes de enviar (botÃ£o "Gerar Excel agora" abaixo, se ainda nÃ£o exportou).`;
   }
   dlg.showModal();
 }
@@ -7058,7 +7058,7 @@ function formatValidityLastSyncDisplay() {
     if (!raw) return 'Nunca';
     return formatDateTimeBr(raw);
   } catch {
-    return '—';
+    return 'â€”';
   }
 }
 
@@ -7143,7 +7143,7 @@ function _validityMaxDateStr(a, b) {
   return a >= b ? a : b;
 }
 
-/** Dias civis entre duas datas YYYY-MM-DD (later − earlier). */
+/** Dias civis entre duas datas YYYY-MM-DD (later âˆ’ earlier). */
 function _validityDaysBetweenCalendar(laterBr, earlierBr) {
   if (!laterBr || !earlierBr) return null;
   const a = new Date(`${laterBr}T12:00:00`);
@@ -7207,8 +7207,8 @@ async function loadValidityLastLaunchFromServer() {
 }
 
 /**
- * Ordenação operacional: atrasados / sem histórico primeiro, pendentes no prazo, lançados por último.
- * Desempate: descrição do produto (pt-BR).
+ * OrdenaÃ§Ã£o operacional: atrasados / sem histÃ³rico primeiro, pendentes no prazo, lanÃ§ados por Ãºltimo.
+ * Desempate: descriÃ§Ã£o do produto (pt-BR).
  */
 function validityOpOperationalTier(row) {
   if (row.hasLaunchOnOpDay) return 2;
@@ -7248,12 +7248,12 @@ function deriveValidityDistributionStatus(baseCx, baseUn, sums) {
   const cxOk = !needCx || sums.cx >= baseCx;
   const unOk = !needUn || sums.un >= baseUn;
   if (anyLine && cxOk && unOk) {
-    return { key: 'complete', short: 'Concluído', label: 'Concluído' };
+    return { key: 'complete', short: 'ConcluÃ­do', label: 'ConcluÃ­do' };
   }
   if (anyLine && (!cxOk || !unOk)) {
     return { key: 'partial', short: 'Parcial', label: 'Parcial' };
   }
-  return { key: 'none', short: 'Sem lançamento', label: 'Sem lançamento' };
+  return { key: 'none', short: 'Sem lanÃ§amento', label: 'Sem lanÃ§amento' };
 }
 
 function validityDistChipClass(distKey) {
@@ -7288,8 +7288,8 @@ function sortValidityOperationalModels(models) {
 }
 
 /**
- * Dois lançamentos mais recentes por produto (data/hora do registro), unindo bucket local e linhas do servidor no dia carregado.
- * Ao salvar um novo lançamento, ele vira "atual" e o anterior passa a ser "penúltimo".
+ * Dois lanÃ§amentos mais recentes por produto (data/hora do registro), unindo bucket local e linhas do servidor no dia carregado.
+ * Ao salvar um novo lanÃ§amento, ele vira "atual" e o anterior passa a ser "penÃºltimo".
  */
 function buildValidityOpLaunchPairsByCode() {
   const map = {};
@@ -7349,7 +7349,7 @@ function buildValidityOperationalRowModel(p, opKey, todayBr, launchPairs) {
   const anchor = linesOp.length ? operationalAnchorLine(linesOp, todayBr) : null;
   const validadeLabel = anchor
     ? formatDateBrFromIso(String(anchor.expiration_date || '').slice(0, 10))
-    : '—';
+    : 'â€”';
   const pair = (launchPairs && launchPairs[cod]) || { atual: null, anterior: null };
   const bal =
     validityDayCountState.ok && validityDayCountState.dayKey === opKey
@@ -7365,40 +7365,40 @@ function buildValidityOperationalRowModel(p, opKey, todayBr, launchPairs) {
   const contagemLabel = hasCountBase
     ? [baseCx > 0 ? `${formatIntegerBR(baseCx)} CX` : null, baseUn > 0 ? `${formatIntegerBR(baseUn)} UN` : null]
         .filter(Boolean)
-        .join(' · ')
-    : '—';
+        .join(' Â· ')
+    : 'â€”';
   const distribLabel = hasCountBase
     ? [baseCx > 0 ? `${formatIntegerBR(distSums.cx)} CX` : null, baseUn > 0 ? `${formatIntegerBR(distSums.un)} UN` : null]
         .filter(Boolean)
-        .join(' · ') || '0'
-    : '—';
+        .join(' Â· ') || '0'
+    : 'â€”';
   const saldoLabel = hasCountBase
     ? [baseCx > 0 ? `${formatIntegerBR(remainingCx)} CX` : null, baseUn > 0 ? `${formatIntegerBR(remainingUn)} UN` : null]
         .filter(Boolean)
-        .join(' · ') || '0'
-    : '—';
-  const lastLaunchLabel = lastLaunch ? formatDateBrFromIso(lastLaunch) : '—';
-  const logAtualLabel = pair.atual ? formatDateTimeBr(pair.atual.observed_at) : '—';
-  const logAnteriorLabel = pair.anterior ? formatDateTimeBr(pair.anterior.observed_at) : '—';
+        .join(' Â· ') || '0'
+    : 'â€”';
+  const lastLaunchLabel = lastLaunch ? formatDateBrFromIso(lastLaunch) : 'â€”';
+  const logAtualLabel = pair.atual ? formatDateTimeBr(pair.atual.observed_at) : 'â€”';
+  const logAnteriorLabel = pair.anterior ? formatDateTimeBr(pair.anterior.observed_at) : 'â€”';
   let hintLine = '';
   if (isOverdueStrict && !hasLaunchOnOpDay) {
     hintLine =
       daysSinceLast != null
-        ? `Atrasado: sem lançamento há ${daysSinceLast} dia(s).`
-        : 'Atrasado: sem lançamento há mais de 7 dias.';
+        ? `Atrasado: sem lanÃ§amento hÃ¡ ${daysSinceLast} dia(s).`
+        : 'Atrasado: sem lanÃ§amento hÃ¡ mais de 7 dias.';
   }
   const chips = [];
   chips.push(
     `<span class="${validityDistChipClass(distStatus.key)}">${escapeHtml(distStatus.label)}</span>`,
   );
   if (noHistory && !hasLaunchOnOpDay) {
-    chips.push('<span class="validity-chip validity-chip--warn">Sem histórico</span>');
+    chips.push('<span class="validity-chip validity-chip--warn">Sem histÃ³rico</span>');
   }
   if (isOverdueStrict && !hasLaunchOnOpDay) {
     chips.push('<span class="validity-chip validity-chip--danger">Atrasado (validade)</span>');
   }
   if (hasLaunchOnOpDay) {
-    chips.push('<span class="validity-chip validity-chip--ok">Lançado hoje</span>');
+    chips.push('<span class="validity-chip validity-chip--ok">LanÃ§ado hoje</span>');
   }
   const badgeHtml = `<div class="validity-op-badges-row">${chips.join('')}</div>`;
   const bucket = assignValidityOperationalBucket({
@@ -7459,12 +7459,12 @@ function filterValidityOperationalModels(rows) {
 }
 
 const VALIDITY_OP_SECTION_TITLES = {
-  criticos: 'Críticos',
-  sem_hist: 'Sem histórico',
+  criticos: 'CrÃ­ticos',
+  sem_hist: 'Sem histÃ³rico',
   sem_base: 'Sem base de contagem',
   pendentes: 'Pendentes',
   parciais: 'Parciais',
-  concluidos: 'Concluídos',
+  concluidos: 'ConcluÃ­dos',
 };
 
 function buildValidityOperationalLotRowHtml(ln, codRaw) {
@@ -7475,9 +7475,9 @@ function buildValidityOperationalLotRowHtml(ln, codRaw) {
   const parts = [];
   if (qcx > 0) parts.push(`${formatIntegerBR(qcx)} CX`);
   if (qun > 0) parts.push(`${formatIntegerBR(qun)} UN`);
-  const qtyPart = parts.length ? parts.join(' · ') : '—';
+  const qtyPart = parts.length ? parts.join(' Â· ') : 'â€”';
   const localMark = ln._local
-    ? '<span class="validity-op-lot-flag" title="Ainda não sincronizado">Local</span>'
+    ? '<span class="validity-op-lot-flag" title="Ainda nÃ£o sincronizado">Local</span>'
     : '';
   const lid = ln.id != null ? String(ln.id) : '';
   const cidRaw = String(ln.client_event_id || '');
@@ -7527,7 +7527,7 @@ function buildValidityOperationalExpandHtml(row, vi) {
   const qtyRow = qtyInner ? `<div class="validity-op-new-qty-row">${qtyInner}</div>` : '';
   return `<div class="validity-op-expand-summary">
       <div class="validity-op-expand-line"><span class="muted">Base contagem (dia)</span><strong>${escapeHtml(row.contagemLabel)}</strong></div>
-      <div class="validity-op-expand-line"><span class="muted">Distribuído</span><strong>${escapeHtml(row.distribLabel)}</strong></div>
+      <div class="validity-op-expand-line"><span class="muted">DistribuÃ­do</span><strong>${escapeHtml(row.distribLabel)}</strong></div>
       <div class="validity-op-expand-line"><span class="muted">Saldo</span><strong>${escapeHtml(row.saldoLabel)}</strong></div>
     </div>
     ${lotsHtml}
@@ -7542,7 +7542,7 @@ function buildValidityOperationalExpandHtml(row, vi) {
         </div>
         <button type="button" class="btn btn-primary validity-op-save-lot" data-coderef="${enc}">Salvar lote</button>
       </div>
-      <p class="validity-op-expand-audit muted">Último lanç. validade: ${escapeHtml(row.lastLaunchLabel)} · Próx. venc. (ref.): ${escapeHtml(row.validadeLabel)}</p>
+      <p class="validity-op-expand-audit muted">Ãšltimo lanÃ§. validade: ${escapeHtml(row.lastLaunchLabel)} Â· PrÃ³x. venc. (ref.): ${escapeHtml(row.validadeLabel)}</p>
     </div>`;
 }
 
@@ -7596,8 +7596,8 @@ function renderValidityOperationalView() {
     const name = escapeHtml((p.cod_grup_descricao || row.cod || '').trim());
     const codEsc = escapeHtml(row.cod);
     const enc = encodeURIComponent(row.cod);
-    const grupo = escapeHtml((p.cod_grup_segmento || p.segmento || '').trim() || '—');
-    const marca = escapeHtml((p.cod_grup_marca || '').trim() || '—');
+    const grupo = escapeHtml((p.cod_grup_segmento || p.segmento || '').trim() || 'â€”');
+    const marca = escapeHtml((p.cod_grup_marca || '').trim() || 'â€”');
     let zone = '';
     if (row.isOverdueStrict && !row.hasLaunchOnOpDay) zone += ' validity-op-item--overdue';
     if (row.noHistory && !row.hasLaunchOnOpDay) zone += ' validity-op-item--nohistory';
@@ -7617,12 +7617,12 @@ function renderValidityOperationalView() {
           <span class="validity-op-queue-name">${name}</span>
           <span class="validity-op-queue-cod">${codEsc}</span>
         </div>
-        <p class="validity-op-queue-sub muted">${grupo} · ${marca}</p>
+        <p class="validity-op-queue-sub muted">${grupo} Â· ${marca}</p>
         <div class="validity-op-queue-metrics">
           <div><span class="vom-k">Base</span><span class="vom-v">${escapeHtml(row.contagemLabel)}</span></div>
           <div><span class="vom-k">Distrib.</span><span class="vom-v">${escapeHtml(row.distribLabel)}</span></div>
           <div><span class="vom-k">Saldo</span><span class="vom-v">${escapeHtml(row.saldoLabel)}</span></div>
-          <div><span class="vom-k">Próx. venc.</span><span class="vom-v">${escapeHtml(row.validadeLabel)}</span></div>
+          <div><span class="vom-k">PrÃ³x. venc.</span><span class="vom-v">${escapeHtml(row.validadeLabel)}</span></div>
         </div>
         ${row.badgeHtml}
         ${hintHtml}
@@ -7683,14 +7683,14 @@ function saveValidityOperationalNewLot(item) {
   const sums = sumValidityLineQuantities(linesOp);
   if (baseCx > 0 && sums.cx + qcx > baseCx) {
     setValidityFeedback(
-      `Máximo ${baseCx} CX (já distribuído ${sums.cx}; restam ${Math.max(0, baseCx - sums.cx)}).`,
+      `MÃ¡ximo ${baseCx} CX (jÃ¡ distribuÃ­do ${sums.cx}; restam ${Math.max(0, baseCx - sums.cx)}).`,
       true,
     );
     return;
   }
   if (baseUn > 0 && sums.un + qun > baseUn) {
     setValidityFeedback(
-      `Máximo ${baseUn} UN (já distribuído ${sums.un}; restam ${Math.max(0, baseUn - sums.un)}).`,
+      `MÃ¡ximo ${baseUn} UN (jÃ¡ distribuÃ­do ${sums.un}; restam ${Math.max(0, baseUn - sums.un)}).`,
       true,
     );
     return;
@@ -7846,7 +7846,7 @@ function updateValidityReadonlyState() {
   }
 }
 
-/** Contagens por faixa / situação para KPIs e exportação Excel (mesma regra que a faixa na UI). */
+/** Contagens por faixa / situaÃ§Ã£o para KPIs e exportaÃ§Ã£o Excel (mesma regra que a faixa na UI). */
 function countValidityRowsByKpiBuckets(allRows, todayBr) {
   let withLine = 0;
   let without = 0;
@@ -7935,7 +7935,7 @@ function updateValidityKpis(allRows, todayBr) {
   set('validity-analysis-kpi-d120', c120);
 
   const ls = document.getElementById('validity-analysis-last-sync');
-  if (ls) ls.textContent = `Última sincronização: ${formatValidityLastSyncDisplay()}`;
+  if (ls) ls.textContent = `Ãšltima sincronizaÃ§Ã£o: ${formatValidityLastSyncDisplay()}`;
 
   const total = allRows.length;
   const pct = total > 0 ? Math.min(100, Math.round((withLine / total) * 100)) : 0;
@@ -7944,7 +7944,7 @@ function updateValidityKpis(allRows, todayBr) {
   const pd = document.getElementById('validity-analysis-progress-detail');
   if (fill) fill.style.width = `${pct}%`;
   if (pp) pp.textContent = `${pct}%`;
-  if (pd) pd.textContent = `${withLine} de ${total} produtos com validade lançada`;
+  if (pd) pd.textContent = `${withLine} de ${total} produtos com validade lanÃ§ada`;
 }
 
 function rowMatchesValidityKpi(row, kpi, todayBr) {
@@ -8044,7 +8044,7 @@ function sortValidityRows(rows, sortMode, todayBr) {
 }
 
 /**
- * Compatibilidade: versões antigas de renderValidityProductList chamavam esta função.
+ * Compatibilidade: versÃµes antigas de renderValidityProductList chamavam esta funÃ§Ã£o.
  * Retorna linhas filtradas e ordenadas (equivalente a filterValidityRows + sortValidityRows).
  */
 function filterValidityProductsForView(products) {
@@ -8064,10 +8064,10 @@ function getLatestValidityLineByObserved(lines) {
 }
 
 function buildValidityHintLine(lines, todayBr) {
-  if (!lines?.length) return 'Nenhuma data lançada ainda.';
+  if (!lines?.length) return 'Nenhuma data lanÃ§ada ainda.';
   const latest = getLatestValidityLineByObserved(lines);
-  const exp = latest?.expiration_date ? formatDateBrFromIso(String(latest.expiration_date).slice(0, 10)) : '—';
-  return `Última lançada: ${exp}`;
+  const exp = latest?.expiration_date ? formatDateBrFromIso(String(latest.expiration_date).slice(0, 10)) : 'â€”';
+  return `Ãšltima lanÃ§ada: ${exp}`;
 }
 
 function buildValidityDetailBodyHtml(row, todayBr) {
@@ -8078,26 +8078,26 @@ function buildValidityDetailBodyHtml(row, todayBr) {
   const linesOp = lines.filter((l) => String(l.operational_date || '').slice(0, 10) === opKey);
   const enc = encodeURIComponent;
   const snap = getValidityLastCountSnapshot(cod);
-  const contagemLabel = snap ? `${formatIntegerBR(snap.cx)} CX` : '—';
+  const contagemLabel = snap ? `${formatIntegerBR(snap.cx)} CX` : 'â€”';
   const lastLaunchIso = mergedLastValidityLaunchDateIso(cod);
-  const lastLaunchLabel = lastLaunchIso ? formatDateBrFromIso(lastLaunchIso) : '—';
+  const lastLaunchLabel = lastLaunchIso ? formatDateBrFromIso(lastLaunchIso) : 'â€”';
   const launchPairs = buildValidityOpLaunchPairsByCode();
   const pair = (launchPairs && launchPairs[cod]) || { atual: null, anterior: null };
-  const logAtualLabel = pair.atual ? formatDateTimeBr(pair.atual.observed_at) : '—';
-  const logAnteriorLabel = pair.anterior ? formatDateTimeBr(pair.anterior.observed_at) : '—';
+  const logAtualLabel = pair.atual ? formatDateTimeBr(pair.atual.observed_at) : 'â€”';
+  const logAnteriorLabel = pair.anterior ? formatDateTimeBr(pair.anterior.observed_at) : 'â€”';
   const baseOld = !!(snap && isValidityCountBaseOld(snap.countDate, todayBr));
   const ageDays = snap ? countBaseAgeDays(snap.countDate, todayBr) : null;
-  const ageLabel = snap ? formatCountBaseAgeLabel(ageDays) : '—';
+  const ageLabel = snap ? formatCountBaseAgeLabel(ageDays) : 'â€”';
   const ageClass = baseOld ? ' validity-metric-v--alert' : '';
   const anchorLn = linesOp.length ? operationalAnchorLine(linesOp, todayBr) : null;
   const nextBr = anchorLn
     ? formatDateBrFromIso(String(anchorLn.expiration_date || '').slice(0, 10))
     : lines.length > 0
       ? 'Vencidos'
-      : '—';
+      : 'â€”';
   const resumoOperacional = `<div class="validity-analytic-metrics validity-analytic-metrics--expanded">
       <div class="validity-metric"><span class="validity-metric-k">Contagem</span><span class="validity-metric-v">${contagemLabel}</span></div>
-      <div class="validity-metric"><span class="validity-metric-k">Último lançamento</span><span class="validity-metric-v">${lastLaunchLabel}</span></div>
+      <div class="validity-metric"><span class="validity-metric-k">Ãšltimo lanÃ§amento</span><span class="validity-metric-v">${lastLaunchLabel}</span></div>
       <div class="validity-metric"><span class="validity-metric-k">Validade</span><span class="validity-metric-v">${nextBr}</span></div>
       <div class="validity-metric"><span class="validity-metric-k">Log atual</span><span class="validity-metric-v">${logAtualLabel}</span></div>
       <div class="validity-metric"><span class="validity-metric-k">Log anterior</span><span class="validity-metric-v">${logAnteriorLabel}</span></div>
@@ -8105,13 +8105,13 @@ function buildValidityDetailBodyHtml(row, todayBr) {
 
   const refMetrics = snap
     ? `<div class="validity-analytic-metrics validity-analytic-metrics--expanded">
-        <div class="validity-metric"><span class="validity-metric-k">Última contagem</span><span class="validity-metric-v">${formatIntegerBR(snap.cx)} CX</span></div>
+        <div class="validity-metric"><span class="validity-metric-k">Ãšltima contagem</span><span class="validity-metric-v">${formatIntegerBR(snap.cx)} CX</span></div>
         <div class="validity-metric"><span class="validity-metric-k">Data base</span><span class="validity-metric-v">${formatDateBrFromIso(snap.countDate)}</span></div>
-        <div class="validity-metric"><span class="validity-metric-k">Idade da base</span><span class="validity-metric-v${ageClass}">${ageLabel}${baseOld ? ' · base antiga' : ''}</span></div>
-        <div class="validity-metric"><span class="validity-metric-k">Próximo venc.</span><span class="validity-metric-v">${nextBr}</span></div>
+        <div class="validity-metric"><span class="validity-metric-k">Idade da base</span><span class="validity-metric-v${ageClass}">${ageLabel}${baseOld ? ' Â· base antiga' : ''}</span></div>
+        <div class="validity-metric"><span class="validity-metric-k">PrÃ³ximo venc.</span><span class="validity-metric-v">${nextBr}</span></div>
       </div>`
     : `<div class="validity-analytic-metrics validity-analytic-metrics--expanded validity-analytic-metrics--nocount">
-        <div class="validity-metric validity-metric--full"><span class="validity-metric-k">Referência</span><span class="validity-metric-v">Sem contagem anterior no sistema</span></div>
+        <div class="validity-metric validity-metric--full"><span class="validity-metric-k">ReferÃªncia</span><span class="validity-metric-v">Sem contagem anterior no sistema</span></div>
       </div>`;
 
   const linesHtml = lines.length
@@ -8124,13 +8124,13 @@ function buildValidityDetailBodyHtml(row, todayBr) {
           const canDel = isValidityOperationalEditable() && (ln.id || ln._local);
           const delBtn = canDel
             ? `<button type="button" class="btn btn-text btn-sm btn-validity-remove" data-line-id="${ln.id != null ? ln.id : ''}" data-client-id="${escapeHtml(String(ln.client_event_id || ''))}" data-coderef="${enc(cod)}">Remover</button>`
-            : '—';
+            : 'â€”';
           const who = ln._local
             ? escapeHtml(ln.device_name || 'Este aparelho')
-            : escapeHtml(ln.actor_username || '—');
+            : escapeHtml(ln.actor_username || 'â€”');
           const when = formatDateTimeBr(ln.observed_at);
           const qcx = Math.max(0, Math.round(Number(ln.quantity_cx) || 0));
-          const cxCell = qcx > 0 ? formatIntegerBR(qcx) : '—';
+          const cxCell = qcx > 0 ? formatIntegerBR(qcx) : 'â€”';
           return `<tr>
             <td>${expBr}</td>
             <td><span class="${rkChip}">${rkLabel}</span></td>
@@ -8174,7 +8174,7 @@ function buildValidityAnalysisSidePanelHtml(row, todayBr) {
     ? formatDateBrFromIso(String(anchorLn.expiration_date || '').slice(0, 10))
     : lines.length > 0
       ? 'Vencidos'
-      : '—';
+      : 'â€”';
   const dias = validityDaysToExpiryDisplay(lines, todayBr);
   const q = validityQtyAllocatedAndRemaining(row, getActiveValidityOpDateKey());
   const launch = getLatestValidityLaunchMeta(cod);
@@ -8199,31 +8199,31 @@ function buildValidityAnalysisSidePanelHtml(row, todayBr) {
           )}</span></li>`;
         })
         .join('')}</ul>`
-    : '<p class="muted va-side-muted">Sem lançamentos recentes.</p>';
+    : '<p class="muted va-side-muted">Sem lanÃ§amentos recentes.</p>';
 
   return `<div class="va-side-hero va-side-hero--${escapeHtml(vKey)}">
     <div class="va-side-kicker">Produto selecionado</div>
     <h3 class="va-side-title">${escapeHtml((p?.cod_grup_descricao || cod).trim())}</h3>
-    <p class="va-side-meta"><span class="va-side-code">${escapeHtml(cod)}</span> · <span class="va-side-grupo">${escapeHtml(grupo)}</span></p>
+    <p class="va-side-meta"><span class="va-side-code">${escapeHtml(cod)}</span> Â· <span class="va-side-grupo">${escapeHtml(grupo)}</span></p>
     <div class="va-side-badge-row"><span class="${bandClass}">${escapeHtml(band)}</span></div>
     <dl class="va-side-dl">
-      <div><dt>Próxima validade</dt><dd>${escapeHtml(nextBr)}</dd></div>
+      <div><dt>PrÃ³xima validade</dt><dd>${escapeHtml(nextBr)}</dd></div>
       <div><dt>Dias para vencer</dt><dd>${escapeHtml(dias)}</dd></div>
       <div><dt>Quantidade com validade (dia)</dt><dd>${escapeHtml(q.withLabel)}</dd></div>
       <div><dt>Quantidade sem validade (restante)</dt><dd>${escapeHtml(q.withoutLabel)}</dd></div>
-      <div><dt>Contagem referência</dt><dd>${escapeHtml(countRef)}</dd></div>
-      <div><dt>Último lançamento (op.)</dt><dd>${escapeHtml(lastLaunchBr ? formatDateBrFromIso(lastLaunchBr) : '—')}</dd></div>
+      <div><dt>Contagem referÃªncia</dt><dd>${escapeHtml(countRef)}</dd></div>
+      <div><dt>Ãšltimo lanÃ§amento (op.)</dt><dd>${escapeHtml(lastLaunchBr ? formatDateBrFromIso(lastLaunchBr) : 'â€”')}</dd></div>
       <div><dt>Registro mais recente</dt><dd>${escapeHtml(formatDateTimeBr(launch.whenIso))}</dd></div>
-      <div><dt>Responsável</dt><dd>${escapeHtml(launch.who)}</dd></div>
+      <div><dt>ResponsÃ¡vel</dt><dd>${escapeHtml(launch.who)}</dd></div>
     </dl>
     <div class="va-side-recent-block">
-      <div class="va-side-h">Histórico recente</div>
+      <div class="va-side-h">HistÃ³rico recente</div>
       ${recentHtml}
     </div>
     <div class="va-side-actions">
-      <button type="button" class="btn btn-secondary btn-sm validity-btn-history validity-analysis-btn-history" data-coderef="${codRefEnc}">Ver histórico completo</button>
+      <button type="button" class="btn btn-secondary btn-sm validity-btn-history validity-analysis-btn-history" data-coderef="${codRefEnc}">Ver histÃ³rico completo</button>
       <button type="button" class="btn btn-secondary btn-sm validity-analysis-btn-export-item" data-coderef="${codRefEnc}">Exportar item (Excel)</button>
-      <button type="button" class="btn btn-primary btn-sm validity-analysis-btn-open-op" data-coderef="${codRefEnc}">Abrir no lançamento</button>
+      <button type="button" class="btn btn-primary btn-sm validity-analysis-btn-open-op" data-coderef="${codRefEnc}">Abrir no lanÃ§amento</button>
     </div>
   </div>
   <div class="va-side-detail-block">${buildValidityDetailBodyHtml(row, todayBr)}</div>`;
@@ -8235,7 +8235,7 @@ function renderValidityAnalysisDetailPanel(row) {
   if (!inner) return;
   if (!row) {
     inner.innerHTML =
-      '<p class="muted validity-analysis-detail-placeholder">Selecione um produto na tabela para ver contagem de referência, métricas e histórico de validades.</p>';
+      '<p class="muted validity-analysis-detail-placeholder">Selecione um produto na tabela para ver contagem de referÃªncia, mÃ©tricas e histÃ³rico de validades.</p>';
     if (lead) lead.textContent = '';
     return;
   }
@@ -8249,7 +8249,7 @@ function openValidityHistoryDialog(row) {
   const title = document.getElementById('validity-history-dialog-title');
   if (!dlg || !body) return;
   const name = (row.product?.cod_grup_descricao || row.cod || '').trim();
-  if (title) title.textContent = `Histórico — ${name}`;
+  if (title) title.textContent = `HistÃ³rico â€” ${name}`;
   body.innerHTML = buildValidityDetailBodyHtml(row, getBrazilDateKey());
   dlg.showModal();
 }
@@ -8301,7 +8301,7 @@ function renderValidityAnalysisView() {
     statusEl.textContent =
       ativos.length === 0
         ? 'Status: sem produtos ativos carregados'
-        : `Status: ${rows.length} produto(s) no filtro · ${ativos.length} ativos no catálogo`;
+        : `Status: ${rows.length} produto(s) no filtro Â· ${ativos.length} ativos no catÃ¡logo`;
   }
 
   if (validityAnalysisSelectedCod && !rows.some((r) => String(r.cod) === String(validityAnalysisSelectedCod))) {
@@ -8312,7 +8312,7 @@ function renderValidityAnalysisView() {
   if (statsEl) {
     const noline = rows.filter((r) => !r.lines.length).length;
     const withl = rows.length - noline;
-    statsEl.textContent = `Neste filtro: ${withl} com validade lançada · ${noline} sem lançamento`;
+    statsEl.textContent = `Neste filtro: ${withl} com validade lanÃ§ada Â· ${noline} sem lanÃ§amento`;
   }
 
   tbody.innerHTML = '';
@@ -8338,12 +8338,12 @@ function renderValidityAnalysisView() {
       ? formatDateBrFromIso(String(anchorLn.expiration_date || '').slice(0, 10))
       : lines.length > 0
         ? 'Vencidos'
-        : '—';
+        : 'â€”';
     const band =
-      lines.length > 0 ? validityRiskLabel(operationalValidityPrimaryCategory(lines, todayBr)) : '—';
+      lines.length > 0 ? validityRiskLabel(operationalValidityPrimaryCategory(lines, todayBr)) : 'â€”';
     const bandChip = lines.length
       ? `<span class="validity-analysis-faixa-chip ${validityRiskChipClass(operationalValidityPrimaryCategory(lines, todayBr))}">${escapeHtml(band)}</span>`
-      : '—';
+      : 'â€”';
     const countRef = snap
       ? `${formatIntegerBR(snap.cx)} CX / ${formatIntegerBR(snap.un)} UN`
       : 'Sem contagem';
@@ -8352,7 +8352,7 @@ function renderValidityAnalysisView() {
     const q = validityQtyAllocatedAndRemaining(row, opKey);
     const launch = getLatestValidityLaunchMeta(cod);
     const lastOp = mergedLastValidityLaunchDateIso(cod);
-    const lastOpBr = lastOp ? formatDateBrFromIso(lastOp) : '—';
+    const lastOpBr = lastOp ? formatDateBrFromIso(lastOp) : 'â€”';
 
     const tr = document.createElement('tr');
     tr.className = `validity-analysis-row va-row va-row--${vKey}`;
@@ -8382,7 +8382,7 @@ function renderValidityAnalysisView() {
   }
 }
 
-/** Evita rolagem indesejada ao abrir módulos de validade (fragmento, restauração ou reflow). */
+/** Evita rolagem indesejada ao abrir mÃ³dulos de validade (fragmento, restauraÃ§Ã£o ou reflow). */
 function scrollDashboardToTop() {
   window.scrollTo(0, 0);
   document.documentElement.scrollTop = 0;
@@ -8418,7 +8418,7 @@ function registerValidityLineLocal(codRaw, expirationDateStr, quantityCx, quanti
   if (!cod) return;
   const expIso = parseValidityDateInputToIso(String(expirationDateStr || '').trim());
   if (!expIso) {
-    setValidityFeedback('Informe a data de vencimento válida (DD/MM/AAAA).', true);
+    setValidityFeedback('Informe a data de vencimento vÃ¡lida (DD/MM/AAAA).', true);
     return;
   }
   const dayKey = getActiveValidityOpDateKey();
@@ -8867,7 +8867,7 @@ async function syncPendingEvents() {
     setFeedback(`Sincronizacao concluida: ${syncedIds.size} evento(s) enviado(s).`);
     await loadServerCountTotals();
     refreshCountProductListView();
-    // Atualiza análise em tempo real se a aba estiver aberta
+    // Atualiza anÃ¡lise em tempo real se a aba estiver aberta
     const auditVisible = document.getElementById('sub-count-audit')?.classList.contains('active');
     if (auditVisible) {
       loadCountAuditAnalysis();
@@ -8882,13 +8882,13 @@ async function syncPendingEvents() {
 
 function registerCount(itemCodeInput) {
   if (!isCountOperationalEditable()) {
-    setFeedback('Só é possível lançar contagem na data de hoje (America/Sao_Paulo).', true);
+    setFeedback('SÃ³ Ã© possÃ­vel lanÃ§ar contagem na data de hoje (America/Sao_Paulo).', true);
     return;
   }
   registerCountDelta(itemCodeInput, 1, 'caixa');
 }
 
-/** Confirma saldo zero com TXT quando total e saldo são 0 (sem substituir total pelo input). @returns {boolean} */
+/** Confirma saldo zero com TXT quando total e saldo sÃ£o 0 (sem substituir total pelo input). @returns {boolean} */
 function tryConfirmExplicitZeroOnBlur(codRefEnc, countTypeRaw) {
   const codRaw = decodeURIComponent(String(codRefEnc || ''));
   const itemCode = normalizeItemCode(codRaw);
@@ -8913,7 +8913,7 @@ function parseOperationQtyFromInputEl(inp) {
   return n;
 }
 
-/** Mesmo fluxo do clique no botão + da linha (delegação existente em .count-products-shell). */
+/** Mesmo fluxo do clique no botÃ£o + da linha (delegaÃ§Ã£o existente em .count-products-shell). */
 function dispatchCountRowPlusClick(inp) {
   if (!inp || !inp.classList?.contains('count-product-qty')) return;
   const row = inp.closest('.count-control-row');
@@ -8923,13 +8923,13 @@ function dispatchCountRowPlusClick(inp) {
 }
 
 /**
- * + soma o valor digitado ao total; − subtrai (mínimo 0). Input = quantidade da operação, não total absoluto.
+ * + soma o valor digitado ao total; âˆ’ subtrai (mÃ­nimo 0). Input = quantidade da operaÃ§Ã£o, nÃ£o total absoluto.
  */
 function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
   const opQty = parseOperationQtyFromInputEl(inp);
   if (opQty == null) {
     setFeedback(
-      'Digite a quantidade da operação. Use 0 e + para confirmar saldo zero quando o TXT estiver 0 nesta dimensão.',
+      'Digite a quantidade da operaÃ§Ã£o. Use 0 e + para confirmar saldo zero quando o TXT estiver 0 nesta dimensÃ£o.',
       true,
     );
     return;
@@ -8962,7 +8962,7 @@ function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
 /** @returns {boolean} true se um evento foi gravado no bucket do dia. */
 function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa') {
   if (!isCountOperationalEditable()) {
-    setFeedback('Só é possível lançar contagem na data de hoje (America/Sao_Paulo).', true);
+    setFeedback('SÃ³ Ã© possÃ­vel lanÃ§ar contagem na data de hoje (America/Sao_Paulo).', true);
     return false;
   }
   const itemCode = normalizeItemCode(itemCodeInput);
@@ -8985,12 +8985,12 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   let clientEventId = makeEventId();
   if (quantity === 0) {
     if (!countImportBalancesState.hasTxt) {
-      setFeedback('Confirme zero só com base TXT carregada para o dia.', true);
+      setFeedback('Confirme zero sÃ³ com base TXT carregada para o dia.', true);
       return false;
     }
     const pair = getCountSaldoPair(itemCode);
     if (!pair) {
-      setFeedback('Produto sem linha na importação: não dá para confirmar zero frente ao TXT.', true);
+      setFeedback('Produto sem linha na importaÃ§Ã£o: nÃ£o dÃ¡ para confirmar zero frente ao TXT.', true);
       return false;
     }
     const saldo =
@@ -8998,17 +8998,17 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
         ? Math.max(0, Math.round(Number(pair.import_unidade) || 0))
         : Math.max(0, Math.round(Number(pair.import_caixa) || 0));
     if (saldo !== 0) {
-      setFeedback('Só confirme com 0 quando o saldo TXT nesta dimensão (CX ou UN) for zero.', true);
+      setFeedback('SÃ³ confirme com 0 quando o saldo TXT nesta dimensÃ£o (CX ou UN) for zero.', true);
       return false;
     }
     if (getNetByProductAndType(itemCode, countType) !== 0) {
-      setFeedback('Ajuste a contagem antes: confirmação 0 exige total zerado nesta dimensão.', true);
+      setFeedback('Ajuste a contagem antes: confirmaÃ§Ã£o 0 exige total zerado nesta dimensÃ£o.', true);
       return false;
     }
     clientEventId = makeStableExplicitZeroEventId(dayKey, itemCode, countType);
     if (events.some((e) => e.client_event_id === clientEventId)) {
       setCountExplicitZero(itemCode, countType, true);
-      setFeedback('Zero nesta dimensão já está registrado (pendente ou enviado).', false, true);
+      setFeedback('Zero nesta dimensÃ£o jÃ¡ estÃ¡ registrado (pendente ou enviado).', false, true);
       return false;
     }
   }
@@ -9046,12 +9046,12 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   const netUn = Math.max(0, Math.round(Number(getNetByProductAndType(itemCode, 'unidade')) || 0));
   const deltaStr =
     quantity === 0
-      ? 'confirmação 0'
+      ? 'confirmaÃ§Ã£o 0'
       : quantity > 0
         ? `+${quantity}`
         : String(quantity);
   setFeedback(
-    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total operação ${formatIntegerBR(netCx)} CX e ${formatIntegerBR(netUn)} UN`,
+    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} Â· Total operaÃ§Ã£o ${formatIntegerBR(netCx)} CX e ${formatIntegerBR(netUn)} UN`,
     false,
     true,
   );
@@ -9060,11 +9060,11 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   if (lastLaunch) {
     lastLaunch.hidden = false;
     lastLaunch.innerHTML =
-      `<span class="count-last-launch-kicker">Último lançamento</span>` +
+      `<span class="count-last-launch-kicker">Ãšltimo lanÃ§amento</span>` +
       `<span class="count-last-launch-body">` +
       `<strong class="count-last-launch-name">${escapeHtml(productName)}</strong> ` +
       `<span class="count-last-launch-delta">(${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'})</span>` +
-      ` · Total operação: <strong>${formatIntegerBR(netCx)} CX</strong> · <strong>${formatIntegerBR(netUn)} UN</strong>` +
+      ` Â· Total operaÃ§Ã£o: <strong>${formatIntegerBR(netCx)} CX</strong> Â· <strong>${formatIntegerBR(netUn)} UN</strong>` +
       `</span>`;
   }
 
@@ -9130,10 +9130,10 @@ async function importBackup(file) {
 }
 
 /**
- * Safari/iOS: o blur/focusout do input costuma ocorrer antes do pointerdown no botão +/−.
+ * Safari/iOS: o blur/focusout do input costuma ocorrer antes do pointerdown no botÃ£o +/âˆ’.
  * Incrementamos `countAdjustGestureGeneration` no pointerdown (captura) do `.btn-count-adjust`.
- * No focusout, não decidimos na mesma volta: `setTimeout(0)` pode rodar antes do pointerdown no iOS,
- * disparando o “+ automático” por engano. Usamos dois rAF para decidir após o pipeline de entrada.
+ * No focusout, nÃ£o decidimos na mesma volta: `setTimeout(0)` pode rodar antes do pointerdown no iOS,
+ * disparando o â€œ+ automÃ¡ticoâ€ por engano. Usamos dois rAF para decidir apÃ³s o pipeline de entrada.
  */
 let countAdjustGestureGeneration = 0;
 
@@ -9143,9 +9143,9 @@ function bindGlobalAdjustButtonKeyboardRetention() {
 
   /**
    * Mobile (Safari/Chrome): `preventDefault` em `pointerdown` costuma cancelar o `click` nativo,
-   * gerando corrida com `focusout` do input e disparando o “+ automático” em duplicidade.
+   * gerando corrida com `focusout` do input e disparando o â€œ+ automÃ¡ticoâ€ em duplicidade.
    * Em `touchstart` com `passive: false` o teclado tende a permanecer; em `touchend` disparamos
-   * `click()` sintético para reutilizar a delegação existente.
+   * `click()` sintÃ©tico para reutilizar a delegaÃ§Ã£o existente.
    */
   let touchAdjustStartBtn = null;
 
@@ -9154,7 +9154,7 @@ function bindGlobalAdjustButtonKeyboardRetention() {
     (e) => {
       const btn = e.target.closest?.('.btn-count-adjust');
       if (!btn || btn.disabled) return;
-      /* Só na contagem/quebra: evita bloquear gestos em outras telas. */
+      /* SÃ³ na contagem/quebra: evita bloquear gestos em outras telas. */
       if (!btn.closest('#sub-count') && !btn.closest('#sub-break')) return;
       touchAdjustStartBtn = btn;
       countAdjustGestureGeneration += 1;
@@ -9293,12 +9293,12 @@ function bindCountEvents() {
       const zeroConfirmedOnBlur = tryConfirmExplicitZeroOnBlur(ref, ct);
       const genAtBlur = countAdjustGestureGeneration;
       const opParsedBlur = parseOperationQtyFromInputEl(inp);
-      /* 0 = confirmação explícita: não dispara o + automático do blur (evita duplicar ez0_). */
+      /* 0 = confirmaÃ§Ã£o explÃ­cita: nÃ£o dispara o + automÃ¡tico do blur (evita duplicar ez0_). */
       if (opParsedBlur === 0) {
         refreshCountListAfterEdit();
         return;
       }
-      /* Campo vazio: não re-renderiza a lista inteira (no mobile destrói o DOM e o próximo tap falha). Só atualiza se houve confirmação zero gravada. */
+      /* Campo vazio: nÃ£o re-renderiza a lista inteira (no mobile destrÃ³i o DOM e o prÃ³ximo tap falha). SÃ³ atualiza se houve confirmaÃ§Ã£o zero gravada. */
       if (opParsedBlur == null) {
         if (zeroConfirmedOnBlur) refreshCountListAfterEdit();
         return;
@@ -9414,13 +9414,13 @@ function bindImportTxtEvents() {
       });
       if (handleUnauthorizedResponse(response)) return;
       if (!response.ok) {
-        setImportFeedback('Erro ao carregar histórico.', true);
+        setImportFeedback('Erro ao carregar histÃ³rico.', true);
         return;
       }
       const data = await response.json();
       listEl.innerHTML = '';
       if (!data.length) {
-        listEl.innerHTML = '<li><span>Nenhuma importação registrada ainda.</span></li>';
+        listEl.innerHTML = '<li><span>Nenhuma importaÃ§Ã£o registrada ainda.</span></li>';
         if (detailsWrap) detailsWrap.style.display = 'none';
         return;
       }
@@ -9436,18 +9436,18 @@ function bindImportTxtEvents() {
           });
           if (handleUnauthorizedResponse(detailResp)) return;
           if (!detailResp.ok) {
-            detailsMeta.textContent = 'Não foi possível carregar os detalhes.';
+            detailsMeta.textContent = 'NÃ£o foi possÃ­vel carregar os detalhes.';
             return;
           }
 
           const detail = await detailResp.json();
           const items = Array.isArray(detail.items) ? detail.items : [];
           detailsMeta.textContent =
-            `Data de referência: ${formatDateBR(detail.reference_date)} | Arquivo: ${detail.file_name || '-'} | ` +
+            `Data de referÃªncia: ${formatDateBR(detail.reference_date)} | Arquivo: ${detail.file_name || '-'} | ` +
             `Produtos lidos: ${formatIntegerBR(detail.total_products)} | Novos cadastros: ${formatIntegerBR(detail.created_products)}`;
 
           if (!items.length) {
-            detailsItems.innerHTML = '<li><span>Nenhum item encontrado nesta importação.</span></li>';
+            detailsItems.innerHTML = '<li><span>Nenhum item encontrado nesta importaÃ§Ã£o.</span></li>';
             return;
           }
 
@@ -9456,10 +9456,10 @@ function bindImportTxtEvents() {
             const li = document.createElement('li');
             if (it.pre_registered) {
               li.classList.add('import-item-pre-registered');
-              // Exibe apenas CX e UNI (saldo físico)
+              // Exibe apenas CX e UNI (saldo fÃ­sico)
               const cx = it.saldo_cx || 0;
               const uni = it.saldo_uni || 0;
-              li.innerHTML = `<span><strong>${it.cod_produto || '-'}<\/strong> - ${it.descricao || '-'} <span class="status-badge badge-inactive">Inativo · via TXT (regularizar no cadastro)<\/span><\/span>` +
+              li.innerHTML = `<span><strong>${it.cod_produto || '-'}<\/strong> - ${it.descricao || '-'} <span class="status-badge badge-inactive">Inativo Â· via TXT (regularizar no cadastro)<\/span><\/span>` +
                              `<span class="muted">CX ${cx} UNI ${uni}<\/span>`;
               if (it.product_id) {
                 const btnEdit = document.createElement('button');
@@ -9469,7 +9469,7 @@ function bindImportTxtEvents() {
                 btnEdit.addEventListener('click', async (event) => {
                   event.stopPropagation();
                   if (!canAccessHash('produtos')) {
-                    setImportFeedback('Seu perfil não possui acesso ao módulo de produtos para edição.', true);
+                    setImportFeedback('Seu perfil nÃ£o possui acesso ao mÃ³dulo de produtos para ediÃ§Ã£o.', true);
                     return;
                   }
                   setActiveModule('produtos');
@@ -9481,7 +9481,7 @@ function bindImportTxtEvents() {
               const badge = '<span class="status-badge">IMPORTADO<\/span>';
               const metricsRaw = Array.isArray(it.metrics?.raw) ? it.metrics.raw.join(' ') : '-';
               li.innerHTML = `<span><strong>${it.cod_produto || '-'}<\/strong> - ${it.descricao || '-'} ${badge}<\/span>` +
-                             `<span class="muted">Métricas: ${metricsRaw}<\/span>`;
+                             `<span class="muted">MÃ©tricas: ${metricsRaw}<\/span>`;
             }
             detailsItems.appendChild(li);
           }
@@ -9490,11 +9490,11 @@ function bindImportTxtEvents() {
             const li = document.createElement('li');
             li.innerHTML =
               `<span class="muted">Listagem limitada a ${formatIntegerBR(top.length)} itens (total ${formatIntegerBR(items.length)}). ` +
-              `Use exportação ou consulta no servidor para o arquivo completo.</span>`;
+              `Use exportaÃ§Ã£o ou consulta no servidor para o arquivo completo.</span>`;
             detailsItems.appendChild(li);
           }
         } catch {
-          detailsMeta.textContent = 'Falha de conexão ao carregar detalhes.';
+          detailsMeta.textContent = 'Falha de conexÃ£o ao carregar detalhes.';
         }
       };
 
@@ -9513,14 +9513,14 @@ function bindImportTxtEvents() {
               <span class="import-txt-card-new">Novos: <strong class="badge-active status-badge">${formatIntegerBR(item.created_products)}</strong></span>
             </div>
           </div>
-          <button type="button" class="import-txt-delete-btn" title="Excluir importação" aria-label="Excluir importação">
+          <button type="button" class="import-txt-delete-btn" title="Excluir importaÃ§Ã£o" aria-label="Excluir importaÃ§Ã£o">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M7.5 8.5v5m5-5v5M3 5.5h14M5.5 5.5V15a2 2 0 0 0 2 2h5a2 2 0 0 0 2-2V5.5" stroke="#b42318" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 3.5h3a1 1 0 0 1 1 1V5.5h-5V4.5a1 1 0 0 1 1-1Z" stroke="#b42318" stroke-width="1.5"/></svg>
           </button>
         `;
         li.querySelector('.import-txt-card-main').addEventListener('click', () => showImportDetails(item.id));
         li.querySelector('.import-txt-delete-btn').addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (!confirm('Tem certeza que deseja excluir esta importação? Esta ação não pode ser desfeita.')) return;
+          if (!confirm('Tem certeza que deseja excluir esta importaÃ§Ã£o? Esta aÃ§Ã£o nÃ£o pode ser desfeita.')) return;
           try {
             const resp = await apiFetch(`/inventory/imports/${item.id}`, {
               method: 'DELETE',
@@ -9528,21 +9528,21 @@ function bindImportTxtEvents() {
             });
             if (handleUnauthorizedResponse(resp)) return;
             if (!resp.ok) {
-              setImportFeedback('Erro ao excluir importação.', true);
+              setImportFeedback('Erro ao excluir importaÃ§Ã£o.', true);
               return;
             }
-            setImportFeedback('Importação excluída com sucesso.', false);
+            setImportFeedback('ImportaÃ§Ã£o excluÃ­da com sucesso.', false);
             await loadImports();
             if (detailsWrap) detailsWrap.style.display = 'none';
           } catch {
-            setImportFeedback('Erro de conexão ao excluir.', true);
+            setImportFeedback('Erro de conexÃ£o ao excluir.', true);
           }
         });
         listEl.appendChild(li);
       }
 
     } catch {
-      setImportFeedback('Falha de conexão ao carregar histórico.', true);
+      setImportFeedback('Falha de conexÃ£o ao carregar histÃ³rico.', true);
     }
   };
 
@@ -9561,7 +9561,7 @@ function bindImportTxtEvents() {
       return;
     }
     if (!dateRef) {
-      setImportFeedback('Data de referência obrigatória.', true);
+      setImportFeedback('Data de referÃªncia obrigatÃ³ria.', true);
       return;
     }
 
@@ -9600,7 +9600,7 @@ function bindImportTxtEvents() {
       setImportFeedback(`Sucesso! ${formatIntegerBR(resData.total_products)} produtos lidos e ${formatIntegerBR(resData.created_products)} novos produtos cadastrados.`);
       await loadImports();
     } catch {
-      setImportFeedback('Erro de conexão.', true);
+      setImportFeedback('Erro de conexÃ£o.', true);
     } finally {
       btn.disabled = false;
     }
@@ -9627,7 +9627,7 @@ async function startCountAuditPolling() {
     countAuditPollingTimer = null;
   }
 
-  // Sincroniza eventos pendentes antes de carregar a análise
+  // Sincroniza eventos pendentes antes de carregar a anÃ¡lise
   if (navigator.onLine && getToken()) {
     setCountAuditFeedback('Sincronizando contagens...', false);
     await syncPendingEventsForAudit();
@@ -9635,7 +9635,7 @@ async function startCountAuditPolling() {
 
   await loadCountAuditAnalysis();
 
-  // Polling: sincroniza eventos locais + recarrega análise do servidor (lançamentos de outros dispositivos).
+  // Polling: sincroniza eventos locais + recarrega anÃ¡lise do servidor (lanÃ§amentos de outros dispositivos).
   countAuditPollingTimer = setInterval(async () => {
     const auditVisible = document.getElementById('sub-count-audit')?.classList.contains('active');
     if (!auditVisible) {
@@ -9651,7 +9651,7 @@ async function startCountAuditPolling() {
   }, COUNT_AUDIT_POLL_MS);
 }
 
-// Versão silenciosa do sync que não mexe no feedback da tela de contagem
+// VersÃ£o silenciosa do sync que nÃ£o mexe no feedback da tela de contagem
 async function syncPendingEventsForAudit() {
   if (syncInProgress) return;
   const token = getToken();
@@ -9681,12 +9681,12 @@ async function syncPendingEventsForAudit() {
     const syncedIds = new Set(data.synced_ids || []);
     markEventsSyncedInBucket(syncedIds);
   } catch {
-    // silencioso — falha de rede não interrompe a análise
+    // silencioso â€” falha de rede nÃ£o interrompe a anÃ¡lise
   }
 }
 
 async function loadCountAuditImports() {
-  // Não faz mais nada: campo de data é livre
+  // NÃ£o faz mais nada: campo de data Ã© livre
   return [];
 }
 
@@ -9710,9 +9710,9 @@ function renderCountAuditSummary(summary) {
     ['Itens com saldo', Number(s.total_import_items) || 0, 'is-neutral', 'balance'],
     ['Itens com contagem', Number(s.counted_items) || 0, 'is-info', 'counted'],
     ['Conferidos', Number(s.equal_items) || 0, 'is-ok', 'equal'],
-    ['Divergências', Number(s.divergent_items) || 0, 'is-warn', 'divergent'],
+    ['DivergÃªncias', Number(s.divergent_items) || 0, 'is-warn', 'divergent'],
     ['Sem contagem', Number(s.missing_in_count) || 0, 'is-danger', 'missing'],
-    ['Só na contagem', Number(s.extra_in_count) || 0, 'is-purple', 'extra'],
+    ['SÃ³ na contagem', Number(s.extra_in_count) || 0, 'is-purple', 'extra'],
   ];
   for (const [label, value, tone, filterKey] of rows) {
     const li = document.createElement('li');
@@ -9751,7 +9751,7 @@ function renderCountAuditSummary(summary) {
   }
 }
 
-// Eventos para barra de pesquisa na análise de contagem
+// Eventos para barra de pesquisa na anÃ¡lise de contagem
 const countAuditSearch = document.getElementById('count-audit-search');
 const countAuditClearSearch = document.getElementById('count-audit-clear-search');
 if (countAuditSearch) {
@@ -9759,7 +9759,7 @@ if (countAuditSearch) {
     if (typeof countAuditState !== 'undefined') {
       countAuditState.showAllMissingMobile = false;
     }
-    // Re-renderiza usando último payload
+    // Re-renderiza usando Ãºltimo payload
     if (window.lastCountAuditRows) {
       renderCountAuditRows(window.lastCountAuditRows);
     }
@@ -9829,19 +9829,19 @@ const countAuditState = {
   loadingDetailCode: null,
   showAllMissingMobile: false,
   mobileFiltersExpanded: false,
-  /** YYYY-MM-DD do dia operacional usado nos totais de quebra (alinhado à data da análise). */
+  /** YYYY-MM-DD do dia operacional usado nos totais de quebra (alinhado Ã  data da anÃ¡lise). */
   breakDayKey: '',
   breakDayOk: false,
   breakDayBalances: {},
-  /** Mapa normalizado cod_produto → YYYY-MM-DD (servidor, GET validity-display-expiry-by-product). */
+  /** Mapa normalizado cod_produto â†’ YYYY-MM-DD (servidor, GET validity-display-expiry-by-product). */
   validityExpiryByCode: {},
-  /** Pendente troca por código conforme último evento no servidor (alinhamento entre navegadores). */
+  /** Pendente troca por cÃ³digo conforme Ãºltimo evento no servidor (alinhamento entre navegadores). */
   mateTrocaServerPending: {},
 };
 let countAuditDetailRequestSeq = 0;
 let countPrefillProductCode = null;
 let countRecountSignalsPollTimer = null;
-/** Códigos com solicitação de recontagem em tempo real para o dia de #count-date. */
+/** CÃ³digos com solicitaÃ§Ã£o de recontagem em tempo real para o dia de #count-date. */
 let serverRecountSignalCodes = new Set();
 
 function formatSignedIntegerBR(value) {
@@ -9849,7 +9849,7 @@ function formatSignedIntegerBR(value) {
   return n > 0 ? `+${formatIntegerBR(n)}` : formatIntegerBR(n);
 }
 
-/** Totais de quebra na UI (readout, histórico líquido): magnitude sem sinal. Para deltas use formatSignedIntegerBR. */
+/** Totais de quebra na UI (readout, histÃ³rico lÃ­quido): magnitude sem sinal. Para deltas use formatSignedIntegerBR. */
 function formatBreakIntegerBR(value) {
   const n = Math.abs(Number(value) || 0);
   return formatIntegerBR(n);
@@ -9960,13 +9960,13 @@ function getCountAuditCompactActionLabel(meta = {}) {
     case 'missing':
       return 'Contagem imediata';
     case 'critical':
-      return 'Recontagem prioritária';
+      return 'Recontagem prioritÃ¡ria';
     case 'high':
-      return 'Revisar lançamentos';
+      return 'Revisar lanÃ§amentos';
     case 'light':
       return 'Validar ajuste';
     default:
-      return 'Sem ação imediata';
+      return 'Sem aÃ§Ã£o imediata';
   }
 }
 
@@ -9984,12 +9984,12 @@ function getCountAuditFiltersSnapshot() {
   };
 }
 
-/** Nome exibido na análise: prioriza descrição do cadastro quando for mais completa que TXT/API. */
+/** Nome exibido na anÃ¡lise: prioriza descriÃ§Ã£o do cadastro quando for mais completa que TXT/API. */
 function resolveCountAuditDescricao(row) {
   const api = String(row?.descricao || '').trim();
   const rawCode = normalizeItemCode(row?.cod_produto || '');
   if (!rawCode || !Array.isArray(countProductsCache) || countProductsCache.length === 0) {
-    return api || 'Sem descrição';
+    return api || 'Sem descriÃ§Ã£o';
   }
   const useNum = /^\d+$/.test(rawCode);
   const numKey = useNum ? normalizeNumericProductCodeKey(rawCode) : '';
@@ -10000,7 +10000,7 @@ function resolveCountAuditDescricao(row) {
     return c === rawCode;
   });
   const catalog = p ? String(p.cod_grup_descricao || '').trim() : '';
-  if (!catalog) return api || 'Sem descrição';
+  if (!catalog) return api || 'Sem descriÃ§Ã£o';
   if (!api) return catalog;
   return catalog.length >= api.length ? catalog : api;
 }
@@ -10023,54 +10023,54 @@ function enrichCountAuditRow(row) {
   let priorityLabel = 'Baixa';
   let priorityRank = 4;
   let divergenceType = 'none';
-  let divergenceLabel = 'Sem divergência';
+  let divergenceLabel = 'Sem divergÃªncia';
   let recommendedAction = 'Somente monitorar';
-  let insight = 'Saldo TXT e contagem atual estão alinhados.';
+  let insight = 'Saldo TXT e contagem atual estÃ£o alinhados.';
 
   if (row.status === 'missing_in_count') {
     stateKey = 'missing';
-    stateLabel = 'Sem lançamento';
+    stateLabel = 'Sem lanÃ§amento';
     priorityLabel = 'Imediata';
     priorityRank = 0;
     divergenceType = 'missing';
     divergenceLabel = 'Sem contagem';
     recommendedAction = 'Acionar contagem imediata';
-    insight = 'O item existe na base, mas não recebeu lançamento no dia operacional.';
+    insight = 'O item existe na base, mas nÃ£o recebeu lanÃ§amento no dia operacional.';
   } else if (row.status === 'extra_in_count') {
     stateKey = 'critical';
-    stateLabel = 'Crítico';
+    stateLabel = 'CrÃ­tico';
     priorityLabel = 'Imediata';
     priorityRank = 0;
     divergenceType = 'extra';
     divergenceLabel = 'Sem base TXT';
     recommendedAction = 'Validar cadastro ou base importada';
-    insight = 'Há contagem sem correspondência direta na base comparativa.';
+    insight = 'HÃ¡ contagem sem correspondÃªncia direta na base comparativa.';
   } else if (row.status === 'divergent') {
     divergenceType = diffDims === 2 ? 'both' : (diffCx !== 0 ? 'caixa' : 'unidade');
     divergenceLabel = divergenceType === 'both'
       ? 'Caixa e unidade'
       : divergenceType === 'caixa'
-        ? 'Diferença em caixa'
-        : 'Diferença em unidade';
+        ? 'DiferenÃ§a em caixa'
+        : 'DiferenÃ§a em unidade';
 
     if (diffAbs >= 10 || (diffDims === 2 && diffAbs >= 6)) {
       stateKey = 'critical';
-      stateLabel = 'Crítico';
+      stateLabel = 'CrÃ­tico';
       priorityLabel = 'Imediata';
       priorityRank = 0;
-      recommendedAction = 'Abrir recontagem prioritária';
-      insight = 'A diferença é alta e pede revisão completa antes da validação.';
+      recommendedAction = 'Abrir recontagem prioritÃ¡ria';
+      insight = 'A diferenÃ§a Ã© alta e pede revisÃ£o completa antes da validaÃ§Ã£o.';
     } else if (diffAbs >= 4 || diffDims === 2) {
       stateKey = 'high';
-      stateLabel = 'Divergência alta';
+      stateLabel = 'DivergÃªncia alta';
       priorityLabel = 'Alta';
       priorityRank = 1;
-      recommendedAction = 'Revisar lançamentos e conferir base';
-      insight = 'Há impacto relevante no fechamento e o item deve subir na fila.';
+      recommendedAction = 'Revisar lanÃ§amentos e conferir base';
+      insight = 'HÃ¡ impacto relevante no fechamento e o item deve subir na fila.';
     } else {
       stateKey = 'light';
-      stateLabel = 'Divergência leve';
-      priorityLabel = 'Média';
+      stateLabel = 'DivergÃªncia leve';
+      priorityLabel = 'MÃ©dia';
       priorityRank = 2;
       recommendedAction = 'Validar ajuste pontual';
       insight = 'Parece um desvio localizado, com baixa amplitude relativa.';
@@ -10121,9 +10121,9 @@ function enrichCountAuditRow(row) {
       breakUn,
       trocaCx: 0,
       trocaUn: 0,
-      /** CIA Mate couro: produto do catálogo Mate (coluna Troca / composição). */
+      /** CIA Mate couro: produto do catÃ¡logo Mate (coluna Troca / composiÃ§Ã£o). */
       trocaMateCouro: false,
-      /** Saldo da Base de Troca V2 já conhecido (GET ok ou último estado válido em disco). */
+      /** Saldo da Base de Troca V2 jÃ¡ conhecido (GET ok ou Ãºltimo estado vÃ¡lido em disco). */
       trocaSaldoKnown: false,
       prevDiffDate: row.previous_difference_date || null,
       prevDiffCx: row.previous_difference_caixa,
@@ -10133,7 +10133,7 @@ function enrichCountAuditRow(row) {
 }
 
 /**
- * Pendente Mate couro na análise: chave canônica numérica (010 ≡ 10) e fallback à forma bruta do TXT.
+ * Pendente Mate couro na anÃ¡lise: chave canÃ´nica numÃ©rica (010 â‰¡ 10) e fallback Ã  forma bruta do TXT.
  */
 function resolveMateCouroPendingEntry(pending, codProduto) {
   const p = pending && typeof pending === 'object' ? pending : {};
@@ -10153,7 +10153,7 @@ function resolveMateCouroPendingEntry(pending, codProduto) {
 }
 
 /**
- * Alinha diferença CX/UN / |Dif| do meta com a mesma base usada em "Contagem:"
+ * Alinha diferenÃ§a CX/UN / |Dif| do meta com a mesma base usada em "Contagem:"
  * (sincronizado + saldo atual da Base de Troca V2 para produtos Mate couro).
  */
 function reconcileCountAuditMetaDiffWithMergedCount(row) {
@@ -10172,8 +10172,8 @@ function reconcileCountAuditMetaDiffWithMergedCount(row) {
 }
 
 /**
- * Troca na análise: mesmo saldo CX/UN da Base de Troca V2 (GET /audit/mate-troca-base-v2 + último válido em disco),
- * alinhado ao card "Saldo acumulado" — sem break_totals, sem soma histórica de quebra e sem reflexo do dia.
+ * Troca na anÃ¡lise: mesmo saldo CX/UN da Base de Troca V2 (GET /audit/mate-troca-base-v2 + Ãºltimo vÃ¡lido em disco),
+ * alinhado ao card "Saldo acumulado" â€” sem break_totals, sem soma histÃ³rica de quebra e sem reflexo do dia.
  */
 function applyMateCouroTrocaPendingToCountAuditRows() {
   const rows = Array.isArray(countAuditState.rows) ? countAuditState.rows : [];
@@ -10230,12 +10230,12 @@ function updateCountAuditHeaderContext() {
   }
   if (countAuditBaseSource) {
     countAuditBaseSource.textContent = info.id == null
-      ? 'Saldo sintético'
+      ? 'Saldo sintÃ©tico'
       : `TXT ${formatDateBR(info.reference_date || referenceDate || '')}`;
   }
   if (countAuditBaseSourceNote) {
     countAuditBaseSourceNote.textContent = info.id == null
-      ? (info.file_name || 'Sem importação TXT para a data.')
+      ? (info.file_name || 'Sem importaÃ§Ã£o TXT para a data.')
       : (info.file_name || 'Base TXT carregada');
   }
   const progressFill = document.getElementById('count-audit-list-progress-fill');
@@ -10244,7 +10244,7 @@ function updateCountAuditHeaderContext() {
     const pct = Math.min(100, Math.max(0, dashboard.completedPercent));
     progressFill.style.width = `${pct}%`;
     if (progressPct) {
-      progressPct.textContent = dashboard.total > 0 ? `${pct}%` : '—';
+      progressPct.textContent = dashboard.total > 0 ? `${pct}%` : 'â€”';
     }
   }
 }
@@ -10281,13 +10281,13 @@ function renderCountAuditSummary(summary) {
   const dashboard = getCountAuditDashboard(summary, rows);
   const cards = [
     ['Produtos pendentes', formatIntegerBR(dashboard.pending), 'is-warn', 'pending', 'Itens ainda fora do fechamento', false],
-    ['Produtos com divergência', formatIntegerBR(dashboard.divergent), 'is-warn', 'divergent', 'Diferença entre base e contagem', false],
-    ['Divergências críticas', formatIntegerBR(dashboard.critical), 'is-danger', 'critical', 'Itens que exigem ação imediata', false],
-    ['Produtos sem contagem', formatIntegerBR(dashboard.missing), 'is-danger', 'missing', 'Base prevista sem lançamento', false],
+    ['Produtos com divergÃªncia', formatIntegerBR(dashboard.divergent), 'is-warn', 'divergent', 'DiferenÃ§a entre base e contagem', false],
+    ['DivergÃªncias crÃ­ticas', formatIntegerBR(dashboard.critical), 'is-danger', 'critical', 'Itens que exigem aÃ§Ã£o imediata', false],
+    ['Produtos sem contagem', formatIntegerBR(dashboard.missing), 'is-danger', 'missing', 'Base prevista sem lanÃ§amento', false],
     ['Total de produtos', formatIntegerBR(dashboard.total), 'is-neutral', 'all', 'Escopo ativo carregado', true],
     ['Produtos analisados', formatIntegerBR(dashboard.analyzed), 'is-info', 'analyzed', 'Itens com contagem registrada', true],
-    ['Percentual concluído', `${dashboard.completedPercent}%`, 'is-ok', 'completed', `${formatIntegerBR(Number(summary.equal_items) || 0)} conferidos`, true],
-    ['Maior divergência do dia', formatIntegerBR(dashboard.biggestGap), 'is-highlight', '', 'Maior impacto absoluto carregado', true],
+    ['Percentual concluÃ­do', `${dashboard.completedPercent}%`, 'is-ok', 'completed', `${formatIntegerBR(Number(summary.equal_items) || 0)} conferidos`, true],
+    ['Maior divergÃªncia do dia', formatIntegerBR(dashboard.biggestGap), 'is-highlight', '', 'Maior impacto absoluto carregado', true],
   ];
 
   countAuditSummary.innerHTML = cards.map(([label, value, tone, filterKey, trend, isSecondary]) => {
@@ -10427,7 +10427,7 @@ function syncCountAuditListSelection() {
 
 const COUNT_AUDIT_VALIDITY_URGENT_DAYS = 45;
 
-/** Mescla servidor + lançamentos locais não sincronizados (módulo Validade). */
+/** Mescla servidor + lanÃ§amentos locais nÃ£o sincronizados (mÃ³dulo Validade). */
 function countAuditMergedDisplayExpiryIso(codRaw) {
   const cod = normalizeItemCode(codRaw);
   const todayBr = getBrazilDateKey();
@@ -10462,13 +10462,13 @@ function countAuditValidityMarkupForRow(codRaw) {
   if (!expIso) return '';
   const risk = countAuditValidityRiskClass(expIso);
   return (
-    `<span class="count-audit-product-exp${risk ? ` ${risk}` : ''}" title="Validade (módulo Validade)">` +
+    `<span class="count-audit-product-exp${risk ? ` ${risk}` : ''}" title="Validade (mÃ³dulo Validade)">` +
     `Venc. ${escapeHtml(formatDateBR(expIso))}` +
     `</span>`
   );
 }
 
-/** Última diferença contagem × TXT em dia anterior com lançamento (vem do servidor; sem troca). */
+/** Ãšltima diferenÃ§a contagem Ã— TXT em dia anterior com lanÃ§amento (vem do servidor; sem troca). */
 function countAuditPrevDiffMarkupForMeta(meta, variant = 'row') {
   if (!meta) return '';
   const d = String(meta.prevDiffDate || '').trim();
@@ -10478,9 +10478,9 @@ function countAuditPrevDiffMarkupForMeta(meta, variant = 'row') {
   const zero = pdc === 0 && pdu === 0;
   const tone = zero ? 'count-audit-prev-diff--zero' : 'count-audit-prev-diff--nonzero';
   const dateBr = formatDateBR(d);
-  const line = `Diferença ${dateBr} · CX ${formatSignedIntegerBR(pdc)} · UN ${formatSignedIntegerBR(pdu)}`;
+  const line = `DiferenÃ§a ${dateBr} Â· CX ${formatSignedIntegerBR(pdc)} Â· UN ${formatSignedIntegerBR(pdu)}`;
   const title =
-    'Contagem × TXT nesse dia (sem base de troca). Último dia anterior ao da análise em que houve lançamento e o código existia na importação.';
+    'Contagem Ã— TXT nesse dia (sem base de troca). Ãšltimo dia anterior ao da anÃ¡lise em que houve lanÃ§amento e o cÃ³digo existia na importaÃ§Ã£o.';
   const tag = variant === 'detail' ? 'div' : 'span';
   const blockCls = variant === 'detail' ? ' count-audit-prev-diff--detail' : '';
   return (
@@ -10497,22 +10497,22 @@ function buildCountAuditHistoryHtml(history) {
           `<span>${escapeHtml(formatAuditRelativeTime(entry.observed_at || entry.changed_at || ''))}</span>` +
         `</div>` +
         `<div class="count-audit-history-values">` +
-          `${entry.count_type === 'unidade' ? 'UN' : 'CX'} ${formatSignedIntegerBR(entry.quantity_delta)} · ${formatIntegerBR(entry.previous_value)} → ${formatIntegerBR(entry.current_value)}` +
+          `${entry.count_type === 'unidade' ? 'UN' : 'CX'} ${formatSignedIntegerBR(entry.quantity_delta)} Â· ${formatIntegerBR(entry.previous_value)} â†’ ${formatIntegerBR(entry.current_value)}` +
         `</div>` +
         `<div class="count-audit-history-note">` +
-          `CX ${formatIntegerBR(entry.previous_caixa)} → ${formatIntegerBR(entry.current_caixa)} · UN ${formatIntegerBR(entry.previous_unidade)} → ${formatIntegerBR(entry.current_unidade)}${entry.device_name ? ` · ${escapeHtml(entry.device_name)}` : ''}` +
+          `CX ${formatIntegerBR(entry.previous_caixa)} â†’ ${formatIntegerBR(entry.current_caixa)} Â· UN ${formatIntegerBR(entry.previous_unidade)} â†’ ${formatIntegerBR(entry.current_unidade)}${entry.device_name ? ` Â· ${escapeHtml(entry.device_name)}` : ''}` +
         `</div>` +
       `</li>`
     )).join('')
-    : '<li class="count-audit-history-item"><div class="count-audit-history-note">Nenhum lançamento sincronizado para este item na data operacional da análise.</div></li>';
+    : '<li class="count-audit-history-item"><div class="count-audit-history-note">Nenhum lanÃ§amento sincronizado para este item na data operacional da anÃ¡lise.</div></li>';
 }
 
 function buildCountAuditTrailHtml(row, meta, importInfo, actors, devices) {
   return [
-    ['Base de comparação', importInfo.id == null ? 'Saldo sintético / fallback sem TXT' : `${formatDateBR(importInfo.reference_date || '')} · ${importInfo.file_name || 'TXT'}`],
-    ['Divergência calculada', `CX ${formatSignedIntegerBR(meta.diffCx ?? row.difference_caixa)} · UN ${formatSignedIntegerBR(meta.diffUn ?? row.difference_unidade)} · |Dif| ${formatIntegerBR(meta.diffAbs || 0)}`],
-    ['Observação automática', meta.insight || 'Sem observação automática.'],
-    ['Quem lançou', actors.length ? actors.join(', ') : 'Sem ator identificado'],
+    ['Base de comparaÃ§Ã£o', importInfo.id == null ? 'Saldo sintÃ©tico / fallback sem TXT' : `${formatDateBR(importInfo.reference_date || '')} Â· ${importInfo.file_name || 'TXT'}`],
+    ['DivergÃªncia calculada', `CX ${formatSignedIntegerBR(meta.diffCx ?? row.difference_caixa)} Â· UN ${formatSignedIntegerBR(meta.diffUn ?? row.difference_unidade)} Â· |Dif| ${formatIntegerBR(meta.diffAbs || 0)}`],
+    ['ObservaÃ§Ã£o automÃ¡tica', meta.insight || 'Sem observaÃ§Ã£o automÃ¡tica.'],
+    ['Quem lanÃ§ou', actors.length ? actors.join(', ') : 'Sem ator identificado'],
     ['Dispositivos', devices.length ? devices.join(', ') : 'Sem dispositivo identificado'],
   ].map(([label, value]) => (
     `<li class="count-audit-trail-item">` +
@@ -10522,7 +10522,7 @@ function buildCountAuditTrailHtml(row, meta, importInfo, actors, devices) {
   )).join('');
 }
 
-/** Base de Troca V2: exibe coluna/resumo quando há saldo > 0 ou saldo 0/0 já conhecido (ex.: zerado no servidor). */
+/** Base de Troca V2: exibe coluna/resumo quando hÃ¡ saldo > 0 ou saldo 0/0 jÃ¡ conhecido (ex.: zerado no servidor). */
 function countAuditHasTrocaPending(meta) {
   const tCx = Math.max(0, Math.round(Number(meta?.trocaCx) || 0));
   const tUn = Math.max(0, Math.round(Number(meta?.trocaUn) || 0));
@@ -10530,7 +10530,7 @@ function countAuditHasTrocaPending(meta) {
   return !!(meta?.trocaMateCouro && meta?.trocaSaldoKnown);
 }
 
-/** Quebra líquida no dia da análise: só exibe quando diferente de zero. */
+/** Quebra lÃ­quida no dia da anÃ¡lise: sÃ³ exibe quando diferente de zero. */
 function countAuditHasBreakDay(meta) {
   const bCx = Math.round(Number(meta?.breakCx) || 0);
   const bUn = Math.round(Number(meta?.breakUn) || 0);
@@ -10538,16 +10538,17 @@ function countAuditHasBreakDay(meta) {
 }
 
 /**
- * Linhas CX/UN no breakdown: não mostra dimensão zerada.
- * troca: só inteiros ≥ 0; quebra: qualquer ≠ 0 (pode ser negativo no líquido).
+ * Linhas CX/UN no breakdown.
+ * troca: sempre CX e UN (inteiros â‰¥ 0) â€” saldo do servidor, nÃ£o soma com a coluna Quebra.
+ * quebra: sÃ³ dimensÃµes â‰  0 (pode ser negativo no lÃ­quido).
  */
 function buildCountAuditDiffCxUnStrongs(cx, un, mode) {
   const lines = [];
   if (mode === 'troca') {
     const tCx = Math.max(0, Math.round(Number(cx) || 0));
     const tUn = Math.max(0, Math.round(Number(un) || 0));
-    if (tCx > 0) lines.push(`<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(tCx)}</strong>`);
-    if (tUn > 0) lines.push(`<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(tUn)}</strong>`);
+    lines.push(`<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(tCx)}</strong>`);
+    lines.push(`<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(tUn)}</strong>`);
   } else {
     const bCx = Math.round(Number(cx) || 0);
     const bUn = Math.round(Number(un) || 0);
@@ -10557,55 +10558,47 @@ function buildCountAuditDiffCxUnStrongs(cx, un, mode) {
   return lines.join('');
 }
 
-/** Texto compacto mobile (só dimensões não zeradas). */
+/** Texto compacto mobile. Troca: sempre CX e UN; quebra: sÃ³ dimensÃµes â‰  0. */
 function formatCountAuditOpsMobileCxUn(cx, un, mode) {
   const segs = [];
   if (mode === 'troca') {
     const tCx = Math.max(0, Math.round(Number(cx) || 0));
     const tUn = Math.max(0, Math.round(Number(un) || 0));
-    if (tCx > 0) segs.push(`CX ${formatBreakIntegerBR(tCx)}`);
-    if (tUn > 0) segs.push(`UN ${formatBreakIntegerBR(tUn)}`);
+    segs.push(`CX ${formatBreakIntegerBR(tCx)}`);
+    segs.push(`UN ${formatBreakIntegerBR(tUn)}`);
   } else {
     const bCx = Math.round(Number(cx) || 0);
     const bUn = Math.round(Number(un) || 0);
     if (bCx !== 0) segs.push(`CX ${formatBreakIntegerBR(bCx)}`);
     if (bUn !== 0) segs.push(`UN ${formatBreakIntegerBR(bUn)}`);
   }
-  return segs.join(' · ');
+  return segs.join(' Â· ');
 }
 
-/** Uma linha no detalhe (métricas): só partes não zeradas. */
+/** Uma linha no detalhe (mÃ©tricas). Troca: sempre CX e UN; quebra: sÃ³ partes â‰  0. */
 function formatCountAuditDetailOpsCxUnLine(cx, un, mode) {
   const segs = [];
   if (mode === 'troca') {
     const tCx = Math.max(0, Math.round(Number(cx) || 0));
     const tUn = Math.max(0, Math.round(Number(un) || 0));
-    if (tCx > 0) segs.push(`${formatBreakIntegerBR(tCx)} CX`);
-    if (tUn > 0) segs.push(`${formatBreakIntegerBR(tUn)} UN`);
-    if (!segs.length) segs.push('0 CX', '0 UN');
+    segs.push(`${formatBreakIntegerBR(tCx)} CX`, `${formatBreakIntegerBR(tUn)} UN`);
   } else {
     const bCx = Math.round(Number(cx) || 0);
     const bUn = Math.round(Number(un) || 0);
     if (bCx !== 0) segs.push(`${formatBreakIntegerBR(bCx)} CX`);
     if (bUn !== 0) segs.push(`${formatBreakIntegerBR(bUn)} UN`);
   }
-  return segs.join(' · ');
+  return segs.join(' Â· ');
 }
 
 /**
- * Análise de Contagem — desktop: coluna Troca = saldo atual da Base de Troca V2 (mesmo dado do card Saldo acumulado).
+ * AnÃ¡lise de Contagem â€” desktop: coluna Troca = saldo atual da Base de Troca V2 (mesmo dado do card Saldo acumulado).
  */
 function buildCountAuditTrocaColumnCellHtml(meta) {
   if (countAuditHasTrocaPending(meta)) {
-    const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
-    const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
-    const inner =
-      tCx > 0 || tUn > 0
-        ? buildCountAuditDiffCxUnStrongs(meta.trocaCx, meta.trocaUn, 'troca')
-        : `<strong class="count-audit-diff-cx">CX ${formatBreakIntegerBR(0)}</strong>` +
-          `<strong class="count-audit-diff-un">UN ${formatBreakIntegerBR(0)}</strong>`;
+    const inner = buildCountAuditDiffCxUnStrongs(meta.trocaCx, meta.trocaUn, 'troca');
     const title =
-      'Saldo atual da base de troca, mesma fonte do card na tela Base de troca; altera com Chegada, Saldo, Zerar ou Carregar.';
+      'Saldo atual da base de troca (mesmo card na tela Base de troca). NÃ£o Ã© soma com a coluna Quebra: quebra Ã© o lanÃ§amento do dia; troca Ã© o saldo acumulado no servidor (CX/UN podem ser normalizados pelo cadastro). Altera com Chegada, Saldo, Zerar ou Carregar.';
     return (
       `<span class="count-audit-cell-label">Troca</span>` +
       `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="${escapeHtml(title)}">` +
@@ -10615,37 +10608,37 @@ function buildCountAuditTrocaColumnCellHtml(meta) {
   }
   if (meta.trocaMateCouro && !meta.trocaSaldoKnown) {
     const title =
-      'Saldo da base de troca ainda não carregado nesta sessão. Abra a base de troca e use Atualizar lista, ou recarregue a análise.';
+      'Saldo da base de troca ainda nÃ£o carregado nesta sessÃ£o. Abra a base de troca e use Atualizar lista, ou recarregue a anÃ¡lise.';
     return (
       `<span class="count-audit-cell-label">Troca</span>` +
-      `<span class="count-audit-cell-value mate-troca-balance-v2-unknown" title="${escapeHtml(title)}">CX — · UN —</span>`
+      `<span class="count-audit-cell-value mate-troca-balance-v2-unknown" title="${escapeHtml(title)}">CX â€” Â· UN â€”</span>`
     );
   }
-  return `<span class="count-audit-cell-label">Troca</span><span class="count-audit-cell-value">—</span>`;
+  return `<span class="count-audit-cell-label">Troca</span><span class="count-audit-cell-value">â€”</span>`;
 }
 
-/** Coluna desktop Quebra: dia operacional da análise; traço quando líquido zero. */
+/** Coluna desktop Quebra: dia operacional da anÃ¡lise; traÃ§o quando lÃ­quido zero. */
 function buildCountAuditQuebraColumnCellHtml(meta) {
   if (countAuditHasBreakDay(meta)) {
     const inner = buildCountAuditDiffCxUnStrongs(meta.breakCx, meta.breakUn, 'break');
     return (
       `<span class="count-audit-cell-label">Quebra</span>` +
-      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da análise (mesma lógica da tela Quebra)">` +
+      `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--break" title="Total de quebra no dia operacional da anÃ¡lise (mesma lÃ³gica da tela Quebra)">` +
       inner +
       `</div>`
     );
   }
-  return `<span class="count-audit-cell-label">Quebra</span><span class="count-audit-cell-value">—</span>`;
+  return `<span class="count-audit-cell-label">Quebra</span><span class="count-audit-cell-value">â€”</span>`;
 }
 
-/** Resumo mobile: faixas Troca e/ou Quebra só quando houver valor. */
+/** Resumo mobile: faixas Troca e/ou Quebra sÃ³ quando houver valor. */
 function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
   const trocaUnknownMate = !!(meta.trocaMateCouro && !meta.trocaSaldoKnown);
   if (!countAuditHasTrocaPending(meta) && !countAuditHasBreakDay(meta) && !trocaUnknownMate) return '';
   const parts = [];
   if (countAuditHasTrocaPending(meta)) {
     let vals = formatCountAuditOpsMobileCxUn(meta.trocaCx, meta.trocaUn, 'troca');
-    if (!vals) vals = 'CX 0 · UN 0';
+    if (!vals) vals = 'CX 0 Â· UN 0';
     parts.push(
       `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo atual da base de troca, mesma fonte do card na tela Base de troca">` +
         `<span class="count-audit-mobile-break-label">Troca</span>` +
@@ -10654,16 +10647,16 @@ function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
     );
   } else if (trocaUnknownMate) {
     parts.push(
-      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo da base de troca ainda não carregado — atualize na Base de troca ou recarregue a análise">` +
+      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo da base de troca ainda nÃ£o carregado â€” atualize na Base de troca ou recarregue a anÃ¡lise">` +
         `<span class="count-audit-mobile-break-label">Troca</span>` +
-        `<span class="count-audit-mobile-break-values mate-troca-balance-v2-unknown">CX — · UN —</span>` +
+        `<span class="count-audit-mobile-break-values mate-troca-balance-v2-unknown">CX â€” Â· UN â€”</span>` +
       `</div>`,
     );
   }
   if (countAuditHasBreakDay(meta)) {
     const vals = formatCountAuditOpsMobileCxUn(meta.breakCx, meta.breakUn, 'break');
     parts.push(
-      `<div class="count-audit-mobile-break-strip" title="Quebra no dia (mesma lógica da tela Quebra)">` +
+      `<div class="count-audit-mobile-break-strip" title="Quebra no dia (mesma lÃ³gica da tela Quebra)">` +
         `<span class="count-audit-mobile-break-label">Quebra</span>` +
         `<span class="count-audit-mobile-break-values">${vals}</span>` +
       `</div>`,
@@ -10672,48 +10665,48 @@ function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
   return `<div class="count-audit-mobile-ops-wrap">${parts.join('')}</div>`;
 }
 
-/** Ícone discreto na Análise de Contagem (#count-audit) quando o nome sugere sabor de fruta / refrigerante. */
+/** Ãcone discreto na AnÃ¡lise de Contagem (#count-audit) quando o nome sugere sabor de fruta / refrigerante. */
 const COUNT_AUDIT_FLAVOR_RULES = [
-  ['refrigerante', '🥤', 'Refrigerante'],
-  ['maracuja', '🍹', 'Maracujá'],
-  ['bergamota', '🍊', 'Bergamota'],
-  ['tangerina', '🍊', 'Tangerina'],
-  ['mandarina', '🍊', 'Mandarina'],
-  ['melancia', '🍉', 'Melancia'],
-  ['citricas', '🍋', 'Cítricas'],
-  ['toranja', '🍊', 'Toranja'],
-  ['morango', '🍓', 'Morango'],
-  ['pessego', '🍑', 'Pêssego'],
-  ['guarana', '🫘', 'Guaraná'],
-  ['abacaxi', '🍍', 'Abacaxi'],
-  ['laranja', '🍊', 'Laranja'],
-  ['frutti', '🍹', 'Tutti-frutti'],
-  ['tutti', '🍹', 'Tutti-frutti'],
-  ['melao', '🍈', 'Melão'],
-  ['banana', '🍌', 'Banana'],
-  ['cereja', '🍒', 'Cereja'],
-  ['manga', '🥭', 'Manga'],
-  ['limao', '🍋', 'Limão'],
-  ['sprite', '🍋', 'Limão'],
-  ['citrica', '🍋', 'Cítrico'],
-  ['citrico', '🍋', 'Cítrico'],
-  ['citrus', '🍋', 'Cítrico'],
-  ['cupuacu', '🫐', 'Cupuaçu'],
-  ['acai', '🫐', 'Açaí'],
-  ['frutas', '🍇', 'Frutas'],
-  ['pepsi', '🥤', 'Cola'],
-  ['fanta', '🍊', 'Laranja'],
-  ['tonica', '🥤', 'Tônica'],
-  ['maca', '🍎', 'Maçã'],
-  ['kiwi', '🥝', 'Kiwi'],
-  ['lima', '🍋', 'Lima'],
-  ['coco', '🥥', 'Coco'],
-  ['coca', '🥤', 'Cola'],
-  ['cola', '🥤', 'Cola'],
-  ['refri', '🥤', 'Refrigerante'],
-  ['uva', '🍇', 'Uva'],
-  /* Abreviações comuns em etiqueta/TXT (ex.: TUTTI FRUT) */
-  ['frut', '🍹', 'Frutas / tutti-frutti'],
+  ['refrigerante', 'ðŸ¥¤', 'Refrigerante'],
+  ['maracuja', 'ðŸ¹', 'MaracujÃ¡'],
+  ['bergamota', 'ðŸŠ', 'Bergamota'],
+  ['tangerina', 'ðŸŠ', 'Tangerina'],
+  ['mandarina', 'ðŸŠ', 'Mandarina'],
+  ['melancia', 'ðŸ‰', 'Melancia'],
+  ['citricas', 'ðŸ‹', 'CÃ­tricas'],
+  ['toranja', 'ðŸŠ', 'Toranja'],
+  ['morango', 'ðŸ“', 'Morango'],
+  ['pessego', 'ðŸ‘', 'PÃªssego'],
+  ['guarana', 'ðŸ«˜', 'GuaranÃ¡'],
+  ['abacaxi', 'ðŸ', 'Abacaxi'],
+  ['laranja', 'ðŸŠ', 'Laranja'],
+  ['frutti', 'ðŸ¹', 'Tutti-frutti'],
+  ['tutti', 'ðŸ¹', 'Tutti-frutti'],
+  ['melao', 'ðŸˆ', 'MelÃ£o'],
+  ['banana', 'ðŸŒ', 'Banana'],
+  ['cereja', 'ðŸ’', 'Cereja'],
+  ['manga', 'ðŸ¥­', 'Manga'],
+  ['limao', 'ðŸ‹', 'LimÃ£o'],
+  ['sprite', 'ðŸ‹', 'LimÃ£o'],
+  ['citrica', 'ðŸ‹', 'CÃ­trico'],
+  ['citrico', 'ðŸ‹', 'CÃ­trico'],
+  ['citrus', 'ðŸ‹', 'CÃ­trico'],
+  ['cupuacu', 'ðŸ«', 'CupuaÃ§u'],
+  ['acai', 'ðŸ«', 'AÃ§aÃ­'],
+  ['frutas', 'ðŸ‡', 'Frutas'],
+  ['pepsi', 'ðŸ¥¤', 'Cola'],
+  ['fanta', 'ðŸŠ', 'Laranja'],
+  ['tonica', 'ðŸ¥¤', 'TÃ´nica'],
+  ['maca', 'ðŸŽ', 'MaÃ§Ã£'],
+  ['kiwi', 'ðŸ¥', 'Kiwi'],
+  ['lima', 'ðŸ‹', 'Lima'],
+  ['coco', 'ðŸ¥¥', 'Coco'],
+  ['coca', 'ðŸ¥¤', 'Cola'],
+  ['cola', 'ðŸ¥¤', 'Cola'],
+  ['refri', 'ðŸ¥¤', 'Refrigerante'],
+  ['uva', 'ðŸ‡', 'Uva'],
+  /* AbreviaÃ§Ãµes comuns em etiqueta/TXT (ex.: TUTTI FRUT) */
+  ['frut', 'ðŸ¹', 'Frutas / tutti-frutti'],
 ].sort((a, b) => b[0].length - a[0].length);
 
 function countAuditFlavorHaystack(text) {
@@ -10750,7 +10743,7 @@ function countAuditFlavorIconHtml(descricao) {
 }
 
 function countAuditRowNameWithFlavorHtml(descricao) {
-  const raw = String(descricao || '').trim() || 'Sem descrição';
+  const raw = String(descricao || '').trim() || 'Sem descriÃ§Ã£o';
   return `${countAuditFlavorIconHtml(raw)}<span class="count-audit-row-name-text">${escapeHtml(raw)}</span>`;
 }
 
@@ -10792,24 +10785,24 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
   const launches = detail?.summary?.launches || 0;
   const code = String(row.cod_produto || '');
   const shellClass = compact ? 'count-audit-detail-shell count-audit-detail-shell--compact' : 'count-audit-detail-shell';
-  const historyTitle = compact ? 'Histórico' : 'Histórico de lançamentos';
+  const historyTitle = compact ? 'HistÃ³rico' : 'HistÃ³rico de lanÃ§amentos';
   const trailTitle = compact ? 'Trilha' : 'Trilha de auditoria';
-  const trailSubtitle = compact ? 'Contexto do item' : 'Contexto para validação e decisão';
+  const trailSubtitle = compact ? 'Contexto do item' : 'Contexto para validaÃ§Ã£o e decisÃ£o';
   const recountLabel = compact ? 'Recontagem' : 'Abrir recontagem';
   const refreshLabel = compact ? 'Atualizar' : 'Atualizar detalhe';
   const expIsoDetail = countAuditMergedDisplayExpiryIso(code);
   const expRiskDetail = expIsoDetail ? countAuditValidityRiskClass(expIsoDetail) : '';
   const expDetailLine = expIsoDetail
-    ? `<div class="count-audit-detail-validity-line${expRiskDetail ? ` ${expRiskDetail}` : ''}">Validade (referência) · ${escapeHtml(formatDateBR(expIsoDetail))}</div>`
+    ? `<div class="count-audit-detail-validity-line${expRiskDetail ? ` ${expRiskDetail}` : ''}">Validade (referÃªncia) Â· ${escapeHtml(formatDateBR(expIsoDetail))}</div>`
     : '';
   const prevDiffDetailLine = countAuditPrevDiffMarkupForMeta(meta, 'detail');
   const trocaDetailArticle = countAuditHasTrocaPending(meta)
-    ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (base de troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>Saldo atual da base de troca (mesmo dado do card Saldo acumulado); altera com Chegada, Saldo, Zerar ou Carregar.</small></article>`
+    ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (base de troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>Saldo acumulado no servidor (mesmo card na base de troca), nÃ£o soma com a quebra do dia. CX/UN podem ser normalizados pelo cadastro. Altera com Chegada, Saldo, Zerar ou Carregar.</small></article>`
     : meta.trocaMateCouro && !meta.trocaSaldoKnown
-      ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (base de troca)</span><strong>—</strong><small>Saldo ainda não carregado nesta sessão. Atualize a lista na base de troca ou recarregue a análise.</small></article>`
+      ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (base de troca)</span><strong>â€”</strong><small>Saldo ainda nÃ£o carregado nesta sessÃ£o. Atualize a lista na base de troca ou recarregue a anÃ¡lise.</small></article>`
       : '';
   const breakDetailArticle = countAuditHasBreakDay(meta)
-    ? `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.breakCx, meta.breakUn, 'break')}</strong><small>Alinhado à tela Quebra neste dia operacional</small></article>`
+    ? `<article class="count-audit-detail-metric"><span>Quebra (dia)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.breakCx, meta.breakUn, 'break')}</strong><small>Alinhado Ã  tela Quebra neste dia operacional</small></article>`
     : '';
 
   return (
@@ -10817,8 +10810,8 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
       `<section class="count-audit-detail-hero">` +
         `<div class="count-audit-detail-hero-top">` +
           `<div>` +
-            `<h4 class="count-audit-detail-title">${countAuditFlavorIconHtml(row.descricao || '')}<span class="count-audit-detail-title-text">${escapeHtml(row.descricao || 'Sem descrição')}</span></h4>` +
-            `<div class="count-audit-detail-subtitle">Código ${escapeHtml(code || '-')} · Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</div>` +
+            `<h4 class="count-audit-detail-title">${countAuditFlavorIconHtml(row.descricao || '')}<span class="count-audit-detail-title-text">${escapeHtml(row.descricao || 'Sem descriÃ§Ã£o')}</span></h4>` +
+            `<div class="count-audit-detail-subtitle">CÃ³digo ${escapeHtml(code || '-')} Â· Grupo ${escapeHtml(row.grupo || 'Sem grupo')}</div>` +
             `${expDetailLine}` +
             `${prevDiffDetailLine}` +
           `</div>` +
@@ -10829,9 +10822,9 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
         `</div>` +
         `<div class="count-audit-detail-grid">` +
           `<article class="count-audit-detail-metric"><span>Base / TXT</span><strong>${formatIntegerBR(Number(row.import_caixa) || 0)} CX / ${formatIntegerBR(Number(row.import_unidade) || 0)} UN</strong><small>${importInfo.id == null ? 'Fallback sem TXT' : (importInfo.file_name || 'Base importada')}</small></article>` +
-          `<article class="count-audit-detail-metric count-audit-detail-metric--current-cxu"><span>Contagem:</span><div class="count-audit-detail-metric-cxu-wrap">${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div><small>${launches} lançamento(s) sincronizado(s)</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Diferença em caixa</span><strong>${formatSignedIntegerBR(meta.diffCx ?? row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergência')}</small></article>` +
-          `<article class="count-audit-detail-metric"><span>Diferença em unidade</span><strong>${formatSignedIntegerBR(meta.diffUn ?? row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendação')}</small></article>` +
+          `<article class="count-audit-detail-metric count-audit-detail-metric--current-cxu"><span>Contagem:</span><div class="count-audit-detail-metric-cxu-wrap">${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div><small>${launches} lanÃ§amento(s) sincronizado(s)</small></article>` +
+          `<article class="count-audit-detail-metric"><span>DiferenÃ§a em caixa</span><strong>${formatSignedIntegerBR(meta.diffCx ?? row.difference_caixa)}</strong><small>${escapeHtml(meta.divergenceLabel || 'Sem divergÃªncia')}</small></article>` +
+          `<article class="count-audit-detail-metric"><span>DiferenÃ§a em unidade</span><strong>${formatSignedIntegerBR(meta.diffUn ?? row.difference_unidade)}</strong><small>${escapeHtml(meta.recommendedAction || 'Sem recomendaÃ§Ã£o')}</small></article>` +
           `${trocaDetailArticle}` +
           `${breakDetailArticle}` +
         `</div>` +
@@ -10875,11 +10868,11 @@ function renderCountAuditDesktopRowMarkup(row) {
         `</div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Base / TXT</span><div class="count-audit-cxu-pair" aria-label="Caixa e unidade base TXT"><strong class="count-audit-cx-val">CX ${formatIntegerBR(Number(row.import_caixa) || 0)}</strong><strong class="count-audit-un-val">UN ${formatIntegerBR(Number(row.import_unidade) || 0)}</strong></div></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Contagem:</span>${buildCountAuditMergedCurrentCxuHtml(row, meta)}</div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Diferença</span><div class="count-audit-diff-breakdown"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.diffCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.diffUn || 0)}</strong></div></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">DiferenÃ§a</span><div class="count-audit-diff-breakdown"><strong class="count-audit-diff-cx">CX ${formatSignedIntegerBR(meta.diffCx || 0)}</strong><strong class="count-audit-diff-un">UN ${formatSignedIntegerBR(meta.diffUn || 0)}</strong></div></div>` +
         `<div class="count-audit-cell count-audit-col-troca">${buildCountAuditTrocaColumnCellHtml(meta)}</div>` +
         `<div class="count-audit-cell count-audit-col-quebra">${buildCountAuditQuebraColumnCellHtml(meta)}</div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
-        `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} Â· ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
+        `<div class="count-audit-cell"><span class="count-audit-cell-label">AÃ§Ã£o recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
         `<div class="count-audit-cell count-audit-cell--actions">` +
           `<button type="button" class="count-audit-btn-recount-live" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button>` +
           `<button type="button" class="count-audit-detail-btn" data-action="detail" data-code="${encodeURIComponent(code)}">Detalhe</button>` +
@@ -10894,7 +10887,7 @@ function renderCountAuditMobileMissingBucketMarkup(hiddenMissingCount, totalMiss
   const label = showingAll ? 'Resumir lista' : 'Mostrar todos';
   const action = showingAll ? 'hide-missing' : 'show-missing';
   const headline = showingAll
-    ? `Todos os ${formatIntegerBR(totalMissingCount)} itens sem contagem estão visíveis.`
+    ? `Todos os ${formatIntegerBR(totalMissingCount)} itens sem contagem estÃ£o visÃ­veis.`
     : `${formatIntegerBR(hiddenMissingCount)} itens sem contagem foram resumidos.`;
   const note = showingAll
     ? 'Use a lista completa para varrer todo o bloco pendente.'
@@ -10990,7 +10983,7 @@ function renderCountAuditRows(rows) {
   }
 
   if (!displayList.length) {
-    countAuditList.innerHTML = '<li class="count-audit-empty"><span>Nenhum item corresponde aos filtros atuais.</span><strong>—</strong></li>';
+    countAuditList.innerHTML = '<li class="count-audit-empty"><span>Nenhum item corresponde aos filtros atuais.</span><strong>â€”</strong></li>';
     countAuditState.selectedCode = null;
     syncCountAuditListSelection();
     renderCountAuditDetailEmpty('Nenhum item atende aos filtros aplicados.');
@@ -11033,11 +11026,11 @@ function renderCountAuditRows(rows) {
 
 function renderCountAuditDetailEmpty(message = 'Selecione um item na fila ou use Detalhe.') {
   if (!countAuditDetailPanel) return;
-  if (countAuditDetailStatus) countAuditDetailStatus.textContent = 'Sem seleção';
+  if (countAuditDetailStatus) countAuditDetailStatus.textContent = 'Sem seleÃ§Ã£o';
   countAuditDetailPanel.innerHTML =
     `<div class="count-audit-detail-empty">` +
       `<p class="count-audit-detail-empty-title">${escapeHtml(message)}</p>` +
-      `<p class="muted">Histórico de lançamentos, trilha de auditoria, recontagem e atualização ficam neste painel.</p>` +
+      `<p class="muted">HistÃ³rico de lanÃ§amentos, trilha de auditoria, recontagem e atualizaÃ§Ã£o ficam neste painel.</p>` +
     `</div>`;
 }
 
@@ -11080,7 +11073,7 @@ async function loadCountAuditDetail(code, forceReload = false) {
     if (handleUnauthorizedResponse(response)) return;
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.detail || 'Não foi possível carregar o detalhe.');
+      throw new Error(err.detail || 'NÃ£o foi possÃ­vel carregar o detalhe.');
     }
     const detail = await response.json();
     countAuditState.loadingDetailCode = null;
@@ -11169,7 +11162,7 @@ async function loadCountAuditBreakDay(dayKey) {
       countAuditState.breakDayKey = String(data.operational_date).trim();
     }
   } catch {
-    /* offline: enrichCountAuditRow usa só eventos locais do dia */
+    /* offline: enrichCountAuditRow usa sÃ³ eventos locais do dia */
   }
 }
 
@@ -11198,7 +11191,7 @@ async function loadCountAuditValidityExpiryMap() {
     }
     countAuditState.validityExpiryByCode = norm;
   } catch {
-    /* offline: só merge local em countAuditMergedDisplayExpiryIso */
+    /* offline: sÃ³ merge local em countAuditMergedDisplayExpiryIso */
   }
 }
 
@@ -11236,7 +11229,7 @@ async function loadCountAuditAnalysis() {
       mateTrocaBaseV2LastMergedRows = [];
       countAuditRecountFeedbackPreserveUntil = 0;
       countAuditRecountFeedbackPreserveMessage = '';
-      setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
+      setCountAuditFeedback(err.detail || 'Falha ao carregar anÃ¡lise de contagem.', true);
       return;
     }
 
@@ -11260,11 +11253,11 @@ async function loadCountAuditAnalysis() {
       countAuditState.detailCache.clear();
       renderCountAuditSummary({});
       renderCountAuditRows([]);
-      renderCountAuditDetailEmpty('Não foi possível montar a análise.');
+      renderCountAuditDetailEmpty('NÃ£o foi possÃ­vel montar a anÃ¡lise.');
       updateCountAuditHeaderContext();
       countAuditRecountFeedbackPreserveUntil = 0;
       countAuditRecountFeedbackPreserveMessage = '';
-      setCountAuditFeedback('Não foi possível montar a análise. Verifique permissões ou tente novamente.', true);
+      setCountAuditFeedback('NÃ£o foi possÃ­vel montar a anÃ¡lise. Verifique permissÃµes ou tente novamente.', true);
       return;
     }
 
@@ -11299,7 +11292,7 @@ async function loadCountAuditAnalysis() {
       if (countAuditDrawerRoot?.classList.contains('is-open') && countAuditState.selectedCode) {
         loadCountAuditDetail(String(countAuditState.selectedCode), true);
       } else {
-        renderCountAuditDetailEmpty('Abra o detalhe para ver histórico, trilha e ações.');
+        renderCountAuditDetailEmpty('Abra o detalhe para ver histÃ³rico, trilha e aÃ§Ãµes.');
       }
     }
 
@@ -11312,15 +11305,15 @@ async function loadCountAuditAnalysis() {
       countAuditRecountFeedbackPreserveUntil = 0;
       countAuditRecountFeedbackPreserveMessage = '';
       if (info.id == null) {
-        setCountAuditFeedback(info.file_name || 'Análise sem TXT: usando saldo zero para produtos ativos.', false);
+        setCountAuditFeedback(info.file_name || 'AnÃ¡lise sem TXT: usando saldo zero para produtos ativos.', false);
       } else {
-        setCountAuditFeedback(`Base TXT: ${formatDateBR(info.reference_date || '')} · ${info.file_name || 'arquivo'}`, false);
+        setCountAuditFeedback(`Base TXT: ${formatDateBR(info.reference_date || '')} Â· ${info.file_name || 'arquivo'}`, false);
       }
     }
   } catch {
     countAuditRecountFeedbackPreserveUntil = 0;
     countAuditRecountFeedbackPreserveMessage = '';
-    setCountAuditFeedback('Erro de conexão ao carregar análise de contagem.', true);
+    setCountAuditFeedback('Erro de conexÃ£o ao carregar anÃ¡lise de contagem.', true);
   } finally {
     if (btnCountAuditRefresh) btnCountAuditRefresh.disabled = false;
   }
@@ -11337,7 +11330,7 @@ async function exportCountAuditExcel() {
   params.set('only_active', 'true');
   params.set('limit', '20000');
 
-  setCountAuditFeedback('Gerando Excel da análise...', false);
+  setCountAuditFeedback('Gerando Excel da anÃ¡lise...', false);
   try {
     const response = await apiFetch(`${API_STOCK_ANALYSIS_EXPORT_XLSX}?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -11345,7 +11338,7 @@ async function exportCountAuditExcel() {
     if (handleUnauthorizedResponse(response)) return;
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      setCountAuditFeedback(err.detail || 'Não foi possível gerar o Excel.', true);
+      setCountAuditFeedback(err.detail || 'NÃ£o foi possÃ­vel gerar o Excel.', true);
       return;
     }
     const blob = await response.blob();
@@ -11366,7 +11359,7 @@ async function exportCountAuditExcel() {
     URL.revokeObjectURL(url);
     setCountAuditFeedback('Excel baixado com sucesso.', false);
   } catch {
-    setCountAuditFeedback('Falha ao baixar o Excel. Verifique a conexão.', true);
+    setCountAuditFeedback('Falha ao baixar o Excel. Verifique a conexÃ£o.', true);
   }
 }
 
@@ -11384,15 +11377,15 @@ async function postRecountLiveSignal(codeRaw) {
     if (handleUnauthorizedResponse(r)) return;
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
-      setCountAuditFeedback(String(err.detail || 'Não foi possível enviar a solicitação de recontagem.'), true);
+      setCountAuditFeedback(String(err.detail || 'NÃ£o foi possÃ­vel enviar a solicitaÃ§Ã£o de recontagem.'), true);
       return;
     }
-    const okMsg = `Recontagem em tempo real enviada para ${code} (dia ${formatDateBR(op)}). O conferente verá o alerta roxo na Contagem com essa mesma data.`;
+    const okMsg = `Recontagem em tempo real enviada para ${code} (dia ${formatDateBR(op)}). O conferente verÃ¡ o alerta roxo na Contagem com essa mesma data.`;
     countAuditRecountFeedbackPreserveUntil = Date.now() + 12000;
     countAuditRecountFeedbackPreserveMessage = okMsg;
     setCountAuditFeedback(okMsg, false);
   } catch {
-    setCountAuditFeedback('Erro de conexão ao solicitar recontagem.', true);
+    setCountAuditFeedback('Erro de conexÃ£o ao solicitar recontagem.', true);
   }
 }
 
@@ -11474,7 +11467,7 @@ function bindCountAuditEvents() {
   if (!countAuditImport) return;
   if (btnCountAuditRefresh) {
     btnCountAuditRefresh.addEventListener('click', async () => {
-      setCountAuditFeedback('Sincronizando análise...', false);
+      setCountAuditFeedback('Sincronizando anÃ¡lise...', false);
       if (navigator.onLine && getToken()) {
         await syncPendingEventsForAudit();
       }
@@ -11621,14 +11614,14 @@ function getAuthHeaders() {
   return h;
 }
 
-/** Valida token antes de montar o dashboard; evita rajada de 401 com sessão expirada. */
+/** Valida token antes de montar o dashboard; evita rajada de 401 com sessÃ£o expirada. */
 async function validateSessionOrClear() {
   const token = getToken();
   if (!token) return false;
   if (isAccessTokenExpired(token)) {
     clearSession();
     if (loginError) {
-      loginError.textContent = 'Sessão expirada. Faça login novamente.';
+      loginError.textContent = 'SessÃ£o expirada. FaÃ§a login novamente.';
     }
     showLogin();
     return false;
@@ -11640,7 +11633,7 @@ async function validateSessionOrClear() {
     if (resp.status === 401) {
       clearSession();
       if (loginError) {
-        loginError.textContent = 'Sessão expirada ou inválida. Faça login novamente.';
+        loginError.textContent = 'SessÃ£o expirada ou invÃ¡lida. FaÃ§a login novamente.';
       }
       showLogin();
       return false;
@@ -11664,15 +11657,15 @@ async function validateSessionOrClear() {
           : prev.allowed_pages,
       });
     } catch {
-      /* mantém user em cache */
+      /* mantÃ©m user em cache */
     }
     return true;
   } catch {
-    /* Rede indisponível: se o JWT já expirou localmente, não mantém sessão falsa. */
+    /* Rede indisponÃ­vel: se o JWT jÃ¡ expirou localmente, nÃ£o mantÃ©m sessÃ£o falsa. */
     if (isAccessTokenExpired(token)) {
       clearSession();
       if (loginError) {
-        loginError.textContent = 'Sessão expirada. Faça login novamente.';
+        loginError.textContent = 'SessÃ£o expirada. FaÃ§a login novamente.';
       }
       showLogin();
       return false;
@@ -11910,11 +11903,11 @@ async function loadProducts() {
 async function saveProductManual() {
   const payload = readProductPayloadFromForm();
   if (payload.__invalidConversionFactor) {
-    setProductFeedback('Fator de conversão deve ser um número maior que zero (ou deixe em branco).', true);
+    setProductFeedback('Fator de conversÃ£o deve ser um nÃºmero maior que zero (ou deixe em branco).', true);
     return;
   }
   if (!payload.cod_produto || !payload.cod_grup_descricao || !payload.cod_grup_sku) {
-    setProductFeedback('Código, produto e SKU são obrigatórios.', true);
+    setProductFeedback('CÃ³digo, produto e SKU sÃ£o obrigatÃ³rios.', true);
     return;
   }
 
@@ -11999,7 +11992,7 @@ function bindProductParamsEvents() {
     renderParamRemoveValues(nextDefaults);
     form.reset();
     document.getElementById('param-status').value = 'ativo';
-    feedback.textContent = 'Parâmetros salvos com sucesso.';
+    feedback.textContent = 'ParÃ¢metros salvos com sucesso.';
     feedback.style.color = 'var(--accent)';
   });
 }
@@ -12033,7 +12026,7 @@ async function uploadProductsExcel() {
       const dlow = detail.toLowerCase();
       if (dlow.includes('uq_product_sku')) {
         setProductImportFeedback(
-          'Falha ao importar: ainda existe restrição única antiga em SKU no banco. Rode a migração ou tente de novo (o servidor tenta remover automaticamente). Detalhe: ' +
+          'Falha ao importar: ainda existe restriÃ§Ã£o Ãºnica antiga em SKU no banco. Rode a migraÃ§Ã£o ou tente de novo (o servidor tenta remover automaticamente). Detalhe: ' +
             detail,
           true,
         );
@@ -12075,7 +12068,7 @@ async function uploadProductsExcel() {
 
     if (ignored > 0) {
       msg +=
-        ' Linhas ignoradas: confira código do produto e nome do produto (cabeçalhos reconhecidos e células vazias). SKU e custo são opcionais.';
+        ' Linhas ignoradas: confira cÃ³digo do produto e nome do produto (cabeÃ§alhos reconhecidos e cÃ©lulas vazias). SKU e custo sÃ£o opcionais.';
     }
 
     if (failed > 0) {
@@ -12128,7 +12121,7 @@ function bindProductEvents() {
   });
 }
 
-// ── Sub-módulo: Produtos (listagem completa, edição, toggle, delete, histórico) ──
+// â”€â”€ Sub-mÃ³dulo: Produtos (listagem completa, ediÃ§Ã£o, toggle, delete, histÃ³rico) â”€â”€
 
 function setProdutosFeedback(msg, isError = false) {
   const el = document.getElementById('produtos-feedback');
@@ -12159,21 +12152,21 @@ function closeProductEditPanel() {
 }
 
 function formatDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'â€”';
   const d = new Date(iso);
   return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatPrice(v) {
-  if (v == null) return '—';
+  if (v == null) return 'â€”';
   return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-/** UN por 1 CX; vazio = não definido */
+/** UN por 1 CX; vazio = nÃ£o definido */
 function formatConversionFactor(v) {
-  if (v == null || v === '') return '—';
+  if (v == null || v === '') return 'â€”';
   const n = Number(v);
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return 'â€”';
   if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
   return n.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
 }
@@ -12189,7 +12182,7 @@ function parseConversionFactorInput(elementId) {
 }
 
 const PRODUCT_HISTORY_FIELD_LABELS = {
-  conversion_factor: 'Fator de conversão',
+  conversion_factor: 'Fator de conversÃ£o',
   price: 'Custo',
 };
 
@@ -12218,7 +12211,7 @@ function produtoStatusBadgeMeta(p) {
   if (sl === 'inativo' || sl === 'inactive' || ['n', 'nao', 'no', '0', 'false'].includes(sl)) {
     return { cls: 'badge-inactive', label: raw || 'inativo' };
   }
-  return { cls: 'badge-status-other', label: raw || '—' };
+  return { cls: 'badge-status-other', label: raw || 'â€”' };
 }
 
 async function searchProdutos() {
@@ -12229,7 +12222,7 @@ async function searchProdutos() {
 
   const filters = getProdutosStatusFilters();
   if (!filters.length) {
-    setProdutosFeedback('Selecione pelo menos um status (Ativo, Inativo ou Pré-cadastro).', true);
+    setProdutosFeedback('Selecione pelo menos um status (Ativo, Inativo ou PrÃ©-cadastro).', true);
     return;
   }
 
@@ -12254,7 +12247,7 @@ async function searchProdutos() {
     const data = await resp.json();
     renderProdutosTable(Array.isArray(data) ? data : []);
   } catch {
-    setProdutosFeedback('Sem conexão.', true);
+    setProdutosFeedback('Sem conexÃ£o.', true);
   }
 }
 
@@ -12274,18 +12267,18 @@ function renderProdutosTable(products) {
     const tr = document.createElement('tr');
     const st = produtoStatusBadgeMeta(p);
     tr.innerHTML = `
-      <td>${p.cod_produto || '—'}</td>
-      <td>${p.cod_grup_sku || '—'}</td>
-      <td>${p.cod_grup_descricao || '—'}</td>
+      <td>${p.cod_produto || 'â€”'}</td>
+      <td>${p.cod_grup_sku || 'â€”'}</td>
+      <td>${p.cod_grup_descricao || 'â€”'}</td>
       <td>${formatPrice(p.price)}</td>
       <td title="Unidades por 1 caixa">${formatConversionFactor(p.conversion_factor)}</td>
       <td><span class="status-badge ${st.cls}">${st.label}</span></td>
       <td>${formatDate(p.created_at)}</td>
       <td class="actions-cell">
-        <button class="btn-icon" data-action="edit" data-id="${p.id}" title="Editar">✏️</button>
-        <button class="btn-icon" data-action="toggle" data-id="${p.id}" title="Ativar/Inativar">🔄</button>
-        <button class="btn-icon" data-action="history" data-id="${p.id}" data-label="${p.cod_grup_sku}" title="Histórico">📜</button>
-        <button class="btn-icon btn-danger-icon" data-action="delete" data-id="${p.id}" title="Excluir">🗑️</button>
+        <button class="btn-icon" data-action="edit" data-id="${p.id}" title="Editar">âœï¸</button>
+        <button class="btn-icon" data-action="toggle" data-id="${p.id}" title="Ativar/Inativar">ðŸ”„</button>
+        <button class="btn-icon" data-action="history" data-id="${p.id}" data-label="${p.cod_grup_sku}" title="HistÃ³rico">ðŸ“œ</button>
+        <button class="btn-icon btn-danger-icon" data-action="delete" data-id="${p.id}" title="Excluir">ðŸ—‘ï¸</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -12301,11 +12294,11 @@ async function openEditProduct(id) {
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) {
       if (resp.status === 403) {
-        setProdutosFeedback('Seu perfil não possui permissão para editar produtos.', true);
+        setProdutosFeedback('Seu perfil nÃ£o possui permissÃ£o para editar produtos.', true);
       } else if (resp.status === 404) {
-        setProdutosFeedback('Produto não encontrado.', true);
+        setProdutosFeedback('Produto nÃ£o encontrado.', true);
       } else {
-        setProdutosFeedback('Falha ao carregar produto para edição.', true);
+        setProdutosFeedback('Falha ao carregar produto para ediÃ§Ã£o.', true);
       }
       return;
     }
@@ -12333,7 +12326,7 @@ async function openEditProduct(id) {
     document.getElementById('product-history-inline').style.display = 'none';
     setEditFeedback('');
   } catch {
-    setProdutosFeedback('Falha ao carregar produto para edição.', true);
+    setProdutosFeedback('Falha ao carregar produto para ediÃ§Ã£o.', true);
   }
 }
 
@@ -12344,7 +12337,7 @@ async function updateProduct() {
 
   const cf = parseConversionFactorInput('edit-fator-conversao');
   if (!cf.ok) {
-    setEditFeedback('Fator de conversão deve ser um número maior que zero (ou deixe em branco).', true);
+    setEditFeedback('Fator de conversÃ£o deve ser um nÃºmero maior que zero (ou deixe em branco).', true);
     return;
   }
 
@@ -12361,7 +12354,7 @@ async function updateProduct() {
   };
 
   if (!payload.cod_produto || !payload.cod_grup_descricao || !payload.cod_grup_sku) {
-    setEditFeedback('Código, produto e SKU são obrigatórios.', true);
+    setEditFeedback('CÃ³digo, produto e SKU sÃ£o obrigatÃ³rios.', true);
     return;
   }
 
@@ -12384,7 +12377,7 @@ async function updateProduct() {
     await searchProdutos();
     await loadProducts();
   } catch {
-    setEditFeedback('Sem conexão.', true);
+    setEditFeedback('Sem conexÃ£o.', true);
   }
 }
 
@@ -12404,7 +12397,7 @@ async function toggleProductStatus(id) {
     await searchProdutos();
     await loadProducts();
   } catch {
-    setProdutosFeedback('Sem conexão.', true);
+    setProdutosFeedback('Sem conexÃ£o.', true);
   }
 }
 
@@ -12420,11 +12413,11 @@ async function deleteProduct(id) {
     });
     if (handleUnauthorizedResponse(resp)) { return; }
     if (!resp.ok) { setProdutosFeedback('Falha ao excluir.', true); return; }
-    setProdutosFeedback('Produto excluído.');
+    setProdutosFeedback('Produto excluÃ­do.');
     await searchProdutos();
     await loadProducts();
   } catch {
-    setProdutosFeedback('Sem conexão.', true);
+    setProdutosFeedback('Sem conexÃ£o.', true);
   }
 }
 
@@ -12435,7 +12428,7 @@ async function showProductHistory(id, label) {
   try {
     const resp = await apiFetch(`${API_PRODUCTS}/${id}/history`, { headers: { Authorization: `Bearer ${token}` } });
     if (handleUnauthorizedResponse(resp)) { return; }
-    if (!resp.ok) { setProdutosFeedback('Falha ao carregar histórico.', true); return; }
+    if (!resp.ok) { setProdutosFeedback('Falha ao carregar histÃ³rico.', true); return; }
     const items = await resp.json();
 
     const panel = document.getElementById('product-history-inline');
@@ -12444,17 +12437,17 @@ async function showProductHistory(id, label) {
 
     list.innerHTML = '';
     if (!items.length) {
-      list.innerHTML = '<li><span>Nenhuma alteração registrada.</span></li>';
+      list.innerHTML = '<li><span>Nenhuma alteraÃ§Ã£o registrada.</span></li>';
     } else {
       for (const h of items) {
         const li = document.createElement('li');
-        li.innerHTML = `<span><strong>${productHistoryFieldLabel(h.field_name)}</strong>: "${h.old_value || '—'}" → "${h.new_value || '—'}" <small>(por ${h.changed_by || '?'} em ${formatDate(h.changed_at)})</small></span>`;
+        li.innerHTML = `<span><strong>${productHistoryFieldLabel(h.field_name)}</strong>: "${h.old_value || 'â€”'}" â†’ "${h.new_value || 'â€”'}" <small>(por ${h.changed_by || '?'} em ${formatDate(h.changed_at)})</small></span>`;
         list.appendChild(li);
       }
     }
     panel.style.display = 'block';
   } catch {
-    setProdutosFeedback('Sem conexão.', true);
+    setProdutosFeedback('Sem conexÃ£o.', true);
   }
 }
 
@@ -12519,7 +12512,7 @@ function bindProdutosEvents() {
   }
 }
 
-// ── Modulos extras (offline-first local storage) ────────────────
+// â”€â”€ Modulos extras (offline-first local storage) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const EXTRA_MODULES = [
   { key: 'pull',         storageKey: 'estoque_pull_v1',         label: 'Puxada' },
   { key: 'return',       storageKey: 'estoque_return_v1',       label: 'Devolucao' },
@@ -12638,13 +12631,13 @@ function bindModuleEvents() {
       const subKey = card.dataset.sub;
       if (subKey) {
         if (!canAccessHash(subKey)) return;
-        /* setActiveModule atualiza o título do header (#sidebar-page-title) e delega a setActiveSub */
+        /* setActiveModule atualiza o tÃ­tulo do header (#sidebar-page-title) e delega a setActiveSub */
         setActiveModule(subKey);
       }
       return;
     }
 
-    // Botão Voltar -> retorna ao grid do módulo-mãe
+    // BotÃ£o Voltar -> retorna ao grid do mÃ³dulo-mÃ£e
     const backBtn = event.target.closest('.back-btn');
     if (backBtn) {
       const parentModule = backBtn.dataset.back;
@@ -12659,7 +12652,7 @@ function bindModuleEvents() {
   });
 }
 
-/** Frase idêntica à API POST /system/purge-except-users */
+/** Frase idÃªntica Ã  API POST /system/purge-except-users */
 const PURGE_CONFIRM_PHRASE = 'APAGAR TUDO EXCETO USUARIOS';
 
 function clearLocalOperationalCaches() {
@@ -12697,11 +12690,11 @@ function bindAdminPurge() {
     }
     const typed = (input?.value || '').trim();
     if (typed !== PURGE_CONFIRM_PHRASE) {
-      feedback.textContent = 'Digite a frase de confirmação exata (veja o texto de ajuda abaixo do campo).';
+      feedback.textContent = 'Digite a frase de confirmaÃ§Ã£o exata (veja o texto de ajuda abaixo do campo).';
       feedback.style.color = 'var(--error)';
       return;
     }
-    if (!window.confirm('Confirma apagar todos os dados do servidor, exceto usuários cadastrados?')) {
+    if (!window.confirm('Confirma apagar todos os dados do servidor, exceto usuÃ¡rios cadastrados?')) {
       return;
     }
     const token = getToken();
@@ -12732,7 +12725,7 @@ function bindAdminPurge() {
       }
       clearLocalOperationalCaches();
       if (input) input.value = '';
-      feedback.textContent = 'Base limpa. Usuários preservados. Dados locais de contagem neste aparelho também foram limpos.';
+      feedback.textContent = 'Base limpa. UsuÃ¡rios preservados. Dados locais de contagem neste aparelho tambÃ©m foram limpos.';
       feedback.style.color = 'var(--success, #1b8744)';
       await loadProducts();
       await loadCountProducts();
@@ -12740,7 +12733,7 @@ function bindAdminPurge() {
       searchProdutos();
       renderCounts();
     } catch {
-      feedback.textContent = 'Erro de conexão.';
+      feedback.textContent = 'Erro de conexÃ£o.';
       feedback.style.color = 'var(--error)';
     } finally {
       btn.disabled = false;
@@ -12748,7 +12741,7 @@ function bindAdminPurge() {
   });
 }
 
-// ── Login ───────────────────────────────────────────────────────
+// â”€â”€ Login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function setLoading(on) {
   btnLogin.disabled        = on;
   btnLogin.querySelector('.btn-label').style.display  = on ? 'none' : 'inline';
@@ -12805,7 +12798,7 @@ loginForm.addEventListener('submit', async (e) => {
   }
 
   if (!looksLikeEmail) {
-    loginError.textContent = 'Informe um e-mail corporativo válido.';
+    loginError.textContent = 'Informe um e-mail corporativo vÃ¡lido.';
     return;
   }
 
@@ -12827,7 +12820,7 @@ loginForm.addEventListener('submit', async (e) => {
 
     if (!resp.ok) {
       if (resp.status >= 500) {
-        loginError.textContent = 'Servidor temporariamente indisponível. Tente novamente em alguns segundos.';
+        loginError.textContent = 'Servidor temporariamente indisponÃ­vel. Tente novamente em alguns segundos.';
         return;
       }
       const err = await resp.json().catch(() => ({}));
@@ -12842,7 +12835,7 @@ loginForm.addEventListener('submit', async (e) => {
     initDashboard(user);
 
   } catch {
-    loginError.textContent = 'Erro de conexão. Verifique sua internet e tente novamente.';
+    loginError.textContent = 'Erro de conexÃ£o. Verifique sua internet e tente novamente.';
   } finally {
     loginForm.dataset.loginInFlight = '0';
     setLoading(false);
@@ -12887,7 +12880,7 @@ if (registerForm) {
   registerForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (currentRole !== 'admin') {
-      setRegisterFeedback('Apenas admin pode cadastrar usuários.', true);
+      setRegisterFeedback('Apenas admin pode cadastrar usuÃ¡rios.', true);
       return;
     }
     setRegisterFeedback('');
@@ -12916,10 +12909,10 @@ if (registerForm) {
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
-        setRegisterFeedback(err.detail || 'Falha ao cadastrar usuário.', true);
+        setRegisterFeedback(err.detail || 'Falha ao cadastrar usuÃ¡rio.', true);
         return;
       }
-      setRegisterFeedback('Usuário cadastrado com sucesso. Faça login com o novo e-mail/senha.');
+      setRegisterFeedback('UsuÃ¡rio cadastrado com sucesso. FaÃ§a login com o novo e-mail/senha.');
       registerForm.reset();
       if (registerProfilePreset) {
         registerProfilePreset.value = 'admin';
@@ -12927,7 +12920,7 @@ if (registerForm) {
       applyRegisterProfilePreset('admin');
       await loadUsersAdminList();
     } catch {
-      setRegisterFeedback('Erro de conexão ao cadastrar usuário.', true);
+      setRegisterFeedback('Erro de conexÃ£o ao cadastrar usuÃ¡rio.', true);
     }
   });
 }
@@ -12952,7 +12945,7 @@ if (userEditForm) {
   userEditForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (currentRole !== 'admin') {
-      setUserEditFeedback('Apenas admin pode editar usuários.', true);
+      setUserEditFeedback('Apenas admin pode editar usuÃ¡rios.', true);
       return;
     }
     const token = getToken();
@@ -12961,7 +12954,7 @@ if (userEditForm) {
     const idRaw = document.getElementById('edit-user-id')?.value;
     const id = parseInt(idRaw, 10);
     if (!id || Number.isNaN(id)) {
-      setUserEditFeedback('Usuário inválido.', true);
+      setUserEditFeedback('UsuÃ¡rio invÃ¡lido.', true);
       return;
     }
 
@@ -12978,7 +12971,7 @@ if (userEditForm) {
       return;
     }
     if (!allowedPages.length) {
-      setUserEditFeedback('Selecione ao menos um módulo de acesso.', true);
+      setUserEditFeedback('Selecione ao menos um mÃ³dulo de acesso.', true);
       return;
     }
     if (password && password.length < 6) {
@@ -13011,12 +13004,12 @@ if (userEditForm) {
       if (handleUnauthorizedResponse(resp)) return;
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
-        setUserEditFeedback(err.detail || 'Falha ao salvar usuário.', true);
+        setUserEditFeedback(err.detail || 'Falha ao salvar usuÃ¡rio.', true);
         return;
       }
       const data = await resp.json();
       const editedWasMe = userEditOriginalUsername;
-      setUserEditFeedback('Alterações salvas.');
+      setUserEditFeedback('AlteraÃ§Ãµes salvas.');
       closeUserEditPanel();
       await loadUsersAdminList();
 
@@ -13036,14 +13029,14 @@ if (userEditForm) {
         initDashboard(getUser());
       }
     } catch {
-      setUserEditFeedback('Erro de conexão ao salvar.', true);
+      setUserEditFeedback('Erro de conexÃ£o ao salvar.', true);
     }
   });
 }
 
-// ── Dashboard ───────────────────────────────────────────────────
+// â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function initDashboard(user) {
-  const label = user?.full_name || user?.name || user?.username || 'Usuário';
+  const label = user?.full_name || user?.name || user?.username || 'UsuÃ¡rio';
   userDisplay.textContent = label;
   currentRole = normalizeRole(user?.role || 'conferente') || 'conferente';
   currentAllowedPages = Array.isArray(user?.allowed_pages)
@@ -13080,93 +13073,341 @@ function initDashboard(user) {
   showDashboard();
 }
 
-// ── Logout ──────────────────────────────────────────────────────
+// â”€â”€ Logout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 btnLogout.addEventListener('click', () => {
   if (countKpiTicker) {
     window.clearInterval(countKpiTicker);
     countKpiTicker = null;
   }
-  clearSession();
-  countServerCountState = { ok: false, balances: {}, meta: null };
-  if (kpiCountUser) {
-    kpiCountUser.textContent = 'Servidor: — · Você: —';
-  }
-  loginForm.reset();
-  history.replaceState(null, '', historyBasePathNoHash());
-  showLogin();
-  closeSidebar();
-});
-
-// ── Sidebar Menu ────────────────────────────────────────────────
-function openSidebar() {
-  if (!sidebarMenu || !sidebarOverlay) return;
-  sidebarMenu.classList.add('open');
-  sidebarOverlay.classList.add('open');
-}
-
-function closeSidebar() {
-  if (!sidebarMenu || !sidebarOverlay) return;
-  sidebarMenu.classList.remove('open');
-  sidebarOverlay.classList.remove('open');
-}
-
-if (btnMenuToggle) btnMenuToggle.addEventListener('click', openSidebar);
-if (btnMenuClose) btnMenuClose.addEventListener('click', closeSidebar);
-if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
-
-if (moduleNav) {
-  moduleNav.addEventListener('click', (e) => {
-    if (e.target.classList.contains('module-btn')) {
-      closeSidebar();
-    }
-  });
-}
-
-
-// ─────────────────────────────────────────────────────────────────
-//  BI de Quebras
-// ─────────────────────────────────────────────────────────────────
-
-let _biQuebrasChartLine      = null;
-let _biQuebrasChartSegmento  = null;
-let _biQuebrasChartReason    = null;
-let _biQuebrasPresentationChart = null;
+let _biQuebrasChartLine = null;
+let _biQuebrasChartReason = null;
 let _biQuebrasSelectedCompany = '';
 let _biQuebrasSelectedCiaScope = 'todas';
 let _biQuebrasCurrentCompanies = [];
-/** Último JSON do BI (para modo apresentação e clique no gráfico). */
 let _biQuebrasLastPayload = null;
-/** Ordenação dos produtos na apresentação Por CIA: loss | volume */
-let _biQuebrasPresentationSort = 'loss';
+let _biQuebrasActiveTab = 'trend';
+let _biQuebrasDrawerOpen = false;
+let _biQuebrasFallbackPresentation = false;
 
-/** Cores contrastantes para gráficos em fundo claro (evita verde escuro + preto). */
+const _biQuebrasPageState = {
+  companies: 0,
+  reasons: 0,
+  products: 0,
+  drawer: 0,
+};
+
 const BI_QUEBRAS_PALETTE = [
-  '#e11d48', '#ea580c', '#ca8a04', '#16a34a', '#2563eb',
-  '#9333ea', '#db2777', '#0891b2', '#4f46e5', '#f43f5e',
-  '#b45309', '#0d9488', '#7c3aed', '#be123c', '#15803d',
-  '#1d4ed8', '#c026d3', '#0369a1', '#a21caf', '#b91c1c',
+  '#c23b2a', '#d97706', '#15803d', '#0f766e', '#2563eb',
+  '#4f46e5', '#9333ea', '#be185d', '#0891b2', '#475569',
 ];
 const BI_QUEBRAS_CIA_SCOPE_VALUES = new Set(['todas', 'mate-couro', 'outras']);
+const BI_QUEBRAS_TAB_IDS = ['trend', 'reasons', 'products'];
+const BI_QUEBRAS_PAGE_SIZE = {
+  companies: 6,
+  reasons: 5,
+  products: 5,
+  drawer: 6,
+};
 
-/** CIA com quebra efetiva: prejuízo > 0 ou volume CX/UN > 0. */
+const BI_QUEBRAS_TEMPLATE = String.raw`
+  <header class="bi-quebras-header card" aria-labelledby="bi-quebras-title">
+    <span id="bi-quebras-loading-chip" class="sr-only" hidden aria-live="polite">Carregando...</span>
+    <div class="bi-quebras-header-top">
+      <div class="bi-quebras-header-copy">
+        <span class="bi-quebras-header-kicker">Painel executivo de perdas</span>
+        <h2 id="bi-quebras-title" class="bi-quebras-title">BI de Quebras</h2>
+        <p id="bi-quebras-period-subtitle" class="bi-quebras-header-subtitle muted">Selecione o periodo para analisar o impacto financeiro no intervalo desejado.</p>
+      </div>
+      <div class="bi-quebras-header-stamps" aria-label="Contexto do painel">
+        <article class="bi-quebras-stamp">
+          <span class="bi-quebras-stamp-label">Periodo</span>
+          <strong id="bi-quebras-period-label" class="bi-quebras-stamp-value">--</strong>
+        </article>
+        <article class="bi-quebras-stamp">
+          <span class="bi-quebras-stamp-label">Atualizado</span>
+          <strong id="bi-quebras-updated-at" class="bi-quebras-stamp-value">--</strong>
+        </article>
+        <article class="bi-quebras-stamp">
+          <span class="bi-quebras-stamp-label">Escopo CIA</span>
+          <strong id="bi-quebras-scope-label" class="bi-quebras-stamp-value">Todas CIA</strong>
+        </article>
+      </div>
+    </div>
+    <div class="bi-quebras-toolbar" aria-label="Filtros do BI de Quebras">
+      <div class="bi-quebras-field bi-quebras-field--date">
+        <label class="bi-quebras-label" for="bi-quebras-date-from">De</label>
+        <input id="bi-quebras-date-from" name="bi-quebras-date-from" type="date" class="search-input bi-quebras-date-input" aria-label="Data inicial do periodo" />
+      </div>
+      <div class="bi-quebras-field bi-quebras-field--date">
+        <label class="bi-quebras-label" for="bi-quebras-date-to">Ate</label>
+        <input id="bi-quebras-date-to" name="bi-quebras-date-to" type="date" class="search-input bi-quebras-date-input" aria-label="Data final do periodo" />
+      </div>
+      <div class="bi-quebras-field bi-quebras-field--scope">
+        <span class="bi-quebras-label">Visualizacao CIA</span>
+        <div class="bi-quebras-scope-toggle" role="group" aria-label="Filtro visual por CIA">
+          <button type="button" class="btn-secondary bi-quebras-scope-btn is-active" data-bi-quebras-cia-scope="todas" aria-pressed="true">Todas CIA</button>
+          <button type="button" class="btn-secondary bi-quebras-scope-btn" data-bi-quebras-cia-scope="mate-couro" aria-pressed="false">CIA Mate couro</button>
+          <button type="button" class="btn-secondary bi-quebras-scope-btn" data-bi-quebras-cia-scope="outras" aria-pressed="false">Outras CIA</button>
+        </div>
+      </div>
+      <div class="bi-quebras-actions">
+        <button type="button" id="btn-bi-quebras-load" class="btn-secondary bi-quebras-btn-load">Atualizar painel</button>
+        <button type="button" id="btn-bi-quebras-mode" class="btn-secondary btn-dark bi-quebras-btn-mode" aria-pressed="false">Modo apresentacao</button>
+      </div>
+    </div>
+    <div id="bi-quebras-feedback" class="field-feedback bi-quebras-feedback" aria-live="polite" style="display:none;"></div>
+  </header>
+
+  <div class="bi-quebras-kpi-strip" id="bi-quebras-kpi-strip" role="list" aria-label="Indicadores executivos de quebras">
+    <article class="bi-quebras-kpi-card bi-quebras-kpi-card--loss" role="listitem">
+      <span class="bi-quebras-kpi-icon" aria-hidden="true">R$</span>
+      <span class="bi-quebras-kpi-label">Prejuizo estimado total</span>
+      <strong id="bi-quebras-kpi-loss" class="bi-quebras-kpi-value">--</strong>
+      <span id="bi-quebras-kpi-loss-note" class="bi-quebras-kpi-sub">Aguardando carga</span>
+    </article>
+    <article class="bi-quebras-kpi-card bi-quebras-kpi-card--products" role="listitem">
+      <span class="bi-quebras-kpi-icon" aria-hidden="true">MX</span>
+      <span class="bi-quebras-kpi-label">Produtos com quebra</span>
+      <strong id="bi-quebras-kpi-products" class="bi-quebras-kpi-value">--</strong>
+      <span id="bi-quebras-kpi-products-note" class="bi-quebras-kpi-sub">Leitura executiva do mix</span>
+    </article>
+    <article class="bi-quebras-kpi-card bi-quebras-kpi-card--cx" role="listitem">
+      <span class="bi-quebras-kpi-icon" aria-hidden="true">CX</span>
+      <span class="bi-quebras-kpi-label">Total de caixas</span>
+      <strong id="bi-quebras-kpi-cx" class="bi-quebras-kpi-value">--</strong>
+      <span id="bi-quebras-kpi-cx-note" class="bi-quebras-kpi-sub">Volume consolidado</span>
+    </article>
+    <article class="bi-quebras-kpi-card bi-quebras-kpi-card--un" role="listitem">
+      <span class="bi-quebras-kpi-icon" aria-hidden="true">UN</span>
+      <span class="bi-quebras-kpi-label">Total de unidades</span>
+      <strong id="bi-quebras-kpi-un" class="bi-quebras-kpi-value">--</strong>
+      <span id="bi-quebras-kpi-un-note" class="bi-quebras-kpi-sub">Volume detalhado</span>
+    </article>
+    <article class="bi-quebras-kpi-card bi-quebras-kpi-card--company" role="listitem">
+      <span class="bi-quebras-kpi-icon" aria-hidden="true">CIA</span>
+      <span class="bi-quebras-kpi-label">Companhia mais impactada</span>
+      <strong id="bi-quebras-kpi-company" class="bi-quebras-kpi-value">--</strong>
+      <span id="bi-quebras-kpi-company-note" class="bi-quebras-kpi-sub">Clique na CIA para abrir o detalhamento</span>
+    </article>
+  </div>
+
+  <div class="bi-quebras-main" id="bi-quebras-main">
+    <section class="card bi-quebras-companies-card" aria-labelledby="bi-quebras-companies-title">
+      <div class="bi-quebras-section-head">
+        <div>
+          <h3 id="bi-quebras-companies-title">Impacto por companhia</h3>
+          <p class="bi-quebras-card-sub muted">Barras horizontais ordenadas por prejuizo. Clique na CIA para abrir o drill-down executivo.</p>
+        </div>
+        <div class="bi-quebras-inline-pager" aria-label="Paginacao de companhias">
+          <button type="button" class="btn-secondary bi-quebras-page-btn" data-bi-quebras-page-nav="companies:prev">Anterior</button>
+          <span class="bi-quebras-page-indicator"><strong id="bi-quebras-company-page-current">1</strong>/<span id="bi-quebras-company-page-total">1</span></span>
+          <button type="button" class="btn-secondary bi-quebras-page-btn" data-bi-quebras-page-nav="companies:next">Proxima</button>
+        </div>
+      </div>
+      <div id="bi-quebras-company-board" class="bi-quebras-company-board" role="list" aria-label="Lista de companhias por impacto"></div>
+    </section>
+
+    <section class="card bi-quebras-side-card" aria-labelledby="bi-quebras-side-title">
+      <div class="bi-quebras-section-head bi-quebras-section-head--tabs">
+        <div>
+          <h3 id="bi-quebras-side-title">Leitura executiva</h3>
+          <p class="bi-quebras-card-sub muted">Tendencia, principais motivos e ranking critico em uma area fixa de apresentacao.</p>
+        </div>
+        <div class="bi-quebras-tabs" role="tablist" aria-label="Alternar leitura executiva">
+          <button type="button" class="bi-quebras-tab-btn is-active" data-bi-quebras-tab="trend" role="tab" aria-selected="true">Tendencia</button>
+          <button type="button" class="bi-quebras-tab-btn" data-bi-quebras-tab="reasons" role="tab" aria-selected="false">Motivos</button>
+          <button type="button" class="bi-quebras-tab-btn" data-bi-quebras-tab="products" role="tab" aria-selected="false">Produtos criticos</button>
+        </div>
+      </div>
+
+      <div class="bi-quebras-side-stage">
+        <section id="bi-quebras-tab-trend" class="bi-quebras-tab-panel is-active" role="tabpanel" aria-label="Tendencia por dia">
+          <div class="bi-quebras-chart-wrap bi-quebras-chart-wrap--executive">
+            <canvas id="bi-quebras-chart-line" role="img" aria-label="Grafico de prejuizo por dia"></canvas>
+            <p id="bi-quebras-chart-empty" class="bi-quebras-chart-empty muted" hidden>Nenhum dado disponivel para o periodo.</p>
+          </div>
+          <div id="bi-quebras-trend-metrics" class="bi-quebras-trend-metrics" aria-label="Metricas da tendencia"></div>
+        </section>
+
+        <section id="bi-quebras-tab-reasons" class="bi-quebras-tab-panel" role="tabpanel" aria-label="Principais motivos" hidden>
+          <div class="bi-quebras-reason-stage">
+            <div class="bi-quebras-mini-chart-card">
+              <div class="bi-quebras-chart-wrap bi-quebras-chart-wrap--mini">
+                <canvas id="bi-quebras-chart-reason" role="img" aria-label="Grafico de prejuizo por motivo"></canvas>
+                <p id="bi-quebras-reason-empty" class="bi-quebras-chart-empty muted" hidden>Nenhum motivo relevante no periodo.</p>
+              </div>
+            </div>
+            <div class="bi-quebras-panel-list-card">
+              <ul id="bi-quebras-reason-list" class="bi-quebras-executive-list" role="list" aria-label="Lista de motivos com maior impacto"></ul>
+              <div class="bi-quebras-inline-pager bi-quebras-inline-pager--footer" aria-label="Paginacao de motivos">
+                <button type="button" class="btn-secondary bi-quebras-page-btn" data-bi-quebras-page-nav="reasons:prev">Anterior</button>
+                <span class="bi-quebras-page-indicator"><strong id="bi-quebras-reason-page-current">1</strong>/<span id="bi-quebras-reason-page-total">1</span></span>
+                <button type="button" class="btn-secondary bi-quebras-page-btn" data-bi-quebras-page-nav="reasons:next">Proxima</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="bi-quebras-tab-products" class="bi-quebras-tab-panel" role="tabpanel" aria-label="Produtos mais criticos" hidden>
+          <div class="bi-quebras-panel-list-card bi-quebras-panel-list-card--full">
+            <ul id="bi-quebras-ranking-list" class="bi-quebras-executive-list bi-quebras-executive-list--products" role="list" aria-label="Top produtos com maior prejuizo"></ul>
+            <div class="bi-quebras-inline-pager bi-quebras-inline-pager--footer" aria-label="Paginacao de produtos">
+              <button type="button" class="btn-secondary bi-quebras-page-btn" data-bi-quebras-page-nav="products:prev">Anterior</button>
+              <span class="bi-quebras-page-indicator"><strong id="bi-quebras-product-page-current">1</strong>/<span id="bi-quebras-product-page-total">1</span></span>
+              <button type="button" class="btn-secondary bi-quebras-page-btn" data-bi-quebras-page-nav="products:next">Proxima</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <aside id="bi-quebras-company-drawer" class="bi-quebras-company-drawer" hidden role="dialog" aria-modal="false" aria-labelledby="bi-quebras-company-products-title">
+      <div class="bi-quebras-drawer-head">
+        <div>
+          <span class="bi-quebras-drawer-kicker">Drill-down por CIA</span>
+          <h3 id="bi-quebras-company-products-title" class="bi-quebras-drawer-title">Produtos da CIA</h3>
+          <p id="bi-quebras-company-products-meta" class="bi-quebras-card-sub muted">Selecione uma companhia para detalhar o grupo.</p>
+        </div>
+        <button type="button" id="btn-bi-quebras-drawer-close" class="btn-secondary bi-quebras-drawer-close" aria-label="Fechar detalhamento da CIA">Fechar</button>
+      </div>
+      <div class="bi-quebras-drawer-stats">
+        <article class="bi-quebras-drawer-stat">
+          <span class="bi-quebras-drawer-stat-label">Total da CIA</span>
+          <strong id="bi-quebras-company-products-total" class="bi-quebras-drawer-stat-value">--</strong>
+        </article>
+        <article class="bi-quebras-drawer-stat">
+          <span class="bi-quebras-drawer-stat-label">Produtos</span>
+          <strong id="bi-quebras-company-products-count" class="bi-quebras-drawer-stat-value">0</strong>
+        </article>
+        <article class="bi-quebras-drawer-stat">
+          <span class="bi-quebras-drawer-stat-label">Participacao</span>
+          <strong id="bi-quebras-company-products-share" class="bi-quebras-drawer-stat-value">--</strong>
+        </article>
+      </div>
+      <div class="bi-quebras-drawer-list-wrap">
+        <ul id="bi-quebras-company-products-list" class="bi-quebras-company-products-list" role="list" aria-label="Produtos da CIA selecionada"></ul>
+      </div>
+      <div class="bi-quebras-inline-pager bi-quebras-inline-pager--footer" aria-label="Paginacao dos produtos da CIA">
+        <button type="button" class="btn-secondary bi-quebras-page-btn" data-bi-quebras-page-nav="drawer:prev">Anterior</button>
+        <span class="bi-quebras-page-indicator"><strong id="bi-quebras-drawer-page-current">1</strong>/<span id="bi-quebras-drawer-page-total">1</span></span>
+        <button type="button" class="btn-secondary bi-quebras-page-btn" data-bi-quebras-page-nav="drawer:next">Proxima</button>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="bi-quebras-footer card" aria-labelledby="bi-quebras-insights-title">
+    <div class="bi-quebras-footer-head">
+      <div>
+        <h3 id="bi-quebras-insights-title">Insights para diretoria</h3>
+        <p class="bi-quebras-card-sub muted">Frases curtas e prontas para a apresentacao executiva.</p>
+      </div>
+    </div>
+    <div class="bi-quebras-insights" role="list" aria-label="Insights executivos">
+      <article class="bi-quebras-insight-card" role="listitem">
+        <span class="bi-quebras-insight-label">Companhia mais impactada</span>
+        <p id="bi-quebras-insight-company" class="bi-quebras-insight-text">Carregue o painel para gerar este insight.</p>
+      </article>
+      <article class="bi-quebras-insight-card" role="listitem">
+        <span class="bi-quebras-insight-label">Principal motivo</span>
+        <p id="bi-quebras-insight-reason" class="bi-quebras-insight-text">Carregue o painel para gerar este insight.</p>
+      </article>
+      <article class="bi-quebras-insight-card" role="listitem">
+        <span class="bi-quebras-insight-label">Produto mais critico</span>
+        <p id="bi-quebras-insight-product" class="bi-quebras-insight-text">Carregue o painel para gerar este insight.</p>
+      </article>
+    </div>
+    <div id="bi-quebras-no-price-alert" class="bi-quebras-no-price-alert" hidden role="alert" aria-live="polite">
+      <span class="bi-quebras-alert-icon" aria-hidden="true">!</span>
+      <div class="bi-quebras-alert-text">
+        <strong>Atencao de cadastro</strong>
+        <p id="bi-quebras-no-price-list" class="bi-quebras-no-price-list"></p>
+      </div>
+    </div>
+  </footer>
+`;
+
+function _biQuebrasEnsureLayout() {
+  const shell = document.querySelector('#sub-bi-quebras .bi-quebras-shell');
+  if (!shell || shell.dataset.executiveMounted === 'true') return;
+  shell.innerHTML = BI_QUEBRAS_TEMPLATE;
+  shell.dataset.executiveMounted = 'true';
+}
+
+function _biQuebrasEscapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function _biQuebrasFormatBRL(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '--';
+  return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function _biQuebrasFormatNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num.toLocaleString('pt-BR') : '--';
+}
+
+function _biQuebrasFormatPct(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '--';
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: num < 10 ? 1 : 0, maximumFractionDigits: 1 }) + '%';
+}
+
+function _biQuebrasFormatDateShort(dateKey) {
+  const parts = String(dateKey || '').split('-');
+  if (parts.length !== 3) return '--';
+  return `${parts[2]}/${parts[1]}`;
+}
+
+function _biQuebrasFormatDateLong(dateKey) {
+  const parts = String(dateKey || '').split('-');
+  if (parts.length !== 3) return '--';
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function _biQuebrasScopeLabel(scope) {
+  if (scope === 'mate-couro') return 'CIA Mate couro';
+  if (scope === 'outras') return 'Outras CIA';
+  return 'Todas CIA';
+}
+
 function _biQuebrasCompanyHasEffectiveBreak(row) {
   if (!row || typeof row !== 'object') return false;
-  const loss = row.loss_brl != null && !Number.isNaN(Number(row.loss_brl)) ? Number(row.loss_brl) : 0;
-  const cx = Number(row.total_cx) || 0;
-  const un = Number(row.total_un) || 0;
-  return loss > 0 || cx > 0 || un > 0;
+  return (Number(row.loss_brl) || 0) > 0 || (Number(row.total_cx) || 0) > 0 || (Number(row.total_un) || 0) > 0;
 }
 
-function _biQuebrasFilterCompaniesWithEffectiveBreak(items) {
-  return (Array.isArray(items) ? items : []).filter(_biQuebrasCompanyHasEffectiveBreak);
+function _biQuebrasNormalizeCompanies(items) {
+  return (Array.isArray(items) ? items : [])
+    .filter(_biQuebrasCompanyHasEffectiveBreak)
+    .slice()
+    .sort((a, b) => (Number(b.loss_brl) || 0) - (Number(a.loss_brl) || 0));
 }
 
-function _biQuebrasFormatBRL(val) {
-  if (val == null || isNaN(val)) return '—';
-  return 'R$ ' + Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function _biQuebrasGetReasonItems(items) {
+  return (Array.isArray(items) ? items : [])
+    .filter((item) => (Number(item?.loss_brl) || 0) > 0)
+    .slice()
+    .sort((a, b) => (Number(b.loss_brl) || 0) - (Number(a.loss_brl) || 0));
 }
 
-/** Tooltip e escalas para gráficos sobre fundo claro (#sub-bi-quebras e modo apresentação). */
+function _biQuebrasGetTopProducts(items) {
+  return (Array.isArray(items) ? items : [])
+    .slice()
+    .sort((a, b) => (Number(b.loss_brl) || 0) - (Number(a.loss_brl) || 0));
+}
+
+function _biQuebrasGetActiveDays(items) {
+  return (Array.isArray(items) ? items : [])
+    .filter((item) => Number(item?.items_with_break || 0) > 0)
+    .slice()
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+}
 function _biQuebrasChartTooltipTheme() {
   return {
     backgroundColor: 'rgba(15, 23, 42, 0.94)',
@@ -13175,7 +13416,7 @@ function _biQuebrasChartTooltipTheme() {
     padding: 12,
     cornerRadius: 10,
     titleFont: { size: 12, weight: '600' },
-    bodyFont: { size: 14, weight: '500' },
+    bodyFont: { size: 13, weight: '500' },
     displayColors: false,
     borderColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
@@ -13185,16 +13426,16 @@ function _biQuebrasChartTooltipTheme() {
 function _biQuebrasLineScalesLight() {
   return {
     x: {
-      grid: { color: 'rgba(15,23,42,0.07)', drawBorder: false },
-      ticks: { color: '#334155', font: { size: 11, weight: '500' }, maxRotation: 45 },
+      grid: { color: 'rgba(15, 23, 42, 0.06)', drawBorder: false },
+      ticks: { color: '#475569', font: { size: 11, weight: '600' }, maxRotation: 0 },
       border: { display: false },
     },
     y: {
-      grid: { color: 'rgba(15,23,42,0.06)', drawBorder: false },
+      grid: { color: 'rgba(15, 23, 42, 0.06)', drawBorder: false },
       ticks: {
-        color: '#334155',
-        font: { size: 11, weight: '500' },
-        callback: (v) => 'R$ ' + Number(v).toLocaleString('pt-BR'),
+        color: '#475569',
+        font: { size: 11, weight: '600' },
+        callback: (value) => 'R$ ' + Number(value).toLocaleString('pt-BR'),
       },
       border: { display: false },
       beginAtZero: true,
@@ -13204,46 +13445,236 @@ function _biQuebrasLineScalesLight() {
 
 function _biQuebrasLineDatasetGradient(chart, baseRgb) {
   const { ctx, chartArea } = chart;
-  if (!chartArea) return `rgba(${baseRgb}, 0.12)`;
-  const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-  g.addColorStop(0, `rgba(${baseRgb}, 0.24)`);
-  g.addColorStop(1, `rgba(${baseRgb}, 0.03)`);
-  return g;
+  if (!chartArea) return `rgba(${baseRgb}, 0.16)`;
+  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  gradient.addColorStop(0, `rgba(${baseRgb}, 0.3)`);
+  gradient.addColorStop(1, `rgba(${baseRgb}, 0.04)`);
+  return gradient;
 }
 
-function _biQuebrasSetKpis(data) {
-  const s = data.summary || {};
-  const el = (id) => document.getElementById(id);
+function _biQuebrasResizeChartsSoon() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try { _biQuebrasChartLine?.resize(); } catch { /* ignore */ }
+      try { _biQuebrasChartReason?.resize(); } catch { /* ignore */ }
+    });
+  });
+}
 
-  const loss = el('bi-quebras-kpi-loss');
-  if (loss) loss.textContent = _biQuebrasFormatBRL(s.total_loss_brl);
+function _biQuebrasShowFeedback(message, isError) {
+  const el = document.getElementById('bi-quebras-feedback');
+  if (!el) return;
+  el.textContent = message;
+  el.className = `field-feedback bi-quebras-feedback ${isError ? 'field-feedback--error' : 'field-feedback--ok'}`;
+  el.style.display = message ? '' : 'none';
+}
 
-  const prods = el('bi-quebras-kpi-products');
-  if (prods) prods.textContent = s.unique_products ?? '—';
+function _biQuebrasSyncScopeButtons() {
+  document.querySelectorAll('[data-bi-quebras-cia-scope]').forEach((btn) => {
+    const isActive = btn.getAttribute('data-bi-quebras-cia-scope') === _biQuebrasSelectedCiaScope;
+    btn.classList.toggle('is-active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+  const label = document.getElementById('bi-quebras-scope-label');
+  if (label) label.textContent = _biQuebrasScopeLabel(_biQuebrasSelectedCiaScope);
+}
 
-  const cx = el('bi-quebras-kpi-cx');
-  if (cx) cx.textContent = s.total_cx ?? '—';
+function _biQuebrasGetShell() {
+  return document.querySelector('#sub-bi-quebras .bi-quebras-shell');
+}
 
-  const un = el('bi-quebras-kpi-un');
-  if (un) un.textContent = s.total_un ?? '—';
+function _biQuebrasIsPresentationMode() {
+  const shell = _biQuebrasGetShell();
+  return !!shell && (document.fullscreenElement === shell || _biQuebrasFallbackPresentation);
+}
 
-  const cov = el('bi-quebras-kpi-coverage');
-  if (cov) {
-    const total = s.unique_products || 0;
-    const withP = s.products_with_price || 0;
-    cov.textContent = total > 0 ? `${withP} / ${total}` : '—';
+function _biQuebrasSyncPresentationButton() {
+  const shell = _biQuebrasGetShell();
+  const btn = document.getElementById('btn-bi-quebras-mode');
+  const presenting = _biQuebrasIsPresentationMode();
+  if (btn) {
+    btn.textContent = presenting ? 'Sair da apresentacao' : 'Modo apresentacao';
+    btn.setAttribute('aria-pressed', presenting ? 'true' : 'false');
   }
-
-  const period = el('bi-quebras-kpi-period');
-  if (period) period.textContent = `${data.date_from || ''} → ${data.date_to || ''}`;
+  document.body.classList.toggle('bi-quebras-presenting', presenting);
+  shell?.classList.toggle('is-presentation-mode', presenting);
 }
 
-function _biQuebrasRenderLineChart(byDay) {
+function _biQuebrasTogglePresentationMode() {
+  const shell = _biQuebrasGetShell();
+  if (!shell) return;
+  if (document.fullscreenElement === shell) {
+    document.exitFullscreen().catch(() => {});
+    return;
+  }
+  if (document.fullscreenEnabled && typeof shell.requestFullscreen === 'function') {
+    shell.requestFullscreen().catch(() => {
+      _biQuebrasFallbackPresentation = !_biQuebrasFallbackPresentation;
+      _biQuebrasSyncPresentationButton();
+      _biQuebrasResizeChartsSoon();
+    });
+    return;
+  }
+  _biQuebrasFallbackPresentation = !_biQuebrasFallbackPresentation;
+  _biQuebrasSyncPresentationButton();
+  _biQuebrasResizeChartsSoon();
+}
+
+function _biQuebrasGetCollection(kind) {
+  if (kind === 'companies') return _biQuebrasCurrentCompanies;
+  if (kind === 'reasons') return _biQuebrasGetReasonItems(_biQuebrasLastPayload?.by_reason || []);
+  if (kind === 'products') return _biQuebrasGetTopProducts(_biQuebrasLastPayload?.top_products || []);
+  if (kind === 'drawer') {
+    const company = _biQuebrasCurrentCompanies.find((item) => String(item.cia || '').trim() === _biQuebrasSelectedCompany);
+    return company && Array.isArray(company.products)
+      ? company.products.slice().sort((a, b) => (Number(b.loss_brl) || 0) - (Number(a.loss_brl) || 0))
+      : [];
+  }
+  return [];
+}
+
+function _biQuebrasGetPagedItems(kind, items) {
+  const source = Array.isArray(items) ? items : [];
+  const pageSize = BI_QUEBRAS_PAGE_SIZE[kind] || Math.max(source.length, 1);
+  const totalPages = Math.max(1, Math.ceil(source.length / pageSize));
+  const nextPage = Math.max(0, Math.min(totalPages - 1, Number(_biQuebrasPageState[kind]) || 0));
+  _biQuebrasPageState[kind] = nextPage;
+  const start = nextPage * pageSize;
+  return {
+    page: nextPage,
+    totalPages,
+    items: source.slice(start, start + pageSize),
+  };
+}
+
+function _biQuebrasSyncPager(kind, totalItems) {
+  const pageSize = BI_QUEBRAS_PAGE_SIZE[kind] || Math.max(totalItems, 1);
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const current = Math.max(1, Math.min(totalPages, (Number(_biQuebrasPageState[kind]) || 0) + 1));
+  const idBase = kind === 'companies' ? 'company' : kind === 'reasons' ? 'reason' : kind === 'products' ? 'product' : 'drawer';
+  const currentEl = document.getElementById(`bi-quebras-${idBase}-page-current`);
+  const totalEl = document.getElementById(`bi-quebras-${idBase}-page-total`);
+  if (currentEl) currentEl.textContent = String(current);
+  if (totalEl) totalEl.textContent = String(totalPages);
+  document.querySelectorAll(`[data-bi-quebras-page-nav^="${kind}:"]`).forEach((btn) => {
+    const direction = btn.getAttribute('data-bi-quebras-page-nav')?.split(':')[1];
+    btn.toggleAttribute('disabled', (direction === 'prev' && current === 1) || (direction === 'next' && current === totalPages));
+  });
+}
+
+function _biQuebrasRenderHeader(data) {
+  const periodLabel = document.getElementById('bi-quebras-period-label');
+  const subtitle = document.getElementById('bi-quebras-period-subtitle');
+  const updatedAt = document.getElementById('bi-quebras-updated-at');
+  const label = `${_biQuebrasFormatDateLong(data.date_from)} a ${_biQuebrasFormatDateLong(data.date_to)}`;
+  if (periodLabel) periodLabel.textContent = label;
+  if (subtitle) {
+    subtitle.textContent = `Periodo analisado: ${label}. Escopo atual: ${_biQuebrasScopeLabel(_biQuebrasSelectedCiaScope)}. Leitura preparada para apresentacao executiva.`;
+  }
+  if (updatedAt) {
+    updatedAt.textContent = new Date().toLocaleString('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+      timeZone: 'America/Sao_Paulo',
+    });
+  }
+  _biQuebrasSyncScopeButtons();
+}
+
+function _biQuebrasSetText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function _biQuebrasRenderKpis(data) {
+  const summary = data.summary || {};
+  const topCompany = _biQuebrasCurrentCompanies[0] || null;
+  const topProduct = _biQuebrasGetTopProducts(data.top_products || [])[0] || null;
+  const activeDays = _biQuebrasGetActiveDays(data.by_day || []);
+  const avgUnits = activeDays.length ? Math.round((Number(summary.total_un) || 0) / activeDays.length) : 0;
+
+  _biQuebrasSetText('bi-quebras-kpi-loss', _biQuebrasFormatBRL(summary.total_loss_brl));
+  _biQuebrasSetText('bi-quebras-kpi-products', _biQuebrasFormatNumber(summary.unique_products));
+  _biQuebrasSetText('bi-quebras-kpi-cx', _biQuebrasFormatNumber(summary.total_cx));
+  _biQuebrasSetText('bi-quebras-kpi-un', _biQuebrasFormatNumber(summary.total_un));
+  _biQuebrasSetText('bi-quebras-kpi-company', topCompany ? String(topCompany.cia || '--') : '--');
+
+  _biQuebrasSetText(
+    'bi-quebras-kpi-loss-note',
+    activeDays.length ? `${activeDays.length} dias com lancamento no periodo` : 'Nenhum lancamento no periodo',
+  );
+  _biQuebrasSetText(
+    'bi-quebras-kpi-products-note',
+    topProduct ? `Maior produto critico: ${String(topProduct.descricao || topProduct.cod_produto || '--')}` : 'Sem produto critico no periodo',
+  );
+  _biQuebrasSetText(
+    'bi-quebras-kpi-cx-note',
+    topCompany ? `${_biQuebrasFormatNumber(topCompany.total_cx)} CX na CIA lider` : 'Sem concentracao por companhia',
+  );
+  _biQuebrasSetText(
+    'bi-quebras-kpi-un-note',
+    activeDays.length ? `Media de ${_biQuebrasFormatNumber(avgUnits)} UN por dia ativo` : 'Sem media diaria disponivel',
+  );
+  _biQuebrasSetText(
+    'bi-quebras-kpi-company-note',
+    topCompany ? `${_biQuebrasFormatPct(topCompany.pct)} do total · ${_biQuebrasFormatBRL(topCompany.loss_brl)}` : 'Clique na CIA para abrir o detalhamento',
+  );
+}
+
+function _biQuebrasRenderTrendMetrics(byDay) {
+  const wrap = document.getElementById('bi-quebras-trend-metrics');
+  if (!wrap) return;
+  const activeDays = _biQuebrasGetActiveDays(byDay);
+  if (!activeDays.length) {
+    wrap.innerHTML = `
+      <article class="bi-quebras-trend-metric">
+        <span class="bi-quebras-trend-metric-label">Status</span>
+        <strong class="bi-quebras-trend-metric-value">Sem atividade</strong>
+        <span class="bi-quebras-trend-metric-sub">Nao houve lancamentos de quebra no intervalo selecionado.</span>
+      </article>
+    `;
+    return;
+  }
+  const peakDay = activeDays.reduce((best, item) => ((Number(item.loss_brl) || 0) > (Number(best.loss_brl) || 0) ? item : best), activeDays[0]);
+  const totalLoss = activeDays.reduce((acc, item) => acc + (Number(item.loss_brl) || 0), 0);
+  const avgLoss = totalLoss / activeDays.length;
+  const lastDay = activeDays[activeDays.length - 1];
+  wrap.innerHTML = `
+    <article class="bi-quebras-trend-metric">
+      <span class="bi-quebras-trend-metric-label">Pico diario</span>
+      <strong class="bi-quebras-trend-metric-value">${_biQuebrasFormatBRL(peakDay.loss_brl)}</strong>
+      <span class="bi-quebras-trend-metric-sub">${_biQuebrasFormatDateLong(peakDay.date)}</span>
+    </article>
+    <article class="bi-quebras-trend-metric">
+      <span class="bi-quebras-trend-metric-label">Media por dia ativo</span>
+      <strong class="bi-quebras-trend-metric-value">${_biQuebrasFormatBRL(avgLoss)}</strong>
+      <span class="bi-quebras-trend-metric-sub">${activeDays.length} dias com lancamento</span>
+    </article>
+    <article class="bi-quebras-trend-metric">
+      <span class="bi-quebras-trend-metric-label">Ultimo movimento</span>
+      <strong class="bi-quebras-trend-metric-value">${_biQuebrasFormatDateShort(lastDay.date)}</strong>
+      <span class="bi-quebras-trend-metric-sub">${_biQuebrasFormatBRL(lastDay.loss_brl)}</span>
+    </article>
+  `;
+}
+
+function _biQuebrasRenderTrendChart(byDay) {
   const canvas = document.getElementById('bi-quebras-chart-line');
   const emptyMsg = document.getElementById('bi-quebras-chart-empty');
   if (!canvas) return;
-
-  if (_biQuebrasChartLine) { _biQuebrasChartLine.destroy(); _biQuebrasChartLine = null; }
+  const activeDays = _biQuebrasGetActiveDays(byDay);
+  if (_biQuebrasChartLine) {
+    _biQuebrasChartLine.destroy();
+    _biQuebrasChartLine = null;
+  }
+  if (!activeDays.length) {
+    canvas.style.display = 'none';
+    if (emptyMsg) {
+      emptyMsg.hidden = false;
+      emptyMsg.textContent = 'Nenhum lancamento de quebra no periodo.';
+    }
+    return;
+  }
   if (typeof Chart !== 'function') {
     canvas.style.display = 'none';
     if (emptyMsg) {
@@ -13252,39 +13683,25 @@ function _biQuebrasRenderLineChart(byDay) {
     }
     return;
   }
-
-  const plottedDays = (Array.isArray(byDay) ? byDay : []).filter((d) => Number(d?.items_with_break || 0) > 0);
-  const hasData = plottedDays.length > 0;
-  if (emptyMsg) {
-    emptyMsg.hidden = hasData;
-    if (!hasData) emptyMsg.textContent = 'Nenhum lancamento de quebra no periodo.';
-  }
-  canvas.style.display = hasData ? '' : 'none';
-  if (!hasData) return;
-
-  const labels = plottedDays.map(d => {
-    const [y, m, day] = d.date.split('-');
-    return `${day}/${m}`;
-  });
-  const values = plottedDays.map(d => d.loss_brl ?? 0);
-
+  canvas.style.display = '';
+  if (emptyMsg) emptyMsg.hidden = true;
   _biQuebrasChartLine = new Chart(canvas, {
     type: 'line',
     data: {
-      labels,
+      labels: activeDays.map((day) => _biQuebrasFormatDateShort(day.date)),
       datasets: [{
-        label: 'Prejuízo R$',
-        data: values,
+        label: 'Prejuizo R$',
+        data: activeDays.map((day) => Number(day.loss_brl) || 0),
         fill: true,
-        backgroundColor: (ctx) => _biQuebrasLineDatasetGradient(ctx.chart, '220, 38, 38'),
-        borderColor: '#dc2626',
+        backgroundColor: (ctx) => _biQuebrasLineDatasetGradient(ctx.chart, '194, 59, 42'),
+        borderColor: '#c23b2a',
         borderWidth: 3,
         pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#dc2626',
+        pointBorderColor: '#c23b2a',
         pointBorderWidth: 2,
         pointRadius: 4,
-        pointHoverRadius: 9,
-        tension: 0.35,
+        pointHoverRadius: 8,
+        tension: 0.32,
         cubicInterpolationMode: 'monotone',
       }],
     },
@@ -13292,7 +13709,7 @@ function _biQuebrasRenderLineChart(byDay) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      animation: { duration: 800, easing: 'easeOutQuart' },
+      animation: { duration: 700, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -13306,55 +13723,50 @@ function _biQuebrasRenderLineChart(byDay) {
     },
   });
 }
-
-/**
- * @param {string} canvasId
- * @param {import('chart.js').Chart|null} chartRef
- * @param {unknown[]} items
- * @param {string} labelKey
- * @param {string} valueKey
- * @param {(raw: Record<string, unknown>, index: number) => void} [onSliceClick]
- */
-function _biQuebrasRenderDoughnut(canvasId, chartRef, items, labelKey, valueKey, onSliceClick) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return null;
-  if (chartRef) { chartRef.destroy(); }
+function _biQuebrasRenderReasonChart(items) {
+  const canvas = document.getElementById('bi-quebras-chart-reason');
+  const emptyMsg = document.getElementById('bi-quebras-reason-empty');
+  if (!canvas) return;
+  const reasons = _biQuebrasGetReasonItems(items).slice(0, 6);
+  if (_biQuebrasChartReason) {
+    _biQuebrasChartReason.destroy();
+    _biQuebrasChartReason = null;
+  }
+  if (!reasons.length) {
+    canvas.style.display = 'none';
+    if (emptyMsg) {
+      emptyMsg.hidden = false;
+      emptyMsg.textContent = 'Nenhum motivo relevante no periodo.';
+    }
+    return;
+  }
   if (typeof Chart !== 'function') {
     canvas.style.display = 'none';
-    return null;
+    if (emptyMsg) {
+      emptyMsg.hidden = false;
+      emptyMsg.textContent = 'Graficos indisponiveis no momento.';
+    }
+    return;
   }
-
-  const active = items.filter(i => i[valueKey] != null && i[valueKey] > 0);
-  if (!active.length) { canvas.style.display = 'none'; return null; }
   canvas.style.display = '';
-
-  return new Chart(canvas, {
+  if (emptyMsg) emptyMsg.hidden = true;
+  _biQuebrasChartReason = new Chart(canvas, {
     type: 'doughnut',
     data: {
-      labels: active.map(i => i[labelKey]),
+      labels: reasons.map((item) => String(item.reason || 'Sem motivo')),
       datasets: [{
-        data: active.map(i => i[valueKey]),
-        backgroundColor: BI_QUEBRAS_PALETTE.slice(0, active.length),
+        data: reasons.map((item) => Number(item.loss_brl) || 0),
+        backgroundColor: BI_QUEBRAS_PALETTE.slice(0, reasons.length),
         borderWidth: 3,
         borderColor: '#ffffff',
         hoverOffset: 10,
-        spacing: 2,
-        borderRadius: 6,
       }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '58%',
-      animation: { duration: 720, easing: 'easeOutQuart' },
-      onClick: onSliceClick
-        ? (/** @type {unknown} */ _evt, elements) => {
-            if (!elements.length) return;
-            const idx = elements[0].index;
-            const raw = active[idx];
-            if (raw) onSliceClick(raw, idx);
-          }
-        : undefined,
+      cutout: '62%',
+      animation: { duration: 650, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -13368,420 +13780,238 @@ function _biQuebrasRenderDoughnut(canvasId, chartRef, items, labelKey, valueKey,
   });
 }
 
-function _biQuebrasRenderRanking(topProducts, listOverride) {
-  const list  = listOverride || document.getElementById('bi-quebras-ranking-list');
-  const count = document.getElementById('bi-quebras-ranking-count');
-  if (!list) return;
-  list.innerHTML = '';
-  if (count && !listOverride) count.textContent = topProducts.length;
-  if (!topProducts.length) {
-    list.innerHTML = '<li class="bi-quebras-list-empty">Nenhum dado no período.</li>';
-    return;
+function _biQuebrasEnsureSelectedCompanyPage() {
+  if (!_biQuebrasSelectedCompany) return;
+  const index = _biQuebrasCurrentCompanies.findIndex((item) => String(item.cia || '').trim() === _biQuebrasSelectedCompany);
+  if (index >= 0) {
+    _biQuebrasPageState.companies = Math.floor(index / BI_QUEBRAS_PAGE_SIZE.companies);
   }
-  topProducts.forEach((p, idx) => {
-    const li = document.createElement('li');
-    li.className = 'bi-quebras-ranking-row';
-    const loss = p.loss_brl != null ? _biQuebrasFormatBRL(p.loss_brl) : '—';
-    const desc = (p.descricao || p.cod_produto || '—').substring(0, 40);
-    li.innerHTML = `
-      <span class="bi-quebras-rank-pos">${idx + 1}</span>
-      <span class="bi-quebras-rank-desc" title="${p.descricao || ''}">${desc}</span>
-      <span class="bi-quebras-rank-seg">${p.cia || '—'}</span>
-      <span class="bi-quebras-rank-cx">${p.cx ?? 0} CX</span>
-      <span class="bi-quebras-rank-un">${p.un ?? 0} UN</span>
-      <span class="bi-quebras-rank-loss ${p.loss_brl != null ? 'bi-quebras-rank-loss--val' : ''}">${loss}</span>
-    `;
-    list.appendChild(li);
-  });
 }
 
-/** @param {'loss'|'volume'} sort */
-function _biQuebrasSortCompanyProducts(products, sort) {
-  const arr = Array.isArray(products) ? products.slice() : [];
-  if (sort === 'volume') {
-    arr.sort(
-      (a, b) =>
-        (Number(b.cx) || 0) + (Number(b.un) || 0) - ((Number(a.cx) || 0) + (Number(a.un) || 0)),
-    );
-  } else {
-    arr.sort((a, b) => (Number(b.loss_brl) || 0) - (Number(a.loss_brl) || 0));
-  }
-  return arr;
-}
-
-/**
- * @param {Record<string, unknown>|null} company
- * @param {{ titleEl?: HTMLElement|null, countEl?: HTMLElement|null, listEl?: HTMLElement|null, descMax?: number, sort?: 'loss'|'volume' }} [opts]
- */
-function _biQuebrasRenderCompanyProducts(company, opts) {
-  const titleEl =
-    opts && Object.prototype.hasOwnProperty.call(opts, 'titleEl')
-      ? opts.titleEl
-      : document.getElementById('bi-quebras-company-products-title');
-  const countEl =
-    opts && Object.prototype.hasOwnProperty.call(opts, 'countEl')
-      ? opts.countEl
-      : document.getElementById('bi-quebras-company-products-count');
-  const listEl = opts?.listEl || document.getElementById('bi-quebras-company-products-list');
-  const descMax = opts?.descMax ?? 46;
-  const sort = opts?.sort ?? 'loss';
-  if (!listEl) return;
-
-  listEl.innerHTML = '';
-  if (!company) {
-    if (titleEl) titleEl.textContent = 'Produtos da CIA';
-    if (countEl) countEl.textContent = '0';
-    listEl.innerHTML = '<li class="bi-quebras-company-products-empty">Selecione uma CIA para ver os produtos.</li>';
-    return;
-  }
-
-  let products = Array.isArray(company.products) ? company.products : [];
-  products = _biQuebrasSortCompanyProducts(products, sort);
-  if (titleEl) titleEl.textContent = `Produtos da CIA ${company.cia || '—'}`;
-  if (countEl) countEl.textContent = String(products.length);
-  if (!products.length) {
-    listEl.innerHTML = '<li class="bi-quebras-company-products-empty">Nenhum produto para esta CIA no período.</li>';
-    return;
-  }
-
-  products.forEach((product, idx) => {
-    const li = document.createElement('li');
-    li.className = 'bi-quebras-company-product-row';
-    const loss = product.loss_brl != null ? _biQuebrasFormatBRL(product.loss_brl) : '—';
-    const desc = String(product.descricao || product.cod_produto || '—');
-    li.innerHTML = `
-      <span class="bi-quebras-company-product-pos">${idx + 1}</span>
-      <span class="bi-quebras-company-product-main">
-        <strong class="bi-quebras-company-product-desc" title="${product.descricao || ''}">${desc.substring(0, descMax)}</strong>
-        <span class="bi-quebras-company-product-meta">${product.segmento || 'Sem segmento'} · ${product.cod_produto || '—'}</span>
-      </span>
-      <span class="bi-quebras-company-product-cx">${product.cx ?? 0} CX</span>
-      <span class="bi-quebras-company-product-un">${product.un ?? 0} UN</span>
-      <span class="bi-quebras-company-product-loss ${product.loss_brl != null ? 'bi-quebras-company-product-loss--val' : ''}">${loss}</span>
-    `;
-    listEl.appendChild(li);
-  });
-}
-
-function _biQuebrasRenderCompanyBreakdown(items) {
-  const list = document.getElementById('bi-quebras-segmento-list');
-  if (!list) return;
-  list.innerHTML = '';
-  if (!items.length) {
-    _biQuebrasSelectedCompany = '';
-    list.innerHTML = '<li class="bi-quebras-breakdown-empty">Sem dados.</li>';
-    _biQuebrasRenderCompanyProducts(null);
-    return;
-  }
-
-  const availableCompanies = new Set(items.map((item) => String(item.cia || '').trim()).filter(Boolean));
-  if (!_biQuebrasSelectedCompany || !availableCompanies.has(_biQuebrasSelectedCompany)) {
-    _biQuebrasSelectedCompany = String(items[0].cia || '').trim();
-  }
-  const selected = items.find((item) => String(item.cia || '').trim() === _biQuebrasSelectedCompany) || null;
-
-  items.forEach((item, idx) => {
-    const cia = String(item.cia || '').trim();
-    const li = document.createElement('li');
-    const isSelected = cia && cia === _biQuebrasSelectedCompany;
-    li.className = `bi-quebras-breakdown-row bi-quebras-breakdown-row--interactive${isSelected ? ' is-selected' : ''}`;
-    li.dataset.biQuebrasCompany = cia;
-    li.tabIndex = 0;
-    li.setAttribute('role', 'button');
-    li.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-    const color = BI_QUEBRAS_PALETTE[idx % BI_QUEBRAS_PALETTE.length];
-    const pct = item.pct != null ? `${item.pct}%` : '—';
-    const loss = item.loss_brl != null ? _biQuebrasFormatBRL(item.loss_brl) : '—';
-    li.innerHTML = `
-      <span class="bi-quebras-bd-dot" style="background:${color}" aria-hidden="true"></span>
-      <span class="bi-quebras-bd-label" title="${item.cia || ''}">${(item.cia || '—').substring(0, 30)}</span>
-      <span class="bi-quebras-bd-items">${item.items ?? 0} prod.</span>
-      <span class="bi-quebras-bd-pct">${pct}</span>
-      <span class="bi-quebras-bd-loss">${loss}</span>
-      <span class="bi-quebras-bd-occ">${item.total_cx ?? 0} CX · ${item.total_un ?? 0} UN</span>
-    `;
-    list.appendChild(li);
-  });
-
-  _biQuebrasRenderCompanyProducts(selected);
-}
-
-function _biQuebrasRenderBreakdownList(listId, items, labelKey, extraFn) {
-  const list = document.getElementById(listId);
-  if (!list) return;
-  list.innerHTML = '';
-  if (!items.length) {
-    list.innerHTML = '<li class="bi-quebras-breakdown-empty">Sem dados.</li>';
-    return;
-  }
-  items.forEach((item, idx) => {
-    const li = document.createElement('li');
-    li.className = 'bi-quebras-breakdown-row';
-    const color = BI_QUEBRAS_PALETTE[idx % BI_QUEBRAS_PALETTE.length];
-    const pct = item.pct != null ? `${item.pct}%` : '—';
-    const loss = item.loss_brl != null ? _biQuebrasFormatBRL(item.loss_brl) : '—';
-    const extra = extraFn ? extraFn(item) : '';
-    li.innerHTML = `
-      <span class="bi-quebras-bd-dot" style="background:${color}" aria-hidden="true"></span>
-      <span class="bi-quebras-bd-label" title="${item[labelKey] || ''}">${(item[labelKey] || '—').substring(0, 30)}</span>
-      <span class="bi-quebras-bd-items">${item.items ?? item.occurrences ?? 0} prod.</span>
-      <span class="bi-quebras-bd-pct">${pct}</span>
-      <span class="bi-quebras-bd-loss">${loss}</span>
-      ${extra}
-    `;
-    list.appendChild(li);
-  });
-}
-
-function _biQuebrasRenderPresentationLineChart(canvasEl, byDay) {
-  const plottedDays = (Array.isArray(byDay) ? byDay : []).filter((d) => Number(d?.items_with_break || 0) > 0);
-  if (!plottedDays.length) return null;
-  const labels = plottedDays.map((d) => {
-    const parts = String(d.date || '').split('-');
-    const day = parts[2] || '';
-    const m = parts[1] || '';
-    return `${day}/${m}`;
-  });
-  const values = plottedDays.map((d) => d.loss_brl ?? 0);
-  return new Chart(canvasEl, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Prejuízo R$',
-        data: values,
-        fill: true,
-        backgroundColor: (ctx) => _biQuebrasLineDatasetGradient(ctx.chart, '220, 38, 38'),
-        borderColor: '#dc2626',
-        borderWidth: 3,
-        pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#dc2626',
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 10,
-        tension: 0.35,
-        cubicInterpolationMode: 'monotone',
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      animation: { duration: 900, easing: 'easeOutQuart' },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          ..._biQuebrasChartTooltipTheme(),
-          callbacks: {
-            label: (ctx) => ' ' + _biQuebrasFormatBRL(ctx.parsed.y),
-          },
-        },
-      },
-      scales: _biQuebrasLineScalesLight(),
-    },
-  });
-}
-
-function _biQuebrasFillPresentationCiaChips() {
-  const wrap = document.getElementById('bi-quebras-presentation-cia-chips');
+function _biQuebrasRenderCompanyBoard(items) {
+  const wrap = document.getElementById('bi-quebras-company-board');
   if (!wrap) return;
-  wrap.innerHTML = '';
-  (_biQuebrasCurrentCompanies || []).forEach((item) => {
-    const cia = String(item.cia || '').trim();
-    if (!cia) return;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `bi-quebras-cia-chip${cia === _biQuebrasSelectedCompany ? ' is-selected' : ''}`;
-    btn.textContent = cia;
-    btn.setAttribute('data-bi-quebras-presentation-cia', cia);
-    wrap.appendChild(btn);
-  });
+  _biQuebrasEnsureSelectedCompanyPage();
+  const allItems = Array.isArray(items) ? items : [];
+  const maxLoss = Math.max(1, ...allItems.map((item) => Number(item.loss_brl) || 0));
+  const pageData = _biQuebrasGetPagedItems('companies', allItems);
+  _biQuebrasSyncPager('companies', allItems.length);
+  if (!pageData.items.length) {
+    wrap.innerHTML = '<div class="bi-quebras-empty-state">Nenhuma companhia com impacto relevante no periodo.</div>';
+    return;
+  }
+  wrap.innerHTML = pageData.items.map((item, index) => {
+    const cia = String(item.cia || '--');
+    const barWidth = Math.max(8, Math.round(((Number(item.loss_brl) || 0) / maxLoss) * 100));
+    const isSelected = _biQuebrasDrawerOpen && _biQuebrasSelectedCompany === cia;
+    return `
+      <button type="button" class="bi-quebras-company-row${isSelected ? ' is-selected' : ''}" data-bi-quebras-company="${_biQuebrasEscapeHtml(cia)}" role="listitem" aria-pressed="${isSelected ? 'true' : 'false'}">
+        <span class="bi-quebras-company-rank">${String(pageData.page * BI_QUEBRAS_PAGE_SIZE.companies + index + 1).padStart(2, '0')}</span>
+        <span class="bi-quebras-company-main">
+          <strong class="bi-quebras-company-name">${_biQuebrasEscapeHtml(cia)}</strong>
+          <span class="bi-quebras-company-meta">${_biQuebrasFormatNumber(item.items)} produtos · ${_biQuebrasFormatNumber(item.total_cx)} CX · ${_biQuebrasFormatNumber(item.total_un)} UN</span>
+        </span>
+        <span class="bi-quebras-company-bar" aria-hidden="true"><span style="width:${barWidth}%"></span></span>
+        <span class="bi-quebras-company-value">
+          <strong>${_biQuebrasFormatBRL(item.loss_brl)}</strong>
+          <small>${_biQuebrasFormatPct(item.pct)}</small>
+        </span>
+      </button>
+    `;
+  }).join('');
 }
 
-function _biQuebrasPresentationSyncSegmento() {
-  const shell = document.getElementById('bi-quebras-presentation');
-  if (!shell || shell.hidden || shell.dataset.presentationMode !== 'segmento') return;
-  _biQuebrasFillPresentationCiaChips();
-  const selected = (_biQuebrasCurrentCompanies || []).find(
-    (c) => String(c.cia || '').trim() === _biQuebrasSelectedCompany,
+function _biQuebrasRenderReasonPanel(items) {
+  const list = document.getElementById('bi-quebras-reason-list');
+  if (!list) return;
+  const allItems = _biQuebrasGetReasonItems(items);
+  const maxLoss = Math.max(1, ...allItems.map((item) => Number(item.loss_brl) || 0));
+  const pageData = _biQuebrasGetPagedItems('reasons', allItems);
+  _biQuebrasSyncPager('reasons', allItems.length);
+  if (!pageData.items.length) {
+    list.innerHTML = '<li class="bi-quebras-executive-empty">Nenhum motivo relevante no periodo.</li>';
+    return;
+  }
+  list.innerHTML = pageData.items.map((item) => {
+    const width = Math.max(8, Math.round(((Number(item.loss_brl) || 0) / maxLoss) * 100));
+    return `
+      <li class="bi-quebras-executive-row">
+        <div class="bi-quebras-executive-copy">
+          <strong>${_biQuebrasEscapeHtml(item.reason || 'Sem motivo')}</strong>
+          <span>${_biQuebrasFormatNumber(item.occurrences)} ocorrencias</span>
+        </div>
+        <div class="bi-quebras-executive-bar" aria-hidden="true"><span style="width:${width}%"></span></div>
+        <div class="bi-quebras-executive-metric">
+          <strong>${_biQuebrasFormatBRL(item.loss_brl)}</strong>
+          <span>${_biQuebrasFormatPct(item.pct)}</span>
+        </div>
+      </li>
+    `;
+  }).join('');
+}
+
+function _biQuebrasRenderProductsPanel(items) {
+  const list = document.getElementById('bi-quebras-ranking-list');
+  if (!list) return;
+  const allItems = _biQuebrasGetTopProducts(items);
+  const pageData = _biQuebrasGetPagedItems('products', allItems);
+  _biQuebrasSyncPager('products', allItems.length);
+  if (!pageData.items.length) {
+    list.innerHTML = '<li class="bi-quebras-executive-empty">Nenhum produto critico no periodo.</li>';
+    return;
+  }
+  list.innerHTML = pageData.items.map((item, index) => `
+    <li class="bi-quebras-product-card">
+      <span class="bi-quebras-product-rank">${String(pageData.page * BI_QUEBRAS_PAGE_SIZE.products + index + 1).padStart(2, '0')}</span>
+      <div class="bi-quebras-product-copy">
+        <strong>${_biQuebrasEscapeHtml(item.descricao || item.cod_produto || '--')}</strong>
+        <span>${_biQuebrasEscapeHtml(item.cia || 'Sem CIA')} · ${_biQuebrasEscapeHtml(item.segmento || 'Sem segmento')}</span>
+      </div>
+      <div class="bi-quebras-product-metrics">
+        <span>${_biQuebrasFormatNumber(item.cx)} CX</span>
+        <span>${_biQuebrasFormatNumber(item.un)} UN</span>
+      </div>
+      <strong class="bi-quebras-product-loss">${_biQuebrasFormatBRL(item.loss_brl)}</strong>
+    </li>
+  `).join('');
+}
+
+function _biQuebrasRenderCompanyDrawer() {
+  const drawer = document.getElementById('bi-quebras-company-drawer');
+  const main = document.getElementById('bi-quebras-main');
+  const list = document.getElementById('bi-quebras-company-products-list');
+  if (!drawer || !main || !list) return;
+  const company = _biQuebrasCurrentCompanies.find((item) => String(item.cia || '').trim() === _biQuebrasSelectedCompany);
+  if (!_biQuebrasDrawerOpen || !company) {
+    drawer.classList.remove('is-open');
+    drawer.hidden = true;
+    main.classList.remove('has-drawer');
+    return;
+  }
+  const products = _biQuebrasGetCollection('drawer');
+  const pageData = _biQuebrasGetPagedItems('drawer', products);
+  _biQuebrasSyncPager('drawer', products.length);
+  _biQuebrasSetText('bi-quebras-company-products-title', `Produtos da CIA ${String(company.cia || '--')}`);
+  _biQuebrasSetText(
+    'bi-quebras-company-products-meta',
+    `${_biQuebrasFormatNumber(company.total_cx)} CX · ${_biQuebrasFormatNumber(company.total_un)} UN · ${_biQuebrasFormatNumber(company.items)} produtos no periodo`,
   );
-  const title = document.getElementById('bi-quebras-presentation-prod-title');
-  const list = document.getElementById('bi-quebras-presentation-prod-list');
-  _biQuebrasRenderCompanyProducts(selected, {
-    titleEl: title,
-    countEl: null,
-    listEl: list,
-    descMax: 72,
-    sort: _biQuebrasPresentationSort,
-  });
+  _biQuebrasSetText('bi-quebras-company-products-total', _biQuebrasFormatBRL(company.loss_brl));
+  _biQuebrasSetText('bi-quebras-company-products-count', _biQuebrasFormatNumber(company.items));
+  _biQuebrasSetText('bi-quebras-company-products-share', _biQuebrasFormatPct(company.pct));
+  if (!pageData.items.length) {
+    list.innerHTML = '<li class="bi-quebras-company-products-empty">Nenhum produto detalhado para esta CIA no periodo.</li>';
+  } else {
+    list.innerHTML = pageData.items.map((product, index) => `
+      <li class="bi-quebras-company-product-row">
+        <span class="bi-quebras-company-product-pos">${String(pageData.page * BI_QUEBRAS_PAGE_SIZE.drawer + index + 1).padStart(2, '0')}</span>
+        <span class="bi-quebras-company-product-main">
+          <strong class="bi-quebras-company-product-desc">${_biQuebrasEscapeHtml(product.descricao || product.cod_produto || '--')}</strong>
+          <span class="bi-quebras-company-product-meta">${_biQuebrasEscapeHtml(product.segmento || 'Sem segmento')} · ${_biQuebrasEscapeHtml(product.cod_produto || '--')}</span>
+        </span>
+        <span class="bi-quebras-company-product-cx">${_biQuebrasFormatNumber(product.cx)} CX</span>
+        <span class="bi-quebras-company-product-un">${_biQuebrasFormatNumber(product.un)} UN</span>
+        <span class="bi-quebras-company-product-loss">${_biQuebrasFormatBRL(product.loss_brl)}</span>
+      </li>
+    `).join('');
+  }
+  drawer.hidden = false;
+  main.classList.add('has-drawer');
+  requestAnimationFrame(() => drawer.classList.add('is-open'));
 }
 
-function _biQuebrasPresentationResizeChartSoon() {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      try {
-        _biQuebrasPresentationChart?.resize();
-      } catch {
-        /* ignore */
-      }
-    });
-  });
-}
-
-function _biQuebrasClosePresentation() {
-  const shell = document.getElementById('bi-quebras-presentation');
-  if (!shell) return;
-  if (_biQuebrasPresentationChart) {
-    _biQuebrasPresentationChart.destroy();
-    _biQuebrasPresentationChart = null;
-  }
-  try {
-    if (document.fullscreenElement === shell) document.exitFullscreen();
-  } catch {
-    /* ignore */
-  }
-  shell.hidden = true;
-  shell.dataset.presentationMode = '';
-  document.body.classList.remove('bi-quebras-presentation-open');
-  const bodyEl = document.getElementById('bi-quebras-presentation-body');
-  if (bodyEl) bodyEl.removeAttribute('data-layout');
-}
-
-function _biQuebrasOpenPresentation(mode) {
-  if (!_biQuebrasLastPayload) {
-    _biQuebrasShowFeedback('Carregue o BI primeiro (Carregar BI).', true);
-    return;
-  }
-  if (mode !== 'ranking' && typeof Chart !== 'function') {
-    _biQuebrasShowFeedback('Chart.js indisponível; não é possível abrir este gráfico.', true);
-    return;
-  }
-
-  const shell = document.getElementById('bi-quebras-presentation');
-  const title = document.getElementById('bi-quebras-presentation-title');
-  const sub = document.getElementById('bi-quebras-presentation-sub');
-  const chartWrap = document.getElementById('bi-quebras-presentation-chart-wrap');
-  const rankWrap = document.getElementById('bi-quebras-presentation-ranking-wrap');
-  const ciaAside = document.getElementById('bi-quebras-presentation-cia-aside');
-  const canvas = document.getElementById('bi-quebras-presentation-canvas');
-  const bodyEl = document.getElementById('bi-quebras-presentation-body');
-  if (!shell || !canvas || !title) return;
-
-  if (_biQuebrasPresentationChart) {
-    _biQuebrasPresentationChart.destroy();
-    _biQuebrasPresentationChart = null;
-  }
-
-  shell.hidden = false;
-  shell.dataset.presentationMode = mode;
-  document.body.classList.add('bi-quebras-presentation-open');
-
-  if (chartWrap) chartWrap.hidden = false;
-  if (rankWrap) rankWrap.hidden = true;
-  if (ciaAside) ciaAside.hidden = true;
-  if (bodyEl) bodyEl.removeAttribute('data-layout');
-
-  const df = _biQuebrasLastPayload.date_from || '';
-  const dt = _biQuebrasLastPayload.date_to || '';
-
-  if (mode === 'ranking') {
-    title.textContent = 'Top produtos por prejuízo';
-    if (sub) {
-      sub.textContent = `${df} → ${dt} · Ajuste período e CIA no topo da página e use Carregar BI.`;
-    }
-    if (chartWrap) chartWrap.hidden = true;
-    if (rankWrap) rankWrap.hidden = false;
-    const rList = document.getElementById('bi-quebras-presentation-ranking-list');
-    if (rList) _biQuebrasRenderRanking(_biQuebrasLastPayload.top_products || [], rList);
-    return;
-  }
-
-  if (mode === 'line') {
-    title.textContent = 'Prejuízo estimado por dia (R$)';
-    if (sub) sub.textContent = `${df} → ${dt}`;
-    _biQuebrasPresentationChart = _biQuebrasRenderPresentationLineChart(
-      canvas,
-      _biQuebrasLastPayload.by_day || [],
-    );
-    _biQuebrasPresentationResizeChartSoon();
-    return;
-  }
-
-  if (mode === 'reason') {
-    title.textContent = 'Prejuízo por motivo';
-    if (sub) sub.textContent = `${df} → ${dt}`;
-    _biQuebrasPresentationChart = _biQuebrasRenderDoughnut(
-      'bi-quebras-presentation-canvas',
-      null,
-      _biQuebrasLastPayload.by_reason || [],
-      'reason',
-      'loss_brl',
-      undefined,
-    );
-    _biQuebrasPresentationResizeChartSoon();
-    return;
-  }
-
-  if (mode === 'segmento') {
-    _biQuebrasPresentationSort = 'loss';
-    document.querySelectorAll('[data-bi-quebras-pres-sort]').forEach((b) => {
-      b.classList.toggle('is-active', b.getAttribute('data-bi-quebras-pres-sort') === 'loss');
-    });
-    title.textContent = 'Prejuízo por CIA';
-    if (sub) {
-      sub.textContent = `${df} → ${dt} · Toque na fatia ou numa CIA para listar produtos; ordene por prejuízo ou volume.`;
-    }
-    if (ciaAside) ciaAside.hidden = false;
-    if (bodyEl) bodyEl.setAttribute('data-layout', 'cia');
-    _biQuebrasPresentationChart = _biQuebrasRenderDoughnut(
-      'bi-quebras-presentation-canvas',
-      null,
-      _biQuebrasCurrentCompanies,
-      'cia',
-      'loss_brl',
-      (raw) => {
-        const cia = String(raw.cia || '').trim();
-        if (!cia) return;
-        _biQuebrasSelectCompany(cia);
-        _biQuebrasPresentationSyncSegmento();
-      },
-    );
-    _biQuebrasFillPresentationCiaChips();
-    _biQuebrasPresentationSyncSegmento();
-    _biQuebrasPresentationResizeChartSoon();
-  }
-}
-
-function _biQuebrasShowFeedback(msg, isError) {
-  const el = document.getElementById('bi-quebras-feedback');
-  if (!el) return;
-  el.textContent = msg;
-  el.className = `field-feedback bi-quebras-feedback count-audit-feedback-block ${isError ? 'field-feedback--error' : 'field-feedback--ok'}`;
-  el.style.display = msg ? '' : 'none';
-}
-
-function _biQuebrasSyncScopeButtons() {
-  document.querySelectorAll('[data-bi-quebras-cia-scope]').forEach((btn) => {
-    const isActive = btn.getAttribute('data-bi-quebras-cia-scope') === _biQuebrasSelectedCiaScope;
-    btn.classList.toggle('is-active', isActive);
-    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-  });
+function _biQuebrasCloseDrawer() {
+  _biQuebrasDrawerOpen = false;
+  _biQuebrasSelectedCompany = '';
+  _biQuebrasPageState.drawer = 0;
+  _biQuebrasRenderCompanyBoard(_biQuebrasCurrentCompanies);
+  _biQuebrasRenderCompanyDrawer();
 }
 
 function _biQuebrasSelectCompany(cia) {
   const normalized = String(cia || '').trim();
   if (!normalized) return;
   _biQuebrasSelectedCompany = normalized;
-  _biQuebrasRenderCompanyBreakdown(_biQuebrasCurrentCompanies || []);
-  _biQuebrasPresentationSyncSegmento();
+  _biQuebrasDrawerOpen = true;
+  _biQuebrasPageState.drawer = 0;
+  _biQuebrasEnsureSelectedCompanyPage();
+  _biQuebrasRenderCompanyBoard(_biQuebrasCurrentCompanies);
+  _biQuebrasRenderCompanyDrawer();
 }
 
+function _biQuebrasRenderInsights(data) {
+  const topCompany = _biQuebrasCurrentCompanies[0] || null;
+  const topReason = _biQuebrasGetReasonItems(data.by_reason || [])[0] || null;
+  const topProduct = _biQuebrasGetTopProducts(data.top_products || [])[0] || null;
+
+  _biQuebrasSetText(
+    'bi-quebras-insight-company',
+    topCompany
+      ? `${String(topCompany.cia || '--')} concentra ${_biQuebrasFormatPct(topCompany.pct)} do prejuizo, somando ${_biQuebrasFormatBRL(topCompany.loss_brl)} no periodo.`
+      : 'Nao houve concentracao relevante por companhia no periodo.',
+  );
+  _biQuebrasSetText(
+    'bi-quebras-insight-reason',
+    topReason
+      ? `${String(topReason.reason || '--')} lidera os motivos com ${_biQuebrasFormatBRL(topReason.loss_brl)} e ${_biQuebrasFormatNumber(topReason.occurrences)} ocorrencias.`
+      : 'Nao houve motivo dominante no periodo analisado.',
+  );
+  _biQuebrasSetText(
+    'bi-quebras-insight-product',
+    topProduct
+      ? `${String(topProduct.descricao || topProduct.cod_produto || '--')} e o produto mais critico, com ${_biQuebrasFormatBRL(topProduct.loss_brl)} de impacto estimado.`
+      : 'Nenhum produto concentrou criticidade no intervalo analisado.',
+  );
+}
+
+function _biQuebrasRenderNoPriceAlert(items) {
+  const alert = document.getElementById('bi-quebras-no-price-alert');
+  const list = document.getElementById('bi-quebras-no-price-list');
+  const products = Array.isArray(items) ? items : [];
+  if (!alert || !list) return;
+  alert.hidden = products.length === 0;
+  if (!products.length) return;
+  const sample = products.slice(0, 6).join(', ');
+  list.textContent = `${products.length} produto(s) sem preco cadastrado. O prejuizo estimado pode estar subavaliado. Itens-chave: ${sample}${products.length > 6 ? '...' : ''}`;
+}
+
+function _biQuebrasSyncTabs() {
+  BI_QUEBRAS_TAB_IDS.forEach((tabId) => {
+    const isActive = _biQuebrasActiveTab === tabId;
+    const btn = document.querySelector(`[data-bi-quebras-tab="${tabId}"]`);
+    const panel = document.getElementById(`bi-quebras-tab-${tabId}`);
+    btn?.classList.toggle('is-active', isActive);
+    btn?.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    if (panel) {
+      panel.hidden = !isActive;
+      panel.classList.toggle('is-active', isActive);
+    }
+  });
+  if (_biQuebrasActiveTab === 'trend') {
+    _biQuebrasRenderTrendChart(_biQuebrasLastPayload?.by_day || []);
+  } else if (_biQuebrasActiveTab === 'reasons') {
+    _biQuebrasRenderReasonChart(_biQuebrasLastPayload?.by_reason || []);
+  }
+  _biQuebrasResizeChartsSoon();
+}
+
+function _biQuebrasRenderExecutiveView(data) {
+  _biQuebrasRenderHeader(data);
+  _biQuebrasRenderKpis(data);
+  _biQuebrasRenderTrendMetrics(data.by_day || []);
+  _biQuebrasRenderCompanyBoard(_biQuebrasCurrentCompanies);
+  _biQuebrasRenderReasonPanel(data.by_reason || []);
+  _biQuebrasRenderProductsPanel(data.top_products || []);
+  _biQuebrasRenderInsights(data);
+  _biQuebrasRenderNoPriceAlert(data.products_without_price || []);
+  _biQuebrasSyncTabs();
+  _biQuebrasRenderCompanyDrawer();
+}
 async function loadBiQuebras() {
-  const fromEl   = document.getElementById('bi-quebras-date-from');
-  const toEl     = document.getElementById('bi-quebras-date-to');
-  const loading  = document.getElementById('bi-quebras-loading-chip');
-  const noPriceAlert = document.getElementById('bi-quebras-no-price-alert');
-  const noPriceList  = document.getElementById('bi-quebras-no-price-list');
+  _biQuebrasEnsureLayout();
+  const fromEl = document.getElementById('bi-quebras-date-from');
+  const toEl = document.getElementById('bi-quebras-date-to');
+  const loading = document.getElementById('bi-quebras-loading-chip');
   const token = getToken();
 
   _biQuebrasShowFeedback('', false);
@@ -13792,16 +14022,12 @@ async function loadBiQuebras() {
   }
   if (unauthorizedRedirectInProgress) return;
 
-  const dateFrom = fromEl?.value || '';
-  const dateTo   = toEl?.value   || '';
-
   const params = new URLSearchParams();
-  if (dateFrom) params.set('date_from', dateFrom);
-  if (dateTo)   params.set('date_to',   dateTo);
+  if (fromEl?.value) params.set('date_from', fromEl.value);
+  if (toEl?.value) params.set('date_to', toEl.value);
   params.set('cia_scope', _biQuebrasSelectedCiaScope);
 
   if (loading) loading.hidden = false;
-
   let data;
   try {
     const res = await apiFetch(`/audit/bi-quebras?${params.toString()}`, {
@@ -13814,151 +14040,107 @@ async function loadBiQuebras() {
       throw new Error(err.detail || `Erro ${res.status}`);
     }
     data = await res.json();
-    _biQuebrasLastPayload = data;
-  } catch (err) {
-    _biQuebrasShowFeedback(`Erro ao carregar BI: ${err.message}`, true);
-    if (loading) loading.hidden = true;
+  } catch (error) {
+    _biQuebrasShowFeedback(`Erro ao carregar BI: ${error.message}`, true);
     return;
   } finally {
     if (loading) loading.hidden = true;
   }
 
-  // KPIs
-  _biQuebrasSetKpis(data);
+  _biQuebrasLastPayload = data;
+  _biQuebrasCurrentCompanies = _biQuebrasNormalizeCompanies(data.by_company || []);
+  _biQuebrasPageState.reasons = 0;
+  _biQuebrasPageState.products = 0;
+  if (!_biQuebrasCurrentCompanies.some((item) => String(item.cia || '').trim() === _biQuebrasSelectedCompany)) {
+    _biQuebrasDrawerOpen = false;
+    _biQuebrasSelectedCompany = '';
+    _biQuebrasPageState.companies = 0;
+    _biQuebrasPageState.drawer = 0;
+  }
   if (typeof Chart !== 'function') {
     _biQuebrasShowFeedback(
       'Dados carregados, mas os graficos nao puderam ser exibidos porque o Chart.js nao carregou.',
       true,
     );
   }
-
-  // Gráfico de linha
-  _biQuebrasRenderLineChart(data.by_day || []);
-
-  // Ranking Top Produtos
-  _biQuebrasRenderRanking(data.top_products || []);
-
-  _biQuebrasCurrentCompanies = _biQuebrasFilterCompaniesWithEffectiveBreak(
-    Array.isArray(data.by_company) ? data.by_company : [],
-  );
-
-  // Doughnut — CIA (clique na fatia = mesma ação da lista: produtos da CIA)
-  _biQuebrasChartSegmento = _biQuebrasRenderDoughnut(
-    'bi-quebras-chart-segmento',
-    _biQuebrasChartSegmento,
-    _biQuebrasCurrentCompanies,
-    'cia',
-    'loss_brl',
-    (raw) => _biQuebrasSelectCompany(String(raw.cia || '')),
-  );
-  _biQuebrasRenderCompanyBreakdown(_biQuebrasCurrentCompanies);
-
-  // Doughnut — Motivo
-  _biQuebrasChartReason = _biQuebrasRenderDoughnut(
-    'bi-quebras-chart-reason',
-    _biQuebrasChartReason,
-    data.by_reason || [],
-    'reason',
-    'loss_brl',
-  );
-  _biQuebrasRenderBreakdownList(
-    'bi-quebras-reason-list',
-    data.by_reason || [],
-    'reason',
-    (item) => `<span class="bi-quebras-bd-occ">${item.occurrences ?? 0}×</span>`,
-  );
-
-  // Alerta de produtos sem preço
-  const noPriceItems = data.products_without_price || [];
-  if (noPriceAlert) {
-    noPriceAlert.hidden = noPriceItems.length === 0;
-    if (noPriceList && noPriceItems.length) {
-      noPriceList.textContent = `${noPriceItems.length} produto(s): ${noPriceItems.slice(0, 15).join(', ')}${noPriceItems.length > 15 ? '…' : ''}`;
-    }
-  }
+  _biQuebrasRenderExecutiveView(data);
 }
 
 function _biQuebrasSetDefaultDates() {
-  // Primeiros 30 dias: de hoje - 29 até hoje
   const fromEl = document.getElementById('bi-quebras-date-from');
-  const toEl   = document.getElementById('bi-quebras-date-to');
+  const toEl = document.getElementById('bi-quebras-date-to');
   if (!fromEl || !toEl) return;
   const today = getBrazilDateKey();
-  if (!toEl.value)   toEl.value   = today;
+  if (!toEl.value) toEl.value = today;
   if (!fromEl.value) {
     const d = new Date(today);
     d.setDate(d.getDate() - 29);
-    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
-    fromEl.value = `${d.getFullYear()}-${m}-${day}`;
+    fromEl.value = `${d.getFullYear()}-${month}-${day}`;
   }
 }
 
-function bindBiQuebrasEvents() {
-  document.addEventListener('DOMContentLoaded', _biQuebrasSetDefaultDates);
-  _biQuebrasSyncScopeButtons();
-
-  const btn = document.getElementById('btn-bi-quebras-load');
-  if (btn) {
-    btn.addEventListener('click', () => {
-      _biQuebrasSetDefaultDates();
-      loadBiQuebras();
-    });
+function _biQuebrasRenderPage(kind) {
+  if (kind === 'companies') {
+    _biQuebrasRenderCompanyBoard(_biQuebrasCurrentCompanies);
+    return;
   }
+  if (kind === 'reasons') {
+    _biQuebrasRenderReasonPanel(_biQuebrasLastPayload?.by_reason || []);
+    if (_biQuebrasActiveTab === 'reasons') _biQuebrasRenderReasonChart(_biQuebrasLastPayload?.by_reason || []);
+    return;
+  }
+  if (kind === 'products') {
+    _biQuebrasRenderProductsPanel(_biQuebrasLastPayload?.top_products || []);
+    return;
+  }
+  if (kind === 'drawer') {
+    _biQuebrasRenderCompanyDrawer();
+  }
+}
+
+function _biQuebrasChangePage(kind, delta) {
+  const items = _biQuebrasGetCollection(kind);
+  const pageSize = BI_QUEBRAS_PAGE_SIZE[kind] || Math.max(items.length, 1);
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  _biQuebrasPageState[kind] = Math.max(0, Math.min(totalPages - 1, (Number(_biQuebrasPageState[kind]) || 0) + delta));
+  _biQuebrasRenderPage(kind);
+}
+
+function bindBiQuebrasEvents() {
+  _biQuebrasEnsureLayout();
+  _biQuebrasSetDefaultDates();
+  _biQuebrasSyncScopeButtons();
+  _biQuebrasSyncPresentationButton();
+
+  document.addEventListener('DOMContentLoaded', () => {
+    _biQuebrasEnsureLayout();
+    _biQuebrasSetDefaultDates();
+    _biQuebrasSyncScopeButtons();
+    _biQuebrasSyncPresentationButton();
+  });
 
   document.addEventListener('click', (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
 
-    const presentBtn = target.closest('[data-bi-quebras-present]');
-    if (presentBtn) {
-      const mode = String(presentBtn.getAttribute('data-bi-quebras-present') || '').trim();
-      if (['line', 'segmento', 'reason', 'ranking'].includes(mode)) {
-        event.preventDefault();
-        _biQuebrasOpenPresentation(mode);
-      }
-      return;
-    }
-
-    if (target.id === 'btn-bi-quebras-presentation-close' || target.closest('#btn-bi-quebras-presentation-close')) {
+    if (target.closest('#btn-bi-quebras-load')) {
       event.preventDefault();
-      _biQuebrasClosePresentation();
+      _biQuebrasSetDefaultDates();
+      loadBiQuebras();
       return;
     }
 
-    if (target.id === 'btn-bi-quebras-presentation-fs' || target.closest('#btn-bi-quebras-presentation-fs')) {
+    if (target.closest('#btn-bi-quebras-mode')) {
       event.preventDefault();
-      const shell = document.getElementById('bi-quebras-presentation');
-      if (!shell || shell.hidden) return;
-      if (document.fullscreenElement === shell) {
-        document.exitFullscreen().catch(() => {});
-      } else {
-        shell.requestFullscreen().catch(() => {
-          _biQuebrasShowFeedback('Tela cheia não disponível neste navegador.', true);
-        });
-      }
+      _biQuebrasTogglePresentationMode();
       return;
     }
 
-    const presCia = target.closest('[data-bi-quebras-presentation-cia]');
-    if (presCia) {
+    if (target.closest('#btn-bi-quebras-drawer-close')) {
       event.preventDefault();
-      _biQuebrasSelectCompany(presCia.getAttribute('data-bi-quebras-presentation-cia'));
-      _biQuebrasPresentationSyncSegmento();
-      return;
-    }
-
-    const sortBtn = target.closest('[data-bi-quebras-pres-sort]');
-    if (sortBtn) {
-      const sort = String(sortBtn.getAttribute('data-bi-quebras-pres-sort') || '');
-      if (sort === 'loss' || sort === 'volume') {
-        event.preventDefault();
-        _biQuebrasPresentationSort = sort;
-        document.querySelectorAll('[data-bi-quebras-pres-sort]').forEach((b) => {
-          b.classList.toggle('is-active', b.getAttribute('data-bi-quebras-pres-sort') === sort);
-        });
-        _biQuebrasPresentationSyncSegmento();
-      }
+      _biQuebrasCloseDrawer();
       return;
     }
 
@@ -13968,9 +14150,31 @@ function bindBiQuebrasEvents() {
       if (!BI_QUEBRAS_CIA_SCOPE_VALUES.has(nextScope) || nextScope === _biQuebrasSelectedCiaScope) return;
       _biQuebrasSelectedCiaScope = nextScope;
       _biQuebrasSelectedCompany = '';
+      _biQuebrasDrawerOpen = false;
+      _biQuebrasPageState.companies = 0;
+      _biQuebrasPageState.drawer = 0;
       _biQuebrasSyncScopeButtons();
-      _biQuebrasSetDefaultDates();
       loadBiQuebras();
+      return;
+    }
+
+    const tabBtn = target.closest('[data-bi-quebras-tab]');
+    if (tabBtn) {
+      const nextTab = String(tabBtn.getAttribute('data-bi-quebras-tab') || '').trim();
+      if (BI_QUEBRAS_TAB_IDS.includes(nextTab)) {
+        _biQuebrasActiveTab = nextTab;
+        _biQuebrasSyncTabs();
+      }
+      return;
+    }
+
+    const pageBtn = target.closest('[data-bi-quebras-page-nav]');
+    if (pageBtn) {
+      const raw = String(pageBtn.getAttribute('data-bi-quebras-page-nav') || '');
+      const [kind, direction] = raw.split(':');
+      if (kind && direction) {
+        _biQuebrasChangePage(kind, direction === 'next' ? 1 : -1);
+      }
       return;
     }
 
@@ -13981,39 +14185,28 @@ function bindBiQuebrasEvents() {
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      const pres = document.getElementById('bi-quebras-presentation');
-      if (pres && !pres.hidden) {
-        event.preventDefault();
-        _biQuebrasClosePresentation();
-      }
+    if (event.key !== 'Escape') return;
+    if (_biQuebrasDrawerOpen) {
+      event.preventDefault();
+      _biQuebrasCloseDrawer();
       return;
     }
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const companyRow = target.closest('[data-bi-quebras-company]');
-    if (!companyRow) return;
-    event.preventDefault();
-    _biQuebrasSelectCompany(companyRow.getAttribute('data-bi-quebras-company'));
+    if (_biQuebrasFallbackPresentation) {
+      _biQuebrasFallbackPresentation = false;
+      _biQuebrasSyncPresentationButton();
+    }
   });
 
   document.addEventListener('fullscreenchange', () => {
-    const shell = document.getElementById('bi-quebras-presentation');
-    if (!shell || shell.hidden || !_biQuebrasPresentationChart) return;
-    requestAnimationFrame(() => {
-      try {
-        _biQuebrasPresentationChart.resize();
-      } catch {
-        /* ignore */
-      }
-    });
+    if (!document.fullscreenElement) _biQuebrasFallbackPresentation = false;
+    _biQuebrasSyncPresentationButton();
+    _biQuebrasResizeChartsSoon();
   });
 }
 
 bindBiQuebrasEvents();
 
-// ── Inicialização ───────────────────────────────────────────────
+// â”€â”€ InicializaÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 (async function init() {
   applyProductDefaultsToForms();
   bindGlobalAdjustButtonKeyboardRetention();
