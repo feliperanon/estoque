@@ -13044,6 +13044,9 @@ if (moduleNav) {
 let _biQuebrasChartLine      = null;
 let _biQuebrasChartSegmento  = null;
 let _biQuebrasChartReason    = null;
+let _biQuebrasSelectedCompany = '';
+let _biQuebrasSelectedCiaScope = 'todas';
+let _biQuebrasCurrentCompanies = [];
 
 const BI_QUEBRAS_PALETTE = [
   '#e05263', '#f7a245', '#f7cf45', '#6dc96d', '#45b8f7',
@@ -13051,6 +13054,7 @@ const BI_QUEBRAS_PALETTE = [
   '#c0392b', '#d35400', '#27ae60', '#2980b9', '#8e44ad',
   '#16a085', '#f39c12', '#1abc9c', '#2c3e50', '#95a5a6',
 ];
+const BI_QUEBRAS_CIA_SCOPE_VALUES = new Set(['todas', 'mate-couro', 'outras']);
 
 function _biQuebrasFormatBRL(val) {
   if (val == null || isNaN(val)) return '—';
@@ -13216,13 +13220,96 @@ function _biQuebrasRenderRanking(topProducts) {
     li.innerHTML = `
       <span class="bi-quebras-rank-pos">${idx + 1}</span>
       <span class="bi-quebras-rank-desc" title="${p.descricao || ''}">${desc}</span>
-      <span class="bi-quebras-rank-seg">${p.segmento || '—'}</span>
+      <span class="bi-quebras-rank-seg">${p.cia || '—'}</span>
       <span class="bi-quebras-rank-cx">${p.cx ?? 0} CX</span>
       <span class="bi-quebras-rank-un">${p.un ?? 0} UN</span>
       <span class="bi-quebras-rank-loss ${p.loss_brl != null ? 'bi-quebras-rank-loss--val' : ''}">${loss}</span>
     `;
     list.appendChild(li);
   });
+}
+
+function _biQuebrasRenderCompanyProducts(company) {
+  const titleEl = document.getElementById('bi-quebras-company-products-title');
+  const countEl = document.getElementById('bi-quebras-company-products-count');
+  const listEl = document.getElementById('bi-quebras-company-products-list');
+  if (!listEl) return;
+
+  listEl.innerHTML = '';
+  if (!company) {
+    if (titleEl) titleEl.textContent = 'Produtos da CIA';
+    if (countEl) countEl.textContent = '0';
+    listEl.innerHTML = '<li class="bi-quebras-company-products-empty">Selecione uma CIA para ver os produtos.</li>';
+    return;
+  }
+
+  const products = Array.isArray(company.products) ? company.products : [];
+  if (titleEl) titleEl.textContent = `Produtos da CIA ${company.cia || '—'}`;
+  if (countEl) countEl.textContent = String(products.length);
+  if (!products.length) {
+    listEl.innerHTML = '<li class="bi-quebras-company-products-empty">Nenhum produto para esta CIA no período.</li>';
+    return;
+  }
+
+  products.forEach((product, idx) => {
+    const li = document.createElement('li');
+    li.className = 'bi-quebras-company-product-row';
+    const loss = product.loss_brl != null ? _biQuebrasFormatBRL(product.loss_brl) : '—';
+    li.innerHTML = `
+      <span class="bi-quebras-company-product-pos">${idx + 1}</span>
+      <span class="bi-quebras-company-product-main">
+        <strong class="bi-quebras-company-product-desc" title="${product.descricao || ''}">${(product.descricao || product.cod_produto || '—').substring(0, 46)}</strong>
+        <span class="bi-quebras-company-product-meta">${product.segmento || 'Sem segmento'} · ${product.cod_produto || '—'}</span>
+      </span>
+      <span class="bi-quebras-company-product-cx">${product.cx ?? 0} CX</span>
+      <span class="bi-quebras-company-product-un">${product.un ?? 0} UN</span>
+      <span class="bi-quebras-company-product-loss ${product.loss_brl != null ? 'bi-quebras-company-product-loss--val' : ''}">${loss}</span>
+    `;
+    listEl.appendChild(li);
+  });
+}
+
+function _biQuebrasRenderCompanyBreakdown(items) {
+  const list = document.getElementById('bi-quebras-segmento-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!items.length) {
+    _biQuebrasSelectedCompany = '';
+    list.innerHTML = '<li class="bi-quebras-breakdown-empty">Sem dados.</li>';
+    _biQuebrasRenderCompanyProducts(null);
+    return;
+  }
+
+  const availableCompanies = new Set(items.map((item) => String(item.cia || '').trim()).filter(Boolean));
+  if (!_biQuebrasSelectedCompany || !availableCompanies.has(_biQuebrasSelectedCompany)) {
+    _biQuebrasSelectedCompany = String(items[0].cia || '').trim();
+  }
+  const selected = items.find((item) => String(item.cia || '').trim() === _biQuebrasSelectedCompany) || null;
+
+  items.forEach((item, idx) => {
+    const cia = String(item.cia || '').trim();
+    const li = document.createElement('li');
+    const isSelected = cia && cia === _biQuebrasSelectedCompany;
+    li.className = `bi-quebras-breakdown-row bi-quebras-breakdown-row--interactive${isSelected ? ' is-selected' : ''}`;
+    li.dataset.biQuebrasCompany = cia;
+    li.tabIndex = 0;
+    li.setAttribute('role', 'button');
+    li.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+    const color = BI_QUEBRAS_PALETTE[idx % BI_QUEBRAS_PALETTE.length];
+    const pct = item.pct != null ? `${item.pct}%` : '—';
+    const loss = item.loss_brl != null ? _biQuebrasFormatBRL(item.loss_brl) : '—';
+    li.innerHTML = `
+      <span class="bi-quebras-bd-dot" style="background:${color}" aria-hidden="true"></span>
+      <span class="bi-quebras-bd-label" title="${item.cia || ''}">${(item.cia || '—').substring(0, 30)}</span>
+      <span class="bi-quebras-bd-items">${item.items ?? 0} prod.</span>
+      <span class="bi-quebras-bd-pct">${pct}</span>
+      <span class="bi-quebras-bd-loss">${loss}</span>
+      <span class="bi-quebras-bd-occ">${item.total_cx ?? 0} CX · ${item.total_un ?? 0} UN</span>
+    `;
+    list.appendChild(li);
+  });
+
+  _biQuebrasRenderCompanyProducts(selected);
 }
 
 function _biQuebrasRenderBreakdownList(listId, items, labelKey, extraFn) {
@@ -13260,6 +13347,21 @@ function _biQuebrasShowFeedback(msg, isError) {
   el.style.display = msg ? '' : 'none';
 }
 
+function _biQuebrasSyncScopeButtons() {
+  document.querySelectorAll('[data-bi-quebras-cia-scope]').forEach((btn) => {
+    const isActive = btn.getAttribute('data-bi-quebras-cia-scope') === _biQuebrasSelectedCiaScope;
+    btn.classList.toggle('is-active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
+function _biQuebrasSelectCompany(cia) {
+  const normalized = String(cia || '').trim();
+  if (!normalized) return;
+  _biQuebrasSelectedCompany = normalized;
+  _biQuebrasRenderCompanyBreakdown(_biQuebrasCurrentCompanies || []);
+}
+
 async function loadBiQuebras() {
   const fromEl   = document.getElementById('bi-quebras-date-from');
   const toEl     = document.getElementById('bi-quebras-date-to');
@@ -13282,6 +13384,7 @@ async function loadBiQuebras() {
   const params = new URLSearchParams();
   if (dateFrom) params.set('date_from', dateFrom);
   if (dateTo)   params.set('date_to',   dateTo);
+  params.set('cia_scope', _biQuebrasSelectedCiaScope);
 
   if (loading) loading.hidden = false;
 
