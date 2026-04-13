@@ -2769,6 +2769,48 @@ def _ensure_mate_couro_troca_logs_table() -> None:
         raise
 
 
+def _mate_troca_normalize_cx_un(cx: int, un: int, factor: float | None) -> tuple[int, int]:
+    """Converte UN acumuladas em CX inteiras quando UN >= fator (UN por 1 CX). Só aplica com fator inteiro > 0."""
+    cx_i = max(0, int(cx))
+    un_i = max(0, int(un))
+    if factor is None:
+        return cx_i, un_i
+    try:
+        f = float(factor)
+    except (TypeError, ValueError):
+        return cx_i, un_i
+    if not (f > 0) or f != f:  # NaN
+        return cx_i, un_i
+    fr = round(f)
+    if fr <= 0 or abs(f - fr) > 1e-9:
+        return cx_i, un_i
+    fi = int(fr)
+    total = cx_i * fi + un_i
+    return total // fi, total % fi
+
+
+def _mate_troca_product_factor_by_code(session: Session) -> dict[str, float]:
+    """Mapa código canônico (numérico) → fator de conversão; só produtos CIA Mate couro com fator definido."""
+    out: dict[str, float] = {}
+    rows = list(
+        session.exec(
+            select(Product.cod_produto, Product.conversion_factor).where(Product.cod_grup_cia == MATE_COURO_CIA)
+        ).all()
+    )
+    for cod_produto, cf in rows:
+        if cf is None:
+            continue
+        try:
+            fv = float(cf)
+        except (TypeError, ValueError):
+            continue
+        ck = _normalize_numeric_product_code_key(str(cod_produto or ""))
+        if not ck:
+            continue
+        out[ck] = fv
+    return out
+
+
 class MateTrocaEventInput(BaseModel):
     client_event_id: str = Field(min_length=8, max_length=100)
     kind: str = Field(max_length=24)
@@ -2813,8 +2855,8 @@ def _canonical_mate_couro_cod(session: Session, raw: str) -> str:
     )
 
 
-def _validate_mate_troca_payload(ev: MateTrocaEventInput) -> tuple[int, int]:
-    """Retorna (excess_cx, excess_un) gravados; para chegada usa o calculo do servidor."""
+def _validate_mate_troca_payload(ev: MateTrocaEventInput, factor: float | None) -> tuple[int, int]:
+    """Retorna (excess_cx, excess_un) gravados; pendente após evento é normalizado pelo fator (UN por CX) quando aplicável."""
     k = (ev.kind or "").strip()
     if k == "chegada":
         if ev.qty_cx_in < 0 or ev.qty_un_in < 0:
@@ -2822,17 +2864,16 @@ def _validate_mate_troca_payload(ev: MateTrocaEventInput) -> tuple[int, int]:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="chegada exige quantidades nao negativas.",
             )
-        ex_cx = max(0, ev.qty_cx_in - ev.pend_cx_before)
-        ex_un = max(0, ev.qty_un_in - ev.pend_un_before)
-        if ev.pend_cx_after != max(0, ev.pend_cx_before - ev.qty_cx_in):
+        nbcx, nbun = _mate_troca_normalize_cx_un(ev.pend_cx_before, ev.pend_un_before, factor)
+        ex_cx = max(0, ev.qty_cx_in - nbcx)
+        ex_un = max(0, ev.qty_un_in - nbun)
+        raw_acx = max(0, nbcx - ev.qty_cx_in)
+        raw_aun = max(0, nbun - ev.qty_un_in)
+        exp_cx, exp_un = _mate_troca_normalize_cx_un(raw_acx, raw_aun, factor)
+        if ev.pend_cx_after != exp_cx or ev.pend_un_after != exp_un:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="pend_cx_after inconsistente com chegada.",
-            )
-        if ev.pend_un_after != max(0, ev.pend_un_before - ev.qty_un_in):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="pend_un_after inconsistente com chegada.",
+                detail="pendente apos chegada inconsistente (verifique fator de conversao e saldo atual).",
             )
         return ex_cx, ex_un
     if k in ("definir", "ajuste_pendente"):
@@ -2841,10 +2882,11 @@ def _validate_mate_troca_payload(ev: MateTrocaEventInput) -> tuple[int, int]:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="definir/ajuste exige quantidades nao negativas.",
             )
-        if ev.pend_cx_after != ev.qty_cx_in or ev.pend_un_after != ev.qty_un_in:
+        exp_cx, exp_un = _mate_troca_normalize_cx_un(ev.qty_cx_in, ev.qty_un_in, factor)
+        if ev.pend_cx_after != exp_cx or ev.pend_un_after != exp_un:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Pendente apos ajuste deve coincidir com qty_cx_in / qty_un_in.",
+                detail="Pendente apos ajuste deve coincidir com totais normalizados (CX/UN e fator).",
             )
         return 0, 0
     if k == "zerar":
@@ -2860,12 +2902,14 @@ def _validate_mate_troca_payload(ev: MateTrocaEventInput) -> tuple[int, int]:
             )
         return 0, 0
     if k == "incorporacao_quebra":
-        exp_cx = max(0, int(ev.pend_cx_before) + int(ev.qty_cx_in))
-        exp_un = max(0, int(ev.pend_un_before) + int(ev.qty_un_in))
+        nbcx, nbun = _mate_troca_normalize_cx_un(ev.pend_cx_before, ev.pend_un_before, factor)
+        raw_cx = max(0, nbcx + int(ev.qty_cx_in))
+        raw_un = max(0, nbun + int(ev.qty_un_in))
+        exp_cx, exp_un = _mate_troca_normalize_cx_un(raw_cx, raw_un, factor)
         if int(ev.pend_cx_after) != exp_cx or int(ev.pend_un_after) != exp_un:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Pendente apos incorporacao_quebra inconsistente com delta.",
+                detail="Pendente apos incorporacao_quebra inconsistente com delta (inclui conversao CX/UN).",
             )
         return 0, 0
     raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="kind invalido.")
@@ -2882,6 +2926,7 @@ def ingest_mate_troca_events(
     synced_ids: list[str] = []
 
     try:
+        fac_map = _mate_troca_product_factor_by_code(session)
         for ev in payload.events:
             if (ev.kind or "").strip() not in _ALLOWED_MATE_TROCA_KINDS:
                 raise HTTPException(
@@ -2896,7 +2941,8 @@ def ingest_mate_troca_events(
                 continue
 
             cod = _canonical_mate_couro_cod(session, ev.cod_produto)
-            ex_cx, ex_un = _validate_mate_troca_payload(ev)
+            fac = fac_map.get(cod)
+            ex_cx, ex_un = _validate_mate_troca_payload(ev, fac)
 
             row = MateCouroTrocaLog(
                 client_event_id=ev.client_event_id,
@@ -3013,8 +3059,12 @@ def list_mate_troca_events(
 
 
 def _mate_troca_pending_product_map(session: Session) -> dict[str, dict[str, int]]:
-    """Pendente CX/UN por código canônico (último evento por produto, aliases numéricos unificados)."""
+    """Pendente CX/UN por código canônico (último evento por produto, aliases numéricos unificados).
+
+    Saldo é normalizado pelo fator de conversão do cadastro (UN por CX), quando o fator é inteiro > 0.
+    """
     _ensure_mate_couro_troca_logs_table()
+    fac_map = _mate_troca_product_factor_by_code(session)
     rn = (
         func.row_number()
         .over(
@@ -3077,7 +3127,9 @@ def _mate_troca_pending_product_map(session: Session) -> dict[str, dict[str, int
     for c, (cx, un, _, _, _) in best_row.items():
         if cx == 0 and un == 0:
             continue
-        pending[c] = {"cx": cx, "un": un}
+        fac = fac_map.get(c)
+        ncx, nun = _mate_troca_normalize_cx_un(cx, un, fac)
+        pending[c] = {"cx": ncx, "un": nun}
     return pending
 
 
@@ -3145,8 +3197,11 @@ def _mate_troca_base_v2_balances(
 
     Assim não se usa mais um “último evento” por partição SQL em ``cod_produto`` bruto, que podia
     ignorar eventos em variantes de código do mesmo produto.
+
+    O par CX/UN exibido é normalizado pelo fator de conversão do cadastro quando aplicável.
     """
     _ensure_mate_couro_troca_logs_table()
+    fac_map = _mate_troca_product_factor_by_code(session)
     rows = list(
         session.exec(
             select(MateCouroTrocaLog).order_by(MateCouroTrocaLog.created_at, MateCouroTrocaLog.id)
@@ -3225,6 +3280,11 @@ def _mate_troca_base_v2_balances(
             balances[ck]["un"],
             origem,
         )
+
+        fac = fac_map.get(ck)
+        cx0, un0 = balances[ck]["cx"], balances[ck]["un"]
+        cxf, unf = _mate_troca_normalize_cx_un(cx0, un0, fac)
+        balances[ck] = {"cx": cxf, "un": unf}
 
     return balances
 
@@ -3413,6 +3473,9 @@ def mate_troca_reconcile_pending_from_break_sum(
         )
     canon = _canonical_mate_couro_cod(session, body.cod_produto)
     tgt_cx, tgt_un = _sum_break_caixa_un_for_code_date_range(session, canon, d0, d1)
+    fac_map = _mate_troca_product_factor_by_code(session)
+    fac = fac_map.get(canon)
+    tgt_cx, tgt_un = _mate_troca_normalize_cx_un(tgt_cx, tgt_un, fac)
 
     pending_map = _mate_troca_pending_product_map(session)
     cur = pending_map.get(canon) or {"cx": 0, "un": 0}
@@ -3446,7 +3509,7 @@ def mate_troca_reconcile_pending_from_break_sum(
         excess_un=0,
         device_name="reconcile-from-breaks",
     )
-    ex_cx, ex_un = _validate_mate_troca_payload(ev)
+    ex_cx, ex_un = _validate_mate_troca_payload(ev, fac)
     row = MateCouroTrocaLog(
         client_event_id=ev.client_event_id,
         kind="definir",

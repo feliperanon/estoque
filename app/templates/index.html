@@ -529,6 +529,9 @@
                     <strong>De / Até</strong> + <strong>Atualizar lista</strong> só define quais códigos aparecem (ex.: tiveram quebra no período); não substitui o pendente exibido.
                     <strong>Carregar</strong> envia a quebra do dia ao servidor e atualiza o pendente.
                   </p>
+                  <p class="count-audit-card-sub muted mate-troca-conversion-hint">
+                    Se o cadastro tiver <strong>fator de conversão</strong> (UN por 1 CX) como número inteiro (ex.: 6), o saldo <strong>CX / UN</strong> é mostrado e atualizado já convertido — unidades que completam uma caixa viram CX automaticamente. Fatores decimais não disparam essa conversão.
+                  </p>
                   <div class="count-audit-header__toolbar mate-troca-kpi-toolbar" aria-label="Ações da base de troca">
                     <div class="count-audit-field count-audit-field--date">
                       <label class="count-audit-label" for="mate-couro-troca-acum-from">De</label>
@@ -634,7 +637,7 @@
                     <div>
                       <h3 id="mate-couro-troca-balance-v2-title">Base de troca</h3>
                       <p class="count-audit-card-sub muted mate-couro-troca-balance-v2-lede">
-                        Saldo acumulado por produto. Só zera por ação manual.
+                        Saldo acumulado por produto. Só zera por ação manual. Com fator inteiro no cadastro, CX e UN são consolidados automaticamente.
                       </p>
                     </div>
                     <div class="count-audit-list-head-meta mate-couro-troca-balance-v2-meta">

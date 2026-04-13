@@ -4180,6 +4180,12 @@ function composeMateTrocaBaseBalanceRowsV2(
     const p = (catalog || []).find(
       (x) => normalizeNumericProductCodeKey(String(x.cod_produto || '')) === cod,
     );
+    if (saldoKnown && cx != null && un != null) {
+      const fac = p && p.conversion_factor != null ? Number(p.conversion_factor) : null;
+      const n = normalizeMateTrocaCxUn(cx, un, fac);
+      cx = n.cx;
+      un = n.un;
+    }
     const desc = p ? String(p.cod_grup_descricao || '').trim() : (lastValidMap[cod]?.desc || '');
     if (term) {
       const ok =
@@ -4353,15 +4359,21 @@ async function refreshMateTrocaBaseScreenData() {
 function getMateTrocaV2CurForPayload(cod) {
   const ck = normalizeNumericProductCodeKey(cod) || normalizeItemCode(String(cod || ''));
   if (!ck) return { cx: 0, un: 0 };
+  let cx = 0;
+  let un = 0;
   if (mateTrocaBaseBalanceCacheV2[ck] !== undefined) {
     const b = mateTrocaBaseBalanceCacheV2[ck];
-    return { cx: Math.max(0, Math.round(Number(b.cx) || 0)), un: Math.max(0, Math.round(Number(b.un) || 0)) };
+    cx = Math.max(0, Math.round(Number(b.cx) || 0));
+    un = Math.max(0, Math.round(Number(b.un) || 0));
+  } else {
+    const lv = mateTrocaBaseLastValidStateV2[ck];
+    if (lv && lv.saldoKnown) {
+      cx = Math.max(0, Math.round(Number(lv.cx) || 0));
+      un = Math.max(0, Math.round(Number(lv.un) || 0));
+    }
   }
-  const lv = mateTrocaBaseLastValidStateV2[ck];
-  if (lv && lv.saldoKnown) {
-    return { cx: Math.max(0, Math.round(Number(lv.cx) || 0)), un: Math.max(0, Math.round(Number(lv.un) || 0)) };
-  }
-  return { cx: 0, un: 0 };
+  const factor = getMateCouroConversionFactorForCod(ck);
+  return normalizeMateTrocaCxUn(cx, un, factor);
 }
 
 function mateTrocaV2SaldoKnownForCod(cod) {
@@ -4801,17 +4813,28 @@ function mateTrocaChegouAMaisText(ev) {
 }
 
 function buildMateTrocaServerPayload(kind, cod, cur, next, qtyCxIn, qtyUnIn) {
-  const pendBeforeCx = Math.round(Number(cur.cx) || 0);
-  const pendBeforeUn = Math.round(Number(cur.un) || 0);
-  const pendAfterCx = Math.round(Number(next.cx) || 0);
-  const pendAfterUn = Math.round(Number(next.un) || 0);
+  const factor = getMateCouroConversionFactorForCod(cod);
+  const curN = normalizeMateTrocaCxUn(cur.cx, cur.un, factor);
+  const pendBeforeCx = curN.cx;
+  const pendBeforeUn = curN.un;
   const qcx = Math.round(Number(qtyCxIn) || 0);
   const qun = Math.round(Number(qtyUnIn) || 0);
+  let pendAfterCx;
+  let pendAfterUn;
   let excessCx = 0;
   let excessUn = 0;
   if (kind === 'chegada') {
     excessCx = Math.max(0, qcx - pendBeforeCx);
     excessUn = Math.max(0, qun - pendBeforeUn);
+    const rawCx = Math.max(0, pendBeforeCx - qcx);
+    const rawUn = Math.max(0, pendBeforeUn - qun);
+    const afterN = normalizeMateTrocaCxUn(rawCx, rawUn, factor);
+    pendAfterCx = afterN.cx;
+    pendAfterUn = afterN.un;
+  } else {
+    const nextN = normalizeMateTrocaCxUn(next.cx, next.un, factor);
+    pendAfterCx = nextN.cx;
+    pendAfterUn = nextN.un;
   }
   return {
     client_event_id: makeEventId(),
@@ -4943,10 +4966,15 @@ async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
     if (!base) continue;
 
     const cur = work[base] || { cx: 0, un: 0 };
-    const pendCxBefore = Math.round(Number(cur.cx) || 0);
-    const pendUnBefore = Math.round(Number(cur.un) || 0);
-    const pendCxAfter = Math.max(0, pendCxBefore + dcx);
-    const pendUnAfter = Math.max(0, pendUnBefore + dun);
+    const factor = getMateCouroConversionFactorForCod(base);
+    const curN = normalizeMateTrocaCxUn(cur.cx, cur.un, factor);
+    const pendCxBefore = curN.cx;
+    const pendUnBefore = curN.un;
+    const rawAfterCx = Math.max(0, pendCxBefore + dcx);
+    const rawAfterUn = Math.max(0, pendUnBefore + dun);
+    const afterN = normalizeMateTrocaCxUn(rawAfterCx, rawAfterUn, factor);
+    const pendCxAfter = afterN.cx;
+    const pendUnAfter = afterN.un;
 
     payloads.push({
       client_event_id: mateTrocaIncorporacaoClientEventId(dayKey, base, dcx, dun),
@@ -5036,6 +5064,32 @@ function mateCouroCatalogHasCode(set, evCod) {
     if (compact && set.has(compact)) return true;
   }
   return false;
+}
+
+/** UN por 1 CX no cadastro; null se não houver fator utilizável. */
+function getMateCouroConversionFactorForCod(cod) {
+  const ck = normalizeNumericProductCodeKey(String(cod || ''));
+  if (!ck) return null;
+  const p = (mateCouroProductsCache || []).find(
+    (x) => normalizeNumericProductCodeKey(String(x.cod_produto || '')) === ck,
+  );
+  if (!p || p.conversion_factor == null || p.conversion_factor === '') return null;
+  const f = Number(p.conversion_factor);
+  return Number.isFinite(f) ? f : null;
+}
+
+/** Converte UN em caixas inteiras quando atinge o fator (somente fator inteiro > 0). */
+function normalizeMateTrocaCxUn(cx, un, factor) {
+  let c = Math.max(0, Math.round(Number(cx) || 0));
+  let u = Math.max(0, Math.round(Number(un) || 0));
+  if (factor == null || factor === '') return { cx: c, un: u };
+  const f = Number(factor);
+  if (!Number.isFinite(f) || f <= 0) return { cx: c, un: u };
+  const fr = Math.round(f);
+  if (fr <= 0 || Math.abs(f - fr) > 1e-9) return { cx: c, un: u };
+  const fi = fr;
+  const total = c * fi + u;
+  return { cx: Math.floor(total / fi), un: total % fi };
 }
 
 function filterEventsMateCouro(events) {
