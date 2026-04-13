@@ -7,11 +7,14 @@ from fastapi.templating import Jinja2Templates
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.db.session import SessionLocal
+from app.middleware.static_charset import StaticUtf8CharsetMiddleware
 from app.services.bootstrap import ensure_admin_user, ensure_database_ready
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name)
 app.include_router(api_router, prefix=settings.api_prefix)
+# Declara UTF-8 em /static/*.js (etc.) para o navegador não interpretar string literals como Latin-1.
+app.add_middleware(StaticUtf8CharsetMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
