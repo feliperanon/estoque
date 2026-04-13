@@ -13555,6 +13555,18 @@ function _biQuebrasPresentationSyncSegmento() {
   });
 }
 
+function _biQuebrasPresentationResizeChartSoon() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        _biQuebrasPresentationChart?.resize();
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+}
+
 function _biQuebrasClosePresentation() {
   const shell = document.getElementById('bi-quebras-presentation');
   if (!shell) return;
@@ -13630,6 +13642,7 @@ function _biQuebrasOpenPresentation(mode) {
       canvas,
       _biQuebrasLastPayload.by_day || [],
     );
+    _biQuebrasPresentationResizeChartSoon();
     return;
   }
 
@@ -13644,6 +13657,7 @@ function _biQuebrasOpenPresentation(mode) {
       'loss_brl',
       undefined,
     );
+    _biQuebrasPresentationResizeChartSoon();
     return;
   }
 
@@ -13673,6 +13687,7 @@ function _biQuebrasOpenPresentation(mode) {
     );
     _biQuebrasFillPresentationCiaChips();
     _biQuebrasPresentationSyncSegmento();
+    _biQuebrasPresentationResizeChartSoon();
   }
 }
 

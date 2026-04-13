@@ -31,10 +31,7 @@ from app.models import (
     User,
     ValidityLine,
 )
-from app.services.inventory_txt_parse import (
-    extract_caixa_unidade_from_numeric_tail,
-    extract_caixa_unidade_from_txt_tokens,
-)
+from app.services.inventory_txt_parse import resolve_saldo_fisico_caixa_unidade
 from app.services.validity_lines_schema import ensure_validity_lines_structures
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -696,16 +693,12 @@ def _extract_import_quantities(metrics: dict | list | None) -> tuple[int, int]:
             except (TypeError, ValueError):
                 pass
         nt = metrics.get("numeric_tail")
-        if isinstance(nt, str):
-            got = extract_caixa_unidade_from_numeric_tail(nt)
-            if got is not None:
-                return got
         raw = metrics.get("raw")
-        if isinstance(raw, list):
-            return extract_caixa_unidade_from_txt_tokens([str(x) for x in raw])
-        return 0, 0
+        nt_str = nt if isinstance(nt, str) else None
+        raw_list = [str(x) for x in raw] if isinstance(raw, list) else []
+        return resolve_saldo_fisico_caixa_unidade(nt_str, raw_list)
     if isinstance(metrics, list):
-        return extract_caixa_unidade_from_txt_tokens([str(x) for x in metrics])
+        return resolve_saldo_fisico_caixa_unidade(None, [str(x) for x in metrics])
     return 0, 0
 
 

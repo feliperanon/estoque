@@ -134,10 +134,10 @@ def extract_caixa_unidade_from_txt_tokens(tokens: list[str]) -> tuple[int, int]:
     return extract_caixa_unidade_from_tokens_pair_index(tokens, idx)
 
 
-def _saldo_fisico_caixa_unidade(numeric_tail: str | None, raw_tokens: list[str]) -> tuple[int, int]:
+def resolve_saldo_fisico_caixa_unidade(numeric_tail: str | None, raw_tokens: list[str]) -> tuple[int, int]:
     """
-    Corte fixo no bloco SALDO FÍSICO (13 cols) quando o recorte tem CX e UN distintos; se o recorte
-    tiver só um token (colunas deslocadas), usa o par de tokens derivado do tamanho da lista.
+    Saldo físico CX/UN: corte fixo (13 cols) quando o recorte tem dois tokens; se tiver só um token,
+    par ``0`` + UN antes da diferença negativa; senão par por tamanho da lista de tokens.
     """
     idx = saldo_fisico_pair_index(len(raw_tokens))
     cx_tok, un_tok = (
@@ -170,7 +170,7 @@ def parse_inventory_txt_line(line: str) -> dict[str, object] | None:
     desc = m.group(2).strip()
     numeric_tail = m.group(3)
     raw_tokens = numeric_tail.split()
-    caixa, unidade = _saldo_fisico_caixa_unidade(numeric_tail, raw_tokens)
+    caixa, unidade = resolve_saldo_fisico_caixa_unidade(numeric_tail, raw_tokens)
     return {
         "cod_produto": cod,
         "descricao": desc,
@@ -183,7 +183,7 @@ def parse_inventory_txt_line(line: str) -> dict[str, object] | None:
 
 def build_import_item_metrics(raw_tokens: list[str], numeric_tail: str | None = None) -> dict[str, object]:
     """Payload JSON para InventoryImportItem.metrics (histórico + saldo interpretado)."""
-    caixa, unidade = _saldo_fisico_caixa_unidade(numeric_tail, raw_tokens)
+    caixa, unidade = resolve_saldo_fisico_caixa_unidade(numeric_tail, raw_tokens)
     out: dict[str, object] = {"raw": raw_tokens, "caixa": caixa, "unidade": unidade}
     if numeric_tail is not None:
         out["numeric_tail"] = numeric_tail

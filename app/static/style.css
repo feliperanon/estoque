@@ -10399,6 +10399,56 @@ body.bi-quebras-presentation-open {
   font-size: 0.85rem;
 }
 
+@media (max-width: 640px) {
+  .bi-quebras-presentation-ranking-header {
+    display: none;
+  }
+  .bi-quebras-presentation-ranking-wrap .bi-quebras-ranking-row {
+    grid-template-columns: 1.8rem 1fr auto;
+    grid-template-rows: auto auto;
+  }
+  .bi-quebras-presentation-ranking-wrap .bi-quebras-rank-seg {
+    grid-column: 2;
+  }
+  .bi-quebras-presentation-ranking-wrap .bi-quebras-rank-cx,
+  .bi-quebras-presentation-ranking-wrap .bi-quebras-rank-un {
+    display: none;
+  }
+  .bi-quebras-presentation-ranking-wrap .bi-quebras-rank-loss {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: center;
+    min-width: 84px;
+    font-size: 0.85rem;
+  }
+  .bi-quebras-presentation-cia-aside .bi-quebras-company-product-row {
+    grid-template-columns: 1.8rem 1fr auto;
+    grid-template-rows: auto auto auto;
+  }
+  .bi-quebras-presentation-cia-aside .bi-quebras-company-product-cx,
+  .bi-quebras-presentation-cia-aside .bi-quebras-company-product-un {
+    grid-row: 2;
+    font-size: 0.72rem;
+  }
+  .bi-quebras-presentation-cia-aside .bi-quebras-company-product-cx {
+    grid-column: 2;
+    text-align: left;
+  }
+  .bi-quebras-presentation-cia-aside .bi-quebras-company-product-un {
+    grid-column: 3;
+  }
+  .bi-quebras-presentation-cia-aside .bi-quebras-company-product-loss {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: center;
+    min-width: 88px;
+  }
+  .bi-quebras-presentation-cia-aside .bi-quebras-company-product-main {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+}
+
 /* No-price alert */
 .bi-quebras-no-price-alert {
   display: flex;
