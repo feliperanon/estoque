@@ -14035,12 +14035,14 @@ function _biQuebrasSyncTabs() {
       panel.classList.toggle('is-active', isActive);
     }
   });
-  if (_biQuebrasActiveTab === 'trend') {
-    _biQuebrasRenderTrendChart(_biQuebrasLastPayload?.by_day || []);
-  } else if (_biQuebrasActiveTab === 'reasons') {
-    _biQuebrasRenderReasonChart(_biQuebrasLastPayload?.by_reason || []);
-  }
-  _biQuebrasResizeChartsSoon();
+  requestAnimationFrame(() => {
+    if (_biQuebrasActiveTab === 'trend') {
+      _biQuebrasRenderTrendChart(_biQuebrasLastPayload?.by_day || []);
+    } else if (_biQuebrasActiveTab === 'reasons') {
+      _biQuebrasRenderReasonChart(_biQuebrasLastPayload?.by_reason || []);
+    }
+    _biQuebrasResizeChartsSoon();
+  });
 }
 
 function _biQuebrasRenderExecutiveView(data) {
