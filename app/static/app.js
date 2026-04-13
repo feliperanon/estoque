@@ -3340,7 +3340,7 @@ function renderCountProducts(products) {
 }
 
 function updateCountReadOnlyState() {
-  const shell = document.querySelector('.count-products-shell');
+  const shell = document.querySelector('#sub-count .count-products-shell');
   const editable = isCountOperationalEditable();
   if (shell) {
     shell.classList.toggle('count-products-shell--readonly', !editable);
@@ -8809,20 +8809,20 @@ function registerCount(itemCodeInput) {
   registerCountDelta(itemCodeInput, 1, 'caixa');
 }
 
-/** Confirma saldo zero com TXT quando total e saldo são 0 (sem substituir total pelo input). */
+/** Confirma saldo zero com TXT quando total e saldo são 0 (sem substituir total pelo input). @returns {boolean} */
 function tryConfirmExplicitZeroOnBlur(codRefEnc, countTypeRaw) {
   const codRaw = decodeURIComponent(String(codRefEnc || ''));
   const itemCode = normalizeItemCode(codRaw);
   const countType = normalizeCountType(countTypeRaw || 'caixa');
-  if (!itemCode || !isCountOperationalEditable()) return;
+  if (!itemCode || !isCountOperationalEditable()) return false;
   const current = getNetByProductAndType(itemCode, countType);
-  if (current !== 0) return;
-  if (!countImportBalancesState.hasTxt) return;
+  if (current !== 0) return false;
+  if (!countImportBalancesState.hasTxt) return false;
   const pair = getCountSaldoPair(itemCode);
-  if (!pair) return;
+  if (!pair) return false;
   const s = countType === 'caixa' ? pair.import_caixa : pair.import_unidade;
-  if (Math.max(0, Math.round(Number(s) || 0)) !== 0) return;
-  registerCountDelta(itemCode, 0, countType);
+  if (Math.max(0, Math.round(Number(s) || 0)) !== 0) return false;
+  return registerCountDelta(itemCode, 0, countType);
 }
 
 function parseOperationQtyFromInputEl(inp) {
@@ -8880,10 +8880,11 @@ function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
   if (inp) inp.value = '';
 }
 
+/** @returns {boolean} true se um evento foi gravado no bucket do dia. */
 function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa') {
   if (!isCountOperationalEditable()) {
     setFeedback('Só é possível lançar contagem na data de hoje (America/Sao_Paulo).', true);
-    return;
+    return false;
   }
   const itemCode = normalizeItemCode(itemCodeInput);
   const quantity = Number(qtyDeltaInput);
@@ -8891,12 +8892,12 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
 
   if (!itemCode) {
     setFeedback('Informe o item para registrar.', true);
-    return;
+    return false;
   }
 
   if (!Number.isInteger(quantity)) {
     setFeedback('Informe uma quantidade inteira.', true);
-    return;
+    return false;
   }
 
   const dayKey = getActiveCountDateKey();
@@ -8906,12 +8907,12 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   if (quantity === 0) {
     if (!countImportBalancesState.hasTxt) {
       setFeedback('Confirme zero só com base TXT carregada para o dia.', true);
-      return;
+      return false;
     }
     const pair = getCountSaldoPair(itemCode);
     if (!pair) {
       setFeedback('Produto sem linha na importação: não dá para confirmar zero frente ao TXT.', true);
-      return;
+      return false;
     }
     const saldo =
       countType === 'unidade'
@@ -8919,17 +8920,17 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
         : Math.max(0, Math.round(Number(pair.import_caixa) || 0));
     if (saldo !== 0) {
       setFeedback('Só confirme com 0 quando o saldo TXT nesta dimensão (CX ou UN) for zero.', true);
-      return;
+      return false;
     }
     if (getNetByProductAndType(itemCode, countType) !== 0) {
       setFeedback('Ajuste a contagem antes: confirmação 0 exige total zerado nesta dimensão.', true);
-      return;
+      return false;
     }
     clientEventId = makeStableExplicitZeroEventId(dayKey, itemCode, countType);
     if (events.some((e) => e.client_event_id === clientEventId)) {
       setCountExplicitZero(itemCode, countType, true);
       setFeedback('Zero nesta dimensão já está registrado (pendente ou enviado).', false, true);
-      return;
+      return false;
     }
   }
 
@@ -8991,6 +8992,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   if (navigator.onLine) {
     syncPendingEvents();
   }
+  return true;
 }
 
 function exportBackup() {
@@ -9168,7 +9170,7 @@ function bindCountEvents() {
     });
   }
 
-  const countShell = document.querySelector('.count-products-shell');
+  const countShell = document.querySelector('#sub-count .count-products-shell');
   if (countShell && countShell.dataset.countDelegates !== '1') {
     countShell.dataset.countDelegates = '1';
     const refreshCountListAfterEdit = () => {
@@ -9209,12 +9211,17 @@ function bindCountEvents() {
       }
       const ref = inp.getAttribute('data-coderef') || '';
       const ct = inp.getAttribute('data-count-type') || 'caixa';
-      tryConfirmExplicitZeroOnBlur(ref, ct);
+      const zeroConfirmedOnBlur = tryConfirmExplicitZeroOnBlur(ref, ct);
       const genAtBlur = countAdjustGestureGeneration;
       const opParsedBlur = parseOperationQtyFromInputEl(inp);
       /* 0 = confirmação explícita: não dispara o + automático do blur (evita duplicar ez0_). */
-      if (opParsedBlur == null || opParsedBlur === 0) {
+      if (opParsedBlur === 0) {
         refreshCountListAfterEdit();
+        return;
+      }
+      /* Campo vazio: não re-renderiza a lista inteira (no mobile destrói o DOM e o próximo tap falha). Só atualiza se houve confirmação zero gravada. */
+      if (opParsedBlur == null) {
+        if (zeroConfirmedOnBlur) refreshCountListAfterEdit();
         return;
       }
       const runDeferredAutoPlus = () => {
@@ -13423,20 +13430,17 @@ async function loadBiQuebras() {
   // Ranking Top Produtos
   _biQuebrasRenderRanking(data.top_products || []);
 
-  // Doughnut — Segmento
+  _biQuebrasCurrentCompanies = Array.isArray(data.by_company) ? data.by_company : [];
+
+  // Doughnut — CIA
   _biQuebrasChartSegmento = _biQuebrasRenderDoughnut(
     'bi-quebras-chart-segmento',
     _biQuebrasChartSegmento,
-    data.by_category || [],
-    'segmento',
+    _biQuebrasCurrentCompanies,
+    'cia',
     'loss_brl',
   );
-  _biQuebrasRenderBreakdownList(
-    'bi-quebras-segmento-list',
-    data.by_category || [],
-    'segmento',
-    null,
-  );
+  _biQuebrasRenderCompanyBreakdown(_biQuebrasCurrentCompanies);
 
   // Doughnut — Motivo
   _biQuebrasChartReason = _biQuebrasRenderDoughnut(

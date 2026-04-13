@@ -10252,6 +10252,31 @@ details[open] > .validity-analytic-summary::after {
   min-width: 0;
 }
 
+#sub-bi-quebras .bi-quebras-field--scope {
+  flex: 1 1 20rem;
+}
+
+#sub-bi-quebras .bi-quebras-scope-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+#sub-bi-quebras .bi-quebras-scope-btn {
+  min-height: 2.25rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  font-size: var(--audit-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#sub-bi-quebras .bi-quebras-scope-btn.is-active {
+  border-color: rgba(15, 118, 110, 0.4);
+  background: rgba(15, 118, 110, 0.08);
+  color: #0d5c56;
+}
+
 #sub-bi-quebras .bi-quebras-date-input {
   background: var(--audit-card);
   border: 1px solid var(--audit-border-strong);
@@ -10492,6 +10517,126 @@ details[open] > .validity-analytic-summary::after {
   font-size: 0.78rem;
 }
 
+#sub-bi-quebras .bi-quebras-breakdown-row--interactive {
+  grid-template-columns: 10px minmax(0, 2fr) 66px 52px minmax(0, 100px) minmax(106px, 1fr);
+  cursor: pointer;
+}
+
+#sub-bi-quebras .bi-quebras-breakdown-row--interactive:hover {
+  background: rgba(15, 118, 110, 0.04);
+}
+
+#sub-bi-quebras .bi-quebras-breakdown-row--interactive.is-selected {
+  background: rgba(15, 118, 110, 0.08);
+  box-shadow: inset 3px 0 0 #0f766e;
+}
+
+#sub-bi-quebras .bi-quebras-breakdown-row--interactive:focus-visible {
+  outline: 2px solid var(--audit-focus);
+  outline-offset: -2px;
+}
+
+#sub-bi-quebras .bi-quebras-company-products {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#sub-bi-quebras .bi-quebras-company-products-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+#sub-bi-quebras .bi-quebras-company-products-head h4 {
+  margin: 0;
+  color: var(--audit-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+#sub-bi-quebras .bi-quebras-company-products-panel {
+  border: 1px solid var(--audit-border);
+  border-radius: var(--audit-radius-sm);
+  background: var(--audit-card-alt);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#sub-bi-quebras .bi-quebras-company-products-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#sub-bi-quebras .bi-quebras-company-product-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 2fr) 70px 70px 120px;
+  gap: 0 0.75rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--audit-border);
+  font-size: var(--audit-text-sm);
+}
+
+#sub-bi-quebras .bi-quebras-company-product-row:last-child {
+  border-bottom: none;
+}
+
+#sub-bi-quebras .bi-quebras-company-product-pos {
+  color: var(--audit-subtle);
+  font-size: var(--audit-text-xs);
+  font-weight: 700;
+  text-align: center;
+}
+
+#sub-bi-quebras .bi-quebras-company-product-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+#sub-bi-quebras .bi-quebras-company-product-desc {
+  color: var(--audit-ink);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#sub-bi-quebras .bi-quebras-company-product-meta {
+  color: var(--audit-subtle);
+  font-size: var(--audit-text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#sub-bi-quebras .bi-quebras-company-product-cx,
+#sub-bi-quebras .bi-quebras-company-product-un,
+#sub-bi-quebras .bi-quebras-company-product-loss {
+  text-align: right;
+  color: var(--audit-ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+#sub-bi-quebras .bi-quebras-company-product-loss--val {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+#sub-bi-quebras .bi-quebras-company-products-empty {
+  padding: 1rem;
+  color: var(--audit-muted);
+  font-size: var(--audit-text-sm);
+  text-align: center;
+}
+
 #sub-bi-quebras .bi-quebras-no-price-alert {
   display: flex;
   align-items: flex-start;
@@ -10570,6 +10715,15 @@ details[open] > .validity-analytic-summary::after {
     height: 240px;
   }
 
+  #sub-bi-quebras .bi-quebras-scope-toggle {
+    width: 100%;
+  }
+
+  #sub-bi-quebras .bi-quebras-scope-btn {
+    flex: 1 1 calc(50% - 0.5rem);
+    justify-content: center;
+  }
+
   #sub-bi-quebras .bi-quebras-ranking-header {
     display: none;
   }
@@ -10594,5 +10748,59 @@ details[open] > .validity-analytic-summary::after {
     align-self: center;
     min-width: 84px;
     font-size: 0.85rem;
+  }
+
+  #sub-bi-quebras .bi-quebras-breakdown-row--interactive {
+    grid-template-columns: 10px minmax(0, 1fr) 58px 44px;
+    grid-template-rows: auto auto;
+    row-gap: 0.2rem;
+  }
+
+  #sub-bi-quebras .bi-quebras-breakdown-row--interactive .bi-quebras-bd-pct {
+    grid-column: 2;
+    grid-row: 2;
+    text-align: left;
+  }
+
+  #sub-bi-quebras .bi-quebras-breakdown-row--interactive .bi-quebras-bd-loss {
+    grid-column: 3 / 5;
+    grid-row: 2;
+  }
+
+  #sub-bi-quebras .bi-quebras-breakdown-row--interactive .bi-quebras-bd-occ {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
+  #sub-bi-quebras .bi-quebras-company-product-row {
+    grid-template-columns: 1.8rem 1fr auto;
+    grid-template-rows: auto auto auto;
+  }
+
+  #sub-bi-quebras .bi-quebras-company-product-cx,
+  #sub-bi-quebras .bi-quebras-company-product-un {
+    grid-row: 2;
+    font-size: var(--audit-text-xs);
+  }
+
+  #sub-bi-quebras .bi-quebras-company-product-cx {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  #sub-bi-quebras .bi-quebras-company-product-un {
+    grid-column: 3;
+  }
+
+  #sub-bi-quebras .bi-quebras-company-product-loss {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: center;
+    min-width: 88px;
+  }
+
+  #sub-bi-quebras .bi-quebras-company-product-main {
+    grid-column: 2;
+    grid-row: 1 / 3;
   }
 }
