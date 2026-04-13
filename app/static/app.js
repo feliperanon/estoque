@@ -475,18 +475,8 @@ const BREAK_EVENTS_BUCKET_KEY = 'estoque_break_events_by_day_v1';
 /** Submódulo operacional no hash (#quebra); elemento DOM continua id="sub-break". */
 const QUEBRA_SUB_KEY = 'quebra';
 /** Motivos fechados — obrigatório em cada lançamento de quantidade na Quebra. */
-const BREAK_REASON_OPTIONS = [
-  'Produto vencido',
-  'Produto estragado',
-  'Produto avariado',
-  'Produto sem embalagem',
-  'Produto trocado',
-  'Produto em excesso',
-  'Produto faltante',
-  'Produto fora do padrão (defeito de fábrica, gás baixo, cor alterada)',
-  'Lote divergente',
-  'Erro de faturamento',
-];
+const BREAK_REASON_DEFAULT = 'Produtos avariados';
+const BREAK_REASON_OPTIONS = ['Produtos vencidos', 'Produtos avariados'];
 const VALIDITY_BUCKET_KEY = 'estoque_validity_by_day_v1';
 const VALIDITY_LAST_SYNC_KEY = 'estoque_validity_last_sync_iso';
 /** Dias sem nova contagem para considerar a base "antiga" (painel analítico). */
@@ -3459,9 +3449,10 @@ function renderBreakProducts(products) {
     return;
   }
 
-  const breakReasonOptionsHtml =
-    '<option value="">Selecione o motivo…</option>'
-    + BREAK_REASON_OPTIONS.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  const breakReasonOptionsHtml = BREAK_REASON_OPTIONS.map((t) => {
+    const sel = t === BREAK_REASON_DEFAULT ? ' selected' : '';
+    return `<option value="${escapeHtml(t)}"${sel}>${escapeHtml(t)}</option>`;
+  }).join('');
 
   const appendCard = (parentUl, product) => {
     const codRaw = String(product.cod_produto || '');
@@ -3488,9 +3479,9 @@ function renderBreakProducts(products) {
       <div class="break-reason-row">
         <div class="break-reason-head">
           <label class="validity-op-label break-reason-label" for="break-reason-${escapeHtml(codSafeId)}">Motivo da quebra</label>
-          <span class="break-reason-hint">Escolha antes de + ou −</span>
+          <span class="break-reason-hint">Padrão: produtos avariados — troque se for vencidos</span>
         </div>
-        <select id="break-reason-${escapeHtml(codSafeId)}" class="validity-op-input break-reason-select" aria-label="Motivo obrigatório antes de lançar quantidade" required>
+        <select id="break-reason-${escapeHtml(codSafeId)}" class="validity-op-input break-reason-select" aria-label="Motivo da quebra (padrão: produtos avariados)" required>
           ${breakReasonOptionsHtml}
         </select>
       </div>
