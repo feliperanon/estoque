@@ -1339,64 +1339,64 @@
                       <span class="bi-quebras-title-icon" aria-hidden="true">📊</span>
                       BI de Quebras
                     </h2>
-                    <p class="bi-quebras-page-subtitle">Impacto financeiro estimado · cruzamento com cadastro de produto · America/Sao_Paulo</p>
+                    <p class="bi-quebras-page-subtitle count-audit-page-subtitle">Impacto financeiro estimado · cruzamento com cadastro de produto · America/Sao_Paulo</p>
                   </div>
                   <div class="bi-quebras-header-chip-row count-audit-header__chips">
                     <span class="chip bi-quebras-chip-consulta count-audit-chip-ativo">Consulta servidor</span>
-                    <span id="bi-quebras-loading-chip" class="bi-quebras-loading-chip" hidden aria-live="polite">Carregando…</span>
+                    <span id="bi-quebras-loading-chip" class="bi-quebras-loading-chip count-audit-chip-mode" hidden aria-live="polite">Carregando…</span>
                   </div>
                 </div>
-                <div class="bi-quebras-toolbar" aria-label="Filtros do BI de Quebras">
-                  <div class="bi-quebras-field">
-                    <label class="bi-quebras-label" for="bi-quebras-date-from">De</label>
-                    <input id="bi-quebras-date-from" name="bi-quebras-date-from" type="date" class="search-input bi-quebras-date-input" aria-label="Data inicial do período" />
+                <div class="bi-quebras-toolbar count-audit-header__toolbar" aria-label="Filtros do BI de Quebras">
+                  <div class="bi-quebras-field count-audit-field count-audit-field--date">
+                    <label class="bi-quebras-label count-audit-label" for="bi-quebras-date-from">De</label>
+                    <input id="bi-quebras-date-from" name="bi-quebras-date-from" type="date" class="search-input bi-quebras-date-input count-audit-date-input" aria-label="Data inicial do período" />
                   </div>
-                  <div class="bi-quebras-field">
-                    <label class="bi-quebras-label" for="bi-quebras-date-to">Até</label>
-                    <input id="bi-quebras-date-to" name="bi-quebras-date-to" type="date" class="search-input bi-quebras-date-input" aria-label="Data final do período" />
+                  <div class="bi-quebras-field count-audit-field count-audit-field--date">
+                    <label class="bi-quebras-label count-audit-label" for="bi-quebras-date-to">Até</label>
+                    <input id="bi-quebras-date-to" name="bi-quebras-date-to" type="date" class="search-input bi-quebras-date-input count-audit-date-input" aria-label="Data final do período" />
                   </div>
-                  <div class="bi-quebras-actions">
-                    <button type="button" id="btn-bi-quebras-load" class="btn-secondary btn-dark bi-quebras-btn-load">Carregar BI</button>
+                  <div class="bi-quebras-actions count-audit-header__actions">
+                    <button type="button" id="btn-bi-quebras-load" class="btn-secondary btn-dark bi-quebras-btn-load count-audit-btn-refresh">Carregar BI</button>
                   </div>
                 </div>
-                <div id="bi-quebras-feedback" class="field-feedback bi-quebras-feedback" aria-live="polite" style="display:none;"></div>
+                <div id="bi-quebras-feedback" class="field-feedback bi-quebras-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
               </header>
 
               <!-- KPI Strip -->
-              <div class="bi-quebras-kpi-strip" id="bi-quebras-kpi-strip" role="list" aria-label="Indicadores de quebras">
-                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--loss" role="listitem">
-                  <span class="bi-quebras-kpi-label">Prejuízo estimado (R$)</span>
-                  <strong id="bi-quebras-kpi-loss" class="bi-quebras-kpi-value">—</strong>
-                  <span class="bi-quebras-kpi-sub" id="bi-quebras-kpi-period">Selecione o período</span>
+              <div class="bi-quebras-kpi-strip count-audit-kpi-list" id="bi-quebras-kpi-strip" role="list" aria-label="Indicadores de quebras">
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--loss count-audit-summary-item is-danger" role="listitem">
+                  <span class="bi-quebras-kpi-label count-audit-summary-label">Prejuízo estimado (R$)</span>
+                  <strong id="bi-quebras-kpi-loss" class="bi-quebras-kpi-value count-audit-summary-value">—</strong>
+                  <span class="bi-quebras-kpi-sub count-audit-summary-trend" id="bi-quebras-kpi-period">Selecione o período</span>
                 </article>
-                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--products" role="listitem">
-                  <span class="bi-quebras-kpi-label">Produtos com quebra</span>
-                  <strong id="bi-quebras-kpi-products" class="bi-quebras-kpi-value">—</strong>
-                  <span class="bi-quebras-kpi-sub">produtos únicos</span>
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--products count-audit-summary-item is-highlight" role="listitem">
+                  <span class="bi-quebras-kpi-label count-audit-summary-label">Produtos com quebra</span>
+                  <strong id="bi-quebras-kpi-products" class="bi-quebras-kpi-value count-audit-summary-value">—</strong>
+                  <span class="bi-quebras-kpi-sub count-audit-summary-trend">produtos únicos</span>
                 </article>
-                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--cx" role="listitem">
-                  <span class="bi-quebras-kpi-label">Total CX</span>
-                  <strong id="bi-quebras-kpi-cx" class="bi-quebras-kpi-value">—</strong>
-                  <span class="bi-quebras-kpi-sub">caixas quebradas</span>
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--cx count-audit-summary-item is-warn" role="listitem">
+                  <span class="bi-quebras-kpi-label count-audit-summary-label">Total CX</span>
+                  <strong id="bi-quebras-kpi-cx" class="bi-quebras-kpi-value count-audit-summary-value">—</strong>
+                  <span class="bi-quebras-kpi-sub count-audit-summary-trend">caixas quebradas</span>
                 </article>
-                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--un" role="listitem">
-                  <span class="bi-quebras-kpi-label">Total UN</span>
-                  <strong id="bi-quebras-kpi-un" class="bi-quebras-kpi-value">—</strong>
-                  <span class="bi-quebras-kpi-sub">unidades quebradas</span>
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--un count-audit-summary-item is-ok" role="listitem">
+                  <span class="bi-quebras-kpi-label count-audit-summary-label">Total UN</span>
+                  <strong id="bi-quebras-kpi-un" class="bi-quebras-kpi-value count-audit-summary-value">—</strong>
+                  <span class="bi-quebras-kpi-sub count-audit-summary-trend">unidades quebradas</span>
                 </article>
-                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--coverage" role="listitem">
-                  <span class="bi-quebras-kpi-label">Cobertura de preço</span>
-                  <strong id="bi-quebras-kpi-coverage" class="bi-quebras-kpi-value">—</strong>
-                  <span class="bi-quebras-kpi-sub">produtos com preço cadastrado</span>
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--coverage count-audit-summary-item is-purple" role="listitem">
+                  <span class="bi-quebras-kpi-label count-audit-summary-label">Cobertura de preço</span>
+                  <strong id="bi-quebras-kpi-coverage" class="bi-quebras-kpi-value count-audit-summary-value">—</strong>
+                  <span class="bi-quebras-kpi-sub count-audit-summary-trend">produtos com preço cadastrado</span>
                 </article>
               </div>
 
               <!-- Gráfico de linha: prejuízo por dia -->
-              <section class="card bi-quebras-chart-card" aria-labelledby="bi-quebras-chart-title">
-                <div class="card-head bi-quebras-chart-head">
+              <section class="card bi-quebras-chart-card count-audit-list-card" aria-labelledby="bi-quebras-chart-title">
+                <div class="card-head bi-quebras-chart-head count-audit-list-head">
                   <div>
                     <h3 id="bi-quebras-chart-title">Prejuízo estimado por dia (R$)</h3>
-                    <p class="bi-quebras-card-sub muted">Série temporal dos lançamentos de quebra no período selecionado</p>
+                    <p class="bi-quebras-card-sub count-audit-card-sub muted">Série temporal dos lançamentos de quebra no período selecionado</p>
                   </div>
                 </div>
                 <div class="bi-quebras-chart-wrap">
@@ -1408,13 +1408,13 @@
               <div class="bi-quebras-workspace">
 
                 <!-- Top Produtos -->
-                <section class="card bi-quebras-ranking-card" aria-labelledby="bi-quebras-ranking-title">
-                  <div class="card-head bi-quebras-ranking-head">
+                <section class="card bi-quebras-ranking-card count-audit-list-card" aria-labelledby="bi-quebras-ranking-title">
+                  <div class="card-head bi-quebras-ranking-head count-audit-list-head">
                     <div>
                       <h3 id="bi-quebras-ranking-title">Top produtos por prejuízo</h3>
-                      <p class="bi-quebras-card-sub muted">Ranking dos 20 maiores ofensores (curva ABC parcial)</p>
+                      <p class="bi-quebras-card-sub count-audit-card-sub muted">Ranking dos 20 maiores ofensores (curva ABC parcial)</p>
                     </div>
-                    <span id="bi-quebras-ranking-count" class="chip">0</span>
+                    <span id="bi-quebras-ranking-count" class="chip count-audit-total-chip">0</span>
                   </div>
                   <div class="bi-quebras-ranking-header" aria-hidden="true">
                     <span>#</span>
@@ -1432,10 +1432,10 @@
                 <!-- Por Segmento + Por Motivo -->
                 <div class="bi-quebras-breakdown-grid">
 
-                  <section class="card bi-quebras-segmento-card" aria-labelledby="bi-quebras-segmento-title">
-                    <div class="card-head">
+                  <section class="card bi-quebras-segmento-card count-audit-list-card" aria-labelledby="bi-quebras-segmento-title">
+                    <div class="card-head count-audit-card-head count-audit-card-head--tight">
                       <h3 id="bi-quebras-segmento-title">Por segmento</h3>
-                      <p class="bi-quebras-card-sub muted">Distribuição de prejuízo por categoria de produto</p>
+                      <p class="bi-quebras-card-sub count-audit-card-sub muted">Distribuição de prejuízo por categoria de produto</p>
                     </div>
                     <div class="bi-quebras-chart-wrap bi-quebras-chart-wrap--doughnut">
                       <canvas id="bi-quebras-chart-segmento" role="img" aria-label="Gráfico de prejuízo por segmento"></canvas>
@@ -1445,10 +1445,10 @@
                     </div>
                   </section>
 
-                  <section class="card bi-quebras-reason-card" aria-labelledby="bi-quebras-reason-title">
-                    <div class="card-head">
+                  <section class="card bi-quebras-reason-card count-audit-list-card" aria-labelledby="bi-quebras-reason-title">
+                    <div class="card-head count-audit-card-head count-audit-card-head--tight">
                       <h3 id="bi-quebras-reason-title">Por motivo</h3>
-                      <p class="bi-quebras-card-sub muted">Ocorrências e impacto R$ por motivo registrado</p>
+                      <p class="bi-quebras-card-sub count-audit-card-sub muted">Ocorrências e impacto R$ por motivo registrado</p>
                     </div>
                     <div class="bi-quebras-chart-wrap bi-quebras-chart-wrap--doughnut">
                       <canvas id="bi-quebras-chart-reason" role="img" aria-label="Gráfico de prejuízo por motivo"></canvas>
@@ -1463,7 +1463,7 @@
               </div>
 
               <!-- Alerta: produtos sem preço -->
-              <div id="bi-quebras-no-price-alert" class="bi-quebras-no-price-alert" hidden role="alert" aria-live="polite">
+              <div id="bi-quebras-no-price-alert" class="bi-quebras-no-price-alert count-audit-feedback-block" hidden role="alert" aria-live="polite">
                 <span class="bi-quebras-alert-icon" aria-hidden="true">⚠️</span>
                 <div class="bi-quebras-alert-text">
                   <strong>Produtos sem preço no cadastro</strong>

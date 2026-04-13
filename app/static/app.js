@@ -13256,7 +13256,7 @@ function _biQuebrasShowFeedback(msg, isError) {
   const el = document.getElementById('bi-quebras-feedback');
   if (!el) return;
   el.textContent = msg;
-  el.className = `field-feedback bi-quebras-feedback ${isError ? 'field-feedback--error' : 'field-feedback--ok'}`;
+  el.className = `field-feedback bi-quebras-feedback count-audit-feedback-block ${isError ? 'field-feedback--error' : 'field-feedback--ok'}`;
   el.style.display = msg ? '' : 'none';
 }
 
