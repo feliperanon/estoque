@@ -10339,6 +10339,18 @@ details[open] > .validity-analytic-summary::after {
   margin-bottom: var(--audit-space-3);
 }
 
+#sub-bi-quebras .bi-quebras-ranking-head {
+  padding: 0;
+  border-bottom: 0;
+}
+
+#sub-bi-quebras .bi-quebras-chart-head h3,
+#sub-bi-quebras .bi-quebras-ranking-head h3,
+#sub-bi-quebras .bi-quebras-segmento-card h3,
+#sub-bi-quebras .bi-quebras-reason-card h3 {
+  color: var(--audit-ink);
+}
+
 #sub-bi-quebras .bi-quebras-card-sub {
   color: var(--audit-muted);
 }
