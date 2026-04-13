@@ -10077,9 +10077,8 @@ details[open] > .validity-analytic-summary::after {
 .bi-quebras-rank-loss--val { color: #fca5a5; font-weight: 800; }
 .bi-quebras-list-empty { padding: 20px; text-align: center; color: #475569; font-size: 0.85rem; }
 
-/* Breakdown Grid */
-.bi-quebras-breakdown-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-@media (max-width: 768px) { .bi-quebras-breakdown-grid { grid-template-columns: 1fr; } }
+/* Breakdown Grid — um card por linha (evita colunas estreitas e texto embolado) */
+.bi-quebras-breakdown-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
 
 .bi-quebras-segmento-card.card,
 .bi-quebras-reason-card.card {
@@ -10710,7 +10709,7 @@ body.bi-quebras-presentation-open {
 }
 
 #sub-bi-quebras .bi-quebras-breakdown-list-panel {
-  max-height: 240px;
+  max-height: 280px;
   overflow-y: auto;
 }
 
@@ -10770,22 +10769,22 @@ body.bi-quebras-presentation-open {
 
 #sub-bi-quebras .bi-quebras-breakdown-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
 }
 
 #sub-bi-quebras .bi-quebras-breakdown-row {
   display: grid;
-  grid-template-columns: 10px minmax(0, 2fr) 60px 44px minmax(0, 90px) 30px;
-  gap: 0 8px;
+  grid-template-columns: 10px minmax(0, 1fr) 56px 48px minmax(92px, auto) 64px;
+  gap: 0.35rem 12px;
   align-items: center;
-  padding: 0.8rem 0.65rem;
+  padding: 0.8rem 0.75rem;
   border-bottom: 1px solid var(--audit-border);
   font-size: 0.78rem;
 }
 
 #sub-bi-quebras .bi-quebras-breakdown-row--interactive {
-  grid-template-columns: 10px minmax(0, 2fr) 66px 52px minmax(0, 100px) minmax(106px, 1fr);
+  grid-template-columns: 10px minmax(0, 1fr) 58px 50px minmax(96px, auto) 72px;
   cursor: pointer;
 }
 
@@ -10946,12 +10945,6 @@ body.bi-quebras-presentation-open {
 @media (max-width: 1100px) {
   #sub-bi-quebras .bi-quebras-kpi-strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 900px) {
-  #sub-bi-quebras .bi-quebras-breakdown-grid {
-    grid-template-columns: 1fr;
   }
 }
 
