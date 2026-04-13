@@ -9074,12 +9074,19 @@ details[open] > .validity-analytic-summary::after {
 #sub-break .break-op-field--produto .validity-op-input-wrap .validity-op-input {
   width: 100%;
 }
+/* Quebra: Produto e Grupo permanecem na mesma linha no celular (evita card em duas linhas altas). */
 @media (max-width: 640px) {
   #sub-break .break-op-filters.validity-op-filters-grid {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
   #sub-break .break-op-filters .validity-op-field {
-    flex: 1 1 100%;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  #sub-break .break-op-filters .validity-op-label {
+    font-size: 0.66rem;
+    margin-bottom: 3px;
   }
 }
 #sub-break .break-op-sticky .count-last-launch {
