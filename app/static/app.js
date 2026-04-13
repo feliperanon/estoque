@@ -13091,17 +13091,63 @@ let _biQuebrasLastPayload = null;
 /** Ordenação dos produtos na apresentação Por CIA: loss | volume */
 let _biQuebrasPresentationSort = 'loss';
 
+/** Cores contrastantes para gráficos em fundo claro (evita verde escuro + preto). */
 const BI_QUEBRAS_PALETTE = [
-  '#e05263', '#f7a245', '#f7cf45', '#6dc96d', '#45b8f7',
-  '#9b59b6', '#e8855a', '#3ab0c3', '#e84393', '#7ecc49',
-  '#c0392b', '#d35400', '#27ae60', '#2980b9', '#8e44ad',
-  '#16a085', '#f39c12', '#1abc9c', '#2c3e50', '#95a5a6',
+  '#e11d48', '#ea580c', '#ca8a04', '#16a34a', '#2563eb',
+  '#9333ea', '#db2777', '#0891b2', '#4f46e5', '#f43f5e',
+  '#b45309', '#0d9488', '#7c3aed', '#be123c', '#15803d',
+  '#1d4ed8', '#c026d3', '#0369a1', '#a21caf', '#b91c1c',
 ];
 const BI_QUEBRAS_CIA_SCOPE_VALUES = new Set(['todas', 'mate-couro', 'outras']);
 
 function _biQuebrasFormatBRL(val) {
   if (val == null || isNaN(val)) return '—';
   return 'R$ ' + Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Tooltip e escalas para gráficos sobre fundo claro (#sub-bi-quebras e modo apresentação). */
+function _biQuebrasChartTooltipTheme() {
+  return {
+    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+    titleColor: '#f8fafc',
+    bodyColor: '#f8fafc',
+    padding: 12,
+    cornerRadius: 10,
+    titleFont: { size: 12, weight: '600' },
+    bodyFont: { size: 14, weight: '500' },
+    displayColors: false,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+  };
+}
+
+function _biQuebrasLineScalesLight() {
+  return {
+    x: {
+      grid: { color: 'rgba(15,23,42,0.07)', drawBorder: false },
+      ticks: { color: '#334155', font: { size: 11, weight: '500' }, maxRotation: 45 },
+      border: { display: false },
+    },
+    y: {
+      grid: { color: 'rgba(15,23,42,0.06)', drawBorder: false },
+      ticks: {
+        color: '#334155',
+        font: { size: 11, weight: '500' },
+        callback: (v) => 'R$ ' + Number(v).toLocaleString('pt-BR'),
+      },
+      border: { display: false },
+      beginAtZero: true,
+    },
+  };
+}
+
+function _biQuebrasLineDatasetGradient(chart, baseRgb) {
+  const { ctx, chartArea } = chart;
+  if (!chartArea) return `rgba(${baseRgb}, 0.12)`;
+  const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  g.addColorStop(0, `rgba(${baseRgb}, 0.24)`);
+  g.addColorStop(1, `rgba(${baseRgb}, 0.03)`);
+  return g;
 }
 
 function _biQuebrasSetKpis(data) {
@@ -13169,41 +13215,33 @@ function _biQuebrasRenderLineChart(byDay) {
         label: 'Prejuízo R$',
         data: values,
         fill: true,
-        backgroundColor: 'rgba(224, 82, 99, 0.12)',
-        borderColor: '#e05263',
-        borderWidth: 2.5,
-        pointBackgroundColor: '#e05263',
+        backgroundColor: (ctx) => _biQuebrasLineDatasetGradient(ctx.chart, '220, 38, 38'),
+        borderColor: '#dc2626',
+        borderWidth: 3,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#dc2626',
+        pointBorderWidth: 2,
         pointRadius: 4,
-        pointHoverRadius: 6,
+        pointHoverRadius: 9,
         tension: 0.35,
+        cubicInterpolationMode: 'monotone',
       }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 800, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: false },
         tooltip: {
+          ..._biQuebrasChartTooltipTheme(),
           callbacks: {
             label: (ctx) => ' ' + _biQuebrasFormatBRL(ctx.parsed.y),
           },
         },
       },
-      scales: {
-        x: {
-          grid: { color: 'rgba(255,255,255,0.06)' },
-          ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 45 },
-        },
-        y: {
-          grid: { color: 'rgba(255,255,255,0.06)' },
-          ticks: {
-            color: '#94a3b8',
-            font: { size: 11 },
-            callback: (v) => 'R$ ' + v.toLocaleString('pt-BR'),
-          },
-          beginAtZero: true,
-        },
-      },
+      scales: _biQuebrasLineScalesLight(),
     },
   });
 }
@@ -13236,15 +13274,18 @@ function _biQuebrasRenderDoughnut(canvasId, chartRef, items, labelKey, valueKey,
       datasets: [{
         data: active.map(i => i[valueKey]),
         backgroundColor: BI_QUEBRAS_PALETTE.slice(0, active.length),
-        borderWidth: 2,
-        borderColor: '#111827',
-        hoverOffset: 6,
+        borderWidth: 3,
+        borderColor: '#ffffff',
+        hoverOffset: 10,
+        spacing: 2,
+        borderRadius: 6,
       }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '62%',
+      cutout: '58%',
+      animation: { duration: 720, easing: 'easeOutQuart' },
       onClick: onSliceClick
         ? (/** @type {unknown} */ _evt, elements) => {
             if (!elements.length) return;
@@ -13256,6 +13297,7 @@ function _biQuebrasRenderDoughnut(canvasId, chartRef, items, labelKey, valueKey,
       plugins: {
         legend: { display: false },
         tooltip: {
+          ..._biQuebrasChartTooltipTheme(),
           callbacks: {
             label: (ctx) => ' ' + _biQuebrasFormatBRL(ctx.parsed),
           },
@@ -13448,41 +13490,33 @@ function _biQuebrasRenderPresentationLineChart(canvasEl, byDay) {
         label: 'Prejuízo R$',
         data: values,
         fill: true,
-        backgroundColor: 'rgba(224, 82, 99, 0.12)',
-        borderColor: '#e05263',
-        borderWidth: 2.5,
-        pointBackgroundColor: '#e05263',
+        backgroundColor: (ctx) => _biQuebrasLineDatasetGradient(ctx.chart, '220, 38, 38'),
+        borderColor: '#dc2626',
+        borderWidth: 3,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#dc2626',
+        pointBorderWidth: 2,
         pointRadius: 5,
-        pointHoverRadius: 8,
+        pointHoverRadius: 10,
         tension: 0.35,
+        cubicInterpolationMode: 'monotone',
       }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 900, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: false },
         tooltip: {
+          ..._biQuebrasChartTooltipTheme(),
           callbacks: {
             label: (ctx) => ' ' + _biQuebrasFormatBRL(ctx.parsed.y),
           },
         },
       },
-      scales: {
-        x: {
-          grid: { color: 'rgba(255,255,255,0.06)' },
-          ticks: { color: '#94a3b8', font: { size: 12 }, maxRotation: 45 },
-        },
-        y: {
-          grid: { color: 'rgba(255,255,255,0.06)' },
-          ticks: {
-            color: '#94a3b8',
-            font: { size: 12 },
-            callback: (v) => 'R$ ' + v.toLocaleString('pt-BR'),
-          },
-          beginAtZero: true,
-        },
-      },
+      scales: _biQuebrasLineScalesLight(),
     },
   });
 }
@@ -13884,6 +13918,18 @@ function bindBiQuebrasEvents() {
     if (!companyRow) return;
     event.preventDefault();
     _biQuebrasSelectCompany(companyRow.getAttribute('data-bi-quebras-company'));
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    const shell = document.getElementById('bi-quebras-presentation');
+    if (!shell || shell.hidden || !_biQuebrasPresentationChart) return;
+    requestAnimationFrame(() => {
+      try {
+        _biQuebrasPresentationChart.resize();
+      } catch {
+        /* ignore */
+      }
+    });
   });
 }
 

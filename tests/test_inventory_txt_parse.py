@@ -112,3 +112,40 @@ def test_audit_extract_from_legacy_raw_only_pair3() -> None:
         "raw": ["870", "2I", "79", "5I", "378", "I", "572", "1I", "572", "1I", "I", "50", "I"],
     }
     assert _extract_import_quantities(legacy) == (572, 1)
+
+
+# Regressão VDER0004: colunas deslocadas — recorte 13 cols pega só "10I" como CX; saldo é 0 CX / 10 UN.
+LINE_3301_CAPITAO_AMBER = (
+    "3301 CERV CAPITAO SENRA AM             10I            I            I         0   10I            I            -10I             I"
+)
+
+
+def test_line3301_saldo_fisico_zero_cx_dez_un_not_dez_cx() -> None:
+    parsed = parse_inventory_txt_line(LINE_3301_CAPITAO_AMBER)
+    assert parsed is not None
+    assert parsed["caixa"] == 0
+    assert parsed["unidade"] == 10
+    nt = str(parsed.get("numeric_tail") or "")
+    assert extract_caixa_unidade_from_numeric_tail(nt) is None
+
+
+LINE_3401_VINHO = (
+    "3401 VINHO TINTO SUAVE DON              4I            I            I         0    4I            I             -4I             I"
+)
+
+
+def test_line3401_saldo_fisico_zero_cx_quatro_un() -> None:
+    parsed = parse_inventory_txt_line(LINE_3401_VINHO)
+    assert parsed is not None
+    assert parsed["caixa"] == 0
+    assert parsed["unidade"] == 4
+
+
+def test_audit_extract_3301_numeric_tail_falls_back_to_tokens() -> None:
+    p = parse_inventory_txt_line(LINE_3301_CAPITAO_AMBER)
+    assert p is not None
+    m = {
+        "raw": p["raw"],
+        "numeric_tail": p["numeric_tail"],
+    }
+    assert _extract_import_quantities(m) == (0, 10)

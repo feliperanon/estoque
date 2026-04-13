@@ -10116,7 +10116,7 @@ details[open] > .validity-analytic-summary::after {
 .bi-quebras-bd-occ   { color:#64748b; font-size:0.7rem; text-align:right; }
 .bi-quebras-breakdown-empty { padding:14px 0; text-align:center; color:#475569; font-size:0.82rem; }
 
-/* Modo apresentação BI Quebras */
+/* Modo apresentação BI Quebras — painel claro, sem rolagem dupla; gráficos Chart.js em cartão branco */
 body.bi-quebras-presentation-open {
   overflow: hidden;
 }
@@ -10126,9 +10126,13 @@ body.bi-quebras-presentation-open {
   z-index: 4000;
   display: flex;
   flex-direction: column;
-  background: #020617;
+  height: 100dvh;
+  max-height: 100dvh;
+  background: linear-gradient(165deg, #e8edf4 0%, #dfe8f2 40%, #f4f7fb 100%);
+  color: #0f172a;
   padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
   box-sizing: border-box;
+  overflow: hidden;
 }
 .bi-quebras-presentation[hidden] {
   display: none !important;
@@ -10139,15 +10143,18 @@ body.bi-quebras-presentation-open {
   align-items: center;
   justify-content: space-between;
   gap: 10px 16px;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
 }
 .bi-quebras-presentation-title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 800;
-  color: #f1f5f9;
+  color: #0f172a;
+  letter-spacing: -0.02em;
 }
 .bi-quebras-presentation-bar-actions {
   display: flex;
@@ -10156,17 +10163,19 @@ body.bi-quebras-presentation-open {
 }
 .bi-quebras-presentation-sub {
   margin: 0;
-  padding: 6px 16px 10px;
-  font-size: 0.8rem;
+  padding: 8px 18px 4px;
+  font-size: 0.82rem;
   flex-shrink: 0;
+  color: #475569;
 }
 .bi-quebras-presentation-body {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 0 12px 16px;
-  gap: 12px;
+  padding: 8px 16px 18px;
+  gap: 14px;
+  overflow: hidden;
 }
 @media (min-width: 900px) {
   .bi-quebras-presentation-body[data-layout="cia"] {
@@ -10175,21 +10184,27 @@ body.bi-quebras-presentation-open {
     gap: 16px;
   }
   .bi-quebras-presentation-body[data-layout="cia"] .bi-quebras-presentation-chart-wrap {
-    flex: 1 1 48%;
+    flex: 1 1 50%;
     min-width: 0;
-    max-height: none;
+    min-height: 0;
   }
   .bi-quebras-presentation-body[data-layout="cia"] .bi-quebras-presentation-cia-aside {
-    flex: 1 1 48%;
+    flex: 1 1 50%;
     min-width: 0;
-    max-height: none;
+    min-height: 0;
   }
 }
 .bi-quebras-presentation-chart-wrap {
   position: relative;
-  flex: 1 1 auto;
-  min-height: 220px;
-  max-height: min(52vh, 480px);
+  flex: 1 1 0;
+  min-height: 260px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #ffffff;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
 }
 .bi-quebras-presentation-chart-wrap canvas {
   display: block;
@@ -10197,14 +10212,15 @@ body.bi-quebras-presentation-open {
   height: 100% !important;
 }
 .bi-quebras-presentation-ranking-wrap {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
   overflow: hidden;
-  background: #0f172a;
+  background: #ffffff;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
 }
 .bi-quebras-presentation-ranking-header {
   display: grid;
@@ -10216,67 +10232,88 @@ body.bi-quebras-presentation-open {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #64748b;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f8fafc;
+  flex-shrink: 0;
 }
 .bi-quebras-presentation-ranking-wrap .bi-quebras-list {
   overflow-y: auto;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 .bi-quebras-presentation-ranking-wrap .bi-quebras-ranking-row {
   padding: 12px 14px;
   font-size: 0.9rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+.bi-quebras-presentation-ranking-wrap .bi-quebras-ranking-row:hover {
+  background: rgba(15, 118, 110, 0.06);
+}
+.bi-quebras-presentation-ranking-wrap .bi-quebras-rank-desc {
+  color: #0f172a;
+}
+.bi-quebras-presentation-ranking-wrap .bi-quebras-rank-pos,
+.bi-quebras-presentation-ranking-wrap .bi-quebras-rank-seg {
+  color: #64748b;
+}
+.bi-quebras-presentation-ranking-wrap .bi-quebras-rank-cx,
+.bi-quebras-presentation-ranking-wrap .bi-quebras-rank-un {
+  color: #475569;
+}
+.bi-quebras-presentation-ranking-wrap .bi-quebras-rank-loss--val {
+  color: #b91c1c;
 }
 .bi-quebras-presentation-cia-aside {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
-  max-height: min(42vh, 420px);
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: #0f172a;
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
   overflow: hidden;
-}
-@media (min-width: 900px) {
-  .bi-quebras-presentation-cia-aside {
-    max-height: none;
-  }
 }
 .bi-quebras-presentation-cia-hint {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   flex-shrink: 0;
+  color: #475569;
 }
 .bi-quebras-presentation-cia-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
-  max-height: 120px;
+  max-height: min(22vh, 200px);
   overflow-y: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
 }
-.bi-quebras-cia-chip {
+.bi-quebras-presentation .bi-quebras-cia-chip {
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-  color: #e2e8f0;
-  font-size: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.78rem;
   font-weight: 600;
-  padding: 6px 10px;
+  padding: 7px 12px;
   border-radius: 999px;
   cursor: pointer;
   max-width: 100%;
 }
-.bi-quebras-cia-chip:hover {
-  background: rgba(255, 255, 255, 0.1);
+.bi-quebras-presentation .bi-quebras-cia-chip:hover {
+  background: #f1f5f9;
+  border-color: rgba(15, 118, 110, 0.35);
 }
-.bi-quebras-cia-chip.is-selected {
-  border-color: rgba(248, 113, 113, 0.5);
-  background: rgba(248, 113, 113, 0.15);
-  color: #fecaca;
+.bi-quebras-presentation .bi-quebras-cia-chip.is-selected {
+  border-color: rgba(15, 118, 110, 0.55);
+  background: rgba(15, 118, 110, 0.12);
+  color: #0d5c56;
 }
 .bi-quebras-presentation-prod-toolbar {
   display: flex;
@@ -10288,9 +10325,9 @@ body.bi-quebras-presentation-open {
 }
 .bi-quebras-presentation-prod-title {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   font-weight: 800;
-  color: #f1f5f9;
+  color: #0f172a;
 }
 .bi-quebras-presentation-sort {
   display: flex;
@@ -10298,21 +10335,67 @@ body.bi-quebras-presentation-open {
   gap: 6px;
 }
 .bi-quebras-presentation-sort .btn-secondary {
-  font-size: 0.7rem;
-  padding: 6px 10px;
+  font-size: 0.72rem;
+  padding: 7px 12px;
 }
 .bi-quebras-presentation-sort .btn-secondary.is-active {
-  border-color: rgba(248, 113, 113, 0.45);
-  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(15, 118, 110, 0.45);
+  background: rgba(15, 118, 110, 0.1);
+  color: #0d5c56;
 }
 .bi-quebras-presentation-cia-aside .bi-quebras-company-products-list {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
   margin: 0;
   padding: 0;
+  list-style: none;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  background: #f8fafc;
 }
 .bi-quebras-presentation-cia-aside .bi-quebras-company-product-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 2fr) 70px 70px 120px;
+  gap: 0 0.75rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  font-size: 0.82rem;
+}
+.bi-quebras-presentation-cia-aside .bi-quebras-company-product-row:last-child {
+  border-bottom: none;
+}
+.bi-quebras-presentation-cia-aside .bi-quebras-company-product-pos {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+}
+.bi-quebras-presentation-cia-aside .bi-quebras-company-product-desc {
+  color: #0f172a;
+  font-weight: 600;
+}
+.bi-quebras-presentation-cia-aside .bi-quebras-company-product-meta {
+  color: #64748b;
+  font-size: 0.72rem;
+}
+.bi-quebras-presentation-cia-aside .bi-quebras-company-product-cx,
+.bi-quebras-presentation-cia-aside .bi-quebras-company-product-un,
+.bi-quebras-presentation-cia-aside .bi-quebras-company-product-loss {
+  text-align: right;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+.bi-quebras-presentation-cia-aside .bi-quebras-company-product-loss--val {
+  color: #b91c1c;
+  font-weight: 700;
+}
+.bi-quebras-presentation-cia-aside .bi-quebras-company-products-empty {
+  padding: 1.25rem;
+  text-align: center;
+  color: #64748b;
   font-size: 0.85rem;
 }
 
