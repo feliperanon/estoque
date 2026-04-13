@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
     <link rel="stylesheet" href="/static/style.css?v=59" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
     <title>{{ app_name }}</title>
   </head>
   <body>
@@ -515,6 +516,11 @@
                 <span class="module-card-title">Registro de quebras</span>
                 <span class="module-card-desc">Consulta de lançamentos por dia</span>
               </button>
+              <button type="button" class="module-card" data-sub="bi-quebras">
+                <span class="module-card-icon">📊</span>
+                <span class="module-card-title">BI de Quebras</span>
+                <span class="module-card-desc">Impacto financeiro, ranking e tendência por período</span>
+              </button>
             </div>
           </div>
 
@@ -797,7 +803,32 @@
                   </div>
                   <div class="count-audit-header__actions">
                     <button type="button" id="btn-break-history-refresh" class="btn-secondary btn-dark count-audit-btn-refresh">Carregar</button>
+                    <button
+                      type="button"
+                      id="btn-break-history-bulk-delete"
+                      class="mate-troca-toolbar-btn mate-troca-toolbar-btn--muted"
+                      hidden
+                      title="Administrativo/Admin: remove lançamentos deste dia no servidor para todos os usuários."
+                    >
+                      Apagar no servidor…
+                    </button>
                   </div>
+                </div>
+                <p id="break-history-bulk-delete-hint" class="count-audit-card-sub muted" hidden>
+                  Opcional: informe códigos separados por vírgula para apagar só esses produtos neste dia. Vazio + confirmação = apaga
+                  <strong>todas</strong> as quebras do dia no servidor (irreversível).
+                </p>
+                <div class="count-audit-field count-audit-field--grow" id="break-history-bulk-codes-wrap" hidden>
+                  <label class="count-audit-label" for="break-history-bulk-codes">Códigos (opcional)</label>
+                  <input
+                    id="break-history-bulk-codes"
+                    name="break-history-bulk-codes"
+                    type="text"
+                    class="search-input count-audit-search-input"
+                    placeholder="Ex.: 10, 12, 15 — vazio = todo o dia"
+                    autocomplete="off"
+                    aria-label="Códigos de produto para limitar a exclusão de quebras"
+                  />
                 </div>
                 <div id="break-history-feedback" class="field-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
               </header>
@@ -1295,6 +1326,155 @@
               </div>
             </section>
           </div>
+
+          <!-- ── Sub: BI de Quebras — Painel de Impacto Financeiro ── -->
+          <div id="sub-bi-quebras" class="sub-section bi-quebras-page">
+            <section class="bi-quebras-shell" aria-labelledby="bi-quebras-title">
+
+              <!-- Header / Filtros -->
+              <header class="bi-quebras-header card">
+                <div class="bi-quebras-header-top">
+                  <div class="bi-quebras-header-titles">
+                    <h2 id="bi-quebras-title" class="bi-quebras-page-title">
+                      <span class="bi-quebras-title-icon" aria-hidden="true">📊</span>
+                      BI de Quebras
+                    </h2>
+                    <p class="bi-quebras-page-subtitle">Impacto financeiro estimado · cruzamento com cadastro de produto · America/Sao_Paulo</p>
+                  </div>
+                  <div class="bi-quebras-header-chip-row">
+                    <span class="chip bi-quebras-chip-consulta">Consulta servidor</span>
+                    <span id="bi-quebras-loading-chip" class="bi-quebras-loading-chip" hidden aria-live="polite">Carregando…</span>
+                  </div>
+                </div>
+                <div class="bi-quebras-toolbar" aria-label="Filtros do BI de Quebras">
+                  <div class="bi-quebras-field">
+                    <label class="bi-quebras-label" for="bi-quebras-date-from">De</label>
+                    <input id="bi-quebras-date-from" name="bi-quebras-date-from" type="date" class="search-input bi-quebras-date-input" aria-label="Data inicial do período" />
+                  </div>
+                  <div class="bi-quebras-field">
+                    <label class="bi-quebras-label" for="bi-quebras-date-to">Até</label>
+                    <input id="bi-quebras-date-to" name="bi-quebras-date-to" type="date" class="search-input bi-quebras-date-input" aria-label="Data final do período" />
+                  </div>
+                  <div class="bi-quebras-actions">
+                    <button type="button" id="btn-bi-quebras-load" class="btn-secondary btn-dark bi-quebras-btn-load">Carregar BI</button>
+                  </div>
+                </div>
+                <div id="bi-quebras-feedback" class="field-feedback bi-quebras-feedback" aria-live="polite" style="display:none;"></div>
+              </header>
+
+              <!-- KPI Strip -->
+              <div class="bi-quebras-kpi-strip" id="bi-quebras-kpi-strip" role="list" aria-label="Indicadores de quebras">
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--loss" role="listitem">
+                  <span class="bi-quebras-kpi-label">Prejuízo estimado (R$)</span>
+                  <strong id="bi-quebras-kpi-loss" class="bi-quebras-kpi-value">—</strong>
+                  <span class="bi-quebras-kpi-sub" id="bi-quebras-kpi-period">Selecione o período</span>
+                </article>
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--products" role="listitem">
+                  <span class="bi-quebras-kpi-label">Produtos com quebra</span>
+                  <strong id="bi-quebras-kpi-products" class="bi-quebras-kpi-value">—</strong>
+                  <span class="bi-quebras-kpi-sub">produtos únicos</span>
+                </article>
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--cx" role="listitem">
+                  <span class="bi-quebras-kpi-label">Total CX</span>
+                  <strong id="bi-quebras-kpi-cx" class="bi-quebras-kpi-value">—</strong>
+                  <span class="bi-quebras-kpi-sub">caixas quebradas</span>
+                </article>
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--un" role="listitem">
+                  <span class="bi-quebras-kpi-label">Total UN</span>
+                  <strong id="bi-quebras-kpi-un" class="bi-quebras-kpi-value">—</strong>
+                  <span class="bi-quebras-kpi-sub">unidades quebradas</span>
+                </article>
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--coverage" role="listitem">
+                  <span class="bi-quebras-kpi-label">Cobertura de preço</span>
+                  <strong id="bi-quebras-kpi-coverage" class="bi-quebras-kpi-value">—</strong>
+                  <span class="bi-quebras-kpi-sub">produtos com preço cadastrado</span>
+                </article>
+              </div>
+
+              <!-- Gráfico de linha: prejuízo por dia -->
+              <section class="card bi-quebras-chart-card" aria-labelledby="bi-quebras-chart-title">
+                <div class="card-head bi-quebras-chart-head">
+                  <div>
+                    <h3 id="bi-quebras-chart-title">Prejuízo estimado por dia (R$)</h3>
+                    <p class="bi-quebras-card-sub muted">Série temporal dos lançamentos de quebra no período selecionado</p>
+                  </div>
+                </div>
+                <div class="bi-quebras-chart-wrap">
+                  <canvas id="bi-quebras-chart-line" role="img" aria-label="Gráfico de prejuízo por dia"></canvas>
+                  <p id="bi-quebras-chart-empty" class="bi-quebras-chart-empty muted" hidden>Nenhum dado disponível para o período.</p>
+                </div>
+              </section>
+
+              <div class="bi-quebras-workspace">
+
+                <!-- Top Produtos -->
+                <section class="card bi-quebras-ranking-card" aria-labelledby="bi-quebras-ranking-title">
+                  <div class="card-head bi-quebras-ranking-head">
+                    <div>
+                      <h3 id="bi-quebras-ranking-title">Top produtos por prejuízo</h3>
+                      <p class="bi-quebras-card-sub muted">Ranking dos 20 maiores ofensores (curva ABC parcial)</p>
+                    </div>
+                    <span id="bi-quebras-ranking-count" class="chip">0</span>
+                  </div>
+                  <div class="bi-quebras-ranking-header" aria-hidden="true">
+                    <span>#</span>
+                    <span>Produto</span>
+                    <span>Segmento</span>
+                    <span>CX</span>
+                    <span>UN</span>
+                    <span>R$ Estimado</span>
+                  </div>
+                  <div class="bi-quebras-list-panel">
+                    <ul id="bi-quebras-ranking-list" class="bi-quebras-list" role="list" aria-label="Ranking de produtos com maior prejuízo"></ul>
+                  </div>
+                </section>
+
+                <!-- Por Segmento + Por Motivo -->
+                <div class="bi-quebras-breakdown-grid">
+
+                  <section class="card bi-quebras-segmento-card" aria-labelledby="bi-quebras-segmento-title">
+                    <div class="card-head">
+                      <h3 id="bi-quebras-segmento-title">Por segmento</h3>
+                      <p class="bi-quebras-card-sub muted">Distribuição de prejuízo por categoria de produto</p>
+                    </div>
+                    <div class="bi-quebras-chart-wrap bi-quebras-chart-wrap--doughnut">
+                      <canvas id="bi-quebras-chart-segmento" role="img" aria-label="Gráfico de prejuízo por segmento"></canvas>
+                    </div>
+                    <div class="bi-quebras-breakdown-list-panel">
+                      <ul id="bi-quebras-segmento-list" class="bi-quebras-breakdown-list" role="list" aria-label="Lista de prejuízo por segmento"></ul>
+                    </div>
+                  </section>
+
+                  <section class="card bi-quebras-reason-card" aria-labelledby="bi-quebras-reason-title">
+                    <div class="card-head">
+                      <h3 id="bi-quebras-reason-title">Por motivo</h3>
+                      <p class="bi-quebras-card-sub muted">Ocorrências e impacto R$ por motivo registrado</p>
+                    </div>
+                    <div class="bi-quebras-chart-wrap bi-quebras-chart-wrap--doughnut">
+                      <canvas id="bi-quebras-chart-reason" role="img" aria-label="Gráfico de prejuízo por motivo"></canvas>
+                    </div>
+                    <div class="bi-quebras-breakdown-list-panel">
+                      <ul id="bi-quebras-reason-list" class="bi-quebras-breakdown-list" role="list" aria-label="Lista de prejuízo por motivo"></ul>
+                    </div>
+                  </section>
+
+                </div>
+
+              </div>
+
+              <!-- Alerta: produtos sem preço -->
+              <div id="bi-quebras-no-price-alert" class="bi-quebras-no-price-alert" hidden role="alert" aria-live="polite">
+                <span class="bi-quebras-alert-icon" aria-hidden="true">⚠️</span>
+                <div class="bi-quebras-alert-text">
+                  <strong>Produtos sem preço no cadastro</strong>
+                  <p id="bi-quebras-no-price-list" class="bi-quebras-no-price-list"></p>
+                </div>
+              </div>
+
+            </section>
+          </div>
+          <!-- ── fim Sub: BI de Quebras ── -->
+
         </section>
 
         <!-- ── MÓDULO MÃE: CADASTRO ── -->
@@ -1645,7 +1825,7 @@
       </main>
     </div>
 
-    <script src="/static/app.js?v=70"></script>
+    <script src="/static/app.js?v=71"></script>
     <script src="/static/pwa-install.js?v=6"></script>
   </body>
 </html>

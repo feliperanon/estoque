@@ -151,6 +151,54 @@ class BreakEventsPayload(BaseModel):
     events: list[BreakEventInput]
 
 
+BREAK_BULK_DELETE_DAY_PHRASE = "APAGAR TODAS AS QUEBRAS DO DIA"
+
+
+class BreakEventsBulkDeleteBody(BaseModel):
+    """Remove lançamentos de quebra no ChangeLog (visível para todos após commit)."""
+
+    operational_date: str = Field(min_length=10, max_length=10)
+    cod_produtos: list[str] = Field(default_factory=list)
+    confirm_phrase: str = Field(default="", max_length=200)
+
+
+def _break_payload_operational_date(payload: dict) -> date | None:
+    od = payload.get("operational_date")
+    if od:
+        try:
+            return date.fromisoformat(str(od)[:10])
+        except ValueError:
+            return None
+    return _brazil_date_from_observed_at(str(payload.get("observed_at") or ""))
+
+
+def _collect_break_event_logs_for_day_and_codes(
+    session: Session,
+    operational_date: date,
+    cod_filters: set[str] | None,
+) -> list[ChangeLog]:
+    logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_break",
+                ChangeLog.action == "break_event",
+            )
+        ).all()
+    )
+    out: list[ChangeLog] = []
+    for log in logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        d_op = _break_payload_operational_date(payload)
+        if d_op is None or d_op != operational_date:
+            continue
+        if cod_filters is not None:
+            code = _normalize_numeric_product_code_key(str(payload.get("item_code") or ""))
+            if not code or code not in cod_filters:
+                continue
+        out.append(log)
+    return out
+
+
 class ValidityEventInput(BaseModel):
     client_event_id: str = Field(min_length=8, max_length=100)
     cod_produto: str = Field(min_length=1, max_length=120)
@@ -2282,6 +2330,92 @@ def ingest_break_events(
         )
 
 
+@router.post("/break-events/bulk-delete")
+def bulk_delete_break_events(
+    body: BreakEventsBulkDeleteBody,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_roles("administrativo", "admin")),
+) -> dict:
+    """Apaga em lote eventos ``stock_break`` / ``break_event`` do dia operacional (servidor).
+
+    - Sem ``cod_produtos``: remove todas as quebras daquele dia; exige frase exata de confirmação.
+    - Com ``cod_produtos``: remove só lançamentos cujo código (canônico numérico) está na lista.
+    """
+    op_d = _parse_iso_date_arg(body.operational_date)
+    if op_d is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="operational_date invalido (use YYYY-MM-DD).",
+        )
+
+    cod_filters: set[str] = set()
+    for raw in body.cod_produtos or []:
+        c = _normalize_numeric_product_code_key(str(raw).strip())
+        if c:
+            cod_filters.add(c)
+
+    phrase = (body.confirm_phrase or "").strip()
+    if not cod_filters:
+        if phrase != BREAK_BULK_DELETE_DAY_PHRASE:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "Para apagar todas as quebras do dia, confirme com a frase exata: "
+                    f"{BREAK_BULK_DELETE_DAY_PHRASE}"
+                ),
+            )
+        targets = _collect_break_event_logs_for_day_and_codes(session, op_d, None)
+    else:
+        targets = _collect_break_event_logs_for_day_and_codes(session, op_d, cod_filters)
+
+    if not targets:
+        return {
+            "deleted": 0,
+            "operational_date": op_d.isoformat(),
+            "cod_produtos": sorted(cod_filters) if cod_filters else None,
+            "message": "Nenhum lançamento encontrado para os critérios.",
+        }
+
+    deleted_ids: list[int] = []
+    try:
+        for log in targets:
+            if log.id is not None:
+                deleted_ids.append(int(log.id))
+            session.delete(log)
+
+        audit = ChangeLog(
+            entity_name="stock_break",
+            entity_id=-1,
+            action="break_bulk_delete",
+            actor=user.username,
+            changed_at=datetime.now(timezone.utc),
+            payload={
+                "operational_date": op_d.isoformat(),
+                "deleted_count": len(targets),
+                "deleted_change_log_ids": deleted_ids[:500],
+                "cod_produtos_filter": sorted(cod_filters) if cod_filters else None,
+            },
+        )
+        session.add(audit)
+        session.commit()
+        return {
+            "deleted": len(targets),
+            "operational_date": op_d.isoformat(),
+            "cod_produtos": sorted(cod_filters) if cod_filters else None,
+            "message": f"Removidos {len(targets)} lançamento(s) de quebra no servidor.",
+        }
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Falha ao apagar quebras em lote")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Falha ao apagar quebras: {exc}",
+        ) from exc
+
+
 @router.get("/validity-lines/{line_id}")
 def get_validity_line(
     line_id: int,
@@ -3737,4 +3871,294 @@ def get_mate_troca_batch_by_close(
         "event_count": len(events),
         "closed_by": closed_by,
         "events": events,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────
+#  BI de Quebras — Dashboard
+# ─────────────────────────────────────────────────────────────────
+
+
+def _break_events_in_range(session: Session, d_from: date, d_to: date) -> list[dict]:
+    """Lê todos os break_events no intervalo [d_from, d_to] do ChangeLog."""
+    logs = list(
+        session.exec(
+            select(ChangeLog).where(
+                ChangeLog.entity_name == "stock_break",
+                ChangeLog.action == "break_event",
+            )
+        ).all()
+    )
+    out: list[dict] = []
+    for log in logs:
+        payload = log.payload if isinstance(log.payload, dict) else {}
+        od = payload.get("operational_date")
+        if od:
+            try:
+                d_op = date.fromisoformat(str(od)[:10])
+            except ValueError:
+                continue
+        else:
+            br_d = _brazil_date_from_observed_at(str(payload.get("observed_at") or ""))
+            if br_d is None:
+                continue
+            d_op = br_d
+        if d_op < d_from or d_op > d_to:
+            continue
+        item_code = str(payload.get("item_code") or "")
+        code = _normalize_numeric_product_code_key(item_code)
+        if not code:
+            continue
+        try:
+            qty = int(payload.get("quantity", 0))
+        except Exception:
+            qty = 0
+        if qty == 0:
+            continue
+        ct = _extract_count_type(item_code)
+        out.append(
+            {
+                "cod_produto": code,
+                "qty": qty,
+                "qty_type": ct,
+                "operational_date": d_op.isoformat(),
+                "reason": (payload.get("reason") or "").strip() or None,
+                "actor": (log.actor or "").strip() or None,
+            }
+        )
+    return out
+
+
+@router.get("/bi-quebras")
+def bi_quebras_dashboard(
+    date_from: str | None = Query(
+        default=None,
+        description="Início do intervalo YYYY-MM-DD (America/Sao_Paulo). Padrão: 30 dias atrás.",
+    ),
+    date_to: str | None = Query(
+        default=None,
+        description="Fim do intervalo YYYY-MM-DD (America/Sao_Paulo). Padrão: hoje.",
+    ),
+    session: Session = Depends(get_session),
+    _: User = Depends(require_roles("conferente", "administrativo", "admin")),
+) -> dict:
+    """
+    Dashboard BI de Quebras: agrega eventos de quebra no intervalo e cruza com preço/categoria
+    do cadastro de produto para calcular impacto financeiro estimado.
+
+    Retorna:
+    - ``summary``: totais gerais (produtos únicos, total_cx, total_un, prejuizo_brl estimado).
+    - ``by_day``: série temporal de prejuízo estimado por dia operacional.
+    - ``top_products``: top-N produtos por prejuízo estimado (curva ABC parcial).
+    - ``by_category``: quebras agrupadas por cod_grup_segmento (% e R$).
+    - ``by_reason``: quebras agrupadas por motivo (% e R$).
+    - ``products_without_price``: códigos com quebra mas sem preço cadastrado.
+    """
+    br_today = datetime.now(timezone.utc).astimezone(_BR).date()
+    d_to_val = _parse_iso_date_arg(date_to) if date_to else br_today
+    if d_to_val is None:
+        d_to_val = br_today
+    d_from_default = d_to_val - timedelta(days=29)
+    d_from_val = _parse_iso_date_arg(date_from) if date_from else d_from_default
+    if d_from_val is None:
+        d_from_val = d_from_default
+    if d_from_val > d_to_val:
+        d_from_val, d_to_val = d_to_val, d_from_val
+    if (d_to_val - d_from_val).days > 366:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Intervalo maximo 366 dias para BI de quebras.",
+        )
+
+    # 1) Coletar eventos do intervalo
+    raw_events = _break_events_in_range(session, d_from_val, d_to_val)
+
+    # 2) Buscar catálogo de produtos referenciados
+    codes_set = {e["cod_produto"] for e in raw_events}
+    product_map: dict[str, Any] = {}
+    if codes_set:
+        prods = list(session.exec(select(Product).where(Product.cod_produto.in_(list(codes_set)))).all())
+        for p in prods:
+            c = _normalize_numeric_product_code_key(str(p.cod_produto or ""))
+            if c:
+                product_map[c] = {
+                    "descricao": (p.cod_grup_descricao or "").strip(),
+                    "segmento": (p.cod_grup_segmento or "").strip() or "Sem segmento",
+                    "marca": (p.cod_grup_marca or "").strip() or "Sem marca",
+                    "cia": (p.cod_grup_cia or "").strip() or "Sem CIA",
+                    "price": float(p.price) if p.price is not None else None,
+                    "conversion_factor": float(p.conversion_factor) if p.conversion_factor is not None else None,
+                }
+
+    def _estimate_loss(cod: str, qty_cx: int, qty_un: int) -> float | None:
+        """Prejuízo estimado em R$ (unidades equivalentes × preço unitário)."""
+        info = product_map.get(cod)
+        if not info:
+            return None
+        price = info.get("price")
+        if price is None or price <= 0:
+            return None
+        conv = info.get("conversion_factor") or 1.0
+        total_un_equiv = qty_un + qty_cx * conv
+        return round(total_un_equiv * price, 2)
+
+    # 3) Agregar quebras por produto
+    by_code: dict[str, dict] = {}
+    for e in raw_events:
+        cod = e["cod_produto"]
+        if cod not in by_code:
+            by_code[cod] = {"cx": 0, "un": 0}
+        if e["qty_type"] == "caixa":
+            by_code[cod]["cx"] += e["qty"]
+        else:
+            by_code[cod]["un"] += e["qty"]
+
+    products_without_price: list[str] = []
+    for cod, rec in by_code.items():
+        info = product_map.get(cod, {})
+        loss = _estimate_loss(cod, rec["cx"], rec["un"])
+        rec["loss_brl"] = loss
+        rec["descricao"] = info.get("descricao", cod)
+        rec["segmento"] = info.get("segmento", "Sem segmento")
+        rec["marca"] = info.get("marca", "Sem marca")
+        if info.get("price") is None:
+            products_without_price.append(cod)
+
+    # 4) Série temporal por dia operacional
+    by_day_raw: dict[str, dict] = {}
+    for e in raw_events:
+        d_key = e["operational_date"]
+        if d_key not in by_day_raw:
+            by_day_raw[d_key] = {}
+        cod = e["cod_produto"]
+        if cod not in by_day_raw[d_key]:
+            by_day_raw[d_key][cod] = {"cx": 0, "un": 0}
+        if e["qty_type"] == "caixa":
+            by_day_raw[d_key][cod]["cx"] += e["qty"]
+        else:
+            by_day_raw[d_key][cod]["un"] += e["qty"]
+
+    by_day: list[dict] = []
+    cur = d_from_val
+    while cur <= d_to_val:
+        dk = cur.isoformat()
+        day_prods = by_day_raw.get(dk, {})
+        day_loss: float = 0.0
+        day_items = len(day_prods)
+        has_any_price = False
+        for cod2, rec2 in day_prods.items():
+            l = _estimate_loss(cod2, rec2["cx"], rec2["un"])
+            if l is not None:
+                day_loss += l
+                has_any_price = True
+        by_day.append({
+            "date": dk,
+            "items_with_break": day_items,
+            "loss_brl": round(day_loss, 2) if has_any_price else None,
+        })
+        cur += timedelta(days=1)
+
+    # 5) Top produtos por prejuízo estimado
+    ranked = sorted(
+        by_code.items(),
+        key=lambda kv: (kv[1].get("loss_brl") or 0),
+        reverse=True,
+    )
+    top_products = [
+        {
+            "cod_produto": cod,
+            "descricao": rec["descricao"],
+            "segmento": rec["segmento"],
+            "cx": int(rec["cx"]),
+            "un": int(rec["un"]),
+            "loss_brl": rec.get("loss_brl"),
+        }
+        for cod, rec in ranked[:20]
+    ]
+
+    # 6) Agrupamento por segmento
+    seg_agg: dict[str, dict] = {}
+    for cod, rec in by_code.items():
+        seg = rec["segmento"]
+        if seg not in seg_agg:
+            seg_agg[seg] = {"loss_brl": 0.0, "items": 0, "has_price": False}
+        seg_agg[seg]["items"] += 1
+        l = rec.get("loss_brl")
+        if l is not None:
+            seg_agg[seg]["loss_brl"] += l
+            seg_agg[seg]["has_price"] = True
+    total_seg_loss = sum(v["loss_brl"] for v in seg_agg.values() if v["has_price"])
+    by_category = [
+        {
+            "segmento": seg,
+            "items": v["items"],
+            "loss_brl": round(v["loss_brl"], 2) if v["has_price"] else None,
+            "pct": round(v["loss_brl"] / total_seg_loss * 100, 1) if total_seg_loss > 0 and v["has_price"] else None,
+        }
+        for seg, v in sorted(seg_agg.items(), key=lambda kv: kv[1]["loss_brl"], reverse=True)
+    ]
+
+    # 7) Agrupamento por motivo
+    reason_agg: dict[str, dict] = {}
+    for e in raw_events:
+        reason = e.get("reason") or "Não informado"
+        cod = e["cod_produto"]
+        if reason not in reason_agg:
+            reason_agg[reason] = {"count": 0, "codes": set(), "loss_brl": 0.0, "has_price": False}
+        reason_agg[reason]["count"] += 1
+        reason_agg[reason]["codes"].add(cod)
+
+    # Distribuir o prejuízo proporcionalmente pelos eventos (eventos de cada motivo)
+    for e in raw_events:
+        cod = e["cod_produto"]
+        reason = e.get("reason") or "Não informado"
+        info = product_map.get(cod, {})
+        price = info.get("price")
+        if price is None or price <= 0:
+            continue
+        conv = info.get("conversion_factor") or 1.0
+        n_events_this_cod = sum(1 for ev in raw_events if ev["cod_produto"] == cod)
+        qty = e["qty"]
+        ct = e["qty_type"]
+        un_equiv = qty if ct == "unidade" else qty * conv
+        loss_share = round(un_equiv * price, 4)
+        if reason in reason_agg:
+            reason_agg[reason]["loss_brl"] += loss_share
+            reason_agg[reason]["has_price"] = True
+
+    total_reason_loss = sum(v["loss_brl"] for v in reason_agg.values() if v["has_price"])
+    by_reason = [
+        {
+            "reason": reason,
+            "occurrences": v["count"],
+            "unique_products": len(v["codes"]),
+            "loss_brl": round(v["loss_brl"], 2) if v["has_price"] else None,
+            "pct": round(v["loss_brl"] / total_reason_loss * 100, 1) if total_reason_loss > 0 and v["has_price"] else None,
+        }
+        for reason, v in sorted(reason_agg.items(), key=lambda kv: kv[1]["loss_brl"], reverse=True)
+    ]
+
+    # 8) Summary geral
+    total_loss_brl = sum(
+        rec["loss_brl"] for rec in by_code.values() if rec.get("loss_brl") is not None
+    )
+    total_cx = sum(rec["cx"] for rec in by_code.values())
+    total_un = sum(rec["un"] for rec in by_code.values())
+
+    return {
+        "date_from": d_from_val.isoformat(),
+        "date_to": d_to_val.isoformat(),
+        "summary": {
+            "unique_products": len(by_code),
+            "total_cx": int(total_cx),
+            "total_un": int(total_un),
+            "total_loss_brl": round(total_loss_brl, 2),
+            "products_with_price": len(by_code) - len(products_without_price),
+            "products_without_price": len(products_without_price),
+        },
+        "by_day": by_day,
+        "top_products": top_products,
+        "by_category": by_category,
+        "by_reason": by_reason,
+        "products_without_price": products_without_price[:50],
     }

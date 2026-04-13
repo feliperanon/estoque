@@ -448,6 +448,9 @@ const API_VALIDITY_DISPLAY_EXPIRY_BY_PRODUCT = '/audit/validity-display-expiry-b
 const API_VALIDITY_KPI_EXPIRING_30D = '/audit/validity-kpi-expiring-30d';
 const API_VALIDITY_ANALYSIS_EXPORT_XLSX = '/audit/validity-analysis/export.xlsx';
 const API_SYNC_BREAKS = '/audit/break-events';
+const API_BREAK_EVENTS_BULK_DELETE = '/audit/break-events/bulk-delete';
+/** Confirmação obrigatória (servidor) para apagar todas as quebras de um dia operacional. */
+const BREAK_BULK_DELETE_DAY_PHRASE = 'APAGAR TODAS AS QUEBRAS DO DIA';
 const API_BREAK_DAY_TOTALS = '/audit/break-day-totals';
 const API_MATE_TROCA_EVENTS = '/audit/mate-troca-events';
 const API_MATE_TROCA_PENDING_BY_PRODUCT = '/audit/mate-troca-pending-by-product';
@@ -825,8 +828,10 @@ let breakSyncInProgress = false;
 let selectedProductFile = null;
 let currentRole = 'conferente';
 let countProductsCache = [];
-/** Catálogo ativo CIA Mate couro (base de troca). */
+/** Catálogo CIA Mate couro (base de troca); inclui inativos para alinhar fator de conversão ao servidor. */
 let mateCouroProductsCache = [];
+/** Evita cache antigo só com ativos antes da normalização CX/UN. */
+let mateCouroCatalogLoadComplete = false;
 /** Último número de itens Mate couro no dia carregado (para KPIs). */
 let lastMateTrocaDayItemsCount = null;
 let currentAllowedPages = [];
@@ -858,6 +863,7 @@ const PAGE_KEYS_BY_MODULE = {
     'mate-couro-troca-historico',
     'mate-couro-troca-trocas',
     'break-history',
+    'bi-quebras',
   ],
   cadastro: ['cadastro', 'cadastro-produto', 'produtos', 'parametros-produto'],
   acesso: ['acesso'],
@@ -895,6 +901,7 @@ const REGISTER_ACCESS_GROUPS = [
       { key: 'validity-analysis', label: 'Análise de Validades' },
       { key: 'mate-couro-troca', label: 'Base de troca' },
       { key: 'break-history', label: 'Registro de quebras' },
+      { key: 'bi-quebras', label: 'BI de Quebras' },
     ],
   },
   {
@@ -941,6 +948,7 @@ const REGISTER_PROFILE_PRESETS = {
     'validity',
     'import-txt',
     'break-history',
+    'bi-quebras',
     'mate-couro-troca',
     /* count-audit / validity-analysis: só com permissão explícita ou perfil administrativo */
   ],
@@ -963,6 +971,7 @@ const SUB_MODULES = [
 ];
 const ANALISE_SUB_MODULES = [
   'break-history',
+  'bi-quebras',
   'validity-analysis',
   'import-txt',
   'count-audit',
@@ -1000,6 +1009,7 @@ const PAGE_TITLES = {
   return: 'Devolução',
   quebra: 'Quebra',
   'break-history': 'Registro de quebras',
+  'bi-quebras': 'BI de Quebras',
   'mate-couro-troca': 'Base de troca',
   'mate-couro-troca-historico': 'Histórico no servidor',
   'mate-couro-troca-trocas': 'Trocas encerradas',
@@ -1142,7 +1152,10 @@ function setActiveSub(subKey) {
   } else if (subKey === QUEBRA_SUB_KEY) {
     loadBreakProducts();
   } else if (subKey === 'break-history') {
+    updateBreakHistoryBulkDeleteUi();
     loadBreakHistoryList();
+  } else if (subKey === 'bi-quebras') {
+    loadBiQuebras();
   } else if (subKey === 'mate-couro-troca') {
     loadMateCouroTrocaPage();
   } else if (subKey === 'mate-couro-troca-historico') {
@@ -1837,6 +1850,8 @@ function saveSession(token, user) {
 function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  mateCouroProductsCache = [];
+  mateCouroCatalogLoadComplete = false;
 }
 
 function handleUnauthorizedResponse(response) {
@@ -3781,6 +3796,12 @@ function bindBreakEvents() {
     });
   }
 
+  const btnBreakBulk = document.getElementById('btn-break-history-bulk-delete');
+  if (btnBreakBulk && !btnBreakBulk.dataset.breakBulkBound) {
+    btnBreakBulk.dataset.breakBulkBound = '1';
+    btnBreakBulk.addEventListener('click', () => void runBreakHistoryBulkDelete());
+  }
+
   const breakShell = document.getElementById('break-products-shell');
   if (breakShell && breakShell.dataset.breakDelegates !== '1') {
     breakShell.dataset.breakDelegates = '1';
@@ -3881,6 +3902,101 @@ function filtrarProdutosQuebra() {
     totalSpan.textContent = `${totalVisiveis} ${totalVisiveis === 1 ? 'item' : 'itens'}`;
   }
   updateBreakOpProgressBar();
+}
+
+function updateBreakHistoryBulkDeleteUi() {
+  const ok = ['administrativo', 'admin'].includes(currentRole);
+  const btn = document.getElementById('btn-break-history-bulk-delete');
+  const hint = document.getElementById('break-history-bulk-delete-hint');
+  const wrap = document.getElementById('break-history-bulk-codes-wrap');
+  if (btn) btn.hidden = !ok;
+  if (hint) hint.hidden = !ok;
+  if (wrap) wrap.hidden = !ok;
+}
+
+function parseBreakHistoryBulkCodesRaw(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return [];
+  const parts = s
+    .split(/[,;]+/)
+    .flatMap((p) => p.split(/\s+/))
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const out = new Set();
+  for (const p of parts) {
+    const c = normalizeNumericProductCodeKey(p) || normalizeItemCode(p);
+    const n = c ? normalizeNumericProductCodeKey(c) : '';
+    if (n) out.add(n);
+  }
+  return Array.from(out);
+}
+
+async function runBreakHistoryBulkDelete() {
+  const token = getToken();
+  if (!token) {
+    window.alert('Faça login.');
+    return;
+  }
+  if (!['administrativo', 'admin'].includes(currentRole)) return;
+  const dateEl = document.getElementById('break-history-date');
+  const d = (dateEl && dateEl.value) || getBrazilDateKey();
+  const codesInp = document.getElementById('break-history-bulk-codes');
+  const codes = parseBreakHistoryBulkCodesRaw(codesInp && codesInp.value);
+  let confirmPhrase = '';
+  if (!codes.length) {
+    const ph = window.prompt(
+      `ATENÇÃO: Todas as quebras do dia ${d} serão removidas no servidor para todos os usuários.\n\n` +
+        `Digite a frase exata para confirmar:\n${BREAK_BULK_DELETE_DAY_PHRASE}`,
+    );
+    if (ph == null) return;
+    confirmPhrase = String(ph).trim();
+    if (confirmPhrase !== BREAK_BULK_DELETE_DAY_PHRASE) {
+      window.alert('Frase incorreta. Nada foi apagado.');
+      return;
+    }
+  } else if (
+    !window.confirm(
+      `Remover no servidor todas as quebras do dia ${d} apenas dos códigos: ${codes.join(', ')}?\n\n` +
+        'Esta ação vale para todo o sistema e não pode ser desfeita.',
+    )
+  ) {
+    return;
+  }
+  try {
+    const response = await apiFetch(API_BREAK_EVENTS_BULK_DELETE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        operational_date: String(d).slice(0, 10),
+        cod_produtos: codes,
+        confirm_phrase: confirmPhrase,
+      }),
+    });
+    if (handleUnauthorizedResponse(response)) return;
+    if (!response.ok) {
+      let msg = 'Não foi possível apagar.';
+      try {
+        const err = await response.json();
+        if (typeof err.detail === 'string') msg = err.detail;
+        else if (Array.isArray(err.detail))
+          msg = err.detail
+            .map((x) => (typeof x === 'object' && x.msg ? x.msg : String(x)))
+            .join(' ');
+      } catch {
+        /* ignore */
+      }
+      window.alert(msg);
+      return;
+    }
+    const data = await response.json();
+    window.alert(data.message || `Removidos ${data.deleted || 0} lançamento(s).`);
+    await loadBreakHistoryList();
+  } catch {
+    window.alert('Sem conexão.');
+  }
 }
 
 async function loadBreakHistoryList() {
@@ -4212,7 +4328,6 @@ function renderMateTrocaBaseBalanceCardV2(mergedRows) {
   const countEl = document.getElementById('mate-couro-troca-balance-v2-count');
   const rangeEl = document.getElementById('mate-couro-troca-balance-v2-range');
   if (!ul) return;
-  console.log('[MATE TROCA V2] render final', mergedRows);
   if (countEl) {
     countEl.textContent = mergedRows.length ? `${mergedRows.length} produto(s)` : '0 produtos';
   }
@@ -4278,7 +4393,6 @@ function renderMateTrocaBaseBalanceCardV2FromCache() {
     { fetchFailed: false },
   );
   mateTrocaBaseV2LastMergedRows = mergedRows;
-  console.log('[MATE TROCA V2] merged rows (cache)', mergedRows);
   renderMateTrocaBaseBalanceCardV2(mergedRows);
   updateMateCouroKpis();
 }
@@ -4286,8 +4400,6 @@ function renderMateTrocaBaseBalanceCardV2FromCache() {
 async function refreshMateTrocaBaseBalanceCardV2() {
   hydrateMateTrocaBaseV2LastValidFromDiskOnce();
   const payload = await fetchMateTrocaBaseV2();
-  console.log('[MATE TROCA V2] payload bruto', payload.raw != null ? payload.raw : payload);
-  console.log('[MATE TROCA V2] last valid state (antes merge)', { ...mateTrocaBaseLastValidStateV2 });
 
   const searchEl = document.getElementById('mate-couro-troca-pending-search');
   const term = ((searchEl && searchEl.value) || '').trim().toLowerCase();
@@ -4335,7 +4447,6 @@ async function refreshMateTrocaBaseBalanceCardV2() {
     { fetchFailed: !payload.ok },
   );
   mateTrocaBaseV2LastMergedRows = mergedRows;
-  console.log('[MATE TROCA V2] merged rows', mergedRows);
   renderMateTrocaBaseBalanceCardV2(mergedRows);
   updateMateCouroKpis();
   return mateTrocaServerPendingCache;
@@ -4661,6 +4772,7 @@ function markMateTrocaLocalEventsSynced(ids) {
 async function syncMateTrocaEventsToServer(events) {
   const arr = events || [];
   if (!arr.length) return { ok: true };
+  await ensureMateCouroCatalogLoaded();
   const state = readMateCouroTrocaStorage();
   if (!Array.isArray(state.eventLog)) state.eventLog = [];
   const opDay = getBrazilDateKey();
@@ -4936,6 +5048,7 @@ function canonicalizeMateTrocaDaySnapshot(snap) {
  * dia+código+delta. Atualiza snapshots locais só após POST ok; espelha pending do GET em seguida.
  */
 async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
+  await ensureMateCouroCatalogLoaded();
   const state = readMateCouroTrocaStorage();
   if (!state.daySnapshots) state.daySnapshots = {};
   if (!Array.isArray(state.eventLog)) state.eventLog = [];
@@ -5030,12 +5143,18 @@ async function mateCouroApplyDaySnapshotDelta(dayKey, mateEvents) {
 }
 
 async function ensureMateCouroCatalogLoaded() {
-  if (Array.isArray(mateCouroProductsCache) && mateCouroProductsCache.length) return;
   const token = getToken();
   if (!token) return;
+  if (
+    Array.isArray(mateCouroProductsCache) &&
+    mateCouroProductsCache.length &&
+    mateCouroCatalogLoadComplete
+  ) {
+    return;
+  }
   const params = new URLSearchParams();
   params.set('limit', '20000');
-  params.set('status', 'ativo');
+  params.set('status', 'todos');
   params.set('cia', MATE_COURO_CIA);
   const response = await apiFetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
     headers: getAuthHeaders(),
@@ -5044,6 +5163,7 @@ async function ensureMateCouroCatalogLoaded() {
   if (!response.ok) return;
   const data = await response.json();
   mateCouroProductsCache = Array.isArray(data) ? data : [];
+  mateCouroCatalogLoadComplete = true;
 }
 
 function getMateCouroCodSet() {
@@ -5898,7 +6018,7 @@ function bindMateCouroTrocaEvents() {
           (x) => normalizeItemCode(String(x.cod_produto || '')) === cod,
         );
         if (!inCatalog) {
-          window.alert('Código não encontrado no catálogo da base de troca (ativos).');
+          window.alert('Código não encontrado no catálogo da base de troca (CIA Mate couro).');
           return;
         }
         await refreshMateTrocaBaseBalanceCardV2();
@@ -5975,6 +6095,7 @@ function bindMateCouroTrocaEvents() {
       if (!cod) return;
 
       void (async () => {
+        await ensureMateCouroCatalogLoaded();
         await refreshMateTrocaBaseBalanceCardV2();
 
         if (action === 'recebeu' && !mateTrocaV2SaldoKnownForCod(cod)) {
@@ -12748,6 +12869,7 @@ function initDashboard(user) {
     adminPurgeSection.style.display = currentRole === 'admin' ? 'block' : 'none';
   }
   updateMateTrocaReconcileFromBreaksButton();
+  updateBreakHistoryBulkDeleteUi();
   showDashboard();
 }
 
@@ -12792,6 +12914,331 @@ if (moduleNav) {
     }
   });
 }
+
+
+// ─────────────────────────────────────────────────────────────────
+//  BI de Quebras
+// ─────────────────────────────────────────────────────────────────
+
+let _biQuebrasChartLine      = null;
+let _biQuebrasChartSegmento  = null;
+let _biQuebrasChartReason    = null;
+
+const BI_QUEBRAS_PALETTE = [
+  '#e05263', '#f7a245', '#f7cf45', '#6dc96d', '#45b8f7',
+  '#9b59b6', '#e8855a', '#3ab0c3', '#e84393', '#7ecc49',
+  '#c0392b', '#d35400', '#27ae60', '#2980b9', '#8e44ad',
+  '#16a085', '#f39c12', '#1abc9c', '#2c3e50', '#95a5a6',
+];
+
+function _biQuebrasFormatBRL(val) {
+  if (val == null || isNaN(val)) return '—';
+  return 'R$ ' + Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function _biQuebrasSetKpis(data) {
+  const s = data.summary || {};
+  const el = (id) => document.getElementById(id);
+
+  const loss = el('bi-quebras-kpi-loss');
+  if (loss) loss.textContent = _biQuebrasFormatBRL(s.total_loss_brl);
+
+  const prods = el('bi-quebras-kpi-products');
+  if (prods) prods.textContent = s.unique_products ?? '—';
+
+  const cx = el('bi-quebras-kpi-cx');
+  if (cx) cx.textContent = s.total_cx ?? '—';
+
+  const un = el('bi-quebras-kpi-un');
+  if (un) un.textContent = s.total_un ?? '—';
+
+  const cov = el('bi-quebras-kpi-coverage');
+  if (cov) {
+    const total = s.unique_products || 0;
+    const withP = s.products_with_price || 0;
+    cov.textContent = total > 0 ? `${withP} / ${total}` : '—';
+  }
+
+  const period = el('bi-quebras-kpi-period');
+  if (period) period.textContent = `${data.date_from || ''} → ${data.date_to || ''}`;
+}
+
+function _biQuebrasRenderLineChart(byDay) {
+  const canvas = document.getElementById('bi-quebras-chart-line');
+  const emptyMsg = document.getElementById('bi-quebras-chart-empty');
+  if (!canvas) return;
+
+  if (_biQuebrasChartLine) { _biQuebrasChartLine.destroy(); _biQuebrasChartLine = null; }
+
+  const hasData = byDay.some(d => d.loss_brl != null && d.loss_brl > 0);
+  if (emptyMsg) emptyMsg.hidden = hasData;
+  canvas.style.display = hasData ? '' : 'none';
+  if (!hasData) return;
+
+  const labels = byDay.map(d => {
+    const [y, m, day] = d.date.split('-');
+    return `${day}/${m}`;
+  });
+  const values = byDay.map(d => d.loss_brl ?? 0);
+
+  _biQuebrasChartLine = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Prejuízo R$',
+        data: values,
+        fill: true,
+        backgroundColor: 'rgba(224, 82, 99, 0.12)',
+        borderColor: '#e05263',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#e05263',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.35,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ' ' + _biQuebrasFormatBRL(ctx.parsed.y),
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.06)' },
+          ticks: { color: '#94a3b8', font: { size: 11 }, maxRotation: 45 },
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.06)' },
+          ticks: {
+            color: '#94a3b8',
+            font: { size: 11 },
+            callback: (v) => 'R$ ' + v.toLocaleString('pt-BR'),
+          },
+          beginAtZero: true,
+        },
+      },
+    },
+  });
+}
+
+function _biQuebrasRenderDoughnut(canvasId, chartRef, items, labelKey, valueKey) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return null;
+  if (chartRef) { chartRef.destroy(); }
+
+  const active = items.filter(i => i[valueKey] != null && i[valueKey] > 0);
+  if (!active.length) { canvas.style.display = 'none'; return null; }
+  canvas.style.display = '';
+
+  return new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: active.map(i => i[labelKey]),
+      datasets: [{
+        data: active.map(i => i[valueKey]),
+        backgroundColor: BI_QUEBRAS_PALETTE.slice(0, active.length),
+        borderWidth: 2,
+        borderColor: '#111827',
+        hoverOffset: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ' ' + _biQuebrasFormatBRL(ctx.parsed),
+          },
+        },
+      },
+    },
+  });
+}
+
+function _biQuebrasRenderRanking(topProducts) {
+  const list  = document.getElementById('bi-quebras-ranking-list');
+  const count = document.getElementById('bi-quebras-ranking-count');
+  if (!list) return;
+  list.innerHTML = '';
+  if (count) count.textContent = topProducts.length;
+  if (!topProducts.length) {
+    list.innerHTML = '<li class="bi-quebras-list-empty">Nenhum dado no período.</li>';
+    return;
+  }
+  topProducts.forEach((p, idx) => {
+    const li = document.createElement('li');
+    li.className = 'bi-quebras-ranking-row';
+    const loss = p.loss_brl != null ? _biQuebrasFormatBRL(p.loss_brl) : '—';
+    const desc = (p.descricao || p.cod_produto || '—').substring(0, 40);
+    li.innerHTML = `
+      <span class="bi-quebras-rank-pos">${idx + 1}</span>
+      <span class="bi-quebras-rank-desc" title="${p.descricao || ''}">${desc}</span>
+      <span class="bi-quebras-rank-seg">${p.segmento || '—'}</span>
+      <span class="bi-quebras-rank-cx">${p.cx ?? 0} CX</span>
+      <span class="bi-quebras-rank-un">${p.un ?? 0} UN</span>
+      <span class="bi-quebras-rank-loss ${p.loss_brl != null ? 'bi-quebras-rank-loss--val' : ''}">${loss}</span>
+    `;
+    list.appendChild(li);
+  });
+}
+
+function _biQuebrasRenderBreakdownList(listId, items, labelKey, extraFn) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+  list.innerHTML = '';
+  if (!items.length) {
+    list.innerHTML = '<li class="bi-quebras-breakdown-empty">Sem dados.</li>';
+    return;
+  }
+  items.forEach((item, idx) => {
+    const li = document.createElement('li');
+    li.className = 'bi-quebras-breakdown-row';
+    const color = BI_QUEBRAS_PALETTE[idx % BI_QUEBRAS_PALETTE.length];
+    const pct = item.pct != null ? `${item.pct}%` : '—';
+    const loss = item.loss_brl != null ? _biQuebrasFormatBRL(item.loss_brl) : '—';
+    const extra = extraFn ? extraFn(item) : '';
+    li.innerHTML = `
+      <span class="bi-quebras-bd-dot" style="background:${color}" aria-hidden="true"></span>
+      <span class="bi-quebras-bd-label" title="${item[labelKey] || ''}">${(item[labelKey] || '—').substring(0, 30)}</span>
+      <span class="bi-quebras-bd-items">${item.items ?? item.occurrences ?? 0} prod.</span>
+      <span class="bi-quebras-bd-pct">${pct}</span>
+      <span class="bi-quebras-bd-loss">${loss}</span>
+      ${extra}
+    `;
+    list.appendChild(li);
+  });
+}
+
+function _biQuebrasShowFeedback(msg, isError) {
+  const el = document.getElementById('bi-quebras-feedback');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = `field-feedback bi-quebras-feedback ${isError ? 'field-feedback--error' : 'field-feedback--ok'}`;
+  el.style.display = msg ? '' : 'none';
+}
+
+async function loadBiQuebras() {
+  const fromEl   = document.getElementById('bi-quebras-date-from');
+  const toEl     = document.getElementById('bi-quebras-date-to');
+  const loading  = document.getElementById('bi-quebras-loading-chip');
+  const noPriceAlert = document.getElementById('bi-quebras-no-price-alert');
+  const noPriceList  = document.getElementById('bi-quebras-no-price-list');
+
+  _biQuebrasShowFeedback('', false);
+
+  const dateFrom = fromEl?.value || '';
+  const dateTo   = toEl?.value   || '';
+
+  const params = new URLSearchParams();
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo)   params.set('date_to',   dateTo);
+
+  if (loading) loading.hidden = false;
+
+  let data;
+  try {
+    const res = await apiFetch(`/audit/bi-quebras?${params.toString()}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Erro ${res.status}`);
+    }
+    data = await res.json();
+  } catch (err) {
+    _biQuebrasShowFeedback(`Erro ao carregar BI: ${err.message}`, true);
+    if (loading) loading.hidden = true;
+    return;
+  } finally {
+    if (loading) loading.hidden = true;
+  }
+
+  // KPIs
+  _biQuebrasSetKpis(data);
+
+  // Gráfico de linha
+  _biQuebrasRenderLineChart(data.by_day || []);
+
+  // Ranking Top Produtos
+  _biQuebrasRenderRanking(data.top_products || []);
+
+  // Doughnut — Segmento
+  _biQuebrasChartSegmento = _biQuebrasRenderDoughnut(
+    'bi-quebras-chart-segmento',
+    _biQuebrasChartSegmento,
+    data.by_category || [],
+    'segmento',
+    'loss_brl',
+  );
+  _biQuebrasRenderBreakdownList(
+    'bi-quebras-segmento-list',
+    data.by_category || [],
+    'segmento',
+    null,
+  );
+
+  // Doughnut — Motivo
+  _biQuebrasChartReason = _biQuebrasRenderDoughnut(
+    'bi-quebras-chart-reason',
+    _biQuebrasChartReason,
+    data.by_reason || [],
+    'reason',
+    'loss_brl',
+  );
+  _biQuebrasRenderBreakdownList(
+    'bi-quebras-reason-list',
+    data.by_reason || [],
+    'reason',
+    (item) => `<span class="bi-quebras-bd-occ">${item.occurrences ?? 0}×</span>`,
+  );
+
+  // Alerta de produtos sem preço
+  const noPriceItems = data.products_without_price || [];
+  if (noPriceAlert) {
+    noPriceAlert.hidden = noPriceItems.length === 0;
+    if (noPriceList && noPriceItems.length) {
+      noPriceList.textContent = `${noPriceItems.length} produto(s): ${noPriceItems.slice(0, 15).join(', ')}${noPriceItems.length > 15 ? '…' : ''}`;
+    }
+  }
+}
+
+function _biQuebrasSetDefaultDates() {
+  // Primeiros 30 dias: de hoje - 29 até hoje
+  const fromEl = document.getElementById('bi-quebras-date-from');
+  const toEl   = document.getElementById('bi-quebras-date-to');
+  if (!fromEl || !toEl) return;
+  const today = getBrazilDateKey();
+  if (!toEl.value)   toEl.value   = today;
+  if (!fromEl.value) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 29);
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    fromEl.value = `${d.getFullYear()}-${m}-${day}`;
+  }
+}
+
+function bindBiQuebrasEvents() {
+  document.addEventListener('DOMContentLoaded', _biQuebrasSetDefaultDates);
+
+  const btn = document.getElementById('btn-bi-quebras-load');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      _biQuebrasSetDefaultDates();
+      loadBiQuebras();
+    });
+  }
+}
+
+bindBiQuebrasEvents();
 
 // ── Inicialização ───────────────────────────────────────────────
 (async function init() {
