@@ -13509,6 +13509,7 @@ function _biQuebrasSetDefaultDates() {
 
 function bindBiQuebrasEvents() {
   document.addEventListener('DOMContentLoaded', _biQuebrasSetDefaultDates);
+  _biQuebrasSyncScopeButtons();
 
   const btn = document.getElementById('btn-bi-quebras-load');
   if (btn) {
@@ -13517,6 +13518,38 @@ function bindBiQuebrasEvents() {
       loadBiQuebras();
     });
   }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const scopeBtn = target.closest('[data-bi-quebras-cia-scope]');
+    if (scopeBtn) {
+      const nextScope = String(scopeBtn.getAttribute('data-bi-quebras-cia-scope') || '').trim();
+      if (!BI_QUEBRAS_CIA_SCOPE_VALUES.has(nextScope) || nextScope === _biQuebrasSelectedCiaScope) return;
+      _biQuebrasSelectedCiaScope = nextScope;
+      _biQuebrasSelectedCompany = '';
+      _biQuebrasSyncScopeButtons();
+      _biQuebrasSetDefaultDates();
+      loadBiQuebras();
+      return;
+    }
+
+    const companyRow = target.closest('[data-bi-quebras-company]');
+    if (companyRow) {
+      _biQuebrasSelectCompany(companyRow.getAttribute('data-bi-quebras-company'));
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const companyRow = target.closest('[data-bi-quebras-company]');
+    if (!companyRow) return;
+    event.preventDefault();
+    _biQuebrasSelectCompany(companyRow.getAttribute('data-bi-quebras-company'));
+  });
 }
 
 bindBiQuebrasEvents();
