@@ -9859,53 +9859,6 @@ details[open] > .validity-analytic-summary::after {
   border: 1px solid rgba(255,255,255,0.06);
   box-shadow: 0 4px 20px rgba(15,23,42,0.22);
 }
-.bi-quebras-header-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-.bi-quebras-page-title {
-  margin: 0;
-  font-size: 1.45rem;
-  font-weight: 900;
-  color: #f1f5f9;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-.bi-quebras-title-icon { font-size: 1.3rem; }
-.bi-quebras-page-subtitle {
-  margin: 4px 0 0;
-  font-size: 0.82rem;
-  color: #94a3b8;
-  line-height: 1.4;
-}
-.bi-quebras-header-chip-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.bi-quebras-chip-consulta {
-  background: rgba(15,118,110,0.25);
-  color: #6ee7b7;
-  border: 1px solid rgba(52,211,153,0.22);
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 999px;
-}
-.bi-quebras-loading-chip {
-  font-size: 0.75rem;
-  color: #93c5fd;
-  animation: bi-pulse 1.2s ease-in-out infinite;
-}
-@keyframes bi-pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
 
 /* Toolbar */
 .bi-quebras-toolbar {
@@ -10422,56 +10375,11 @@ body.bi-quebras-presentation-open {
   color: var(--audit-ink);
 }
 
-#sub-bi-quebras .bi-quebras-header-top {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--audit-space-3);
-  margin-bottom: var(--audit-space-4);
-}
-
-#sub-bi-quebras .bi-quebras-page-title {
-  color: var(--audit-ink);
-}
-
-#sub-bi-quebras .bi-quebras-title-icon {
-  display: none;
-}
-
-#sub-bi-quebras .bi-quebras-page-subtitle {
-  margin: 0.35rem 0 0;
-  max-width: 56rem;
-  color: var(--audit-muted);
-  font-size: var(--audit-text-sm);
-  line-height: 1.45;
-}
-
-#sub-bi-quebras .bi-quebras-header-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--audit-space-2);
-  align-items: center;
-}
-
-#sub-bi-quebras .bi-quebras-chip-consulta {
-  background: var(--audit-card-alt);
-  border: 1px solid var(--audit-border);
-  color: var(--audit-ink-secondary);
-}
-
-#sub-bi-quebras .bi-quebras-loading-chip {
-  color: #0d5c56;
-  animation: bi-pulse 1.2s ease-in-out infinite;
-}
-
 #sub-bi-quebras .bi-quebras-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--audit-space-3);
-  padding-top: var(--audit-space-3);
-  border-top: 1px solid var(--audit-border);
 }
 
 #sub-bi-quebras .bi-quebras-field {
@@ -10923,7 +10831,6 @@ body.bi-quebras-presentation-open {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  #sub-bi-quebras .bi-quebras-header-top,
   #sub-bi-quebras .bi-quebras-toolbar {
     gap: 0.75rem;
   }

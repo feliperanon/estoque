@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3D2E" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/style.css?v=63" />
+    <link rel="stylesheet" href="/static/style.css?v=64" />
     <script src="/static/vendor/chart.umd.min.js?v=4.4.3" defer></script>
     <title>{{ app_name }}</title>
   </head>
@@ -1329,23 +1329,11 @@
 
           <!-- ── Sub: BI de Quebras — Painel de Impacto Financeiro ── -->
           <div id="sub-bi-quebras" class="sub-section bi-quebras-page count-audit-page">
-            <section class="bi-quebras-shell count-audit-shell" aria-labelledby="bi-quebras-title">
+            <section class="bi-quebras-shell count-audit-shell" aria-label="BI de Quebras">
 
               <!-- Header / Filtros -->
               <header class="bi-quebras-header card count-audit-header">
-                <div class="bi-quebras-header-top">
-                  <div class="bi-quebras-header-titles count-audit-header__titles">
-                    <h2 id="bi-quebras-title" class="bi-quebras-page-title count-audit-page-title">
-                      <span class="bi-quebras-title-icon" aria-hidden="true">📊</span>
-                      BI de Quebras
-                    </h2>
-                    <p class="bi-quebras-page-subtitle count-audit-page-subtitle">Impacto financeiro estimado · cruzamento com cadastro de produto · America/Sao_Paulo</p>
-                  </div>
-                  <div class="bi-quebras-header-chip-row count-audit-header__chips">
-                    <span class="chip bi-quebras-chip-consulta count-audit-chip-ativo">Consulta servidor</span>
-                    <span id="bi-quebras-loading-chip" class="bi-quebras-loading-chip count-audit-chip-mode" hidden aria-live="polite">Carregando…</span>
-                  </div>
-                </div>
+                <span id="bi-quebras-loading-chip" class="sr-only" hidden aria-live="polite">Carregando…</span>
                 <div class="bi-quebras-toolbar count-audit-header__toolbar" aria-label="Filtros do BI de Quebras">
                   <div class="bi-quebras-field count-audit-field count-audit-field--date">
                     <label class="bi-quebras-label count-audit-label" for="bi-quebras-date-from">De</label>
