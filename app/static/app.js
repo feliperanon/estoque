@@ -13134,16 +13134,20 @@ function _biQuebrasRenderLineChart(byDay) {
     return;
   }
 
-  const hasData = byDay.some(d => d.loss_brl != null && d.loss_brl > 0);
-  if (emptyMsg) emptyMsg.hidden = hasData;
+  const plottedDays = (Array.isArray(byDay) ? byDay : []).filter((d) => Number(d?.items_with_break || 0) > 0);
+  const hasData = plottedDays.length > 0;
+  if (emptyMsg) {
+    emptyMsg.hidden = hasData;
+    if (!hasData) emptyMsg.textContent = 'Nenhum lancamento de quebra no periodo.';
+  }
   canvas.style.display = hasData ? '' : 'none';
   if (!hasData) return;
 
-  const labels = byDay.map(d => {
+  const labels = plottedDays.map(d => {
     const [y, m, day] = d.date.split('-');
     return `${day}/${m}`;
   });
-  const values = byDay.map(d => d.loss_brl ?? 0);
+  const values = plottedDays.map(d => d.loss_brl ?? 0);
 
   _biQuebrasChartLine = new Chart(canvas, {
     type: 'line',
