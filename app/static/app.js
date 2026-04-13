@@ -13090,6 +13090,14 @@ function _biQuebrasRenderLineChart(byDay) {
   if (!canvas) return;
 
   if (_biQuebrasChartLine) { _biQuebrasChartLine.destroy(); _biQuebrasChartLine = null; }
+  if (typeof Chart !== 'function') {
+    canvas.style.display = 'none';
+    if (emptyMsg) {
+      emptyMsg.hidden = false;
+      emptyMsg.textContent = 'Graficos indisponiveis no momento.';
+    }
+    return;
+  }
 
   const hasData = byDay.some(d => d.loss_brl != null && d.loss_brl > 0);
   if (emptyMsg) emptyMsg.hidden = hasData;
@@ -13153,6 +13161,10 @@ function _biQuebrasRenderDoughnut(canvasId, chartRef, items, labelKey, valueKey)
   const canvas = document.getElementById(canvasId);
   if (!canvas) return null;
   if (chartRef) { chartRef.destroy(); }
+  if (typeof Chart !== 'function') {
+    canvas.style.display = 'none';
+    return null;
+  }
 
   const active = items.filter(i => i[valueKey] != null && i[valueKey] > 0);
   if (!active.length) { canvas.style.display = 'none'; return null; }
@@ -13254,8 +13266,15 @@ async function loadBiQuebras() {
   const loading  = document.getElementById('bi-quebras-loading-chip');
   const noPriceAlert = document.getElementById('bi-quebras-no-price-alert');
   const noPriceList  = document.getElementById('bi-quebras-no-price-list');
+  const token = getToken();
 
   _biQuebrasShowFeedback('', false);
+  if (!token) return;
+  if (isAccessTokenExpired(token)) {
+    handleUnauthorizedResponse({ status: 401 });
+    return;
+  }
+  if (unauthorizedRedirectInProgress) return;
 
   const dateFrom = fromEl?.value || '';
   const dateTo   = toEl?.value   || '';
@@ -13268,7 +13287,11 @@ async function loadBiQuebras() {
 
   let data;
   try {
-    const res = await apiFetch(`/audit/bi-quebras?${params.toString()}`);
+    const res = await apiFetch(`/audit/bi-quebras?${params.toString()}`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (handleUnauthorizedResponse(res)) return;
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `Erro ${res.status}`);
@@ -13284,6 +13307,12 @@ async function loadBiQuebras() {
 
   // KPIs
   _biQuebrasSetKpis(data);
+  if (typeof Chart !== 'function') {
+    _biQuebrasShowFeedback(
+      'Dados carregados, mas os graficos nao puderam ser exibidos porque o Chart.js nao carregou.',
+      true,
+    );
+  }
 
   // Gráfico de linha
   _biQuebrasRenderLineChart(data.by_day || []);
