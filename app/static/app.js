@@ -10539,8 +10539,8 @@ function countAuditHasBreakDay(meta) {
 
 /**
  * Linhas CX/UN no breakdown.
- * troca: sempre CX e UN (inteiros â‰¥ 0) â€” saldo do servidor, nÃ£o soma com a coluna Quebra.
- * quebra: sÃ³ dimensÃµes â‰  0 (pode ser negativo no lÃ­quido).
+ * troca: sempre CX e UN (inteiros >= 0) — saldo no servidor; quebra do dia entra no pendente ao usar Carregar na base de troca.
+ * quebra: só dimensões != 0 no breakdown (pode ser negativo no líquido); na análise = total do dia (não é o saldo da troca).
  */
 function buildCountAuditDiffCxUnStrongs(cx, un, mode) {
   const lines = [];
@@ -10598,7 +10598,7 @@ function buildCountAuditTrocaColumnCellHtml(meta) {
   if (countAuditHasTrocaPending(meta)) {
     const inner = buildCountAuditDiffCxUnStrongs(meta.trocaCx, meta.trocaUn, 'troca');
     const title =
-      'Saldo atual da base de troca (mesmo card na tela Base de troca). NÃ£o Ã© soma com a coluna Quebra: quebra Ã© o lanÃ§amento do dia; troca Ã© o saldo acumulado no servidor (CX/UN podem ser normalizados pelo cadastro). Altera com Chegada, Saldo, Zerar ou Carregar.';
+      'Saldo atual no servidor (mesmo card na Base de troca), só para produtos CIA Mate couro (catálogo Mate). A quebra do dia incorpora ao pendente quando alguém usa Carregar na base de troca; a coluna Quebra mostra o total do dia nesta análise (não somamos as duas células na mesma linha). CX/UN podem ser normalizados pelo cadastro. Também mudam com Chegada, Saldo ou Zerar.';
     return (
       `<span class="count-audit-cell-label">Troca</span>` +
       `<div class="count-audit-diff-breakdown count-audit-diff-breakdown--troca" title="${escapeHtml(title)}">` +
@@ -10640,7 +10640,7 @@ function buildCountAuditMobileTrocaQuebraOpsHtml(meta) {
     let vals = formatCountAuditOpsMobileCxUn(meta.trocaCx, meta.trocaUn, 'troca');
     if (!vals) vals = 'CX 0 Â· UN 0';
     parts.push(
-      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo atual da base de troca, mesma fonte do card na tela Base de troca">` +
+      `<div class="count-audit-mobile-break-strip count-audit-mobile-break-strip--troca" title="Saldo no servidor (Base de troca), só CIA Mate couro. Quebra entra no pendente ao Carregar; coluna Quebra = total do dia.">` +
         `<span class="count-audit-mobile-break-label">Troca</span>` +
         `<span class="count-audit-mobile-break-values">${vals}</span>` +
       `</div>`,
@@ -10797,7 +10797,7 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
     : '';
   const prevDiffDetailLine = countAuditPrevDiffMarkupForMeta(meta, 'detail');
   const trocaDetailArticle = countAuditHasTrocaPending(meta)
-    ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (base de troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>Saldo acumulado no servidor (mesmo card na base de troca), nÃ£o soma com a quebra do dia. CX/UN podem ser normalizados pelo cadastro. Altera com Chegada, Saldo, Zerar ou Carregar.</small></article>`
+    ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (base de troca)</span><strong>${formatCountAuditDetailOpsCxUnLine(meta.trocaCx, meta.trocaUn, 'troca')}</strong><small>Só CIA Mate couro. Saldo no servidor (mesmo card). Quebra do dia entra no pendente ao Carregar; a coluna Quebra ao lado é o total do dia. CX/UN podem ser normalizados. Chegada, Saldo, Zerar ou Carregar.</small></article>`
     : meta.trocaMateCouro && !meta.trocaSaldoKnown
       ? `<article class="count-audit-detail-metric count-audit-detail-metric--troca-pendente"><span>Troca (base de troca)</span><strong>â€”</strong><small>Saldo ainda nÃ£o carregado nesta sessÃ£o. Atualize a lista na base de troca ou recarregue a anÃ¡lise.</small></article>`
       : '';
