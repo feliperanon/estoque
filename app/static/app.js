@@ -1,4 +1,4 @@
-/** Data civil em America/Sao_Paulo (YYYY-MM-DD). */
+﻿/** Data civil em America/Sao_Paulo (YYYY-MM-DD). */
 function getBrazilDateKey(d = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Sao_Paulo',
@@ -13089,6 +13089,44 @@ btnLogout.addEventListener('click', () => {
     window.clearInterval(countKpiTicker);
     countKpiTicker = null;
   }
+  clearSession();
+  countServerCountState = { ok: false, balances: {}, meta: null };
+  if (kpiCountUser) {
+    kpiCountUser.textContent = 'Servidor: \u2014 \u00b7 Voc\u00ea: \u2014';
+  }
+  loginForm.reset();
+  history.replaceState(null, '', historyBasePathNoHash());
+  showLogin();
+  closeSidebar();
+});
+
+// Sidebar (drawer): mesma l\u00f3gica de sidebar-shell.js
+function openSidebar() {
+  if (!sidebarMenu || !sidebarOverlay) return;
+  sidebarMenu.classList.add('open');
+  sidebarOverlay.classList.add('open');
+  document.body.classList.add('sidebar-drawer-open');
+}
+
+function closeSidebar() {
+  if (!sidebarMenu || !sidebarOverlay) return;
+  sidebarMenu.classList.remove('open');
+  sidebarOverlay.classList.remove('open');
+  document.body.classList.remove('sidebar-drawer-open');
+}
+
+if (btnMenuToggle) btnMenuToggle.addEventListener('click', openSidebar);
+if (btnMenuClose) btnMenuClose.addEventListener('click', closeSidebar);
+if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+if (moduleNav) {
+  moduleNav.addEventListener('click', (e) => {
+    if (e.target.classList.contains('module-btn')) {
+      closeSidebar();
+    }
+  });
+}
+
 let _biQuebrasChartLine = null;
 let _biQuebrasChartReason = null;
 let _biQuebrasSelectedCompany = '';
