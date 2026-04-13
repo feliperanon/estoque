@@ -3667,20 +3667,20 @@ function updateBreakReadOnlyState() {
   }
 }
 
-function refreshBreakProductListView() {
+function refreshBreakProductListView(explicitRestoreCtx) {
   const input = document.getElementById('break-item-code');
   const term = (input && input.value || '').trim();
   const scoped = filterBreakCatalogByScope(countProductsCache, getSelectedBreakScope());
   const toShow = term ? filterCountProductsByTerm(term, scoped) : scoped;
-  renderBreakProducts(toShow);
-  filtrarProdutosQuebra();
+  renderBreakProducts(toShow, explicitRestoreCtx);
 }
 
+/** @returns {boolean} true se a lista precisa ser re-renderizada no chamador (após sucesso com alteração de totais). */
 function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction, anchorEl) {
   const opQty = parseOperationQtyFromInputEl(inp);
   if (opQty == null) {
     setBreakFeedback('Digite uma quantidade maior que zero para aplicar com + ou −.', true);
-    return;
+    return false;
   }
   const item =
     (inp && inp.closest('.count-product-item'))
@@ -3690,7 +3690,7 @@ function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction, anchorE
   if (!reason) {
     setBreakFeedback('Selecione o motivo da quebra antes de lançar quantidade.', true);
     if (reasonSel && typeof reasonSel.focus === 'function') reasonSel.focus({ preventScroll: true });
-    return;
+    return false;
   }
   const refDecoded = decodeURIComponent(String(codRefEnc || ''));
   const itemCode = normalizeItemCode(refDecoded);
@@ -3704,11 +3704,12 @@ function applyBreakRowOperation(codRefEnc, countTypeRaw, inp, direction, anchorE
   }
   if (delta === 0) {
     if (inp) inp.value = '';
-    refreshBreakProductListView();
-    return;
+    refreshBreakProductListView(breakRestoreCtxFromQtyInput(inp));
+    return false;
   }
   registerBreakDelta(itemCode, delta, ct, reason);
   if (inp) inp.value = '';
+  return true;
 }
 
 function registerBreakDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa', reasonText = '') {
@@ -3914,9 +3915,6 @@ function bindBreakEvents() {
   const breakShell = document.getElementById('break-products-shell');
   if (breakShell && breakShell.dataset.breakDelegates !== '1') {
     breakShell.dataset.breakDelegates = '1';
-    const refreshAfter = () => {
-      refreshBreakProductListView();
-    };
     breakShell.addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-count-adjust');
       if (!btn || !breakShell.contains(btn)) return;
@@ -3929,9 +3927,23 @@ function bindBreakEvents() {
       if (deltaBtn !== 1 && deltaBtn !== -1) return;
       const row = btn.closest('.count-control-row');
       const inp = row ? row.querySelector('input.count-product-qty') : null;
-      applyBreakRowOperation(codRefEnc, countType, inp, deltaBtn, btn);
+      let rowRestoreCtx = null;
+      try {
+        const cod = normalizeItemCode(decodeURIComponent(String(codRefEnc || '')));
+        if (cod) {
+          rowRestoreCtx = {
+            focusCod: cod,
+            focusType: normalizeCountType(countType),
+            anchorCod: cod,
+            focusReasonOnly: false,
+          };
+        }
+      } catch {
+        rowRestoreCtx = null;
+      }
+      const didMutateTotals = applyBreakRowOperation(codRefEnc, countType, inp, deltaBtn, btn);
       if (inp && typeof inp.focus === 'function') inp.focus({ preventScroll: true });
-      refreshAfter();
+      if (didMutateTotals) refreshBreakProductListView(rowRestoreCtx);
     });
     breakShell.addEventListener('focusout', (e) => {
       const inp = e.target;
@@ -3943,7 +3955,7 @@ function bindBreakEvents() {
       }
       const hadOpQty = parseOperationQtyFromInputEl(inp) != null;
       if (!hadOpQty) {
-        refreshAfter();
+        refreshBreakProductListView(breakRestoreCtxFromQtyInput(inp));
       }
       // Sem aplicar ao sair do campo: blur não dispara + (evita envio “sozinho” e permite usar − com valor digitado).
     });
