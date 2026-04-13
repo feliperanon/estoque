@@ -13100,7 +13100,7 @@ btnLogout.addEventListener('click', () => {
   closeSidebar();
 });
 
-// Sidebar (drawer): mesma l\u00f3gica de sidebar-shell.js
+// Sidebar (drawer): alinhado a sidebar-shell.js
 function openSidebar() {
   if (!sidebarMenu || !sidebarOverlay) return;
   sidebarMenu.classList.add('open');
