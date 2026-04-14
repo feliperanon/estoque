@@ -933,6 +933,18 @@ let mateCouroCatalogLoadComplete = false;
 let lastMateTrocaDayItemsCount = null;
 let currentAllowedPages = [];
 let countKpiTicker = null;
+/** KPI da contagem: intervalo longo para não recalcular o catálogo inteiro com frequência (atualiza também após lançamentos/sync/refresh). */
+const COUNT_KPI_TICKER_MS = 60000;
+let countKpiTickerVisibilityBound = false;
+/** Invalidação do memo de `computeCountProgressStats` para lista completa (`countProductsCache`). */
+let countProgressStatsFullMemoRev = 0;
+let countProgressStatsFullMemo = null;
+
+function bumpCountProgressStatsRevision() {
+  countProgressStatsFullMemoRev += 1;
+  countProgressStatsFullMemo = null;
+}
+
 let countAuditPollingTimer = null;
 /** Intervalo da Análise de Contagem: atualização quase em tempo real (outros dispositivos / servidor). */
 const COUNT_AUDIT_POLL_MS = 8000;
@@ -1629,6 +1641,7 @@ function loadCountEventsBucketRaw() {
 function saveCountEventsBucketRaw(bucket) {
   try {
     localStorage.setItem(COUNT_EVENTS_BUCKET_KEY, JSON.stringify(bucket));
+    bumpCountProgressStatsRevision();
   } catch {
     /* ignore */
   }
@@ -1989,6 +2002,15 @@ function computeItemNetTotals(events) {
 }
 
 function computeCountProgressStats(products = countProductsCache) {
+  const isFullCatalog = products === countProductsCache;
+  if (
+    isFullCatalog
+    && countProgressStatsFullMemo
+    && countProgressStatsFullMemo.rev === countProgressStatsFullMemoRev
+  ) {
+    return countProgressStatsFullMemo.stats;
+  }
+
   const validProducts = (Array.isArray(products) ? products : [])
     .map((p) => normalizeItemCode(p.cod_produto || p.cod_grup_descricao || ''))
     .filter(Boolean);
@@ -2001,13 +2023,14 @@ function computeCountProgressStats(products = countProductsCache) {
    * Com TXT: percent (barra principal) = metades CX/UN que batem o import; productPercent/counted = produtos
    * com qualquer lançamento (não só os já conferidos contra o TXT).
    */
+  let stats;
   if (!hasTxt) {
     let counted = 0;
     for (const code of uniqueProducts) {
       if (productHasAnyCountLaunch(code)) counted += 1;
     }
     const percent = total > 0 ? Math.min(100, Math.round((counted / total) * 100)) : 0;
-    return {
+    stats = {
       total,
       counted,
       percent,
@@ -2016,41 +2039,46 @@ function computeCountProgressStats(products = countProductsCache) {
       dimCompleted: 0,
       dimTotal: 0,
     };
-  }
-
-  let dimCompleted = 0;
-  let dimTotal = 0;
-  let counted = 0;
-  for (const code of uniqueProducts) {
-    const pair = getCountSaldoPair(code);
-    const netCx = getCountNetMergedWithMateTrocaForTxtCompare(code, 'caixa');
-    const netUn = getCountNetMergedWithMateTrocaForTxtCompare(code, 'unidade');
-    if (pair) {
-      const dimCx = countDimensionMatchesSaldo(code, 'caixa', netCx, pair.import_caixa);
-      const dimUn = countDimensionMatchesSaldo(code, 'unidade', netUn, pair.import_unidade);
-      dimTotal += 2;
-      if (dimCx === true) dimCompleted += 1;
-      if (dimUn === true) dimCompleted += 1;
-      if (productHasAnyCountLaunch(code)) counted += 1;
-    } else {
-      dimTotal += 1;
-      if (productHasAnyCountLaunch(code)) {
-        dimCompleted += 1;
-        counted += 1;
+  } else {
+    let dimCompleted = 0;
+    let dimTotal = 0;
+    let counted = 0;
+    for (const code of uniqueProducts) {
+      const pair = getCountSaldoPair(code);
+      const netCx = getCountNetMergedWithMateTrocaForTxtCompare(code, 'caixa');
+      const netUn = getCountNetMergedWithMateTrocaForTxtCompare(code, 'unidade');
+      if (pair) {
+        const dimCx = countDimensionMatchesSaldo(code, 'caixa', netCx, pair.import_caixa);
+        const dimUn = countDimensionMatchesSaldo(code, 'unidade', netUn, pair.import_unidade);
+        dimTotal += 2;
+        if (dimCx === true) dimCompleted += 1;
+        if (dimUn === true) dimCompleted += 1;
+        if (productHasAnyCountLaunch(code)) counted += 1;
+      } else {
+        dimTotal += 1;
+        if (productHasAnyCountLaunch(code)) {
+          dimCompleted += 1;
+          counted += 1;
+        }
       }
     }
+    const percent = dimTotal > 0 ? Math.min(100, Math.round((100 * dimCompleted) / dimTotal)) : 0;
+    const productPercent = total > 0 ? Math.min(100, Math.round((100 * counted) / total)) : 0;
+    stats = {
+      total,
+      counted,
+      percent,
+      productPercent,
+      usesDimProgress: true,
+      dimCompleted,
+      dimTotal,
+    };
   }
-  const percent = dimTotal > 0 ? Math.min(100, Math.round((100 * dimCompleted) / dimTotal)) : 0;
-  const productPercent = total > 0 ? Math.min(100, Math.round((100 * counted) / total)) : 0;
-  return {
-    total,
-    counted,
-    percent,
-    productPercent,
-    usesDimProgress: true,
-    dimCompleted,
-    dimTotal,
-  };
+
+  if (isFullCatalog) {
+    countProgressStatsFullMemo = { rev: countProgressStatsFullMemoRev, stats };
+  }
+  return stats;
 }
 
 /** Descrição sob a barra de metades (CX/UN vs TXT). */
@@ -2270,11 +2298,30 @@ async function refreshContagemValidityExpiringKpi() {
   }
 }
 
+function stopCountKpiTicker() {
+  if (countKpiTicker) {
+    window.clearInterval(countKpiTicker);
+    countKpiTicker = null;
+  }
+}
+
 function startCountKpiTicker() {
   if (countKpiTicker) return;
+  if (!countKpiTickerVisibilityBound) {
+    countKpiTickerVisibilityBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        stopCountKpiTicker();
+        return;
+      }
+      updateCountKpi(countProductsCache);
+      startCountKpiTicker();
+    });
+  }
+  if (document.visibilityState === 'hidden') return;
   countKpiTicker = window.setInterval(() => {
     updateCountKpi(countProductsCache);
-  }, 1000);
+  }, COUNT_KPI_TICKER_MS);
 }
 
 function applyCountProgressFillTier(el, pct) {
@@ -2629,14 +2676,17 @@ async function loadServerCountTotals() {
     const token = getToken();
     if (!token) {
       countServerCountState = { ok: false, balances: {}, meta: null };
+      bumpCountProgressStatsRevision();
       return;
     }
     if (unauthorizedRedirectInProgress) {
       countServerCountState = { ok: false, balances: {}, meta: null };
+      bumpCountProgressStatsRevision();
       return;
     }
     if (isAccessTokenExpired(token)) {
       countServerCountState = { ok: false, balances: {}, meta: null };
+      bumpCountProgressStatsRevision();
       handleUnauthorizedResponse({ status: 401 });
       return;
     }
@@ -2649,10 +2699,12 @@ async function loadServerCountTotals() {
       });
       if (handleUnauthorizedResponse(response)) {
         countServerCountState = { ok: false, balances: {}, meta: null };
+        bumpCountProgressStatsRevision();
         return;
       }
       if (!response.ok) {
         countServerCountState = { ok: false, balances: {}, meta: null };
+        bumpCountProgressStatsRevision();
         return;
       }
       const data = await response.json();
@@ -2667,9 +2719,11 @@ async function loadServerCountTotals() {
             }
           : null;
       countServerCountState = { ok: true, balances: data.balances || {}, meta };
+      bumpCountProgressStatsRevision();
       updateCountKpi(countProductsCache);
     } catch {
       countServerCountState = { ok: false, balances: {}, meta: null };
+      bumpCountProgressStatsRevision();
     }
   })();
   try {
@@ -2824,6 +2878,7 @@ function setCountExplicitZero(codRaw, countType, on) {
     const k = countExplicitZeroKey(codRaw, countType);
     if (on) localStorage.setItem(k, '1');
     else localStorage.removeItem(k);
+    bumpCountProgressStatsRevision();
   } catch {
     /* ignore */
   }
@@ -2883,54 +2938,62 @@ function productHasAnyCountLaunch(codRaw) {
 }
 
 async function loadImportBalancesForCount() {
-  const token = getToken();
-  if (!token) {
-    countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
-    return;
-  }
-  if (unauthorizedRedirectInProgress) {
-    countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
-    return;
-  }
-  if (isAccessTokenExpired(token)) {
-    countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
-    handleUnauthorizedResponse({ status: 401 });
-    return;
-  }
-  const dateEl = document.getElementById('count-date');
-  const referenceDate = (dateEl && dateEl.value || '').trim();
-  const params = new URLSearchParams();
-  if (referenceDate) params.set('reference_date', referenceDate);
-  params.set('only_active', 'true');
   try {
-    const response = await apiFetch(`${API_IMPORT_BALANCES}?${params.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (handleUnauthorizedResponse(response)) {
+    const token = getToken();
+    if (!token) {
       countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
       return;
     }
-    if (!response.ok) {
+    if (unauthorizedRedirectInProgress) {
       countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
       return;
     }
-    const data = await response.json();
-    countImportBalancesState = {
-      hasTxt: !!data.has_txt_import,
-      balances: data.balances || {},
-      importLabel: data.import && data.import.file_name ? String(data.import.file_name) : '',
-    };
-  } catch {
-    countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    if (isAccessTokenExpired(token)) {
+      countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+      handleUnauthorizedResponse({ status: 401 });
+      return;
+    }
+    const dateEl = document.getElementById('count-date');
+    const referenceDate = (dateEl && dateEl.value || '').trim();
+    const params = new URLSearchParams();
+    if (referenceDate) params.set('reference_date', referenceDate);
+    params.set('only_active', 'true');
+    try {
+      const response = await apiFetch(`${API_IMPORT_BALANCES}?${params.toString()}`, {
+        headers: getAuthHeaders(),
+      });
+      if (handleUnauthorizedResponse(response)) {
+        countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+        return;
+      }
+      if (!response.ok) {
+        countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+        return;
+      }
+      const data = await response.json();
+      countImportBalancesState = {
+        hasTxt: !!data.has_txt_import,
+        balances: data.balances || {},
+        importLabel: data.import && data.import.file_name ? String(data.import.file_name) : '',
+      };
+    } catch {
+      countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
+    }
+  } finally {
+    bumpCountProgressStatsRevision();
   }
 }
 
 /** TXT, totais de contagem no servidor e saldo Base de Troca Mate \u2014 badges vs import alinhados à Análise de Contagem. */
 async function refreshCountTxtAndMateCaches() {
   await Promise.all([loadImportBalancesForCount(), loadServerCountTotals()]);
+  bumpCountProgressStatsRevision();
+  updateCountKpi(countProductsCache);
   try {
     await ensureMateCouroCatalogLoaded();
     await refreshMateTrocaBaseBalanceCardV2();
+    bumpCountProgressStatsRevision();
+    updateCountKpi(countProductsCache);
   } catch {
     /* offline ou falha Mate: compara só contagem pura até próximo refresh */
   }
@@ -3474,6 +3537,7 @@ async function loadCountProducts(options = {}) {
       return;
     }
     countProductsCache = products;
+    bumpCountProgressStatsRevision();
     await refreshCountTxtAndMateCaches();
     await refreshRecountSignalsFromServer();
     if (!skipCountRender) {
@@ -13085,12 +13149,10 @@ function initDashboard(user) {
 
 // ── Logout ──────────────────────────────────────────────────────
 btnLogout.addEventListener('click', () => {
-  if (countKpiTicker) {
-    window.clearInterval(countKpiTicker);
-    countKpiTicker = null;
-  }
+  stopCountKpiTicker();
   clearSession();
   countServerCountState = { ok: false, balances: {}, meta: null };
+  bumpCountProgressStatsRevision();
   if (kpiCountUser) {
     kpiCountUser.textContent = 'Servidor: \u2014 \u00b7 Voc\u00ea: \u2014';
   }
