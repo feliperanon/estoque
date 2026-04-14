@@ -9549,6 +9549,7 @@ details[open] > .validity-analytic-summary::after {
 .validity-op-queue-item {
   border-bottom: 1px solid rgba(15, 23, 42, 0.07);
   background: #fff;
+  content-visibility: auto;
 }
 .validity-op-queue-item:last-child {
   border-bottom: none;

@@ -513,6 +513,8 @@ const COUNT_EVENTS_KEY = 'estoque_count_events_v1';
 /** Saldo CX/UN do último TXT (ou data em #count-date), para comparar na contagem (sem exibir valores na UI). */
 let countImportBalancesState = { hasTxt: false, balances: {}, importLabel: '' };
 let validityProductsCache = [];
+/** Debounce do filtro na validade operacional (#validity): evita re-render a cada tecla em listas grandes. */
+let validityOpFilterRenderTimer = null;
 let validityServerLines = [];
 /** Última data operacional com lançamento de validade por código (servidor). */
 let validityLastLaunchByCode = {};
@@ -7348,8 +7350,6 @@ function assignValidityOperationalBucket(row) {
 }
 
 function sortValidityOperationalModels(models) {
-  const descKey = (row) =>
-    String((row.product && row.product.cod_grup_descricao) || row.cod || '').trim();
   models.sort((a, b) => {
     const bo =
       VALIDITY_OP_BUCKET_ORDER[a.bucket] - VALIDITY_OP_BUCKET_ORDER[b.bucket];
@@ -7357,7 +7357,7 @@ function sortValidityOperationalModels(models) {
     const ta = validityOpOperationalTier(a);
     const tb = validityOpOperationalTier(b);
     if (ta !== tb) return ta - tb;
-    return descKey(a).localeCompare(descKey(b), 'pt-BR', { sensitivity: 'base' });
+    return compareAuditCodProduto({ cod_produto: a.cod }, { cod_produto: b.cod });
   });
 }
 
@@ -7570,8 +7570,22 @@ function buildValidityOperationalLotRowHtml(ln, codRaw) {
   </div>`;
 }
 
-function buildValidityOperationalExpandHtml(row, vi) {
+function validityOpCodSafeId(codRaw) {
+  return (String(codRaw || '').replace(/[^a-zA-Z0-9_-]/g, '_') || 'item').slice(0, 80);
+}
+
+function findValidityProductInCache(codRaw) {
+  const c = normalizeItemCode(codRaw);
+  if (!c) return null;
+  for (const p of validityProductsCache || []) {
+    if (normalizeItemCode(p.cod_produto || '') === c) return p;
+  }
+  return null;
+}
+
+function buildValidityOperationalExpandHtml(row) {
   const enc = encodeURIComponent(row.cod);
+  const cid = validityOpCodSafeId(row.cod);
   const sorted = [...(row.linesOp || [])].sort((a, b) =>
     String(b.observed_at || '').localeCompare(String(a.observed_at || '')),
   );
@@ -7580,9 +7594,9 @@ function buildValidityOperationalExpandHtml(row, vi) {
         .map((ln) => buildValidityOperationalLotRowHtml(ln, row.cod))
         .join('')}</div>`
     : '<p class="validity-op-lots-empty muted">Nenhum lote neste dia.</p>';
-  const fieldExp = `validity-op-new-exp-${vi}`;
-  const fieldCcx = `validity-op-new-cx-${vi}`;
-  const fieldCun = `validity-op-new-un-${vi}`;
+  const fieldExp = `validity-op-new-exp-${cid}`;
+  const fieldCcx = `validity-op-new-cx-${cid}`;
+  const fieldCun = `validity-op-new-un-${cid}`;
   const showCx = row.baseCx > 0;
   const showUn = row.baseUn > 0;
   const cxField = showCx
@@ -7620,7 +7634,47 @@ function buildValidityOperationalExpandHtml(row, vi) {
     </div>`;
 }
 
+function hydrateValidityOperationalItemExpand(li) {
+  const expand = li && li.querySelector && li.querySelector('.validity-op-item-expand');
+  if (!expand || expand.dataset.hydrated === '1') return;
+  const cod = normalizeItemCode(li.dataset.codProduto || '');
+  const p = findValidityProductInCache(cod);
+  if (!p) return;
+  const opKey = getActiveValidityOpDateKey();
+  const todayBr = getBrazilDateKey();
+  const launchPairs = buildValidityOpLaunchPairsByCode();
+  const model = buildValidityOperationalRowModel(p, opKey, todayBr, launchPairs);
+  expand.innerHTML = buildValidityOperationalExpandHtml(model);
+  expand.dataset.hydrated = '1';
+}
+
+function collapseValidityOperationalItem(n) {
+  if (!n) return;
+  n.classList.remove('validity-op-item--open');
+  const ex = n.querySelector('.validity-op-item-expand');
+  if (ex) {
+    ex.innerHTML = '';
+    delete ex.dataset.hydrated;
+    ex.setAttribute('aria-hidden', 'true');
+  }
+  const m = n.querySelector('.validity-op-main');
+  if (m) m.setAttribute('aria-expanded', 'false');
+}
+
+function scheduleValidityOperationalViewRender() {
+  if (validityOpFilterRenderTimer) clearTimeout(validityOpFilterRenderTimer);
+  validityOpFilterRenderTimer = setTimeout(() => {
+    validityOpFilterRenderTimer = null;
+    if (getActiveValiditySubKey() !== 'validity') return;
+    renderValidityOperationalView();
+  }, 240);
+}
+
 function renderValidityOperationalView() {
+  if (validityOpFilterRenderTimer) {
+    clearTimeout(validityOpFilterRenderTimer);
+    validityOpFilterRenderTimer = null;
+  }
   const ul = document.getElementById('validity-op-list');
   const totalEl = document.getElementById('validity-op-products-total');
   if (!ul) return;
@@ -7655,8 +7709,8 @@ function renderValidityOperationalView() {
     return;
   }
 
+  const frag = document.createDocumentFragment();
   let lastBucket = null;
-  let vi = 0;
   visible.forEach((row) => {
     if (row.bucket !== lastBucket) {
       lastBucket = row.bucket;
@@ -7664,12 +7718,11 @@ function renderValidityOperationalView() {
       sec.className = 'validity-op-section-head';
       sec.setAttribute('role', 'presentation');
       sec.innerHTML = `<span class="validity-op-section-title">${VALIDITY_OP_SECTION_TITLES[row.bucket] || row.bucket}</span>`;
-      ul.appendChild(sec);
+      frag.appendChild(sec);
     }
     const p = row.product;
     const name = escapeHtml((p.cod_grup_descricao || row.cod || '').trim());
     const codEsc = escapeHtml(row.cod);
-    const enc = encodeURIComponent(row.cod);
     const grupo = escapeHtml((p.cod_grup_segmento || p.segmento || '').trim() || '\u2014');
     const marca = escapeHtml((p.cod_grup_marca || '').trim() || '\u2014');
     let zone = '';
@@ -7701,10 +7754,10 @@ function renderValidityOperationalView() {
         ${row.badgeHtml}
         ${hintHtml}
       </div>
-      <div class="validity-op-item-expand" aria-hidden="true">${buildValidityOperationalExpandHtml(row, vi)}</div>`;
-    ul.appendChild(li);
-    vi += 1;
+      <div class="validity-op-item-expand" aria-hidden="true"></div>`;
+    frag.appendChild(li);
   });
+  ul.appendChild(frag);
 
   bindValidityOperationalListOnce();
 }
@@ -7781,11 +7834,7 @@ function saveValidityOperationalNewLot(item) {
   if (expInp) expInp.value = '';
   const ul = document.getElementById('validity-op-list');
   ul?.querySelectorAll('.validity-op-item--open').forEach((n) => {
-    n.classList.remove('validity-op-item--open');
-    const ex = n.querySelector('.validity-op-item-expand');
-    if (ex) ex.setAttribute('aria-hidden', 'true');
-    const m = n.querySelector('.validity-op-main');
-    if (m) m.setAttribute('aria-expanded', 'false');
+    collapseValidityOperationalItem(n);
   });
 }
 
@@ -7797,11 +7846,7 @@ function bindValidityOperationalListOnce() {
   const closeAllExcept = (keep) => {
     ul.querySelectorAll('.validity-op-item--open').forEach((n) => {
       if (keep && n === keep) return;
-      n.classList.remove('validity-op-item--open');
-      const ex = n.querySelector('.validity-op-item-expand');
-      if (ex) ex.setAttribute('aria-hidden', 'true');
-      const m = n.querySelector('.validity-op-main');
-      if (m) m.setAttribute('aria-expanded', 'false');
+      collapseValidityOperationalItem(n);
     });
   };
 
@@ -7844,6 +7889,7 @@ function bindValidityOperationalListOnce() {
     const wasOpen = item.classList.contains('validity-op-item--open');
     closeAllExcept(null);
     if (!wasOpen) {
+      hydrateValidityOperationalItemExpand(item);
       item.classList.add('validity-op-item--open');
       main.setAttribute('aria-expanded', 'true');
       if (expand) expand.setAttribute('aria-hidden', 'false');
@@ -7867,7 +7913,7 @@ function bindValidityOperationalListOnce() {
         if (focusEl) focusEl.focus();
       }, 80);
     } else {
-      main.setAttribute('aria-expanded', 'false');
+      collapseValidityOperationalItem(item);
     }
   });
 
@@ -8110,7 +8156,9 @@ function sortValidityRows(rows, sortMode, todayBr) {
       }),
     );
   } else if (sortMode === 'code') {
-    out.sort((a, b) => String(a.cod).localeCompare(String(b.cod)));
+    out.sort((a, b) =>
+      compareAuditCodProduto({ cod_produto: a.cod }, { cod_produto: b.cod }),
+    );
   } else {
     out.sort((a, b) => validityPriorityScore(a, todayBr) - validityPriorityScore(b, todayBr));
   }
@@ -8766,8 +8814,8 @@ function bindValidityEvents() {
         if (item) saveValidityOperationalNewLot(item);
       }
     });
-    document.getElementById('validity-op-item-code')?.addEventListener('input', () => renderValidityOperationalView());
-    document.getElementById('validity-op-group')?.addEventListener('input', () => renderValidityOperationalView());
+    document.getElementById('validity-op-item-code')?.addEventListener('input', () => scheduleValidityOperationalViewRender());
+    document.getElementById('validity-op-group')?.addEventListener('input', () => scheduleValidityOperationalViewRender());
   }
 
   document.getElementById('btn-validity-analysis-sync')?.addEventListener('click', () => syncValidityPending());
