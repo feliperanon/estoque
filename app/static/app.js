@@ -7282,27 +7282,6 @@ async function loadValidityLastLaunchFromServer() {
   }
 }
 
-/**
- * Ordenação operacional: atrasados / sem histórico primeiro, pendentes no prazo, lançados por último.
- * Desempate: descrição do produto (pt-BR).
- */
-function validityOpOperationalTier(row) {
-  if (row.hasLaunchOnOpDay) return 2;
-  const last = row.lastLaunch;
-  const ds = row.daysSinceLast;
-  if (last == null || ds == null || ds > 7) return 0;
-  return 1;
-}
-
-const VALIDITY_OP_BUCKET_ORDER = {
-  criticos: 0,
-  sem_hist: 1,
-  sem_base: 2,
-  pendentes: 3,
-  parciais: 4,
-  concluidos: 5,
-};
-
 function sumValidityLineQuantities(linesOp) {
   let cx = 0;
   let un = 0;
@@ -7349,16 +7328,14 @@ function assignValidityOperationalBucket(row) {
   return 'pendentes';
 }
 
+/** Lista operacional (#validity): ordem única por código (numérico-aware, alinhado à contagem). */
 function sortValidityOperationalModels(models) {
-  models.sort((a, b) => {
-    const bo =
-      VALIDITY_OP_BUCKET_ORDER[a.bucket] - VALIDITY_OP_BUCKET_ORDER[b.bucket];
-    if (bo !== 0) return bo;
-    const ta = validityOpOperationalTier(a);
-    const tb = validityOpOperationalTier(b);
-    if (ta !== tb) return ta - tb;
-    return compareAuditCodProduto({ cod_produto: a.cod }, { cod_produto: b.cod });
-  });
+  models.sort((a, b) =>
+    compareAuditCodProduto(
+      { cod_produto: normalizeNumericProductCodeKey(a.cod) },
+      { cod_produto: normalizeNumericProductCodeKey(b.cod) },
+    ),
+  );
 }
 
 /**
@@ -7532,15 +7509,6 @@ function filterValidityOperationalModels(rows) {
   });
 }
 
-const VALIDITY_OP_SECTION_TITLES = {
-  criticos: 'Críticos',
-  sem_hist: 'Sem histórico',
-  sem_base: 'Sem base de contagem',
-  pendentes: 'Pendentes',
-  parciais: 'Parciais',
-  concluidos: 'Concluídos',
-};
-
 function buildValidityOperationalLotRowHtml(ln, codRaw) {
   const enc = encodeURIComponent(codRaw);
   const exp = formatDateBrFromIso(String(ln.expiration_date || '').slice(0, 10));
@@ -7710,16 +7678,7 @@ function renderValidityOperationalView() {
   }
 
   const frag = document.createDocumentFragment();
-  let lastBucket = null;
   visible.forEach((row) => {
-    if (row.bucket !== lastBucket) {
-      lastBucket = row.bucket;
-      const sec = document.createElement('li');
-      sec.className = 'validity-op-section-head';
-      sec.setAttribute('role', 'presentation');
-      sec.innerHTML = `<span class="validity-op-section-title">${VALIDITY_OP_SECTION_TITLES[row.bucket] || row.bucket}</span>`;
-      frag.appendChild(sec);
-    }
     const p = row.product;
     const name = escapeHtml((p.cod_grup_descricao || row.cod || '').trim());
     const codEsc = escapeHtml(row.cod);
