@@ -9013,126 +9013,223 @@ details[open] > .validity-analytic-summary::after {
   font-size: 0.8125rem;
 }
 
-/* ── Quebra (#sub-break): casca validity-op-sticky + filtros + barra de progresso (vermelho) ── */
+/* ── Quebra (#sub-break): mesmo esqueleto da Contagem (card único sticky + filtros count-*) — tema vermelho ── */
 #sub-break {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   min-width: 0;
   --count-sticky-under-app: 52px;
+  --cc-gap: 6px;
+  --cc-gap-tail: 6px;
+  --cc-stack: 8px;
+  --cc-pad-x: 8px;
+  --cc-pad-y: 6px;
+  --cc-radius: 8px;
+  --cc-type-w: 2.125rem;
+  --cc-btn-w: 32px;
+  --cc-input-w: 3.75rem;
+  --cc-readout-w: 3.75rem;
+  --cc-badge-min-w: 4.75rem;
 }
 @media (max-width: 1023px) {
   #sub-break {
     --count-sticky-under-app: 54px;
   }
 }
-/* Quebra operacional: mesma casca da Validade (validity-op-sticky-inner) + vermelho */
-#sub-break .break-op-page {
-  min-width: 0;
+#sub-break .count-main-card--outer.info-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 0 12px;
+  backdrop-filter: none !important;
+  border-radius: 0 !important;
 }
-#sub-break .validity-op-sticky.break-op-sticky {
-  /* Quebra: vermelho suave, fundo quase branco */
-  background: linear-gradient(180deg, #fffbfb 0%, #fff7f7 100%);
-  border-bottom-color: rgba(244, 63, 94, 0.14);
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+#sub-break .count-main-card-inner.break-op-header {
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + var(--count-sticky-under-app));
+  z-index: 45;
+  isolation: isolate;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  padding: 10px 12px 12px;
+  background: linear-gradient(180deg, #fffbfb 0%, #fff5f5 100%);
+  border: 1px solid rgba(244, 63, 94, 0.12);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-bottom: 0;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+#sub-break .break-op-header .count-main-title-row {
+  margin-bottom: 8px;
+  justify-content: flex-start;
 }
 #sub-break .break-op-meta-chip.validity-op-meta-chip {
-  background: rgba(255, 241, 242, 0.85);
-  color: #be123c;
+  background: rgba(255, 241, 242, 0.95);
   border: 1px solid rgba(251, 113, 133, 0.35);
+  color: #be123c;
   font-weight: 700;
 }
-#sub-break .break-op-filters.validity-op-filters-grid {
+#sub-break .break-op-header .count-filter-input-wrapper {
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: none;
+}
+#sub-break .break-op-header .count-filter-input-wrapper:focus-within {
+  border-color: rgba(244, 63, 94, 0.35);
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.12);
+}
+#sub-break .break-op-header .count-main-filter-col--produto .count-filter-input {
+  min-height: 38px;
+  padding: 6px 0;
+  font-size: 0.875rem;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+#sub-break .break-op-header .count-filter-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+#sub-break .break-op-header .count-main-filters-row {
   margin-bottom: 10px;
 }
-#sub-break .break-op-sticky .validity-op-input-wrap:focus-within {
-  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.12);
-  border-color: rgba(244, 63, 94, 0.28);
+#sub-break .break-op-header .count-main-progress {
+  margin-top: 4px;
 }
-#sub-break .break-op-field--grupo .validity-op-input-wrap {
+#sub-break .break-op-header .count-progress-track-wrap .count-progress-track {
+  height: 10px;
+}
+#sub-break .break-op-header .count-filter-icon {
+  color: #e11d48;
+}
+#sub-break .break-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper {
   flex-wrap: wrap;
   align-items: center;
   align-content: flex-start;
   min-height: 44px;
   height: 44px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
 }
-#sub-break .break-op-field--grupo .validity-op-input-wrap:has(.count-group-chip-slot:not(:empty)) {
+#sub-break .break-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper:has(.count-group-chip-slot:not(:empty)) {
   height: auto;
   min-height: 44px;
 }
-#sub-break .break-op-field--grupo .count-group-chip-slot:empty {
+#sub-break .break-op-header .count-main-filter-col--grupo .count-group-chip-slot:empty {
   display: none;
 }
-#sub-break .break-op-field--grupo .count-group-chip-slot {
+#sub-break .break-op-header .count-main-filter-col--grupo .count-group-chip-slot {
   flex: 1 1 100%;
   width: 100%;
-  order: 4;
+  min-width: 0;
+  margin-top: 0;
   padding-top: 6px;
+  order: 4;
+}
+#sub-break .break-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"] {
+  height: 32px;
+  min-height: 32px !important;
+  max-height: 32px;
+  padding: 0 !important;
+  margin: 0;
+  line-height: 32px;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+  width: 100%;
   min-width: 0;
 }
-#sub-break .break-op-field--grupo .validity-op-input {
-  flex: 1 1 0;
-  min-width: 0;
+#sub-break .break-op-header .count-main-filter-col--grupo .count-filter-icon {
+  align-self: center;
 }
-#sub-break .break-op-field--produto .validity-op-input-wrap .validity-op-input {
+#sub-break .break-op-header .count-main-filter-col--produto .count-filter-input-wrapper {
+  min-height: 44px;
   width: 100%;
 }
-/* Quebra: Produto e Grupo permanecem na mesma linha no celular (evita card em duas linhas altas). */
-@media (max-width: 640px) {
-  #sub-break .break-op-filters.validity-op-filters-grid {
+#sub-break .break-op-header .count-main-filter-col--produto .count-filter-input-wrapper,
+#sub-break .break-op-header .count-main-filter-col--produto .count-filter-input {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+@media (min-width: 1025px) {
+  #sub-break .break-op-header .break-main-filters-row {
+    display: flex;
+    flex-direction: row;
     flex-wrap: nowrap;
-    gap: 8px;
+    align-items: flex-end;
+    gap: 10px;
+    margin-top: 0;
+    margin-bottom: 10px;
   }
-  #sub-break .break-op-filters .validity-op-field {
+  #sub-break .break-op-header .break-main-filters-row .count-main-filter-col--produto,
+  #sub-break .break-op-header .break-main-filters-row .count-main-filter-col--grupo {
     flex: 1 1 0;
     min-width: 0;
-  }
-  #sub-break .break-op-filters .validity-op-label {
-    font-size: 0.66rem;
-    margin-bottom: 3px;
+    grid-column: auto;
+    grid-row: auto;
   }
 }
-#sub-break .break-op-sticky .count-last-launch {
-  background: rgba(255, 241, 242, 0.9);
+@media (max-width: 1024px) {
+  #sub-break .break-main-filters-row .count-main-filter-col--grupo {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+@media (max-width: 600px) {
+  #sub-break .break-op-header .count-main-filter-col--grupo > .count-filter-input-wrapper > .count-filter-input[type="text"] {
+    font-size: 16px;
+  }
+}
+#sub-break .break-op-header .count-last-launch {
+  margin-top: 6px;
+  margin-bottom: 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  background: rgba(255, 241, 242, 0.92);
   border: 1px solid rgba(251, 113, 133, 0.35);
   color: #9f1239;
 }
-#sub-break .break-op-progress-wrap .validity-op-progress-pct {
+#sub-break .break-op-header .count-progress-percent.break-op-progress-percent {
   color: #e11d48;
 }
-#sub-break .break-op-progress-wrap .validity-op-progress-title {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.02em;
-}
-#sub-break .break-op-progress-wrap .validity-op-progress-track {
-  background: rgba(254, 205, 211, 0.65);
-}
-#sub-break #break-op-progress-fill.validity-op-progress-fill--bar {
-  background: linear-gradient(90deg, #fda4af 0%, #f43f5e 100%);
-}
-#sub-break #break-op-progress-fill.validity-op-progress-fill--bar.is-low {
-  background: linear-gradient(90deg, #fecdd3 0%, #fb7185 100%);
-}
-#sub-break #break-op-progress-fill.validity-op-progress-fill--bar.is-mid {
-  background: linear-gradient(90deg, #fb7185 0%, #e11d48 100%);
-}
-#sub-break #break-op-progress-fill.validity-op-progress-fill--bar.is-high {
-  background: linear-gradient(90deg, #e11d48 0%, #be123c 100%);
-}
-#sub-break .break-op-progress-wrap .validity-op-progress-detail {
+#sub-break .break-op-header .count-progress-detail.break-op-progress-detail {
   color: #64748b;
   font-weight: 600;
 }
-#sub-break .break-op-form .validity-op-label {
-  color: #64748b;
+#sub-break .break-op-header .count-progress-track {
+  background: rgba(254, 205, 211, 0.65);
 }
-#sub-break .break-op-sticky .validity-op-input-icon {
-  color: #f43f5e;
+#sub-break #break-op-progress-fill.count-progress-fill.break-op-progress-fill {
+  background: linear-gradient(90deg, #fda4af 0%, #f43f5e 100%);
 }
-#sub-break .break-op-sticky .count-group-chip {
+#sub-break #break-op-progress-fill.count-progress-fill.break-op-progress-fill.is-low {
+  background: linear-gradient(90deg, #fecdd3 0%, #fb7185 100%);
+}
+#sub-break #break-op-progress-fill.count-progress-fill.break-op-progress-fill.is-mid {
+  background: linear-gradient(90deg, #fb7185 0%, #e11d48 100%);
+}
+#sub-break #break-op-progress-fill.count-progress-fill.break-op-progress-fill.is-high {
+  background: linear-gradient(90deg, #e11d48 0%, #be123c 100%);
+}
+#sub-break .break-op-header .count-group-chip {
   background: linear-gradient(90deg, #fb7185 0%, #e11d48 100%);
   color: #fff;
 }
-#sub-break .break-op-sticky .count-group-chip-remove {
+#sub-break .break-op-header .count-group-chip-remove {
   color: #ffe4e6;
 }
 #sub-break #break-feedback.break-op-feedback {
@@ -9143,6 +9240,14 @@ details[open] > .validity-analytic-summary::after {
 #sub-break #break-feedback.break-op-feedback.is-error {
   color: var(--error);
   font-weight: 700;
+}
+#sub-break .count-products-shell {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: 1px solid rgba(244, 63, 94, 0.12);
+  box-shadow: none;
+  touch-action: pan-y;
 }
 /* Lista: itens como na contagem (count-list-flat + count-product-item) */
 #sub-validity .count-list-flat .validity-op-item {
@@ -9811,7 +9916,7 @@ details[open] > .validity-analytic-summary::after {
   align-self: center;
 }
 @media (max-width: 600px) {
-  #sub-break .break-op-sticky .validity-op-input {
+  #sub-break .break-op-header .count-filter-input {
     font-size: 16px;
   }
 }

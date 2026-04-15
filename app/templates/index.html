@@ -358,73 +358,74 @@
             </section>
           </div>
 
-          <!-- Sub: Quebra — layout alinhado à Validade operacional (sticky + inner + form) -->
+          <!-- Sub: Quebra — mesmo esqueleto da Contagem (#sub-count): card único sticky + filtros + barra (tema vermelho) -->
           <div id="sub-break" class="sub-section">
-            <div class="validity-op-page break-op-page">
-              <header id="break-op-sticky" class="validity-op-sticky break-op-sticky" aria-label="Quebra — filtros e lista">
-                <div class="validity-op-sticky-inner break-op-sticky-inner">
-                  <div class="validity-op-sticky-head">
-                    <div class="validity-op-sticky-chips" aria-live="polite">
-                      <span id="break-products-total" class="validity-op-meta-chip break-op-meta-chip">0 itens</span>
+            <div class="info-card master-container count-main-card count-main-card--outer">
+              <form id="break-op-form" class="count-form" autocomplete="off" novalidate>
+                <div class="count-main-card-inner count-main-card-extended break-op-header" aria-label="Quebra — filtros e lista">
+                  <div class="count-main-title-row">
+                    <div class="count-main-head-actions">
+                      <span id="break-products-total" class="validity-op-meta-chip break-op-meta-chip" aria-live="polite">0 itens</span>
                     </div>
                   </div>
-                  <form id="break-op-form" class="count-form validity-op-form break-op-form" autocomplete="off" novalidate>
-                    <div class="validity-op-filters-grid break-op-filters">
-                      <div class="validity-op-field break-op-field--produto">
-                        <label class="validity-op-label" for="break-item-code">Produto</label>
-                        <div class="validity-op-input-wrap">
-                          <span class="validity-op-input-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
-                          <input id="break-item-code" name="break-item-code" type="text" class="validity-op-input" placeholder="Buscar..." autocomplete="off" aria-label="Produto quebra" />
-                        </div>
-                      </div>
-                      <div class="validity-op-field break-op-field--grupo">
-                        <label class="validity-op-label" for="break-group">Grupo</label>
-                        <div class="validity-op-input-wrap">
-                          <span class="validity-op-input-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
-                          <input id="break-group" name="break-group" type="text" class="validity-op-input" placeholder="Filtrar..." autocomplete="off" aria-label="Grupo quebra" />
-                          <div id="break-group-chip-container" class="count-group-chip-slot"></div>
-                        </div>
+                  <div class="count-main-filters-row break-main-filters-row">
+                    <div class="count-main-filter-col count-main-filter-col--produto">
+                      <label class="count-filter-label count-filter-label--bold" for="break-item-code">Produto</label>
+                      <div class="count-filter-input-wrapper">
+                        <span class="count-filter-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
+                        <input id="break-item-code" name="break-item-code" type="text" class="count-filter-input" placeholder="Buscar produto..." autocomplete="off" aria-label="Produto quebra" />
                       </div>
                     </div>
-                    <fieldset class="break-scope-fieldset">
-                      <legend class="sr-only" id="break-scope-legend">Escopo da lista de produtos</legend>
-                      <div class="break-scope-row" role="group" aria-labelledby="break-scope-visual-label">
-                        <span id="break-scope-visual-label" class="break-scope-kicker">Lista</span>
-                        <label class="break-scope-choice" for="break-scope-mate-couro">
-                          <input type="radio" name="break-scope" id="break-scope-mate-couro" value="mate-couro" />
-                          <span>Base de troca</span>
-                        </label>
-                        <span class="break-scope-sep" aria-hidden="true">·</span>
-                        <label class="break-scope-choice" for="break-scope-outros">
-                          <input type="radio" name="break-scope" id="break-scope-outros" value="outros" />
-                          <span>Outros</span>
-                        </label>
-                        <span class="break-scope-sep" aria-hidden="true">·</span>
-                        <label class="break-scope-choice" for="break-scope-todos">
-                          <input type="radio" name="break-scope" id="break-scope-todos" value="todos" checked />
-                          <span>Todos</span>
-                        </label>
+                    <div class="count-main-filter-col count-main-filter-col--grupo">
+                      <label class="count-filter-label count-filter-label--bold" for="break-group">Grupo</label>
+                      <div class="count-filter-input-wrapper">
+                        <span class="count-filter-icon" aria-hidden="true"><svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path stroke="currentColor" stroke-width="2" d="M12.5 12.5L16 16"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/></svg></span>
+                        <input id="break-group" name="break-group" type="text" class="count-filter-input" placeholder="Buscar grupo..." autocomplete="off" aria-label="Grupo quebra" />
+                        <div id="break-group-chip-container" class="count-group-chip-slot"></div>
                       </div>
-                    </fieldset>
-                    <div class="validity-op-progress-wrap break-op-progress-wrap" aria-live="polite">
-                      <div class="validity-op-progress-label-row">
-                        <span class="validity-op-progress-title">Progresso (itens visíveis no filtro)</span>
-                        <span id="break-op-progress-pct" class="validity-op-progress-pct">0%</span>
-                      </div>
-                      <div class="validity-op-progress-track" role="presentation" aria-hidden="true">
-                        <div id="break-op-progress-fill" class="validity-op-progress-fill validity-op-progress-fill--bar is-low" style="width:0%;"></div>
-                      </div>
-                      <p id="break-op-progress-detail" class="validity-op-progress-detail">0 de 0 produtos visíveis</p>
                     </div>
-                    <div id="break-last-launch" class="count-last-launch" role="status" aria-live="polite" hidden></div>
-                    <div id="break-feedback" class="field-feedback validity-op-feedback break-op-feedback" aria-live="polite"></div>
-                  </form>
+                  </div>
+                  <fieldset class="break-scope-fieldset">
+                    <legend class="sr-only" id="break-scope-legend">Escopo da lista de produtos</legend>
+                    <div class="break-scope-row" role="group" aria-labelledby="break-scope-visual-label">
+                      <span id="break-scope-visual-label" class="break-scope-kicker">Lista</span>
+                      <label class="break-scope-choice" for="break-scope-mate-couro">
+                        <input type="radio" name="break-scope" id="break-scope-mate-couro" value="mate-couro" />
+                        <span>Base de troca</span>
+                      </label>
+                      <span class="break-scope-sep" aria-hidden="true">·</span>
+                      <label class="break-scope-choice" for="break-scope-outros">
+                        <input type="radio" name="break-scope" id="break-scope-outros" value="outros" />
+                        <span>Outros</span>
+                      </label>
+                      <span class="break-scope-sep" aria-hidden="true">·</span>
+                      <label class="break-scope-choice" for="break-scope-todos">
+                        <input type="radio" name="break-scope" id="break-scope-todos" value="todos" checked />
+                        <span>Todos</span>
+                      </label>
+                    </div>
+                  </fieldset>
+                  <div class="count-progress count-main-progress break-main-progress" aria-live="polite">
+                    <div class="count-progress-stack">
+                      <div class="count-progress-block">
+                        <div class="count-progress-track-wrap">
+                          <div class="count-progress-track" role="presentation" aria-hidden="true">
+                            <div id="break-op-progress-fill" class="count-progress-fill break-op-progress-fill is-low" style="width:0%;"></div>
+                          </div>
+                        </div>
+                        <span id="break-op-progress-pct" class="count-progress-percent break-op-progress-percent">0%</span>
+                        <p id="break-op-progress-detail" class="count-progress-detail break-op-progress-detail">0 de 0 produtos visíveis no filtro</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="break-last-launch" class="count-last-launch" role="status" aria-live="polite" hidden></div>
+                  <div id="break-feedback" class="field-feedback break-op-feedback" aria-live="polite"></div>
                 </div>
-              </header>
-              <div id="break-readonly-banner" class="count-readonly-banner" role="status" aria-live="polite" hidden></div>
-              <div id="break-products-shell" class="count-products-shell validity-op-queue-shell break-op-queue-shell" data-break-delegates="0">
-                <ul id="break-products-list" class="list count-list-flat"></ul>
-              </div>
+              </form>
+            </div>
+            <div id="break-readonly-banner" class="count-readonly-banner" role="status" aria-live="polite" hidden></div>
+            <div id="break-products-shell" class="count-products-shell" data-break-delegates="0">
+              <ul id="break-products-list" class="list count-list-flat"></ul>
             </div>
           </div>
 
