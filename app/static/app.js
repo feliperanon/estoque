@@ -3672,13 +3672,14 @@ function renderBreakProducts(products, listRestoreCtx) {
     li.className = 'count-product-item break-product-item';
     li.dataset.codProduto = codRaw;
     li.innerHTML = `
-      <div class="count-product-label break-product-label">
-        <span class="count-product-title-row">
-          <span class="count-product-desc">${desc}${codHtml}</span>
-        </span>
-      </div>
-      <div class="count-product-controls break-product-controls">
-        <div class="count-control-row count-control-row--neutral">
+      <div class="break-product-main-row">
+        <div class="count-product-label">
+          <span class="count-product-title-row">
+            <span class="count-product-desc">${desc}${codHtml}</span>
+          </span>
+        </div>
+        <div class="count-product-controls">
+          <div class="count-control-row count-control-row--neutral">
           <span class="count-control-type">CX</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
           <input type="number" id="break-qty-${escapeHtml(codSafeId)}-caixa" name="break-qty-${escapeHtml(codSafeId)}-caixa" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
@@ -3691,8 +3692,8 @@ function renderBreakProducts(products, listRestoreCtx) {
               </span>
             </div>
           </div>
-        </div>
-        <div class="count-control-row count-control-row--neutral">
+          </div>
+          <div class="count-control-row count-control-row--neutral">
           <span class="count-control-type">UN</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
           <input type="number" id="break-qty-${escapeHtml(codSafeId)}-unidade" name="break-qty-${escapeHtml(codSafeId)}-unidade" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
@@ -3704,6 +3705,7 @@ function renderBreakProducts(products, listRestoreCtx) {
                 <strong class="count-product-readout-value">${formatIntegerBR(vUn)}</strong>
               </span>
             </div>
+          </div>
           </div>
         </div>
       </div>

@@ -4171,16 +4171,27 @@ form#break-op-form.count-form {
 
 #sub-break #break-products-list .break-product-item {
   flex-direction: column;
+  justify-content: flex-start;
   align-items: stretch;
-  gap: 4px;
+  gap: 6px;
   margin: 0;
-  padding: 3px 6px;
+  padding: 4px 6px;
   border: none;
   border-radius: 0;
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
   background: #fff;
   box-shadow: none;
   cursor: default;
+}
+
+/* Mesma linha que Contagem: rótulo à esquerda, régua CX/UN à direita (em coluna só o motivo fica abaixo) */
+#sub-break #break-products-list .break-product-item .break-product-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
 }
 
 #sub-break #break-products-list .break-product-item:last-child {
@@ -4191,24 +4202,10 @@ form#break-op-form.count-form {
   background: #f8fafc;
 }
 
-#sub-break .break-product-item .break-product-label {
+#sub-break .break-product-item .break-product-main-row .count-product-label {
   padding-bottom: 0;
   margin-bottom: 0;
   border-bottom: none;
-  cursor: default;
-}
-
-#sub-break .break-product-item .count-product-desc {
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-}
-
-#sub-break .break-product-item .break-product-controls {
-  max-width: none;
-  width: 100%;
-  min-width: 0;
-  gap: var(--cc-stack, 8px);
-  overflow-x: visible;
 }
 
 
@@ -6572,6 +6569,12 @@ body.count-audit-drawer-open {
 
   #sub-break #break-products-list .break-product-item {
     padding: 4px 6px;
+    gap: 4px;
+  }
+
+  #sub-break #break-products-list .break-product-item .break-product-main-row {
+    flex-direction: column;
+    align-items: stretch;
     gap: 4px;
   }
 
