@@ -10249,14 +10249,11 @@ function reconcileCountAuditMetaDiffWithMergedCount(row) {
   if (!meta) return;
   const importCx = Math.round(Number(row.import_caixa) || 0);
   const importUn = Math.round(Number(row.import_unidade) || 0);
-  const countedCx = Math.round(Number(row.counted_caixa) || 0);
-  const countedUn = Math.round(Number(row.counted_unidade) || 0);
-  const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
-  const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
-  meta.diffCx = countedCx + tCx - importCx;
-  meta.diffUn = countedUn + tUn - importUn;
+  const merged = getCountAuditMergedCurrentCxu(row, meta);
+  meta.diffCx = merged.total.cx - importCx;
+  meta.diffUn = merged.total.un - importUn;
   meta.diffAbs = Math.abs(meta.diffCx) + Math.abs(meta.diffUn);
-  meta.totalCount = countedCx + tCx + countedUn + tUn;
+  meta.totalCount = merged.total.cx + merged.total.un;
 }
 
 /**
@@ -10835,17 +10832,30 @@ function countAuditRowNameWithFlavorHtml(descricao) {
   return `${countAuditFlavorIconHtml(raw)}<span class="count-audit-row-name-text">${escapeHtml(raw)}</span>`;
 }
 
+function getCountAuditMergedCurrentCxu(row, meta) {
+  const baseCxRaw = Math.max(0, Math.round(Number(row?.counted_caixa) || 0));
+  const baseUnRaw = Math.max(0, Math.round(Number(row?.counted_unidade) || 0));
+  const tCxRaw = Math.max(0, Math.round(Number(meta?.trocaCx) || 0));
+  const tUnRaw = Math.max(0, Math.round(Number(meta?.trocaUn) || 0));
+  const factor = getMateCouroConversionFactorForCod(row?.cod_produto);
+  const base = normalizeMateTrocaCxUn(baseCxRaw, baseUnRaw, factor);
+  const troca = normalizeMateTrocaCxUn(tCxRaw, tUnRaw, factor);
+  const total = normalizeMateTrocaCxUn(baseCxRaw + tCxRaw, baseUnRaw + tUnRaw, factor);
+  return { base, troca, total, factor };
+}
+
 /** Contagem sincronizada + saldo atual da Base de Troca V2 (Mate couro): total em destaque; parcela em verde. */
 function buildCountAuditMergedCurrentCxuHtml(row, meta) {
-  const baseCx = Math.max(0, Math.round(Number(row.counted_caixa) || 0));
-  const baseUn = Math.max(0, Math.round(Number(row.counted_unidade) || 0));
-  const tCx = Math.max(0, Math.round(Number(meta.trocaCx) || 0));
-  const tUn = Math.max(0, Math.round(Number(meta.trocaUn) || 0));
-  const sumCx = baseCx + tCx;
-  const sumUn = baseUn + tUn;
+  const merged = getCountAuditMergedCurrentCxu(row, meta);
+  const baseCx = merged.base.cx;
+  const baseUn = merged.base.un;
+  const tCx = merged.troca.cx;
+  const tUn = merged.troca.un;
+  const sumCx = merged.total.cx;
+  const sumUn = merged.total.un;
   const hasTroca = tCx > 0 || tUn > 0;
   const title = hasTroca
-    ? 'Total = contagem sincronizada + saldo atual da base de troca para este produto.'
+    ? `Total = contagem sincronizada + saldo atual da base de troca para este produto.${merged.factor != null ? ' Conversão UN→CX aplicada pelo fator do cadastro quando necessário.' : ''}`
     : '';
   const pairClass = `count-audit-cxu-pair${hasTroca ? ' count-audit-cxu-pair--with-troca' : ''}`;
   const pairOpen = title
