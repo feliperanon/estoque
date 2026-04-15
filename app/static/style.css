@@ -4114,9 +4114,11 @@ form#break-op-form.count-form {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  margin: 2px 0 6px;
+  padding: 8px 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.65);
 }
 
 #sub-break .break-reason-head {
@@ -4136,45 +4138,63 @@ form#break-op-form.count-form {
 
 #sub-break .break-reason-label {
   font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
 }
 
 #sub-break .break-reason-select {
   width: 100%;
   max-width: 100%;
   min-height: 2.5rem;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
 }
 
-/* Quebra: cartão por produto, fluxo produto → motivo → quantidades */
+#sub-break .break-reason-select:focus {
+  outline: none;
+  border-color: rgba(47, 111, 69, 0.45);
+  box-shadow: 0 0 0 3px rgba(47, 111, 69, 0.12);
+}
+
+/* Motivo abaixo da régua CX/UN (mesma ordem visual da Contagem: rótulo → controles → extra) */
+#sub-break #break-products-list .break-product-item .break-reason-row {
+  margin: 10px 0 4px;
+}
+
+/* Quebra: lista plana como Contagem (count-list-flat); motivo em bloco discreto */
 #sub-break #break-products-list.list.count-list-flat {
-  padding: 10px 8px 14px;
+  padding: 0;
 }
 
 #sub-break #break-products-list .break-product-item {
   flex-direction: column;
   align-items: stretch;
-  gap: 0;
-  margin: 0 0 12px;
-  padding: 12px 12px 14px;
-  border: 1px solid rgba(190, 18, 60, 0.18);
-  border-radius: 12px;
-  border-bottom: 1px solid rgba(190, 18, 60, 0.18);
-  background: linear-gradient(180deg, #fffafb 0%, #ffffff 55%);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  gap: 4px;
+  margin: 0;
+  padding: 3px 6px;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: #fff;
+  box-shadow: none;
   cursor: default;
 }
 
 #sub-break #break-products-list .break-product-item:last-child {
-  margin-bottom: 0;
+  border-bottom: none;
 }
 
 #sub-break #break-products-list .break-product-item:hover {
-  background: linear-gradient(180deg, #fff1f2 0%, #ffffff 50%);
+  background: #f8fafc;
 }
 
 #sub-break .break-product-item .break-product-label {
-  padding-bottom: 10px;
+  padding-bottom: 0;
   margin-bottom: 0;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  border-bottom: none;
   cursor: default;
 }
 
@@ -4183,115 +4203,12 @@ form#break-op-form.count-form {
   line-clamp: 4;
 }
 
-#sub-break .break-product-item .break-reason-row {
-  margin-top: 0;
-  margin-bottom: 14px;
-  padding-top: 12px;
-  border-top: none;
-}
-
-#sub-break .break-product-item .break-reason-label {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #9f1239;
-}
-
-#sub-break .break-product-item .break-reason-select {
-  min-height: 2.85rem;
-  padding: 8px 10px;
-  font-size: 0.9rem;
-  border-radius: 10px;
-  border: 1.5px solid rgba(190, 18, 60, 0.28);
-  background: #fff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-#sub-break .break-product-item .break-reason-select:focus {
-  outline: none;
-  border-color: #be123c;
-  box-shadow: 0 0 0 3px rgba(190, 18, 60, 0.15);
-}
-
 #sub-break .break-product-item .break-product-controls {
   max-width: none;
   width: 100%;
   min-width: 0;
-  gap: 10px;
+  gap: var(--cc-stack, 8px);
   overflow-x: visible;
-}
-
-#sub-break .break-product-item .break-product-qty-row {
-  --cc-type-w: 2rem;
-  --cc-btn-w: 40px;
-  --cc-readout-w: 3.35rem;
-  --cc-gap: 8px;
-  --cc-pad-y: 8px;
-  --cc-pad-x: 10px;
-  --cc-radius: 10px;
-  min-width: 0;
-  width: 100%;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.92);
-  grid-template-columns:
-    var(--cc-type-w, 2rem)
-    var(--cc-btn-w, 40px)
-    minmax(2.75rem, 1fr)
-    var(--cc-btn-w, 40px)
-    minmax(3.1rem, max-content);
-}
-
-#sub-break .break-product-item .break-product-qty-row .count-control-tail {
-  justify-content: center;
-}
-
-#sub-break .break-product-readout.count-product-readout--by-control {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  flex: 0 0 var(--cc-readout-w, 3.35rem);
-  width: var(--cc-readout-w, 3.35rem);
-  max-width: var(--cc-readout-w, 3.35rem);
-}
-
-#sub-break .break-product-readout .count-product-readout-label {
-  font-size: 0.5625rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #be123c;
-  line-height: 1;
-}
-
-#sub-break .break-product-readout.count-product-readout--by-control .count-product-readout-inner {
-  background: #fff1f2;
-  border-color: #fecdd3;
-  padding: 5px 6px;
-}
-
-#sub-break .break-product-readout.count-product-readout--by-control .count-product-readout-value {
-  color: #881337;
-}
-
-#sub-break .break-product-item .count-product-qty {
-  min-height: 40px;
-  height: 40px;
-  border-radius: 8px;
-  font-size: 0.9375rem;
-}
-
-#sub-break .break-product-item .btn-count-adjust {
-  min-width: 40px;
-  width: 40px;
-  min-height: 40px;
-  height: 40px;
-  border-radius: 8px;
-  font-size: 1.05rem;
-}
-
-#sub-break .break-product-item .count-control-type {
-  height: 40px;
 }
 
 
@@ -6647,6 +6564,17 @@ body.count-audit-drawer-open {
     --cc-gap-tail: 6px;
   }
 
+  #sub-break {
+    --cc-btn-w: 36px;
+    --cc-gap: 6px;
+    --cc-gap-tail: 6px;
+  }
+
+  #sub-break #break-products-list .break-product-item {
+    padding: 4px 6px;
+    gap: 4px;
+  }
+
   .count-product-controls {
     width: 100%;
     min-width: 0;
@@ -6990,8 +6918,23 @@ body.count-audit-drawer-open {
     --cc-gap-tail: 4px;
   }
 
+  #sub-break {
+    --cc-type-w: 1.875rem;
+    --cc-input-w: 3.25rem;
+    --cc-readout-w: 3.25rem;
+    --cc-badge-min-w: 4.25rem;
+    --cc-gap: 4px;
+    --cc-gap-tail: 4px;
+  }
+
   /* Input preenche só a célula do grid */
   #sub-count .count-control-row .count-product-qty {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #sub-break .count-control-row .count-product-qty {
     width: 100%;
     min-width: 0;
     max-width: 100%;

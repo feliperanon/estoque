@@ -1480,7 +1480,7 @@ function renderSubCardsAccess() {
 function renderHubCards() {
   document.querySelectorAll('.module-hub-card[data-module]').forEach((card) => {
     const mk = (card.dataset.module || '').trim().toLowerCase();
-    if (!mk || mk === 'inicio') {
+    if (!mk) {
       card.hidden = false;
       card.style.display = '';
       return;
@@ -3660,6 +3660,13 @@ function renderBreakProducts(products, listRestoreCtx) {
     const netUn = getNetBreakByProductAndType(codRaw, 'unidade');
     const vCx = Math.round(Number(netCx) || 0);
     const vUn = Math.round(Number(netUn) || 0);
+    const isMateForReadout = mateCouroCatalogHasCode(getMateCouroCodSet(), codRaw);
+    const titleCx = isMateForReadout
+      ? 'Total de quebra em caixas no dia: servidor (equipe) + pendente neste aparelho. Os botões +/− alteram só a quebra operacional; não é contagem física nem saldo Base de Troca Mate.'
+      : 'Total de quebra em caixas neste dia (sincronizado + pendente local)';
+    const titleUn = isMateForReadout
+      ? 'Total de quebra em unidades no dia: servidor (equipe) + pendente neste aparelho. Os botões +/− alteram só a quebra operacional; não é contagem física nem saldo Base de Troca Mate.'
+      : 'Total de quebra em unidades neste dia (sincronizado + pendente local)';
 
     const li = document.createElement('li');
     li.className = 'count-product-item break-product-item';
@@ -3670,6 +3677,36 @@ function renderBreakProducts(products, listRestoreCtx) {
           <span class="count-product-desc">${desc}${codHtml}</span>
         </span>
       </div>
+      <div class="count-product-controls break-product-controls">
+        <div class="count-control-row count-control-row--neutral">
+          <span class="count-control-type">CX</span>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
+          <input type="number" id="break-qty-${escapeHtml(codSafeId)}-caixa" name="break-qty-${escapeHtml(codSafeId)}-caixa" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+            data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" title="" />
+          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
+          <div class="count-control-tail">
+            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="${escapeHtml(titleCx)}">
+              <span class="count-product-readout-inner">
+                <strong class="count-product-readout-value">${formatIntegerBR(vCx)}</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="count-control-row count-control-row--neutral">
+          <span class="count-control-type">UN</span>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
+          <input type="number" id="break-qty-${escapeHtml(codSafeId)}-unidade" name="break-qty-${escapeHtml(codSafeId)}-unidade" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+            data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" title="" />
+          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
+          <div class="count-control-tail">
+            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="${escapeHtml(titleUn)}">
+              <span class="count-product-readout-inner">
+                <strong class="count-product-readout-value">${formatIntegerBR(vUn)}</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="break-reason-row">
         <div class="break-reason-head">
           <label class="validity-op-label break-reason-label" for="break-reason-${escapeHtml(codSafeId)}">Motivo da quebra</label>
@@ -3678,38 +3715,6 @@ function renderBreakProducts(products, listRestoreCtx) {
         <select id="break-reason-${escapeHtml(codSafeId)}" name="break-reason-${escapeHtml(codSafeId)}" class="validity-op-input break-reason-select" aria-label="Motivo da quebra (padrão: produtos avariados)" required>
           ${breakReasonOptionsHtml}
         </select>
-      </div>
-      <div class="count-product-controls break-product-controls">
-        <div class="count-control-row count-control-row--neutral break-product-qty-row">
-          <span class="count-control-type">CX</span>
-          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="caixa" data-delta="-1" aria-label="Menos caixa">−</button>
-          <input type="number" id="break-qty-${escapeHtml(codSafeId)}-caixa" name="break-qty-${escapeHtml(codSafeId)}-caixa" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
-            data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" />
-          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
-          <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control break-product-readout" aria-live="polite" title="Total de quebra em caixas neste dia (sincronizado + pendente local)">
-              <span class="count-product-readout-label" aria-hidden="true">Dia</span>
-              <span class="count-product-readout-inner">
-                <strong class="count-product-readout-value">${formatBreakIntegerBR(vCx)}</strong>
-              </span>
-            </div>
-          </div>
-        </div>
-        <div class="count-control-row count-control-row--neutral break-product-qty-row">
-          <span class="count-control-type">UN</span>
-          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="unidade" data-delta="-1" aria-label="Menos unidade">−</button>
-          <input type="number" id="break-qty-${escapeHtml(codSafeId)}-unidade" name="break-qty-${escapeHtml(codSafeId)}-unidade" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
-            data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" />
-          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
-          <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control break-product-readout" aria-live="polite" title="Total de quebra em unidades neste dia (sincronizado + pendente local)">
-              <span class="count-product-readout-label" aria-hidden="true">Dia</span>
-              <span class="count-product-readout-inner">
-                <strong class="count-product-readout-value">${formatBreakIntegerBR(vUn)}</strong>
-              </span>
-            </div>
-          </div>
-        </div>
       </div>
     `;
     parentUl.appendChild(li);
