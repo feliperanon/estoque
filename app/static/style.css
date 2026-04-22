@@ -10574,10 +10574,27 @@ body.bi-quebras-presentation-open {
   flex: 1 1 20rem;
 }
 
+#sub-bi-quebras .bi-quebras-field--search {
+  flex: 1 1 18rem;
+}
+
+#sub-bi-quebras .bi-quebras-field--sort {
+  flex: 0 0 12rem;
+}
+
 #sub-bi-quebras .bi-quebras-scope-toggle {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+#sub-bi-quebras .bi-quebras-quick-toggle {
+  gap: 0.375rem;
+}
+
+#sub-bi-quebras .bi-quebras-quick-btn {
+  min-height: 2.25rem;
+  padding: 0.4rem 0.75rem;
 }
 
 #sub-bi-quebras .bi-quebras-scope-btn {
@@ -10620,6 +10637,31 @@ body.bi-quebras-presentation-open {
   margin-top: var(--audit-space-3);
 }
 
+#sub-bi-quebras .bi-quebras-active-filters {
+  margin-top: var(--audit-space-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+#sub-bi-quebras .bi-quebras-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(248, 250, 252, 0.88);
+  color: #334155;
+  font-size: var(--audit-text-xs);
+  font-weight: 600;
+}
+
+#sub-bi-quebras .bi-quebras-filter-chip-key {
+  color: #64748b;
+  font-weight: 700;
+}
+
 #sub-bi-quebras .bi-quebras-feedback.field-feedback--error {
   border-color: rgba(185, 28, 28, 0.28);
   background: #fef2f2;
@@ -10634,7 +10676,7 @@ body.bi-quebras-presentation-open {
 
 #sub-bi-quebras .bi-quebras-kpi-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--audit-space-2);
 }
 
@@ -10645,6 +10687,15 @@ body.bi-quebras-presentation-open {
   background: var(--audit-card-alt);
   border-radius: 8px;
   box-shadow: none;
+}
+
+#sub-bi-quebras .bi-quebras-kpi-card--daily {
+  border-color: rgba(14, 116, 144, 0.24);
+  background: linear-gradient(165deg, rgba(14, 116, 144, 0.08), rgba(8, 47, 73, 0.07));
+}
+
+#sub-bi-quebras .bi-quebras-kpi-card--daily .bi-quebras-kpi-value {
+  color: #0e7490;
 }
 
 #sub-bi-quebras .bi-quebras-kpi-card:hover {
@@ -11013,6 +11064,13 @@ body.bi-quebras-presentation-open {
     gap: 0.75rem;
   }
 
+  #sub-bi-quebras .bi-quebras-field--search,
+  #sub-bi-quebras .bi-quebras-field--sort,
+  #sub-bi-quebras .bi-quebras-field--quick-period {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
   #sub-bi-quebras .bi-quebras-actions {
     margin-left: 0;
     width: 100%;
@@ -11033,6 +11091,10 @@ body.bi-quebras-presentation-open {
   #sub-bi-quebras .bi-quebras-scope-btn {
     flex: 1 1 calc(50% - 0.5rem);
     justify-content: center;
+  }
+
+  #sub-bi-quebras .bi-quebras-quick-btn {
+    flex: 1 1 calc(25% - 0.5rem);
   }
 
   #sub-bi-quebras .bi-quebras-ranking-header {

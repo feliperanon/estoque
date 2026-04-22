@@ -1351,10 +1351,33 @@
                       <button type="button" class="btn-secondary bi-quebras-scope-btn" data-bi-quebras-cia-scope="outras" aria-pressed="false">Outras CIA</button>
                     </div>
                   </div>
+                  <div class="bi-quebras-field bi-quebras-field--quick-period">
+                    <span class="bi-quebras-label count-audit-label">Período rápido</span>
+                    <div class="bi-quebras-scope-toggle bi-quebras-quick-toggle" role="group" aria-label="Atalhos de período">
+                      <button type="button" class="btn-secondary bi-quebras-quick-btn" data-bi-quebras-quick-range="7d">7d</button>
+                      <button type="button" class="btn-secondary bi-quebras-quick-btn is-active" data-bi-quebras-quick-range="30d">30d</button>
+                      <button type="button" class="btn-secondary bi-quebras-quick-btn" data-bi-quebras-quick-range="90d">90d</button>
+                      <button type="button" class="btn-secondary bi-quebras-quick-btn" data-bi-quebras-quick-range="mes">Mês</button>
+                    </div>
+                  </div>
+                  <div class="bi-quebras-field bi-quebras-field--search">
+                    <label class="bi-quebras-label count-audit-label" for="bi-quebras-search">Produto (ranking)</label>
+                    <input id="bi-quebras-search" name="bi-quebras-search" type="text" class="search-input bi-quebras-date-input" placeholder="Filtrar por nome/código/CIA..." autocomplete="off" aria-label="Buscar no ranking" />
+                  </div>
+                  <div class="bi-quebras-field bi-quebras-field--sort">
+                    <label class="bi-quebras-label count-audit-label" for="bi-quebras-ranking-sort">Ordenar ranking</label>
+                    <select id="bi-quebras-ranking-sort" class="search-input bi-quebras-date-input" aria-label="Ordenação do ranking">
+                      <option value="loss">Maior prejuízo</option>
+                      <option value="cx">Maior CX</option>
+                      <option value="un">Maior UN</option>
+                      <option value="name">Produto A-Z</option>
+                    </select>
+                  </div>
                   <div class="bi-quebras-actions count-audit-header__actions">
                     <button type="button" id="btn-bi-quebras-load" class="btn-secondary btn-dark bi-quebras-btn-load count-audit-btn-refresh">Atualizar painel</button>
                   </div>
                 </div>
+                <div id="bi-quebras-active-filters" class="bi-quebras-active-filters" aria-live="polite"></div>
                 <div id="bi-quebras-feedback" class="field-feedback bi-quebras-feedback count-audit-feedback-block" aria-live="polite" style="display:none;"></div>
               </header>
 
@@ -1384,6 +1407,11 @@
                   <span class="bi-quebras-kpi-label count-audit-summary-label">Cobertura de preço</span>
                   <strong id="bi-quebras-kpi-coverage" class="bi-quebras-kpi-value count-audit-summary-value">—</strong>
                   <span class="bi-quebras-kpi-sub count-audit-summary-trend">produtos com preço cadastrado</span>
+                </article>
+                <article class="bi-quebras-kpi-card bi-quebras-kpi-card--daily count-audit-summary-item is-highlight" role="listitem">
+                  <span class="bi-quebras-kpi-label count-audit-summary-label">Média por dia ativo</span>
+                  <strong id="bi-quebras-kpi-daily-loss" class="bi-quebras-kpi-value count-audit-summary-value">—</strong>
+                  <span id="bi-quebras-kpi-focus" class="bi-quebras-kpi-sub count-audit-summary-trend">Top 5 no prejuízo: —</span>
                 </article>
               </div>
 

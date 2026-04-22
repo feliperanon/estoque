@@ -13221,6 +13221,10 @@ let _biQuebrasSelectedCiaScope = 'todas';
 let _biQuebrasCurrentCompanies = [];
 let _biQuebrasLastPayload = null;
 let _biQuebrasFallbackPresentation = false;
+let _biQuebrasRankingQuery = '';
+let _biQuebrasRankingSort = 'loss';
+let _biQuebrasQuickRange = '30d';
+let _biQuebrasSelectedReason = '';
 
 const BI_QUEBRAS_PALETTE = [
   '#c23b2a', '#d97706', '#15803d', '#0f766e', '#2563eb',
@@ -13268,6 +13272,49 @@ function _biQuebrasFormatDateLong(dateKey) {
   const parts = String(dateKey || '').split('-');
   if (parts.length !== 3) return '--';
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function _biQuebrasNormalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function _biQuebrasApplyQuickRange(rangeKey) {
+  const fromEl = document.getElementById('bi-quebras-date-from');
+  const toEl = document.getElementById('bi-quebras-date-to');
+  if (!fromEl || !toEl) return false;
+  const todayKey = getBrazilDateKey();
+  const today = new Date(todayKey);
+  const key = String(rangeKey || '').trim();
+  _biQuebrasQuickRange = key || '30d';
+  toEl.value = todayKey;
+  if (key === 'mes') {
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const month = String(monthStart.getMonth() + 1).padStart(2, '0');
+    const day = String(monthStart.getDate()).padStart(2, '0');
+    fromEl.value = `${monthStart.getFullYear()}-${month}-${day}`;
+    return true;
+  }
+  const daysMap = { '7d': 6, '30d': 29, '90d': 89 };
+  const diffDays = Object.prototype.hasOwnProperty.call(daysMap, key) ? daysMap[key] : 29;
+  const start = new Date(today);
+  start.setDate(start.getDate() - diffDays);
+  const month = String(start.getMonth() + 1).padStart(2, '0');
+  const day = String(start.getDate()).padStart(2, '0');
+  fromEl.value = `${start.getFullYear()}-${month}-${day}`;
+  return true;
+}
+
+function _biQuebrasSyncQuickButtons() {
+  document.querySelectorAll('[data-bi-quebras-quick-range]').forEach((btn) => {
+    const isActive = btn.getAttribute('data-bi-quebras-quick-range') === _biQuebrasQuickRange;
+    btn.classList.toggle('is-active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
 }
 
 function _biQuebrasScopeLabel(scope) {
@@ -13427,11 +13474,18 @@ function _biQuebrasSetText(id, value) {
 
 function _biQuebrasRenderKpisClassic(data) {
   const summary = data.summary || {};
+  const topRows = _biQuebrasGetTopProducts(data.top_products || []);
   const unique = Number(summary.unique_products) || 0;
   const withPrice = Number(summary.products_with_price) || 0;
   const activeDays = _biQuebrasGetActiveDays(data.by_day || []);
   const period = `${_biQuebrasFormatDateLong(data.date_from)} a ${_biQuebrasFormatDateLong(data.date_to)}`;
   const covPct = unique > 0 ? Math.round((withPrice / unique) * 1000) / 10 : null;
+  const totalLoss = Number(summary.total_loss_brl) || 0;
+  const topFiveLoss = topRows.slice(0, 5).reduce((acc, row) => acc + (Number(row.loss_brl) || 0), 0);
+  const topFivePct = totalLoss > 0 ? (topFiveLoss / totalLoss) * 100 : 0;
+  const avgLossPerActiveDay = activeDays.length
+    ? totalLoss / activeDays.length
+    : 0;
 
   _biQuebrasSetText('bi-quebras-kpi-loss', _biQuebrasFormatBRL(summary.total_loss_brl));
   _biQuebrasSetText('bi-quebras-kpi-products', _biQuebrasFormatNumber(summary.unique_products));
@@ -13440,6 +13494,10 @@ function _biQuebrasRenderKpisClassic(data) {
   _biQuebrasSetText(
     'bi-quebras-kpi-coverage',
     covPct !== null ? `${covPct.toLocaleString('pt-BR', { minimumFractionDigits: unique < 20 ? 1 : 0, maximumFractionDigits: 1 })}%` : '—',
+  );
+  _biQuebrasSetText(
+    'bi-quebras-kpi-daily-loss',
+    activeDays.length ? _biQuebrasFormatBRL(avgLossPerActiveDay) : '—',
   );
 
   _biQuebrasSetText(
@@ -13455,7 +13513,14 @@ function _biQuebrasRenderKpisClassic(data) {
     'bi-quebras-kpi-coverage-note',
     unique ? `${withPrice} de ${unique} com preço cadastrado` : '—',
   );
+  _biQuebrasSetText(
+    'bi-quebras-kpi-focus',
+    totalLoss > 0
+      ? `Top 5 no prejuízo: ${_biQuebrasFormatPct(topFivePct)} do total`
+      : 'Top 5 no prejuízo: —',
+  );
   _biQuebrasSyncScopeButtons();
+  _biQuebrasSyncQuickButtons();
 }
 
 function _biQuebrasRenderTrendChart(byDay) {
@@ -13567,6 +13632,16 @@ function _biQuebrasRenderReasonChart(items) {
       maintainAspectRatio: false,
       cutout: '62%',
       animation: { duration: 650, easing: 'easeOutQuart' },
+      onClick: (event, elements) => {
+        const first = Array.isArray(elements) ? elements[0] : null;
+        if (!first) return;
+        const idx = Number(first.index);
+        if (!Number.isInteger(idx) || idx < 0 || idx >= reasons.length) return;
+        const reasonName = String(reasons[idx]?.reason || '').trim();
+        if (!reasonName) return;
+        _biQuebrasSelectedReason = _biQuebrasSelectedReason === reasonName ? '' : reasonName;
+        if (_biQuebrasLastPayload) _biQuebrasRenderDashboard(_biQuebrasLastPayload);
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -13664,14 +13739,18 @@ function _biQuebrasRenderReasonListClassic(items) {
   list.innerHTML = rows
     .map((row, i) => {
       const dot = BI_QUEBRAS_PALETTE[i % BI_QUEBRAS_PALETTE.length];
+      const reasonName = String(row.reason || 'Não informado');
+      const isSel = _biQuebrasSelectedReason && _biQuebrasSelectedReason === reasonName;
       return `
-      <li class="bi-quebras-breakdown-row">
+      <li>
+      <button type="button" class="bi-quebras-breakdown-row bi-quebras-breakdown-row--interactive${isSel ? ' is-selected' : ''}" data-bi-quebras-reason="${_biQuebrasEscapeHtml(reasonName)}" aria-pressed="${isSel ? 'true' : 'false'}">
         <span class="bi-quebras-bd-dot" style="background:${dot}" aria-hidden="true"></span>
-        <span class="bi-quebras-bd-label">${_biQuebrasEscapeHtml(row.reason || 'Não informado')}</span>
+        <span class="bi-quebras-bd-label">${_biQuebrasEscapeHtml(reasonName)}</span>
         <span class="bi-quebras-bd-items">${_biQuebrasFormatNumber(row.occurrences)}</span>
         <span class="bi-quebras-bd-pct">${row.pct != null ? _biQuebrasFormatPct(row.pct) : '—'}</span>
         <span class="bi-quebras-bd-loss">${_biQuebrasFormatBRL(row.loss_brl)}</span>
         <span class="bi-quebras-bd-occ">${_biQuebrasFormatNumber(row.unique_products)}</span>
+      </button>
       </li>`;
     })
     .join('');
@@ -13681,7 +13760,22 @@ function _biQuebrasRenderRankingClassic(items) {
   const list = document.getElementById('bi-quebras-ranking-list');
   const chip = document.getElementById('bi-quebras-ranking-count');
   if (!list) return;
-  const rows = _biQuebrasGetTopProducts(items).slice(0, 20);
+  const queryNorm = _biQuebrasNormalizeText(_biQuebrasRankingQuery);
+  const sorted = _biQuebrasGetTopProducts(items)
+    .filter((item) => {
+      if (!queryNorm) return true;
+      const hay = _biQuebrasNormalizeText(`${item?.descricao || ''} ${item?.cod_produto || ''} ${item?.cia || ''}`);
+      return hay.includes(queryNorm);
+    })
+    .sort((a, b) => {
+      if (_biQuebrasRankingSort === 'cx') return (Number(b.cx) || 0) - (Number(a.cx) || 0);
+      if (_biQuebrasRankingSort === 'un') return (Number(b.un) || 0) - (Number(a.un) || 0);
+      if (_biQuebrasRankingSort === 'name') return String(a.descricao || '').localeCompare(String(b.descricao || ''), 'pt-BR');
+      return (Number(b.loss_brl) || 0) - (Number(a.loss_brl) || 0);
+    });
+  const rows = sorted.slice(0, 20);
+  const totalLoss = rows.reduce((acc, row) => acc + (Number(row.loss_brl) || 0), 0);
+  let cumulativeLoss = 0;
   if (chip) chip.textContent = String(rows.length);
   if (!rows.length) {
     list.innerHTML = '<li class="bi-quebras-list-empty">Nenhum produto com prejuízo no período.</li>';
@@ -13690,6 +13784,8 @@ function _biQuebrasRenderRankingClassic(items) {
   list.innerHTML = rows
     .map((item, i) => {
       const loss = item.loss_brl;
+      cumulativeLoss += Number(loss) || 0;
+      const paretoPct = totalLoss > 0 ? (cumulativeLoss / totalLoss) * 100 : 0;
       return `
       <li class="bi-quebras-ranking-row" role="listitem">
         <span class="bi-quebras-rank-pos">${i + 1}</span>
@@ -13697,7 +13793,7 @@ function _biQuebrasRenderRankingClassic(items) {
         <span class="bi-quebras-rank-seg">${_biQuebrasEscapeHtml(item.cia || '—')}</span>
         <span class="bi-quebras-rank-cx">${_biQuebrasFormatNumber(item.cx)}</span>
         <span class="bi-quebras-rank-un">${_biQuebrasFormatNumber(item.un)}</span>
-        <span class="bi-quebras-rank-loss"><span class="bi-quebras-rank-loss--val">${_biQuebrasFormatBRL(loss)}</span></span>
+        <span class="bi-quebras-rank-loss" title="Acumulado do ranking: ${_biQuebrasFormatPct(paretoPct)}"><span class="bi-quebras-rank-loss--val">${_biQuebrasFormatBRL(loss)}</span></span>
       </li>`;
     })
     .join('');
@@ -13727,12 +13823,27 @@ function _biQuebrasRenderCompanyProductsPanel() {
   const products = Array.isArray(company.products)
     ? company.products.slice().sort((a, b) => (Number(b.loss_brl) || 0) - (Number(a.loss_brl) || 0))
     : [];
-  if (countEl) countEl.textContent = String(products.length);
-  if (!products.length) {
+  const queryNorm = _biQuebrasNormalizeText(_biQuebrasRankingQuery);
+  const filteredProducts = products.filter((product) => {
+    if (!queryNorm) return true;
+    const hay = _biQuebrasNormalizeText(`${product?.descricao || ''} ${product?.cod_produto || ''} ${product?.segmento || ''}`);
+    return hay.includes(queryNorm);
+  });
+  if (_biQuebrasRankingSort === 'cx') {
+    filteredProducts.sort((a, b) => (Number(b.cx) || 0) - (Number(a.cx) || 0));
+  } else if (_biQuebrasRankingSort === 'un') {
+    filteredProducts.sort((a, b) => (Number(b.un) || 0) - (Number(a.un) || 0));
+  } else if (_biQuebrasRankingSort === 'name') {
+    filteredProducts.sort((a, b) => String(a.descricao || '').localeCompare(String(b.descricao || ''), 'pt-BR'));
+  } else {
+    filteredProducts.sort((a, b) => (Number(b.loss_brl) || 0) - (Number(a.loss_brl) || 0));
+  }
+  if (countEl) countEl.textContent = String(filteredProducts.length);
+  if (!filteredProducts.length) {
     list.innerHTML = '<li class="bi-quebras-company-products-empty">Nenhum produto nesta CIA no período.</li>';
     return;
   }
-  list.innerHTML = products
+  list.innerHTML = filteredProducts
     .map((product, index) => {
       const lv = product.loss_brl;
       const lossExtra = lv != null && Number(lv) > 0 ? ' bi-quebras-company-product-loss--val' : '';
@@ -13751,6 +13862,27 @@ function _biQuebrasRenderCompanyProductsPanel() {
     .join('');
 }
 
+function _biQuebrasRenderActiveFilters(data) {
+  const shell = document.getElementById('bi-quebras-active-filters');
+  if (!shell) return;
+  const chips = [];
+  chips.push(`<span class="bi-quebras-filter-chip"><span class="bi-quebras-filter-chip-key">Escopo</span>${_biQuebrasEscapeHtml(_biQuebrasScopeLabel(_biQuebrasSelectedCiaScope))}</span>`);
+  const query = String(_biQuebrasRankingQuery || '').trim();
+  if (query) {
+    chips.push(`<span class="bi-quebras-filter-chip"><span class="bi-quebras-filter-chip-key">Busca</span>${_biQuebrasEscapeHtml(query)}</span>`);
+  }
+  if (_biQuebrasSelectedCompany) {
+    chips.push(`<span class="bi-quebras-filter-chip"><span class="bi-quebras-filter-chip-key">CIA</span>${_biQuebrasEscapeHtml(_biQuebrasSelectedCompany)}</span>`);
+  }
+  if (_biQuebrasSelectedReason) {
+    const reasonRows = _biQuebrasGetReasonItems(data?.by_reason || []);
+    const reasonMeta = reasonRows.find((row) => String(row.reason || '') === _biQuebrasSelectedReason);
+    const pctTxt = reasonMeta?.pct != null ? _biQuebrasFormatPct(reasonMeta.pct) : '—';
+    chips.push(`<span class="bi-quebras-filter-chip"><span class="bi-quebras-filter-chip-key">Motivo</span>${_biQuebrasEscapeHtml(_biQuebrasSelectedReason)} (${pctTxt})</span>`);
+  }
+  shell.innerHTML = chips.join('');
+}
+
 function _biQuebrasSelectCompany(cia) {
   const normalized = String(cia || '').trim();
   if (!normalized) return;
@@ -13767,6 +13899,7 @@ function _biQuebrasClearCompanySelection() {
   _biQuebrasSelectedCompany = '';
   _biQuebrasRenderSegmentoList(_biQuebrasCurrentCompanies);
   _biQuebrasRenderCompanyProductsPanel();
+  if (_biQuebrasLastPayload) _biQuebrasRenderActiveFilters(_biQuebrasLastPayload);
 }
 
 function _biQuebrasRenderDashboard(data) {
@@ -13779,6 +13912,7 @@ function _biQuebrasRenderDashboard(data) {
   _biQuebrasRenderRankingClassic(data.top_products || []);
   _biQuebrasRenderCompanyProductsPanel();
   _biQuebrasRenderNoPriceAlert(data.products_without_price || []);
+  _biQuebrasRenderActiveFilters(data);
   _biQuebrasResizeChartsSoon();
 }
 
@@ -13835,6 +13969,9 @@ async function loadBiQuebras() {
 
   _biQuebrasLastPayload = data;
   _biQuebrasCurrentCompanies = _biQuebrasNormalizeCompanies(data.by_company || []);
+  if (!_biQuebrasGetReasonItems(data.by_reason || []).some((row) => String(row.reason || '').trim() === _biQuebrasSelectedReason)) {
+    _biQuebrasSelectedReason = '';
+  }
   if (!_biQuebrasCurrentCompanies.some((item) => String(item.cia || '').trim() === _biQuebrasSelectedCompany)) {
     _biQuebrasSelectedCompany = '';
   }
@@ -13851,21 +13988,16 @@ function _biQuebrasSetDefaultDates() {
   const fromEl = document.getElementById('bi-quebras-date-from');
   const toEl = document.getElementById('bi-quebras-date-to');
   if (!fromEl || !toEl) return;
-  const today = getBrazilDateKey();
-  if (!toEl.value) toEl.value = today;
-  if (!fromEl.value) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - 29);
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    fromEl.value = `${d.getFullYear()}-${month}-${day}`;
-  }
+  if (!fromEl.value || !toEl.value) _biQuebrasApplyQuickRange(_biQuebrasQuickRange || '30d');
+  _biQuebrasSyncQuickButtons();
 }
 
 function bindBiQuebrasEvents() {
   _biQuebrasEnsureLayout();
   _biQuebrasSetDefaultDates();
   _biQuebrasSyncScopeButtons();
+  const rankingSortEl = document.getElementById('bi-quebras-ranking-sort');
+  if (rankingSortEl) rankingSortEl.value = _biQuebrasRankingSort;
   _biQuebrasSyncPresentationButton();
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -13901,8 +14033,44 @@ function bindBiQuebrasEvents() {
     if (companyRow) {
       event.preventDefault();
       _biQuebrasSelectCompany(companyRow.getAttribute('data-bi-quebras-company'));
+      if (_biQuebrasLastPayload) _biQuebrasRenderActiveFilters(_biQuebrasLastPayload);
+      return;
+    }
+
+    const reasonRow = target.closest('[data-bi-quebras-reason]');
+    if (reasonRow) {
+      event.preventDefault();
+      const reasonName = String(reasonRow.getAttribute('data-bi-quebras-reason') || '').trim();
+      _biQuebrasSelectedReason = _biQuebrasSelectedReason === reasonName ? '' : reasonName;
+      if (_biQuebrasLastPayload) _biQuebrasRenderDashboard(_biQuebrasLastPayload);
+      return;
+    }
+
+    const quickBtn = target.closest('[data-bi-quebras-quick-range]');
+    if (quickBtn) {
+      event.preventDefault();
+      const rangeKey = String(quickBtn.getAttribute('data-bi-quebras-quick-range') || '').trim();
+      _biQuebrasApplyQuickRange(rangeKey);
+      _biQuebrasSyncQuickButtons();
+      loadBiQuebras();
     }
   });
+
+  const searchInput = document.getElementById('bi-quebras-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      _biQuebrasRankingQuery = String(searchInput.value || '').trim();
+      if (_biQuebrasLastPayload) _biQuebrasRenderDashboard(_biQuebrasLastPayload);
+    });
+  }
+
+  const rankingSort = document.getElementById('bi-quebras-ranking-sort');
+  if (rankingSort) {
+    rankingSort.addEventListener('change', () => {
+      _biQuebrasRankingSort = String(rankingSort.value || 'loss');
+      if (_biQuebrasLastPayload) _biQuebrasRenderDashboard(_biQuebrasLastPayload);
+    });
+  }
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
