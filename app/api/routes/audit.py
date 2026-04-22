@@ -2921,17 +2921,64 @@ def get_recount_signals(
 
 
 MATE_COURO_CIA = "Mate couro"
-# CIAs em que o cadastro guarda ``price`` como custo da 1 CX (BI divide por fator inteiro para obter custo/UN).
-BI_QUEBRAS_BOX_PRICE_CIAS = frozenset(
-    {
-        MATE_COURO_CIA.casefold(),
-        "xeque mate",
-    }
+# Alinhar a ``const GROUPS`` em app/static/app.js (filtro de contagem por CIA).
+_BI_QUEBRAS_COUNT_UI_CIAS = frozenset(
+    c.casefold()
+    for c in (
+        "Socorro Beb",
+        "Dikoko",
+        "Britvic",
+        "Inga",
+        "Santissima",
+        "Mate couro",
+        "Wow",
+        "Grafrutalle",
+        "Piraque",
+        "Kydoidera",
+        "Cory",
+        "Selmi",
+        "Brothers Paiol",
+        "Salinas",
+        "Arbor",
+        "Heineken",
+        "Cepal",
+        "Arcor",
+        "Nestle",
+        "Tres Lobos",
+        "Don Rigollo",
+        "Jack Power",
+        "Blue Bev",
+        "Vanfall",
+        "Itts",
+        "Xeque Mate",
+        "Perfetti",
+        "Tampico",
+        "Tapioca",
+        "Tial",
+        "Pergola",
+        "Xa de Cana",
+        "Açai Futuro",
+        "Mais Coco",
+        "Baly",
+        "Ferreira",
+        "Knofler",
+        "Sunhot",
+        "Seleta",
+        "SP TT",
+    )
 )
+# CIAs em que ``price`` no cadastro já representa custo por 1 UN (não dividir pelo fator no BI).
+BI_QUEBRAS_LOSS_PRICE_PER_UNIT_CIAS = frozenset({"heineken"})
 
 
 def _bi_quebras_uses_box_price_cia(raw: str | None) -> bool:
-    return _normalize_bi_quebras_cia_label(raw).casefold() in BI_QUEBRAS_BOX_PRICE_CIAS
+    """True quando ``price`` é custo da 1 CX e o BI deve usar ``price/fator`` como custo/UN (fator inteiro)."""
+    n = _normalize_bi_quebras_cia_label(raw).casefold()
+    if n == "sem cia":
+        return False
+    if n in BI_QUEBRAS_LOSS_PRICE_PER_UNIT_CIAS:
+        return False
+    return n in _BI_QUEBRAS_COUNT_UI_CIAS
 
 
 _ALLOWED_MATE_TROCA_KINDS = frozenset(
@@ -4007,7 +4054,7 @@ def _bi_quebras_loss_float_conv_factor(info: dict[str, Any]) -> float:
 
 
 def _bi_quebras_unit_price_per_un_for_loss(info: dict[str, Any]) -> float | None:
-    """Custo por 1 UN para o BI. Demais CIA: ``price`` já é por UN. Mate couro / Xeque Mate + fator inteiro: ``price`` = custo da 1 CX."""
+    """Custo por 1 UN para o BI. CIAs fora do filtro de contagem: ``price`` tratado como por UN. Nas CIAs do filtro (GROUPS), exceto lista ``BI_QUEBRAS_LOSS_PRICE_PER_UNIT_CIAS``: ``price`` = custo da 1 CX com fator inteiro."""
     price = info.get("price")
     if price is None:
         return None
@@ -4025,7 +4072,7 @@ def _bi_quebras_unit_price_per_un_for_loss(info: dict[str, Any]) -> float | None
 
 
 def _bi_quebras_build_loss_detail(rec: dict[str, Any], info: dict[str, Any]) -> dict[str, Any] | None:
-    """Resumo legível: custo da caixa no cadastro, fator inteiro, totais brutos de quebra (Mate couro e Xeque Mate)."""
+    """Resumo legível: custo da caixa no cadastro, fator inteiro, totais brutos de quebra (CIAs do filtro de contagem com preço por caixa)."""
     if not (
         _bi_quebras_uses_box_price_cia(info.get("cia"))
         or _bi_quebras_uses_box_price_cia(rec.get("cia"))
@@ -4092,7 +4139,7 @@ def bi_quebras_dashboard(
     - ``by_day``: série temporal de prejuízo estimado por dia operacional.
     - ``top_products``: top-N produtos por prejuízo estimado (curva ABC parcial).
       ``cx``/``un`` são **consolidados** pelo fator inteiro do cadastro quando existir; ``cx_raw``/``un_raw`` refletem a soma bruta dos lançamentos.
-      **Mate couro** e **Xeque Mate** com fator inteiro: ``price`` no cadastro é tratado como **custo da 1 CX**; o BI usa ``price/fator`` como custo por UN e devolve ``loss_detail`` para exibir a conta (ex.: 3 UN × R$ 2 + 1 CX × R$ 12).
+      CIAs do mesmo conjunto do filtro de contagem (``GROUPS`` no cliente), exceto as listadas em ``BI_QUEBRAS_LOSS_PRICE_PER_UNIT_CIAS`` (ex.: Heineken com ``price`` já por UN): com **fator inteiro**, ``price`` no cadastro é **custo da 1 CX**; o BI usa ``price/fator`` como custo por UN e devolve ``loss_detail`` (ex.: 3 UN × R$ 2 + 1 CX × R$ 12).
     - ``by_company``: quebras por CIA (% e R$) e produtos; omite CIA sem prejuízo e sem CX/UN.
     - ``by_category``: quebras agrupadas por cod_grup_segmento (% e R$).
     - ``by_reason``: quebras agrupadas por motivo (% e R$).
