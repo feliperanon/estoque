@@ -13639,8 +13639,12 @@ function _biQuebrasRenderReasonChart(items) {
         if (!Number.isInteger(idx) || idx < 0 || idx >= reasons.length) return;
         const reasonName = String(reasons[idx]?.reason || '').trim();
         if (!reasonName) return;
-        _biQuebrasSelectedReason = _biQuebrasSelectedReason === reasonName ? '' : reasonName;
-        if (_biQuebrasLastPayload) _biQuebrasRenderDashboard(_biQuebrasLastPayload);
+        const nextReason = _biQuebrasSelectedReason === reasonName ? '' : reasonName;
+        /* Não destruir/recriar o Chart dentro do handler nativo do Chart.js — causa afterEvent/handleEvent undefined. */
+        window.setTimeout(() => {
+          _biQuebrasSelectedReason = nextReason;
+          if (_biQuebrasLastPayload) _biQuebrasRenderDashboardDataViews(_biQuebrasLastPayload);
+        }, 0);
       },
       plugins: {
         legend: { display: false },
@@ -13756,6 +13760,30 @@ function _biQuebrasRenderReasonListClassic(items) {
     .join('');
 }
 
+function _biQuebrasMateLossDetailLine(d) {
+  if (!d || !d.mate_couro) return '';
+  const un = Number(d.un) || 0;
+  const cx = Number(d.cx) || 0;
+  const pu = Number(d.preco_unidade_brl);
+  const pc = Number(d.preco_caixa_brl);
+  const tot = Number(d.prejuizo_brl);
+  if (!Number.isFinite(pu) || !Number.isFinite(pc) || !Number.isFinite(tot)) return '';
+  const parts = [];
+  if (un > 0) parts.push(`${_biQuebrasFormatNumber(un)} UN × ${_biQuebrasFormatBRL(pu)}`);
+  if (cx > 0) parts.push(`${_biQuebrasFormatNumber(cx)} CX × ${_biQuebrasFormatBRL(pc)}`);
+  if (!parts.length) return '';
+  return `${parts.join(' + ')} = ${_biQuebrasFormatBRL(tot)} · 1 UN = ${_biQuebrasFormatBRL(pu)}`;
+}
+
+function _biQuebrasBreakCxUnTooltip(item) {
+  const cx = Number(item?.cx) || 0;
+  const un = Number(item?.un) || 0;
+  const cxR = item?.cx_raw != null ? Number(item.cx_raw) : cx;
+  const unR = item?.un_raw != null ? Number(item.un_raw) : un;
+  if (cxR === cx && unR === un) return '';
+  return `Consolidado por fator inteiro no cadastro: soma bruta ${_biQuebrasFormatNumber(cxR)} CX · ${_biQuebrasFormatNumber(unR)} UN → exibido ${_biQuebrasFormatNumber(cx)} CX · ${_biQuebrasFormatNumber(un)} UN.`;
+}
+
 function _biQuebrasRenderRankingClassic(items) {
   const list = document.getElementById('bi-quebras-ranking-list');
   const chip = document.getElementById('bi-quebras-ranking-count');
@@ -13786,14 +13814,20 @@ function _biQuebrasRenderRankingClassic(items) {
       const loss = item.loss_brl;
       cumulativeLoss += Number(loss) || 0;
       const paretoPct = totalLoss > 0 ? (cumulativeLoss / totalLoss) * 100 : 0;
+      const cxUnTip = _biQuebrasBreakCxUnTooltip(item);
+      const mateLine = _biQuebrasMateLossDetailLine(item.loss_detail);
+      const rowTitle = [mateLine, cxUnTip, `Acumulado do ranking: ${_biQuebrasFormatPct(paretoPct)}`].filter(Boolean).join(' ');
+      const mateSmall = mateLine
+        ? `<small class="bi-quebras-rank-breakdown">${_biQuebrasEscapeHtml(mateLine)}</small>`
+        : '';
       return `
-      <li class="bi-quebras-ranking-row" role="listitem">
+      <li class="bi-quebras-ranking-row" role="listitem"${rowTitle ? ` title="${_biQuebrasEscapeHtml(rowTitle)}"` : ''}>
         <span class="bi-quebras-rank-pos">${i + 1}</span>
-        <span class="bi-quebras-rank-desc">${_biQuebrasEscapeHtml(item.descricao || item.cod_produto || '—')}</span>
+        <span class="bi-quebras-rank-desc"><span class="bi-quebras-rank-desc-line">${_biQuebrasEscapeHtml(item.descricao || item.cod_produto || '—')}</span>${mateSmall}</span>
         <span class="bi-quebras-rank-seg">${_biQuebrasEscapeHtml(item.cia || '—')}</span>
         <span class="bi-quebras-rank-cx">${_biQuebrasFormatNumber(item.cx)}</span>
         <span class="bi-quebras-rank-un">${_biQuebrasFormatNumber(item.un)}</span>
-        <span class="bi-quebras-rank-loss" title="Acumulado do ranking: ${_biQuebrasFormatPct(paretoPct)}"><span class="bi-quebras-rank-loss--val">${_biQuebrasFormatBRL(loss)}</span></span>
+        <span class="bi-quebras-rank-loss"><span class="bi-quebras-rank-loss--val">${_biQuebrasFormatBRL(loss)}</span></span>
       </li>`;
     })
     .join('');
@@ -13847,11 +13881,18 @@ function _biQuebrasRenderCompanyProductsPanel() {
     .map((product, index) => {
       const lv = product.loss_brl;
       const lossExtra = lv != null && Number(lv) > 0 ? ' bi-quebras-company-product-loss--val' : '';
+      const cxUnTip = _biQuebrasBreakCxUnTooltip(product);
+      const mateLine = _biQuebrasMateLossDetailLine(product.loss_detail);
+      const rowTip = [mateLine, cxUnTip].filter(Boolean).join(' ');
+      const mateSmall = mateLine
+        ? `<small class="bi-quebras-rank-breakdown bi-quebras-company-product-breakdown">${_biQuebrasEscapeHtml(mateLine)}</small>`
+        : '';
       return `
-      <li class="bi-quebras-company-product-row" role="listitem">
+      <li class="bi-quebras-company-product-row" role="listitem"${rowTip ? ` title="${_biQuebrasEscapeHtml(rowTip)}"` : ''}>
         <span class="bi-quebras-company-product-pos">${String(index + 1).padStart(2, '0')}</span>
         <span class="bi-quebras-company-product-main">
           <strong class="bi-quebras-company-product-desc">${_biQuebrasEscapeHtml(product.descricao || product.cod_produto || '—')}</strong>
+          ${mateSmall}
           <span class="bi-quebras-company-product-meta">${_biQuebrasEscapeHtml(product.segmento || '—')} · ${_biQuebrasEscapeHtml(product.cod_produto || '—')}</span>
         </span>
         <span class="bi-quebras-company-product-cx">${_biQuebrasFormatNumber(product.cx)} CX</span>
@@ -13902,18 +13943,26 @@ function _biQuebrasClearCompanySelection() {
   if (_biQuebrasLastPayload) _biQuebrasRenderActiveFilters(_biQuebrasLastPayload);
 }
 
-function _biQuebrasRenderDashboard(data) {
-  _biQuebrasRenderKpisClassic(data);
+function _biQuebrasRenderDashboardCharts(data) {
   _biQuebrasRenderTrendChart(data.by_day || []);
   _biQuebrasRenderSegmentoChart(data.by_company || []);
-  _biQuebrasRenderSegmentoList(_biQuebrasCurrentCompanies);
   _biQuebrasRenderReasonChart(data.by_reason || []);
+  _biQuebrasResizeChartsSoon();
+}
+
+function _biQuebrasRenderDashboardDataViews(data) {
+  _biQuebrasRenderKpisClassic(data);
+  _biQuebrasRenderSegmentoList(_biQuebrasCurrentCompanies);
   _biQuebrasRenderReasonListClassic(data.by_reason || []);
   _biQuebrasRenderRankingClassic(data.top_products || []);
   _biQuebrasRenderCompanyProductsPanel();
   _biQuebrasRenderNoPriceAlert(data.products_without_price || []);
   _biQuebrasRenderActiveFilters(data);
-  _biQuebrasResizeChartsSoon();
+}
+
+function _biQuebrasRenderDashboard(data) {
+  _biQuebrasRenderDashboardCharts(data);
+  _biQuebrasRenderDashboardDataViews(data);
 }
 
 function _biQuebrasRenderNoPriceAlert(items) {
@@ -14042,7 +14091,9 @@ function bindBiQuebrasEvents() {
       event.preventDefault();
       const reasonName = String(reasonRow.getAttribute('data-bi-quebras-reason') || '').trim();
       _biQuebrasSelectedReason = _biQuebrasSelectedReason === reasonName ? '' : reasonName;
-      if (_biQuebrasLastPayload) _biQuebrasRenderDashboard(_biQuebrasLastPayload);
+      window.setTimeout(() => {
+        if (_biQuebrasLastPayload) _biQuebrasRenderDashboardDataViews(_biQuebrasLastPayload);
+      }, 0);
       return;
     }
 
@@ -14060,7 +14111,7 @@ function bindBiQuebrasEvents() {
   if (searchInput) {
     searchInput.addEventListener('input', () => {
       _biQuebrasRankingQuery = String(searchInput.value || '').trim();
-      if (_biQuebrasLastPayload) _biQuebrasRenderDashboard(_biQuebrasLastPayload);
+      if (_biQuebrasLastPayload) _biQuebrasRenderDashboardDataViews(_biQuebrasLastPayload);
     });
   }
 
@@ -14068,7 +14119,7 @@ function bindBiQuebrasEvents() {
   if (rankingSort) {
     rankingSort.addEventListener('change', () => {
       _biQuebrasRankingSort = String(rankingSort.value || 'loss');
-      if (_biQuebrasLastPayload) _biQuebrasRenderDashboard(_biQuebrasLastPayload);
+      if (_biQuebrasLastPayload) _biQuebrasRenderDashboardDataViews(_biQuebrasLastPayload);
     });
   }
 

@@ -3964,6 +3964,92 @@ def _break_events_in_range(session: Session, d_from: date, d_to: date) -> list[d
     return out
 
 
+def _bi_quebras_integer_conversion_factor(conv: Any) -> int | None:
+    """Fator UN por 1 CX como inteiro estrito; None se não for utilizável."""
+    if conv is None:
+        return None
+    try:
+        f = float(conv)
+    except (TypeError, ValueError):
+        return None
+    if not (f > 0) or f != f:
+        return None
+    fr = round(f)
+    if fr <= 0 or abs(f - fr) > 1e-9:
+        return None
+    return int(fr)
+
+
+def _bi_quebras_loss_float_conv_factor(info: dict[str, Any]) -> float:
+    conv = info.get("conversion_factor")
+    if conv is None:
+        return 1.0
+    try:
+        convf = float(conv)
+    except (TypeError, ValueError):
+        return 1.0
+    if not (convf > 0) or convf != convf:
+        return 1.0
+    return convf
+
+
+def _bi_quebras_unit_price_per_un_for_loss(info: dict[str, Any]) -> float | None:
+    """Custo por 1 UN para o BI. Demais CIA: ``price`` já é por UN. Mate couro + fator inteiro: ``price`` = custo da 1 CX."""
+    price = info.get("price")
+    if price is None:
+        return None
+    try:
+        p = float(price)
+    except (TypeError, ValueError):
+        return None
+    if p <= 0:
+        return None
+    if _is_mate_couro_cia(info.get("cia")):
+        fi = _bi_quebras_integer_conversion_factor(info.get("conversion_factor"))
+        if fi is not None and fi > 0:
+            return p / float(fi)
+    return p
+
+
+def _bi_quebras_build_loss_detail(rec: dict[str, Any], info: dict[str, Any]) -> dict[str, Any] | None:
+    """Resumo legível Mate couro: custo da caixa no cadastro, fator inteiro, totais brutos de quebra."""
+    if not (_is_mate_couro_cia(info.get("cia")) or _is_mate_couro_cia(rec.get("cia"))):
+        return None
+    fi = _bi_quebras_integer_conversion_factor(info.get("conversion_factor"))
+    if fi is None:
+        return None
+    price = info.get("price")
+    if price is None:
+        return None
+    try:
+        box_p = float(price)
+    except (TypeError, ValueError):
+        return None
+    if box_p <= 0:
+        return None
+    unit_p = box_p / float(fi)
+    cx_r = int(rec.get("cx_raw", 0))
+    un_r = int(rec.get("un_raw", 0))
+    if cx_r == 0 and un_r == 0:
+        return None
+    loss = rec.get("loss_brl")
+    if loss is None:
+        return None
+    try:
+        loss_f = float(loss)
+    except (TypeError, ValueError):
+        return None
+    return {
+        "mate_couro": True,
+        "cx": cx_r,
+        "un": un_r,
+        "preco_caixa_brl": round(box_p, 2),
+        "preco_unidade_brl": round(unit_p, 2),
+        "fator_un_por_cx": fi,
+        "prejuizo_brl": round(loss_f, 2),
+    }
+
+
 @router.get("/bi-quebras")
 def bi_quebras_dashboard(
     date_from: str | None = Query(
@@ -3989,6 +4075,8 @@ def bi_quebras_dashboard(
     - ``summary``: totais gerais (produtos únicos, total_cx, total_un, prejuizo_brl estimado).
     - ``by_day``: série temporal de prejuízo estimado por dia operacional.
     - ``top_products``: top-N produtos por prejuízo estimado (curva ABC parcial).
+      ``cx``/``un`` são **consolidados** pelo fator inteiro do cadastro quando existir; ``cx_raw``/``un_raw`` refletem a soma bruta dos lançamentos.
+      **Mate couro** com fator inteiro: ``price`` no cadastro é tratado como **custo da 1 CX**; o BI usa ``price/fator`` como custo por UN e devolve ``loss_detail`` para exibir a conta (ex.: 3 UN × R$ 2 + 1 CX × R$ 12).
     - ``by_company``: quebras por CIA (% e R$) e produtos; omite CIA sem prejuízo e sem CX/UN.
     - ``by_category``: quebras agrupadas por cod_grup_segmento (% e R$).
     - ``by_reason``: quebras agrupadas por motivo (% e R$).
@@ -4039,16 +4127,16 @@ def bi_quebras_dashboard(
         ]
 
     def _estimate_loss(cod: str, qty_cx: int, qty_un: int) -> float | None:
-        """Prejuízo estimado em R$ (unidades equivalentes × preço unitário)."""
+        """Prejuízo = (UN + CX×fator) × custo_por_UN. Mate couro + fator inteiro: custo_por_UN = price_caixa / fator."""
         info = product_map.get(cod)
         if not info:
             return None
-        price = info.get("price")
-        if price is None or price <= 0:
+        unit_p = _bi_quebras_unit_price_per_un_for_loss(info)
+        if unit_p is None:
             return None
-        conv = info.get("conversion_factor") or 1.0
-        total_un_equiv = qty_un + qty_cx * conv
-        return round(total_un_equiv * price, 2)
+        convf = _bi_quebras_loss_float_conv_factor(info)
+        total_un_equiv = float(qty_un) + float(qty_cx) * convf
+        return round(total_un_equiv * unit_p, 2)
 
     # 3) Agregar quebras por produto
     by_code: dict[str, dict] = {}
@@ -4072,6 +4160,18 @@ def bi_quebras_dashboard(
         rec["cia"] = _normalize_bi_quebras_cia_label(info.get("cia"))
         if info.get("price") is None:
             products_without_price.append(cod)
+
+    # 3.1) Exibir CX/UN consolidados quando o fator inteiro existir (mesma regra da Base de troca / Mate).
+    for cod, rec in by_code.items():
+        info = product_map.get(cod, {})
+        fac = info.get("conversion_factor")
+        raw_cx = int(rec["cx"])
+        raw_un = int(rec["un"])
+        n_cx, n_un = _mate_troca_normalize_cx_un(raw_cx, raw_un, fac)
+        rec["cx_raw"] = raw_cx
+        rec["un_raw"] = raw_un
+        rec["cx"] = n_cx
+        rec["un"] = n_un
 
     # 4) Série temporal por dia operacional
     by_day_raw: dict[str, dict] = {}
@@ -4121,7 +4221,10 @@ def bi_quebras_dashboard(
             "segmento": rec["segmento"],
             "cx": int(rec["cx"]),
             "un": int(rec["un"]),
+            "cx_raw": int(rec.get("cx_raw", rec["cx"])),
+            "un_raw": int(rec.get("un_raw", rec["un"])),
             "loss_brl": rec.get("loss_brl"),
+            "loss_detail": _bi_quebras_build_loss_detail(rec, product_map.get(cod, {})),
         }
         for cod, rec in ranked[:20]
     ]
@@ -4176,7 +4279,10 @@ def bi_quebras_dashboard(
                 "cia": cia,
                 "cx": int(rec["cx"]),
                 "un": int(rec["un"]),
+                "cx_raw": int(rec.get("cx_raw", rec["cx"])),
+                "un_raw": int(rec.get("un_raw", rec["un"])),
                 "loss_brl": loss,
+                "loss_detail": _bi_quebras_build_loss_detail(rec, product_map.get(cod, {})),
             }
         )
 
@@ -4227,15 +4333,14 @@ def bi_quebras_dashboard(
         cod = e["cod_produto"]
         reason = e.get("reason") or "Não informado"
         info = product_map.get(cod, {})
-        price = info.get("price")
-        if price is None or price <= 0:
+        unit_p = _bi_quebras_unit_price_per_un_for_loss(info)
+        if unit_p is None:
             continue
-        conv = info.get("conversion_factor") or 1.0
-        n_events_this_cod = sum(1 for ev in raw_events if ev["cod_produto"] == cod)
+        convf = _bi_quebras_loss_float_conv_factor(info)
         qty = e["qty"]
         ct = e["qty_type"]
-        un_equiv = qty if ct == "unidade" else qty * conv
-        loss_share = round(un_equiv * price, 4)
+        un_equiv = float(qty) if ct == "unidade" else float(qty) * convf
+        loss_share = round(un_equiv * unit_p, 4)
         if reason in reason_agg:
             reason_agg[reason]["loss_brl"] += loss_share
             reason_agg[reason]["has_price"] = True

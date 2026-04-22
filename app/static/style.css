@@ -10820,7 +10820,7 @@ body.bi-quebras-presentation-open {
   display: grid;
   grid-template-columns: 2rem minmax(0, 2fr) minmax(0, 1fr) 60px 60px 110px;
   gap: 0 12px;
-  align-items: center;
+  align-items: flex-start;
   padding: 0.9rem 1rem;
   border-bottom: 1px solid var(--audit-border);
   font-size: var(--audit-text-sm);
@@ -10846,6 +10846,36 @@ body.bi-quebras-presentation-open {
 #sub-bi-quebras .bi-quebras-rank-desc,
 #sub-bi-quebras .bi-quebras-bd-label {
   color: var(--audit-ink);
+}
+
+#sub-bi-quebras .bi-quebras-rank-desc {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+#sub-bi-quebras .bi-quebras-rank-desc-line {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#sub-bi-quebras .bi-quebras-rank-breakdown {
+  display: block;
+  max-width: 100%;
+  font-size: var(--audit-text-xs);
+  font-weight: 600;
+  color: var(--audit-subtle);
+  line-height: 1.35;
+  white-space: normal;
+}
+
+#sub-bi-quebras .bi-quebras-company-product-breakdown {
+  margin-top: 0.15rem;
 }
 
 #sub-bi-quebras .bi-quebras-rank-cx,
