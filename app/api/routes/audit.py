@@ -2921,6 +2921,19 @@ def get_recount_signals(
 
 
 MATE_COURO_CIA = "Mate couro"
+# CIAs em que o cadastro guarda ``price`` como custo da 1 CX (BI divide por fator inteiro para obter custo/UN).
+BI_QUEBRAS_BOX_PRICE_CIAS = frozenset(
+    {
+        MATE_COURO_CIA.casefold(),
+        "xeque mate",
+    }
+)
+
+
+def _bi_quebras_uses_box_price_cia(raw: str | None) -> bool:
+    return _normalize_bi_quebras_cia_label(raw).casefold() in BI_QUEBRAS_BOX_PRICE_CIAS
+
+
 _ALLOWED_MATE_TROCA_KINDS = frozenset(
     {"chegada", "definir", "zerar", "ajuste_pendente", "incorporacao_quebra"}
 )
@@ -3994,7 +4007,7 @@ def _bi_quebras_loss_float_conv_factor(info: dict[str, Any]) -> float:
 
 
 def _bi_quebras_unit_price_per_un_for_loss(info: dict[str, Any]) -> float | None:
-    """Custo por 1 UN para o BI. Demais CIA: ``price`` já é por UN. Mate couro + fator inteiro: ``price`` = custo da 1 CX."""
+    """Custo por 1 UN para o BI. Demais CIA: ``price`` já é por UN. Mate couro / Xeque Mate + fator inteiro: ``price`` = custo da 1 CX."""
     price = info.get("price")
     if price is None:
         return None
@@ -4004,7 +4017,7 @@ def _bi_quebras_unit_price_per_un_for_loss(info: dict[str, Any]) -> float | None
         return None
     if p <= 0:
         return None
-    if _is_mate_couro_cia(info.get("cia")):
+    if _bi_quebras_uses_box_price_cia(info.get("cia")):
         fi = _bi_quebras_integer_conversion_factor(info.get("conversion_factor"))
         if fi is not None and fi > 0:
             return p / float(fi)
@@ -4012,8 +4025,11 @@ def _bi_quebras_unit_price_per_un_for_loss(info: dict[str, Any]) -> float | None
 
 
 def _bi_quebras_build_loss_detail(rec: dict[str, Any], info: dict[str, Any]) -> dict[str, Any] | None:
-    """Resumo legível Mate couro: custo da caixa no cadastro, fator inteiro, totais brutos de quebra."""
-    if not (_is_mate_couro_cia(info.get("cia")) or _is_mate_couro_cia(rec.get("cia"))):
+    """Resumo legível: custo da caixa no cadastro, fator inteiro, totais brutos de quebra (Mate couro e Xeque Mate)."""
+    if not (
+        _bi_quebras_uses_box_price_cia(info.get("cia"))
+        or _bi_quebras_uses_box_price_cia(rec.get("cia"))
+    ):
         return None
     fi = _bi_quebras_integer_conversion_factor(info.get("conversion_factor"))
     if fi is None:
@@ -4076,7 +4092,7 @@ def bi_quebras_dashboard(
     - ``by_day``: série temporal de prejuízo estimado por dia operacional.
     - ``top_products``: top-N produtos por prejuízo estimado (curva ABC parcial).
       ``cx``/``un`` são **consolidados** pelo fator inteiro do cadastro quando existir; ``cx_raw``/``un_raw`` refletem a soma bruta dos lançamentos.
-      **Mate couro** com fator inteiro: ``price`` no cadastro é tratado como **custo da 1 CX**; o BI usa ``price/fator`` como custo por UN e devolve ``loss_detail`` para exibir a conta (ex.: 3 UN × R$ 2 + 1 CX × R$ 12).
+      **Mate couro** e **Xeque Mate** com fator inteiro: ``price`` no cadastro é tratado como **custo da 1 CX**; o BI usa ``price/fator`` como custo por UN e devolve ``loss_detail`` para exibir a conta (ex.: 3 UN × R$ 2 + 1 CX × R$ 12).
     - ``by_company``: quebras por CIA (% e R$) e produtos; omite CIA sem prejuízo e sem CX/UN.
     - ``by_category``: quebras agrupadas por cod_grup_segmento (% e R$).
     - ``by_reason``: quebras agrupadas por motivo (% e R$).
