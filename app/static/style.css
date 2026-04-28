@@ -2618,7 +2618,7 @@ form#break-op-form.count-form {
   grid-column: 1 / -1;
 }
 
-/* Cadastro de produto: menos rolagem — grade 3 col em telas largas, cabeçalho compacto */
+/* Cadastro de produto: grade operacional (desktop: 5 colunas = 2 linhas de 5 campos), cabeçalho compacto */
 .card--cadastro-produto {
   padding: 16px 18px;
 }
@@ -2655,7 +2655,7 @@ form#break-op-form.count-form {
 }
 
 .product-form--cadastro {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px 12px;
   align-items: start;
 }
@@ -2688,7 +2688,19 @@ form#break-op-form.count-form {
   word-break: break-word;
 }
 
+@media (max-width: 1400px) {
+  .product-form--cadastro {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1200px) {
+  .product-form--cadastro {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
   .product-form--cadastro {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
