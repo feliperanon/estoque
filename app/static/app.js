@@ -9481,6 +9481,12 @@ function bindCountEvents() {
       }
       const ref = inp.getAttribute('data-coderef') || '';
       const ct = inp.getAttribute('data-count-type') || 'caixa';
+      const ctNorm = normalizeCountType(ct);
+      // PL não usa o atalho de "+ automático no blur"; evita lançamento duplicado (+100 após -100).
+      if (ctNorm === 'palete') {
+        refreshCountListAfterEdit();
+        return;
+      }
       const zeroConfirmedOnBlur = tryConfirmExplicitZeroOnBlur(ref, ct);
       const genAtBlur = countAdjustGestureGeneration;
       const opParsedBlur = parseOperationQtyFromInputEl(inp);
@@ -12474,16 +12480,17 @@ function renderProdutosTable(products) {
   total.textContent = String(products.length);
 
   if (!products.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center">Nenhum produto encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center">Nenhum produto encontrado.</td></tr>';
     return;
   }
 
   for (const p of products) {
     const tr = document.createElement('tr');
+    tr.dataset.productId = String(p.id || '');
+    tr.title = 'Clique na linha para editar';
     const st = produtoStatusBadgeMeta(p);
     tr.innerHTML = `
       <td>${p.cod_produto || '\u2014'}</td>
-      <td>${p.cod_grup_sku || '\u2014'}</td>
       <td>${p.cod_grup_descricao || '\u2014'}</td>
       <td>${formatPrice(p.price)}</td>
       <td title="Unidades por 1 caixa">${formatConversionFactor(p.conversion_factor)}</td>
@@ -12491,7 +12498,6 @@ function renderProdutosTable(products) {
       <td><span class="status-badge ${st.cls}">${st.label}</span></td>
       <td>${formatDate(p.created_at)}</td>
       <td class="actions-cell">
-        <button class="btn-icon" data-action="edit" data-id="${p.id}" title="Editar">✏️</button>
         <button class="btn-icon" data-action="toggle" data-id="${p.id}" title="Ativar/Inativar">🔄</button>
         <button class="btn-icon" data-action="history" data-id="${p.id}" data-label="${p.cod_grup_sku}" title="Histórico">📜</button>
         <button class="btn-icon btn-danger-icon" data-action="delete" data-id="${p.id}" title="Excluir">🗑️</button>
@@ -12702,13 +12708,19 @@ function bindProdutosEvents() {
 
   tbody.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const action = btn.dataset.action;
-    const id = btn.dataset.id;
-    if (action === 'edit') openEditProduct(id);
-    else if (action === 'toggle') toggleProductStatus(id);
-    else if (action === 'delete') deleteProduct(id);
-    else if (action === 'history') showProductHistory(id, btn.dataset.label);
+    if (btn) {
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      if (action === 'toggle') toggleProductStatus(id);
+      else if (action === 'delete') deleteProduct(id);
+      else if (action === 'history') showProductHistory(id, btn.dataset.label);
+      return;
+    }
+    const row = e.target.closest('tr[data-product-id]');
+    if (!row || !tbody.contains(row)) return;
+    const id = row.dataset.productId;
+    if (!id) return;
+    openEditProduct(id);
   });
 
   if (btnCancelEdit) {

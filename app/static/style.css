@@ -6729,6 +6729,30 @@ body.count-audit-drawer-open {
   flex-wrap: nowrap;
 }
 
+/* Produtos: reduzir scroll horizontal e tornar linha clicável para edição */
+#sub-produtos #produtos-table-wrap {
+  overflow-x: hidden;
+}
+
+#sub-produtos .data-table {
+  table-layout: fixed;
+}
+
+#sub-produtos .data-table th,
+#sub-produtos .data-table td {
+  white-space: normal;
+  word-break: break-word;
+  vertical-align: middle;
+}
+
+#sub-produtos #produtos-tbody tr {
+  cursor: pointer;
+}
+
+#sub-produtos #produtos-tbody tr td:nth-child(2) {
+  max-width: 32rem;
+}
+
 .btn-icon {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.1);
