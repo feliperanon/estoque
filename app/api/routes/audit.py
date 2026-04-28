@@ -15,7 +15,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from pydantic import BaseModel, Field
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, SQLModel, select
 
@@ -40,6 +40,31 @@ _BR = ZoneInfo("America/Sao_Paulo")
 
 # Janela ao buscar a última diferença contagem × TXT antes do dia da análise (sem base de troca).
 _STOCK_ANALYSIS_PREV_DIFF_LOOKBACK_DAYS = 120
+
+
+def _ensure_product_pallet_conversion_factor_column(session: Session) -> None:
+    """Compatibilidade de runtime para deploy sem migração aplicada ainda."""
+    try:
+        bind = session.get_bind()
+        dialect = bind.dialect.name
+        if dialect == "postgresql":
+            session.execute(
+                text(
+                    "ALTER TABLE app_core.products "
+                    "ADD COLUMN IF NOT EXISTS pallet_conversion_factor DOUBLE PRECISION"
+                )
+            )
+            session.flush()
+            return
+        if dialect == "sqlite":
+            cols = session.execute(text("PRAGMA table_info(products)")).fetchall()
+            has_col = any(str(r[1]).strip().lower() == "pallet_conversion_factor" for r in cols if len(r) > 1)
+            if not has_col:
+                session.execute(text("ALTER TABLE products ADD COLUMN pallet_conversion_factor DOUBLE"))
+                session.flush()
+            return
+    except Exception:
+        logger.exception("Falha ao garantir coluna pallet_conversion_factor em products (audit)")
 
 
 def _ensure_validity_lines_table() -> None:
@@ -871,6 +896,7 @@ def count_server_totals(
     Totais CX/UN já sincronizados no servidor (ChangeLog), somando conferentes.
     Filtrado por dia operacional (America/Sao_Paulo) para não misturar contagens de dias anteriores.
     """
+    _ensure_product_pallet_conversion_factor_column(session)
     br_today = datetime.now(timezone.utc).astimezone(_BR).date()
     d = _parse_iso_date_arg(count_date) if count_date else br_today
     if d is None:
@@ -895,6 +921,7 @@ def _compute_stock_analysis(
     only_active_products: bool,
     limit: int,
 ) -> dict:
+    _ensure_product_pallet_conversion_factor_column(session)
     from app.api.routes.products import _catalog_status_is_ativo_clause
 
     current_import = None
