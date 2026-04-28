@@ -26,10 +26,14 @@ class ProductBase(BaseModel):
         default=None,
         description="Unidades por 1 caixa/embalagem (ex.: 1 caixa = 6 unidades → 6).",
     )
+    pallet_conversion_factor: float | None = Field(
+        default=None,
+        description="Caixas por 1 palete (ex.: 1 palete = 100 caixas → 100).",
+    )
 
-    @field_validator("conversion_factor")
+    @field_validator("conversion_factor", "pallet_conversion_factor")
     @classmethod
-    def _conversion_factor_ok(cls, v: float | None) -> float | None:
+    def _positive_factor_ok(cls, v: float | None) -> float | None:
         return _validate_conversion_factor(v)
 
 
@@ -52,10 +56,11 @@ class ProductUpdate(BaseModel):
     grup_prioridade: str | None = None
     price: float | None = None
     conversion_factor: float | None = None
+    pallet_conversion_factor: float | None = None
 
-    @field_validator("conversion_factor")
+    @field_validator("conversion_factor", "pallet_conversion_factor")
     @classmethod
-    def _conversion_factor_ok_update(cls, v: float | None) -> float | None:
+    def _positive_factor_ok_update(cls, v: float | None) -> float | None:
         return _validate_conversion_factor(v)
 
 

@@ -355,6 +355,8 @@ def _extract_count_type(value: str | None) -> str:
     raw = (value or "").strip().upper()
     if raw.endswith("[UN]"):
         return "unidade"
+    if raw.endswith("[PL]"):
+        return "palete"
     return "caixa"
 
 
@@ -363,6 +365,27 @@ def _aggregate_count_events_by_code(
     count_on_date: date | None = None,
 ) -> dict[str, dict[str, int]]:
     """Soma CX/UN por produto (ChangeLog). Se count_on_date, filtra pela data observada em America/Sao_Paulo."""
+    pallet_factor_by_code: dict[str, int] = {}
+    try:
+        rows_pf = list(session.exec(select(Product.cod_produto, Product.pallet_conversion_factor)).all())
+        for cod_raw, pf in rows_pf:
+            c = _normalize_item_code(cod_raw)
+            if not c or pf is None:
+                continue
+            try:
+                f = float(pf)
+            except (TypeError, ValueError):
+                continue
+            if not (f > 0) or f != f:
+                continue
+            fr = round(f)
+            if fr <= 0 or abs(f - fr) > 1e-9:
+                continue
+            pallet_factor_by_code[c] = int(fr)
+    except Exception:
+        # Ambiente sem a migração da coluna: segue sem converter PL->CX.
+        pallet_factor_by_code = {}
+
     count_logs = list(
         session.exec(
             select(ChangeLog).where(
@@ -389,8 +412,14 @@ def _aggregate_count_events_by_code(
             qty = int(qty_raw)
         except Exception:
             qty = 0
+        if count_type == "palete":
+            f = pallet_factor_by_code.get(code)
+            if f is None:
+                continue
+            qty *= f
+            count_type = "caixa"
         if code not in counted_by_code:
-            counted_by_code[code] = {"caixa": 0, "unidade": 0}
+            counted_by_code[code] = {"caixa": 0, "unidade": 0, "palete": 0}
         counted_by_code[code][count_type] = counted_by_code[code].get(count_type, 0) + qty
     return counted_by_code
 
@@ -491,7 +520,7 @@ def _build_count_totals_and_activity_dates_before(
         if br_d not in totals:
             totals[br_d] = {}
         if code not in totals[br_d]:
-            totals[br_d][code] = {"caixa": 0, "unidade": 0}
+            totals[br_d][code] = {"caixa": 0, "unidade": 0, "palete": 0}
         totals[br_d][code][count_type] = totals[br_d][code].get(count_type, 0) + qty
         code_dates[code].add(br_d)
     return totals, dict(code_dates)
@@ -530,7 +559,7 @@ def _resolve_previous_operational_count_diff(
         if not imp_rec:
             continue
         day_bucket = totals_by_date.get(d) or {}
-        counted = day_bucket.get(code) or {"caixa": 0, "unidade": 0}
+        counted = day_bucket.get(code) or {"caixa": 0, "unidade": 0, "palete": 0}
         icx = int(imp_rec.get("import_caixa", 0))
         iun = int(imp_rec.get("import_unidade", 0))
         ccx = int(counted.get("caixa", 0))
@@ -662,7 +691,7 @@ def _last_count_snapshot_per_code(session: Session) -> dict[str, dict]:
             qty = 0
         key = (code, br_d)
         if key not in per_day:
-            per_day[key] = {"caixa": 0, "unidade": 0}
+            per_day[key] = {"caixa": 0, "unidade": 0, "palete": 0}
         per_day[key][count_type] = per_day[key].get(count_type, 0) + qty
 
     by_code: dict[str, tuple[date, dict[str, int]]] = {}
@@ -852,6 +881,7 @@ def count_server_totals(
         balances[code] = {
             "caixa": int(rec.get("caixa", 0)),
             "unidade": int(rec.get("unidade", 0)),
+            "palete": int(rec.get("palete", 0)),
         }
     meta = _count_day_activity_meta(session, d)
     return {"balances": balances, "meta": meta}
@@ -1014,7 +1044,7 @@ def _compute_stock_analysis(
         imported = imported_by_code.get(code)
         import_caixa = int(imported.get("import_caixa", 0)) if imported else 0
         import_unidade = int(imported.get("import_unidade", 0)) if imported else 0
-        counted = counted_by_code.get(code, {"caixa": 0, "unidade": 0})
+        counted = counted_by_code.get(code, {"caixa": 0, "unidade": 0, "palete": 0})
         counted_caixa = int(counted.get("caixa", 0))
         counted_unidade = int(counted.get("unidade", 0))
         diff_caixa = counted_caixa - import_caixa
@@ -1149,13 +1179,17 @@ def _timeline_count_events_for_code(
 
     total_caixa = 0
     total_unidade = 0
+    total_palete = 0
     history: list[dict] = []
     for event in events:
         prev_caixa = total_caixa
         prev_unidade = total_unidade
+        prev_palete = total_palete
         qty = int(event["quantity_delta"])
         if event["count_type"] == "unidade":
             total_unidade += qty
+        elif event["count_type"] == "palete":
+            total_palete += qty
         else:
             total_caixa += qty
 
@@ -1168,12 +1202,26 @@ def _timeline_count_events_for_code(
                 "device_name": event["device_name"],
                 "count_type": event["count_type"],
                 "quantity_delta": qty,
-                "previous_value": prev_unidade if event["count_type"] == "unidade" else prev_caixa,
-                "current_value": total_unidade if event["count_type"] == "unidade" else total_caixa,
+                "previous_value": (
+                    prev_unidade
+                    if event["count_type"] == "unidade"
+                    else prev_palete
+                    if event["count_type"] == "palete"
+                    else prev_caixa
+                ),
+                "current_value": (
+                    total_unidade
+                    if event["count_type"] == "unidade"
+                    else total_palete
+                    if event["count_type"] == "palete"
+                    else total_caixa
+                ),
                 "previous_caixa": prev_caixa,
                 "current_caixa": total_caixa,
                 "previous_unidade": prev_unidade,
                 "current_unidade": total_unidade,
+                "previous_palete": prev_palete,
+                "current_palete": total_palete,
             }
         )
 
@@ -1846,7 +1894,7 @@ def _aggregate_break_events_by_code(session: Session, operational_date: date) ->
             continue
         ct = _extract_count_type(item_code)
         if code not in out:
-            out[code] = {"caixa": 0, "unidade": 0}
+            out[code] = {"caixa": 0, "unidade": 0, "palete": 0}
         out[code][ct] = out[code].get(ct, 0) + qty
     return out
 
@@ -1876,7 +1924,7 @@ def _aggregate_break_events_all_time_by_code(session: Session) -> dict[str, dict
             continue
         ct = _extract_count_type(item_code)
         if code not in out:
-            out[code] = {"caixa": 0, "unidade": 0}
+            out[code] = {"caixa": 0, "unidade": 0, "palete": 0}
         out[code][ct] = out[code].get(ct, 0) + qty
     return out
 

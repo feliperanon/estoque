@@ -83,6 +83,7 @@ def _to_product_read(product: Product) -> ProductRead:
         grup_prioridade=safe.grup_prioridade,
         price=safe.price,
         conversion_factor=safe.conversion_factor,
+        pallet_conversion_factor=safe.pallet_conversion_factor,
         legacy_id=safe.legacy_id,
         source_system=safe.source_system,
         imported_at=safe.imported_at,
@@ -234,6 +235,14 @@ HEADER_ALIASES = {
     "un_por_cx": "conversion_factor",
     "unidades_por_cx": "conversion_factor",
     "cx_para_un": "conversion_factor",
+    # Fator PL→CX (caixas por 1 palete)
+    "pallet_conversion_factor": "pallet_conversion_factor",
+    "fator_conversao_palete": "pallet_conversion_factor",
+    "fator_palete": "pallet_conversion_factor",
+    "palete_por_caixa": "pallet_conversion_factor",
+    "caixas_por_palete": "pallet_conversion_factor",
+    "cx_por_pl": "pallet_conversion_factor",
+    "pl_para_cx": "pallet_conversion_factor",
 }
 
 # Importação por planilha: obrigatório código do produto + nome/descrição. SKU é opcional (espelha o código se vazio).
@@ -415,6 +424,32 @@ def _coerce_conversion_factor_in_row(row_data: dict[str, str | float | None]) ->
         row_data.pop("conversion_factor", None)
         return
     row_data["conversion_factor"] = v
+
+
+def _coerce_pallet_conversion_factor_in_row(row_data: dict[str, str | float | None]) -> None:
+    """Converte coluna de fator palete→caixa (CX por PL) para float positivo."""
+    raw = row_data.get("pallet_conversion_factor")
+    if raw is None:
+        return
+    if isinstance(raw, str) and not raw.strip():
+        row_data.pop("pallet_conversion_factor", None)
+        return
+    if isinstance(raw, bool):
+        row_data.pop("pallet_conversion_factor", None)
+        return
+    if isinstance(raw, (int, float)):
+        v = float(raw)
+    else:
+        s = str(raw).strip().replace(",", ".")
+        try:
+            v = float(s)
+        except ValueError:
+            row_data.pop("pallet_conversion_factor", None)
+            return
+    if v <= 0 or v != v:
+        row_data.pop("pallet_conversion_factor", None)
+        return
+    row_data["pallet_conversion_factor"] = v
 
 
 def _coerce_price_in_row(row_data: dict[str, str | float | None]) -> None:
@@ -751,6 +786,7 @@ async def import_products_excel(
             _normalize_codigo_import(row_data)
             _coerce_price_in_row(row_data)
             _coerce_conversion_factor_in_row(row_data)
+            _coerce_pallet_conversion_factor_in_row(row_data)
             _fill_import_row_defaults(row_data)
             if "status" in row_data and row_data.get("status") is not None:
                 row_data["status"] = _normalize_import_status(row_data["status"])

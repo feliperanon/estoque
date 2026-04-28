@@ -142,6 +142,8 @@ class Product(SourceTracked, table=True):
     price: float | None = Field(default=None)
     # Quantidade de unidades equivalentes a 1 caixa/embalagem (ex.: 1 CX = 6 UN → 6).
     conversion_factor: float | None = Field(default=None)
+    # Quantidade de caixas equivalentes a 1 palete (ex.: 1 PL = 100 CX → 100).
+    pallet_conversion_factor: float | None = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
 
 

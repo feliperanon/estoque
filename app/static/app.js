@@ -2427,7 +2427,7 @@ function makeEventId() {
 
 function normalizeItemCode(value) {
   let raw = String(value || '').trim().replace(/\s+/g, ' ');
-  raw = raw.replace(/\s*\[(UN|CX)\]\s*$/i, '');
+  raw = raw.replace(/\s*\[(UN|CX|PL)\]\s*$/i, '');
   return raw.toUpperCase();
 }
 
@@ -2440,7 +2440,25 @@ function normalizeNumericProductCodeKey(code) {
 }
 
 function normalizeCountType(value) {
-  return (value || '').trim().toLowerCase() === 'unidade' ? 'unidade' : 'caixa';
+  const ct = (value || '').trim().toLowerCase();
+  if (ct === 'unidade') return 'unidade';
+  if (ct === 'palete') return 'palete';
+  return 'caixa';
+}
+
+function getPalletToCxIntegerFactor(itemCode) {
+  if (!Array.isArray(countProductsCache) || !countProductsCache.length) return null;
+  const codeNorm = normalizeNumericProductCodeKey(itemCode);
+  if (!codeNorm) return null;
+  const p = countProductsCache.find(
+    (x) => normalizeNumericProductCodeKey(String(x?.cod_produto || '')) === codeNorm,
+  );
+  if (!p || p.pallet_conversion_factor == null || p.pallet_conversion_factor === '') return null;
+  const f = Number(p.pallet_conversion_factor);
+  if (!Number.isFinite(f) || f <= 0) return null;
+  const fr = Math.round(f);
+  if (Math.abs(f - fr) > 1e-9 || fr <= 0) return null;
+  return fr;
 }
 
 /** CX/UN de evento de quebra (API /audit/break-events): evita perder um eixo quando só um vem no JSON. */
@@ -2487,7 +2505,9 @@ function getServerNetForProductAndType(productCode, countType) {
   const ct = normalizeCountType(countType);
   const b = countServerCountState.balances[base];
   if (!b) return 0;
-  return ct === 'unidade' ? Number(b.unidade) || 0 : Number(b.caixa) || 0;
+  if (ct === 'unidade') return Number(b.unidade) || 0;
+  if (ct === 'palete') return Number(b.palete) || 0;
+  return Number(b.caixa) || 0;
 }
 
 /**
@@ -2911,6 +2931,7 @@ function getCountNetMergedWithMateTrocaForTxtCompare(codRaw, countType) {
   if (!mateCouroCatalogHasCode(mateSet, codRaw)) return net;
   const bal = getMateTrocaV2CurForPayload(codRaw);
   const ct = normalizeCountType(countType);
+  if (ct === 'palete') return net;
   const t = ct === 'unidade'
     ? Math.max(0, Math.round(Number(bal.un) || 0))
     : Math.max(0, Math.round(Number(bal.cx) || 0));
@@ -2925,7 +2946,11 @@ function hasAnyCountActivityForType(codRaw, countType) {
   if (countServerCountState.ok) {
     const b = countServerCountState.balances[base];
     if (!b) return false;
-    const v = ct === 'unidade' ? Number(b.unidade) || 0 : Number(b.caixa) || 0;
+    const v = ct === 'unidade'
+      ? Number(b.unidade) || 0
+      : ct === 'palete'
+        ? Number(b.palete) || 0
+        : Number(b.caixa) || 0;
     if (v !== 0) return true;
   }
   return false;
@@ -3285,12 +3310,14 @@ function renderCountProducts(products) {
       : '';
     const netCx = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'caixa');
     const netUn = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'unidade');
+    const netPl = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'palete');
     const pair = getCountSaldoPair(codRaw);
     const hasTxt = countImportBalancesState.hasTxt;
     const dimCx = countDimensionMatchesSaldo(codRaw, 'caixa', netCx, pair ? pair.import_caixa : 0);
     const dimUn = countDimensionMatchesSaldo(codRaw, 'unidade', netUn, pair ? pair.import_unidade : 0);
     const vCx = Math.max(0, Math.round(Number(netCx) || 0));
     const vUn = Math.max(0, Math.round(Number(netUn) || 0));
+    const vPl = Math.max(0, Math.round(Number(netPl) || 0));
     const isMateForReadout = mateCouroCatalogHasCode(getMateCouroCodSet(), codRaw);
     const titleCx = isMateForReadout
       ? 'Total físico em caixas: contagem (equipe + pendente neste aparelho) + saldo Base de Troca Mate. Os botões +/− alteram só a contagem operacional.'
@@ -3298,6 +3325,7 @@ function renderCountProducts(products) {
     const titleUn = isMateForReadout
       ? 'Total físico em unidades: contagem (equipe + pendente neste aparelho) + saldo Base de Troca Mate. Os botões +/− alteram só a contagem operacional.'
       : 'Total em unidades: equipe (sincronizado) + pendente neste aparelho';
+    const titlePl = 'Total em paletes: equipe (sincronizado) + pendente neste aparelho';
 
     let cardClass = 'count-product-item';
     const analystLiveRecount = serverRecountSignalCodes.has(codRaw);
@@ -3367,6 +3395,20 @@ function renderCountProducts(products) {
               </span>
             </div>
             ${badgeUn}
+          </div>
+        </div>
+        <div class="count-control-row count-control-row--neutral">
+          <span class="count-control-type">PL</span>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="palete" data-delta="-1" aria-label="Menos palete">−</button>
+          <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+            data-coderef="${codRef}" data-count-type="palete" value="" aria-label="Quantidade em paletes" />
+          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="palete" data-delta="1" aria-label="Mais palete">+</button>
+          <div class="count-control-tail">
+            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="${escapeHtml(titlePl)}">
+              <span class="count-product-readout-inner">
+                <strong class="count-product-readout-value">${formatIntegerBR(vPl)}</strong>
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -8881,7 +8923,8 @@ function renderCounts() {
   } else {
     for (const row of totals) {
       const li = document.createElement('li');
-      const countTypeLabel = row.countType === 'unidade' ? 'Unidade' : 'Caixa';
+      const countTypeLabel =
+        row.countType === 'unidade' ? 'Unidade' : row.countType === 'palete' ? 'Palete' : 'Caixa';
       li.innerHTML = `<span>${row.itemCode} (${countTypeLabel})</span><strong>${row.qty}</strong>`;
       totalsList.appendChild(li);
     }
@@ -8893,7 +8936,9 @@ function renderCounts() {
     const toRender = [...pending].sort((a, b) => b.observed_at.localeCompare(a.observed_at)).slice(0, 100);
     for (const event of toRender) {
       const li = document.createElement('li');
-      const countTypeLabel = normalizeCountType(event.count_type) === 'unidade' ? 'Unidade' : 'Caixa';
+      const countTypeNorm = normalizeCountType(event.count_type);
+      const countTypeLabel =
+        countTypeNorm === 'unidade' ? 'Unidade' : countTypeNorm === 'palete' ? 'Palete' : 'Caixa';
       li.innerHTML = `<span>${event.item_code} (${countTypeLabel}) x ${event.quantity}</span><strong>${formatDateTime(event.observed_at)}</strong>`;
       pendingList.appendChild(li);
     }
@@ -8931,7 +8976,9 @@ async function syncPendingEvents() {
           client_event_id: event.client_event_id,
           item_code: normalizeCountType(event.count_type) === 'unidade'
             ? `${event.item_code} [UN]`
-            : `${event.item_code} [CX]`,
+            : normalizeCountType(event.count_type) === 'palete'
+              ? `${event.item_code} [PL]`
+              : `${event.item_code} [CX]`,
           quantity: event.quantity,
           observed_at: event.observed_at,
           device_name: event.device_name,
@@ -8981,6 +9028,7 @@ function tryConfirmExplicitZeroOnBlur(codRefEnc, countTypeRaw) {
   const codRaw = decodeURIComponent(String(codRefEnc || ''));
   const itemCode = normalizeItemCode(codRaw);
   const countType = normalizeCountType(countTypeRaw || 'caixa');
+  if (countType === 'palete') return false;
   if (!itemCode || !isCountOperationalEditable()) return false;
   const current = getNetByProductAndType(itemCode, countType);
   if (current !== 0) return false;
@@ -9025,6 +9073,40 @@ function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
   const refDecoded = decodeURIComponent(String(codRefEnc || ''));
   const itemCode = normalizeItemCode(refDecoded);
   const ct = normalizeCountType(countTypeRaw || 'caixa');
+  if (ct === 'palete') {
+    const palletToCx = getPalletToCxIntegerFactor(itemCode);
+    if (!palletToCx) {
+      setFeedback(
+        'Para lançar PL, cadastre um fator inteiro em "CX por 1 PL" no produto (ex.: 100).',
+        true,
+      );
+      return;
+    }
+    if (direction > 0 && opQty === 0) {
+      setFeedback('Lançamento em PL precisa ser maior que zero.', true);
+      return;
+    }
+    const currentCx = getNetByProductAndType(itemCode, 'caixa');
+    const opCx = opQty * palletToCx;
+    let deltaCx;
+    if (direction > 0) {
+      deltaCx = opCx;
+    } else {
+      deltaCx = -Math.min(opCx, Math.max(0, currentCx));
+    }
+    if (deltaCx === 0) {
+      if (inp) inp.value = '';
+      refreshCountProductListView();
+      return;
+    }
+    registerCountDelta(itemCode, deltaCx, 'caixa', {
+      source_type: 'palete',
+      source_qty: opQty,
+      pallet_to_cx_factor: palletToCx,
+    });
+    if (inp) inp.value = '';
+    return;
+  }
   const current = getNetByProductAndType(itemCode, ct);
   if (direction > 0 && opQty === 0) {
     registerCountDelta(itemCode, 0, ct);
@@ -9048,7 +9130,7 @@ function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
 }
 
 /** @returns {boolean} true se um evento foi gravado no bucket do dia. */
-function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa') {
+function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caixa', sourceMeta = null) {
   if (!isCountOperationalEditable()) {
     setFeedback('Só é possível lançar contagem na data de hoje (America/Sao_Paulo).', true);
     return false;
@@ -9072,6 +9154,10 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
 
   let clientEventId = makeEventId();
   if (quantity === 0) {
+    if (countType === 'palete') {
+      setFeedback('Confirmação 0 no atalho só é suportada para CX/UN (comparação com TXT).', true);
+      return false;
+    }
     if (!countImportBalancesState.hasTxt) {
       setFeedback('Confirme zero só com base TXT carregada para o dia.', true);
       return false;
@@ -9111,6 +9197,13 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
     device_name: getDeviceName(),
     count_date: dayKey,
   };
+  if (sourceMeta && typeof sourceMeta === 'object') {
+    if (sourceMeta.source_type) event.source_type = String(sourceMeta.source_type);
+    if (Number.isInteger(Number(sourceMeta.source_qty))) event.source_qty = Number(sourceMeta.source_qty);
+    if (Number.isInteger(Number(sourceMeta.pallet_to_cx_factor))) {
+      event.pallet_to_cx_factor = Number(sourceMeta.pallet_to_cx_factor);
+    }
+  }
 
   events.push(event);
   saveCountEventsForDate(dayKey, events);
@@ -9129,17 +9222,27 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
     }
   }
 
-  const countTypeLabel = countType === 'unidade' ? 'Unidade' : 'Caixa';
+  const countTypeLabel =
+    countType === 'unidade' ? 'Unidade' : countType === 'palete' ? 'Palete' : 'Caixa';
   const netCx = Math.max(0, Math.round(Number(getNetByProductAndType(itemCode, 'caixa')) || 0));
   const netUn = Math.max(0, Math.round(Number(getNetByProductAndType(itemCode, 'unidade')) || 0));
+  const netPl = Math.max(0, Math.round(Number(getNetByProductAndType(itemCode, 'palete')) || 0));
   const deltaStr =
     quantity === 0
       ? 'confirmação 0'
       : quantity > 0
         ? `+${quantity}`
         : String(quantity);
+  const sourceType = normalizeCountType(sourceMeta?.source_type || '');
+  const isFromPallet = sourceType === 'palete' && Number.isInteger(Number(sourceMeta?.source_qty));
+  const sourceQty = Number(sourceMeta?.source_qty) || 0;
+  const sourceFac = Number(sourceMeta?.pallet_to_cx_factor) || 0;
+  const launchLabel = isFromPallet
+    ? `${formatIntegerBR(sourceQty)} PL → ${formatIntegerBR(Math.abs(quantity))} CX`
+    : `${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : countTypeLabel === 'Unidade' ? 'UN' : 'PL'}`;
+  const launchSignal = quantity < 0 ? '-' : '+';
   setFeedback(
-    `${productName}: ${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'} · Total operação ${formatIntegerBR(netCx)} CX e ${formatIntegerBR(netUn)} UN`,
+    `${productName}: ${launchSignal} ${launchLabel}${isFromPallet ? ` (fator ${formatIntegerBR(sourceFac)} CX/PL)` : ''} · Total operação ${formatIntegerBR(netCx)} CX · ${formatIntegerBR(netUn)} UN · ${formatIntegerBR(netPl)} PL`,
     false,
     true,
   );
@@ -9151,8 +9254,8 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
       `<span class="count-last-launch-kicker">Último lançamento</span>` +
       `<span class="count-last-launch-body">` +
       `<strong class="count-last-launch-name">${escapeHtml(productName)}</strong> ` +
-      `<span class="count-last-launch-delta">(${deltaStr} ${countTypeLabel === 'Caixa' ? 'CX' : 'UN'})</span>` +
-      ` · Total operação: <strong>${formatIntegerBR(netCx)} CX</strong> · <strong>${formatIntegerBR(netUn)} UN</strong>` +
+      `<span class="count-last-launch-delta">(${escapeHtml(launchSignal)} ${escapeHtml(launchLabel)})</span>` +
+      ` · Total operação: <strong>${formatIntegerBR(netCx)} CX</strong> · <strong>${formatIntegerBR(netUn)} UN</strong> · <strong>${formatIntegerBR(netPl)} PL</strong>` +
       `</span>`;
   }
 
@@ -9757,7 +9860,9 @@ async function syncPendingEventsForAudit() {
           client_event_id: event.client_event_id,
           item_code: normalizeCountType(event.count_type) === 'unidade'
             ? `${event.item_code} [UN]`
-            : `${event.item_code} [CX]`,
+            : normalizeCountType(event.count_type) === 'palete'
+              ? `${event.item_code} [PL]`
+              : `${event.item_code} [CX]`,
           quantity: event.quantity,
           observed_at: event.observed_at,
           device_name: event.device_name,
@@ -10582,7 +10687,7 @@ function buildCountAuditHistoryHtml(history) {
           `<span>${escapeHtml(formatAuditRelativeTime(entry.observed_at || entry.changed_at || ''))}</span>` +
         `</div>` +
         `<div class="count-audit-history-values">` +
-          `${entry.count_type === 'unidade' ? 'UN' : 'CX'} ${formatSignedIntegerBR(entry.quantity_delta)} · ${formatIntegerBR(entry.previous_value)} → ${formatIntegerBR(entry.current_value)}` +
+          `${entry.count_type === 'unidade' ? 'UN' : entry.count_type === 'palete' ? 'PL' : 'CX'} ${formatSignedIntegerBR(entry.quantity_delta)} · ${formatIntegerBR(entry.previous_value)} → ${formatIntegerBR(entry.current_value)}` +
         `</div>` +
         `<div class="count-audit-history-note">` +
           `CX ${formatIntegerBR(entry.previous_caixa)} → ${formatIntegerBR(entry.current_caixa)} · UN ${formatIntegerBR(entry.previous_unidade)} → ${formatIntegerBR(entry.current_unidade)}${entry.device_name ? ` · ${escapeHtml(entry.device_name)}` : ''}` +
@@ -11920,7 +12025,8 @@ function renderParamRemoveValues(defaults = null) {
 
 function readProductPayloadFromForm() {
   const cf = parseConversionFactorInput('prod-fator-conversao');
-  if (!cf.ok) return { __invalidConversionFactor: true };
+  const pcf = parseConversionFactorInput('prod-fator-palete');
+  if (!cf.ok || !pcf.ok) return { __invalidConversionFactor: true };
   return {
     cod_grup_sp: null,
     cod_grup_cia: document.getElementById('prod-cod-cia').value.trim() || null,
@@ -11935,6 +12041,7 @@ function readProductPayloadFromForm() {
     grup_prioridade: null,
     price: parseFloat(document.getElementById('prod-custo').value) || null,
     conversion_factor: cf.value,
+    pallet_conversion_factor: pcf.value,
     source_system: 'manual',
   };
 }
@@ -12269,6 +12376,15 @@ function formatConversionFactor(v) {
   return n.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
 }
 
+/** CX por 1 PL; vazio = não definido */
+function formatPalletConversionFactor(v) {
+  if (v == null || v === '') return '\u2014';
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '\u2014';
+  if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+}
+
 function parseConversionFactorInput(elementId) {
   const el = document.getElementById(elementId);
   if (!el) return { ok: true, value: null };
@@ -12281,6 +12397,7 @@ function parseConversionFactorInput(elementId) {
 
 const PRODUCT_HISTORY_FIELD_LABELS = {
   conversion_factor: 'Fator de conversão',
+  pallet_conversion_factor: 'Fator palete',
   price: 'Custo',
 };
 
@@ -12357,7 +12474,7 @@ function renderProdutosTable(products) {
   total.textContent = String(products.length);
 
   if (!products.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center">Nenhum produto encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center">Nenhum produto encontrado.</td></tr>';
     return;
   }
 
@@ -12370,6 +12487,7 @@ function renderProdutosTable(products) {
       <td>${p.cod_grup_descricao || '\u2014'}</td>
       <td>${formatPrice(p.price)}</td>
       <td title="Unidades por 1 caixa">${formatConversionFactor(p.conversion_factor)}</td>
+      <td title="Caixas por 1 palete">${formatPalletConversionFactor(p.pallet_conversion_factor)}</td>
       <td><span class="status-badge ${st.cls}">${st.label}</span></td>
       <td>${formatDate(p.created_at)}</td>
       <td class="actions-cell">
@@ -12419,6 +12537,13 @@ async function openEditProduct(id) {
           ? String(p.conversion_factor)
           : '';
     }
+    const editFatorPalete = document.getElementById('edit-fator-palete');
+    if (editFatorPalete) {
+      editFatorPalete.value =
+        p.pallet_conversion_factor != null && Number.isFinite(Number(p.pallet_conversion_factor))
+          ? String(p.pallet_conversion_factor)
+          : '';
+    }
 
     openProductEditPanel();
     document.getElementById('product-history-inline').style.display = 'none';
@@ -12434,8 +12559,9 @@ async function updateProduct() {
   if (!token || !id) return;
 
   const cf = parseConversionFactorInput('edit-fator-conversao');
-  if (!cf.ok) {
-    setEditFeedback('Fator de conversão deve ser um número maior que zero (ou deixe em branco).', true);
+  const pcf = parseConversionFactorInput('edit-fator-palete');
+  if (!cf.ok || !pcf.ok) {
+    setEditFeedback('Fatores de conversão devem ser números maiores que zero (ou deixe em branco).', true);
     return;
   }
 
@@ -12449,6 +12575,7 @@ async function updateProduct() {
     cod_grup_sku: document.getElementById('edit-sku').value.trim(),
     price: parseFloat(document.getElementById('edit-custo').value) || null,
     conversion_factor: cf.value,
+    pallet_conversion_factor: pcf.value,
   };
 
   if (!payload.cod_produto || !payload.cod_grup_descricao || !payload.cod_grup_sku) {
