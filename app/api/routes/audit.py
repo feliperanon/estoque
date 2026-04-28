@@ -310,7 +310,7 @@ def _cx_balance_map_for_validity(session: Session, reference_date: date | None) 
 def _normalize_item_code(value: str | None) -> str:
     raw = (value or "").strip().upper()
     raw = re.sub(r"\s+", " ", raw)
-    raw = re.sub(r"\s*\[(UN|CX)\]\s*$", "", raw)
+    raw = re.sub(r"\s*\[(UN|CX|PL)\]\s*$", "", raw)
     return raw
 
 
@@ -3095,6 +3095,7 @@ def _mate_troca_normalize_cx_un(cx: int, un: int, factor: float | None) -> tuple
 
 def _mate_troca_product_factor_by_code(session: Session) -> dict[str, float]:
     """Mapa código canônico (numérico) → fator de conversão; só produtos CIA Mate couro com fator definido."""
+    _ensure_product_pallet_conversion_factor_column(session)
     out: dict[str, float] = {}
     rows = list(
         session.exec(
@@ -3135,6 +3136,7 @@ class MateTrocaEventsPayload(BaseModel):
 
 
 def _canonical_mate_couro_cod(session: Session, raw: str) -> str:
+    _ensure_product_pallet_conversion_factor_column(session)
     c = _normalize_item_code(raw)
     if not c:
         raise HTTPException(
@@ -4220,6 +4222,7 @@ def bi_quebras_dashboard(
     - ``by_reason``: quebras agrupadas por motivo (% e R$).
     - ``products_without_price``: códigos com quebra mas sem preço cadastrado.
     """
+    _ensure_product_pallet_conversion_factor_column(session)
     normalized_cia_scope = _normalize_bi_quebras_cia_scope(cia_scope)
     br_today = datetime.now(timezone.utc).astimezone(_BR).date()
     d_to_val = _parse_iso_date_arg(date_to) if date_to else br_today
