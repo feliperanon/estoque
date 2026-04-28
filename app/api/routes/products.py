@@ -23,6 +23,35 @@ router = APIRouter(prefix="/products", tags=["products"])
 logger = logging.getLogger(__name__)
 
 
+def _ensure_product_pallet_conversion_factor_column(session: Session) -> None:
+    """Compatibilidade de runtime: garante coluna nova antes das consultas ORM.
+
+    Evita 500 em deploy onde código subiu antes da migração Alembic.
+    """
+    try:
+        bind = session.get_bind()
+        dialect = bind.dialect.name
+        if dialect == "postgresql":
+            session.execute(
+                text(
+                    "ALTER TABLE app_core.products "
+                    "ADD COLUMN IF NOT EXISTS pallet_conversion_factor DOUBLE PRECISION"
+                )
+            )
+            session.flush()
+            return
+        if dialect == "sqlite":
+            cols = session.execute(text("PRAGMA table_info(products)")).fetchall()
+            has_col = any(str(r[1]).strip().lower() == "pallet_conversion_factor" for r in cols if len(r) > 1)
+            if not has_col:
+                session.execute(text("ALTER TABLE products ADD COLUMN pallet_conversion_factor DOUBLE"))
+                session.flush()
+            return
+    except Exception:
+        logger.exception("Falha ao garantir coluna pallet_conversion_factor em products")
+        # Não interrompe aqui; o fluxo chamador tenta seguir e trata SQLAlchemyError.
+
+
 def _safe_log_change(
     session: Session,
     entity_name: str,
@@ -565,6 +594,7 @@ def list_products(
     segmento: str | None = Query(default=None),
     marca: str | None = Query(default=None),
 ) -> list[ProductRead]:
+    _ensure_product_pallet_conversion_factor_column(session)
     statement = select(Product)
     q_stripped = (q or "").strip()
     if q_stripped:
@@ -598,6 +628,7 @@ def list_products(
         products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
     except SQLAlchemyError:
         session.rollback()
+        _ensure_product_pallet_conversion_factor_column(session)
         ensure_database_ready()
         products = list(session.exec(statement.order_by(Product.cod_grup_descricao).limit(limit)).all())
     except Exception:
@@ -617,6 +648,7 @@ def list_products_catalog(
     cia: str | None = Query(default=None, description="Filtra por cod_grup_cia exato."),
     limit: int = Query(default=500, ge=1, le=20000),
 ) -> list[ProductRead]:
+    _ensure_product_pallet_conversion_factor_column(session)
     statement = select(Product)
     normalized_status = (status_filter or "todos").strip().lower()
     if normalized_status == "ativo":
@@ -644,6 +676,7 @@ def list_products_catalog(
         products = list(session.exec(statement.order_by(Product.cod_produto).limit(limit)).all())
     except SQLAlchemyError:
         session.rollback()
+        _ensure_product_pallet_conversion_factor_column(session)
         ensure_database_ready()
         products = list(session.exec(statement.order_by(Product.cod_produto).limit(limit)).all())
     except Exception:
@@ -659,6 +692,7 @@ def create_product(
     session: Session = Depends(get_session),
     user: User = Depends(require_cadastro_access),
 ) -> Product:
+    _ensure_product_pallet_conversion_factor_column(session)
     _drop_legacy_sku_unique_constraint(session)
     cod = (payload.cod_produto or "").strip()
     if not cod:
@@ -683,6 +717,7 @@ def import_products_payload(
     session: Session = Depends(get_session),
     user: User = Depends(require_cadastro_access),
 ) -> dict:
+    _ensure_product_pallet_conversion_factor_column(session)
     _drop_legacy_sku_unique_constraint(session)
     created = 0
     updated = 0
@@ -724,6 +759,7 @@ async def import_products_excel(
     session: Session = Depends(get_session),
     user: User = Depends(require_cadastro_access),
 ) -> dict:
+    _ensure_product_pallet_conversion_factor_column(session)
     _drop_legacy_sku_unique_constraint(session)
     filename = (file.filename or "").lower()
     if not (filename.endswith(".xlsx") or filename.endswith(".xlsm")):
@@ -919,6 +955,7 @@ def get_product(
     session: Session = Depends(get_session),
     _: User = Depends(require_cadastro_access),
 ) -> Product:
+    _ensure_product_pallet_conversion_factor_column(session)
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Produto nao encontrado")
@@ -934,6 +971,7 @@ def update_product(
     session: Session = Depends(get_session),
     user: User = Depends(require_cadastro_access),
 ) -> Product:
+    _ensure_product_pallet_conversion_factor_column(session)
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Produto nao encontrado")
@@ -973,6 +1011,7 @@ def toggle_product_status(
     session: Session = Depends(get_session),
     user: User = Depends(require_cadastro_access),
 ) -> Product:
+    _ensure_product_pallet_conversion_factor_column(session)
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Produto nao encontrado")
@@ -998,6 +1037,7 @@ def delete_product(
     session: Session = Depends(get_session),
     user: User = Depends(require_cadastro_access),
 ) -> dict:
+    _ensure_product_pallet_conversion_factor_column(session)
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Produto nao encontrado")
@@ -1021,6 +1061,7 @@ def get_product_history(
     session: Session = Depends(get_session),
     _: User = Depends(require_cadastro_access),
 ) -> list[ProductHistory]:
+    _ensure_product_pallet_conversion_factor_column(session)
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Produto nao encontrado")
