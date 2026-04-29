@@ -3083,12 +3083,20 @@ def _mate_troca_normalize_cx_un(cx: int, un: int, factor: float | None) -> tuple
         f = float(factor)
     except (TypeError, ValueError):
         return cx_i, un_i
-    if not (f > 0) or f != f:  # NaN
+    if not (f > 0) or f != f:  # NaN ou não positivo
         return cx_i, un_i
-    fr = round(f)
+    try:
+        fr = round(f)
+    except (OverflowError, ValueError):
+        return cx_i, un_i
     if fr <= 0 or abs(f - fr) > 1e-9:
         return cx_i, un_i
-    fi = int(fr)
+    try:
+        fi = int(fr)
+    except (OverflowError, ValueError):
+        return cx_i, un_i
+    if fi <= 0:
+        return cx_i, un_i
     total = cx_i * fi + un_i
     return total // fi, total % fi
 
@@ -3097,11 +3105,29 @@ def _mate_troca_product_factor_by_code(session: Session) -> dict[str, float]:
     """Mapa código canônico (numérico) → fator de conversão; só produtos CIA Mate couro com fator definido."""
     _ensure_product_pallet_conversion_factor_column(session)
     out: dict[str, float] = {}
-    rows = list(
-        session.exec(
-            select(Product.cod_produto, Product.conversion_factor).where(Product.cod_grup_cia == MATE_COURO_CIA)
-        ).all()
-    )
+    rows: list[tuple[str | None, float | None]] = []
+    try:
+        rows = list(
+            session.exec(
+                select(Product.cod_produto, Product.conversion_factor).where(Product.cod_grup_cia == MATE_COURO_CIA)
+            ).all()
+        )
+    except SQLAlchemyError:
+        # Compatibilidade com bancos legados sem a coluna conversion_factor.
+        logger.exception(
+            "Falha ao consultar products.conversion_factor em audit; tentando fallback pallet_conversion_factor"
+        )
+        try:
+            session.rollback()
+        except Exception:
+            pass
+        rows = list(
+            session.exec(
+                select(Product.cod_produto, Product.pallet_conversion_factor).where(
+                    Product.cod_grup_cia == MATE_COURO_CIA
+                )
+            ).all()
+        )
     for cod_produto, cf in rows:
         if cf is None:
             continue

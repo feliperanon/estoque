@@ -4666,6 +4666,11 @@ form#break-op-form.count-form {
   outline-offset: 2px;
 }
 
+.count-audit-btn-recount-live--requested {
+  border-color: #5b21b6;
+  background: #6d28d9;
+}
+
 .count-audit-detail-action-btn {
   min-height: 2.1rem;
   border-radius: 6px;
@@ -6338,6 +6343,21 @@ body.count-audit-drawer-open {
   box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.12);
 }
 
+.count-audit-recount-requested-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.14rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid #c4b5fd;
+  background: #f5f3ff;
+  color: #6d28d9;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .count-audit-recount-live-btn {
   flex: 1 1 auto;
   min-height: 2.35rem;
@@ -6372,6 +6392,11 @@ body.count-audit-drawer-open {
 }
 
 .count-audit-mobile-recount-live-btn:hover {
+  background: #6d28d9;
+}
+
+.count-audit-mobile-recount-live-btn--requested {
+  border-color: #5b21b6;
   background: #6d28d9;
 }
 

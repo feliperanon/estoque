@@ -4498,6 +4498,28 @@ async function fetchMateTrocaBaseV2() {
   }
 }
 
+/**
+ * Códigos ocultos em toda a UI da Base de troca (principal, quebras do dia, histórico no servidor,
+ * trocas encerradas e diálogos). Não altera servidor nem coluna Troca na Análise de Contagem.
+ */
+let _mateTrocaBaseUiHiddenCodeSet = null;
+function mateTrocaBaseUiHiddenCodeSet() {
+  if (!_mateTrocaBaseUiHiddenCodeSet) {
+    _mateTrocaBaseUiHiddenCodeSet = new Set(
+      ['11', '15', '60', '423', '476']
+        .map((c) => normalizeNumericProductCodeKey(String(c)))
+        .filter(Boolean),
+    );
+  }
+  return _mateTrocaBaseUiHiddenCodeSet;
+}
+
+function mateTrocaBaseUiShouldHideCod(codRaw) {
+  const ck = normalizeNumericProductCodeKey(String(codRaw || ''));
+  if (!ck) return false;
+  return mateTrocaBaseUiHiddenCodeSet().has(ck);
+}
+
 function composeMateTrocaBaseBalanceRowsV2(
   serverBalances,
   lastValidMap,
@@ -4507,6 +4529,7 @@ function composeMateTrocaBaseBalanceRowsV2(
   flags,
 ) {
   const fetchFailed = !!(flags && flags.fetchFailed);
+  const hiddenUi = mateTrocaBaseUiHiddenCodeSet();
   const codeSet = new Set();
   if (serverBalances && typeof serverBalances === 'object') {
     for (const k of Object.keys(serverBalances)) {
@@ -4529,6 +4552,7 @@ function composeMateTrocaBaseBalanceRowsV2(
   const term = (searchTerm || '').trim().toLowerCase();
   const rows = [];
   for (const cod of codeSet) {
+    if (hiddenUi.has(cod)) continue;
     const hasServer =
       serverBalances &&
       typeof serverBalances === 'object' &&
@@ -4813,6 +4837,10 @@ async function runMateTrocaReconcileFromBreaks() {
   const cod = normalizeNumericProductCodeKey(rawCod) || normalizeItemCode(rawCod);
   if (!cod) {
     window.alert('Código inválido.');
+    return;
+  }
+  if (mateTrocaBaseUiShouldHideCod(cod)) {
+    window.alert('Este código não está disponível para esta ação nesta tela.');
     return;
   }
   const defDay = getBrazilDateKey();
@@ -5647,18 +5675,19 @@ function renderMateCouroDayList(dayLabel, mateEvents) {
   const list = document.getElementById('mate-couro-troca-day-list');
   const rangeInfo = document.getElementById('mate-couro-troca-day-range-info');
   if (!list) return;
+  const visible = (mateEvents || []).filter((ev) => !mateTrocaBaseUiShouldHideCod(ev.cod_produto));
   if (rangeInfo) {
-    rangeInfo.textContent = mateEvents.length
-      ? `${mateEvents.length} produto(s) com lançamento na base de troca neste dia.`
+    rangeInfo.textContent = visible.length
+      ? `${visible.length} produto(s) com lançamento na base de troca neste dia.`
       : 'Nenhum lançamento na base de troca para este dia.';
   }
   list.innerHTML = '';
-  if (!mateEvents.length) {
+  if (!visible.length) {
     list.innerHTML =
       '<li class="count-audit-empty"><span>Nenhuma quebra da base de troca registrada neste dia.</span><strong>\u2014</strong></li>';
     return;
   }
-  for (const ev of mateEvents) {
+  for (const ev of visible) {
     const codRaw = String(ev.cod_produto || '');
     const cod = escapeHtml(codRaw);
     const descRaw = String(ev.product_desc || '').trim();
@@ -5759,7 +5788,8 @@ async function loadMateCouroBreakDayList() {
     const data = await response.json();
     const events = Array.isArray(data.events) ? data.events : [];
     const mateEvents = filterEventsMateCouro(events);
-    const mateRowsDisplay = aggregateMateCouroDayBreakRowsForDisplay(mateEvents);
+    let mateRowsDisplay = aggregateMateCouroDayBreakRowsForDisplay(mateEvents);
+    mateRowsDisplay = mateRowsDisplay.filter((r) => !mateTrocaBaseUiShouldHideCod(r.cod_produto));
     lastMateTrocaDayItemsCount = mateRowsDisplay.length;
     const incorporacaoOk = await mateCouroApplyDaySnapshotDelta(dayKey, mateEvents);
     const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -5841,6 +5871,7 @@ function renderMateTrocaBatchesList(batches) {
     return;
   }
   for (const b of batches) {
+    if (mateTrocaBaseUiShouldHideCod(b.cod_produto)) continue;
     const cod = escapeHtml(String(b.cod_produto || ''));
     const desc = escapeHtml(String(b.product_desc || '').trim() || '\u2014');
     const code = escapeHtml(String(b.batch_code || ''));
@@ -5876,6 +5907,10 @@ function renderMateTrocaBatchesList(batches) {
       `</div>`;
     ul.appendChild(li);
   }
+  if (!ul.querySelector('li.mate-troca-batch-item')) {
+    ul.innerHTML =
+      '<li class="count-audit-empty"><span>Nenhuma troca encerrada no período analisado (pendente zerado no servidor).</span></li>';
+  }
 }
 
 async function openMateTrocaBatchDetail(closeLogId) {
@@ -5907,6 +5942,12 @@ async function openMateTrocaBatchDetail(closeLogId) {
       return;
     }
     const data = await response.json();
+    if (mateTrocaBaseUiShouldHideCod(data.cod_produto)) {
+      if (title) title.textContent = 'Detalhe da troca';
+      body.innerHTML =
+        '<p class="muted">Detalhe não disponível nesta visualização.</p>';
+      return;
+    }
     const evs = Array.isArray(data.events) ? data.events : [];
     if (title) {
       const by = (data.closed_by && String(data.closed_by).trim()) || '';
@@ -5952,12 +5993,13 @@ function renderMateTrocaServerLog(events) {
   const ul = document.getElementById('mate-troca-server-log-list');
   if (!ul) return;
   ul.innerHTML = '';
-  if (!events.length) {
+  const visible = (events || []).filter((ev) => !mateTrocaBaseUiShouldHideCod(ev.cod_produto));
+  if (!visible.length) {
     ul.innerHTML =
       '<li class="count-audit-empty"><span>Nenhum registro para o filtro.</span><strong>\u2014</strong></li>';
     return;
   }
-  for (const ev of events) {
+  for (const ev of visible) {
     let when = '\u2014';
     if (ev.created_at) {
       try {
@@ -6022,6 +6064,12 @@ function renderMateTrocaPendingHistoryInDialog(events, cod, productName) {
   const body = document.getElementById('mate-troca-pending-history-dialog-body');
   const title = document.getElementById('mate-troca-pending-history-dialog-title');
   if (!body) return;
+  if (mateTrocaBaseUiShouldHideCod(cod)) {
+    if (title) title.textContent = 'Histórico do produto';
+    body.innerHTML =
+      '<p class="mate-troca-pending-history-empty muted">Este item não está disponível nesta visualização.</p>';
+    return;
+  }
   const name = (productName || '').trim() || cod;
   if (title) {
     title.textContent = `Histórico · ${cod} · ${name}`;
@@ -6099,6 +6147,15 @@ async function openMateTrocaPendingProductHistory(codRaw) {
   const dlg = document.getElementById('mate-troca-pending-history-dialog');
   const body = document.getElementById('mate-troca-pending-history-dialog-body');
   if (!dlg || !body) return;
+
+  if (mateTrocaBaseUiShouldHideCod(codRaw)) {
+    const dlgTitle = document.getElementById('mate-troca-pending-history-dialog-title');
+    if (dlgTitle) dlgTitle.textContent = 'Histórico do produto';
+    body.innerHTML =
+      '<p class="mate-troca-pending-history-empty muted">Este item não está disponível nesta visualização.</p>';
+    dlg.showModal();
+    return;
+  }
 
   await ensureMateCouroCatalogLoaded();
   if (getToken()) {
@@ -6344,6 +6401,10 @@ function bindMateCouroTrocaEvents() {
         );
         if (!inCatalog) {
           window.alert('Código não encontrado no catálogo da base de troca (CIA Mate couro).');
+          return;
+        }
+        if (mateTrocaBaseUiShouldHideCod(cod)) {
+          window.alert('Este código não está disponível para ajuste nesta tela.');
           return;
         }
         await refreshMateTrocaBaseBalanceCardV2();
@@ -9994,6 +10055,7 @@ if (countAuditSort) {
 const API_STOCK_ANALYSIS_DETAIL = '/audit/stock-analysis/detail';
 const API_RECOUNT_SIGNAL = '/audit/recount-signal';
 const API_RECOUNT_SIGNALS = '/audit/recount-signals';
+const COUNT_AUDIT_RECOUNT_REQUESTED_STORAGE_KEY = 'count_audit_recount_requested_by_day_v1';
 const countAuditGroupFilter = document.getElementById('count-audit-group');
 const countAuditStatusFilter = document.getElementById('count-audit-status');
 const countAuditPriorityFilter = document.getElementById('count-audit-priority');
@@ -10042,6 +10104,84 @@ let countPrefillProductCode = null;
 let countRecountSignalsPollTimer = null;
 /** Códigos com solicitação de recontagem em tempo real para o dia de #count-date. */
 let serverRecountSignalCodes = new Set();
+/** Marcações locais de "recontagem solicitada" por dia operacional (YYYY-MM-DD => Set(código)). */
+let countAuditRequestedRecountByDay = new Map();
+
+function hydrateCountAuditRequestedRecountByDay() {
+  try {
+    const raw = localStorage.getItem(COUNT_AUDIT_RECOUNT_REQUESTED_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+    const nextMap = new Map();
+    Object.entries(parsed).forEach(([day, codes]) => {
+      const dayKey = String(day || '').slice(0, 10);
+      if (!dayKey || !Array.isArray(codes)) return;
+      const normalized = new Set(
+        codes
+          .map((code) => String(code || '').trim())
+          .filter(Boolean),
+      );
+      if (normalized.size) nextMap.set(dayKey, normalized);
+    });
+    countAuditRequestedRecountByDay = nextMap;
+    pruneCountAuditRequestedRecountByDay();
+  } catch {
+    countAuditRequestedRecountByDay = new Map();
+  }
+}
+
+function pruneCountAuditRequestedRecountByDay() {
+  const activeDay = String(getActiveCountDateKey() || '').slice(0, 10);
+  const today = getBrazilDateKey();
+  for (const dayKey of Array.from(countAuditRequestedRecountByDay.keys())) {
+    if (dayKey !== activeDay && dayKey !== today) {
+      countAuditRequestedRecountByDay.delete(dayKey);
+    }
+  }
+}
+
+function persistCountAuditRequestedRecountByDay() {
+  try {
+    pruneCountAuditRequestedRecountByDay();
+    const payload = {};
+    countAuditRequestedRecountByDay.forEach((codes, dayKey) => {
+      if (!(codes instanceof Set) || !codes.size) return;
+      payload[dayKey] = Array.from(codes);
+    });
+    localStorage.setItem(COUNT_AUDIT_RECOUNT_REQUESTED_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* storage opcional */
+  }
+}
+
+function isCountAuditRecountRequestedForActiveDay(codeRaw) {
+  const code = String(codeRaw || '').trim();
+  if (!code) return false;
+  const dayKey = String(getActiveCountDateKey() || '').slice(0, 10);
+  if (!dayKey) return false;
+  const daySet = countAuditRequestedRecountByDay.get(dayKey);
+  return !!(daySet && daySet.has(code));
+}
+
+function markCountAuditRecountRequestedForActiveDay(codeRaw) {
+  const code = String(codeRaw || '').trim();
+  if (!code) return;
+  const dayKey = String(getActiveCountDateKey() || '').slice(0, 10);
+  if (!dayKey) return;
+  let daySet = countAuditRequestedRecountByDay.get(dayKey);
+  if (!daySet) {
+    daySet = new Set();
+    countAuditRequestedRecountByDay.set(dayKey, daySet);
+  }
+  daySet.add(code);
+  persistCountAuditRequestedRecountByDay();
+}
+
+function countAuditRecountRequestedBadgeMarkup(codeRaw) {
+  if (!isCountAuditRecountRequestedForActiveDay(codeRaw)) return '';
+  return '<span class="count-audit-recount-requested-badge" title="Recontagem já solicitada para este item no dia operacional atual.">Recontagem solicitada</span>';
+}
 
 function formatSignedIntegerBR(value) {
   const n = Number(value) || 0;
@@ -11060,6 +11200,8 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
 function renderCountAuditDesktopRowMarkup(row) {
   const meta = row._auditMeta || {};
   const code = String(row.cod_produto || '');
+  const requestedBadge = countAuditRecountRequestedBadgeMarkup(code);
+  const recountBtnRequestedClass = isCountAuditRecountRequestedForActiveDay(code) ? ' count-audit-btn-recount-live--requested' : '';
   return (
     `<li class="count-audit-item" data-state="${meta.stateKey}" data-code="${escapeHtml(code)}">` +
       `<div class="count-audit-row">` +
@@ -11069,6 +11211,7 @@ function renderCountAuditDesktopRowMarkup(row) {
               `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
               `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
               `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
+              `${requestedBadge}` +
             `</div>` +
             `<span class="count-audit-row-name">${countAuditRowNameWithFlavorHtml(row.descricao)}</span>` +
             `${countAuditValidityMarkupForRow(code)}` +
@@ -11083,7 +11226,7 @@ function renderCountAuditDesktopRowMarkup(row) {
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Status e prioridade</span><strong class="count-audit-cell-value">${meta.stateLabel}</strong><span class="count-audit-cell-note">${meta.priorityLabel} · ${escapeHtml(meta.divergenceLabel || '')}</span></div>` +
         `<div class="count-audit-cell"><span class="count-audit-cell-label">Ação recomendada</span><strong class="count-audit-recommendation">${escapeHtml(meta.recommendedAction || 'Revisar')}</strong><span class="count-audit-row-insight">${escapeHtml(meta.insight || '')}</span></div>` +
         `<div class="count-audit-cell count-audit-cell--actions">` +
-          `<button type="button" class="count-audit-btn-recount-live" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button>` +
+          `<button type="button" class="count-audit-btn-recount-live${recountBtnRequestedClass}" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button>` +
           `<button type="button" class="count-audit-detail-btn" data-action="detail" data-code="${encodeURIComponent(code)}">Detalhe</button>` +
         `</div>` +
       `</div>` +
@@ -11113,6 +11256,8 @@ function renderCountAuditMobileMissingBucketMarkup(hiddenMissingCount, totalMiss
 function renderCountAuditMobileRowMarkup(row) {
   const meta = row._auditMeta || {};
   const code = String(row.cod_produto || '');
+  const requestedBadge = countAuditRecountRequestedBadgeMarkup(code);
+  const recountBtnRequestedClass = isCountAuditRecountRequestedForActiveDay(code) ? ' count-audit-mobile-recount-live-btn--requested' : '';
   const isExpanded = String(countAuditState.selectedCode || '') === code;
   const detail = getCountAuditCachedDetail(code);
   const isLoading = isExpanded && String(countAuditState.loadingDetailCode || '') === code && !detail;
@@ -11125,6 +11270,7 @@ function renderCountAuditMobileRowMarkup(row) {
             `<span class="count-audit-state-badge" data-state="${meta.stateKey}">${meta.stateLabel}</span>` +
             `<span class="count-audit-priority-badge">${meta.priorityLabel}</span>` +
             `<span class="count-audit-code-badge">${escapeHtml(code || '-')}</span>` +
+            `${requestedBadge}` +
           `</div>` +
           `<span class="count-audit-row-name">${countAuditRowNameWithFlavorHtml(row.descricao)}</span>` +
           `${countAuditValidityMarkupForRow(code)}` +
@@ -11135,7 +11281,7 @@ function renderCountAuditMobileRowMarkup(row) {
           `</div>` +
           `${buildCountAuditMobileTrocaQuebraOpsHtml(meta)}` +
         `</button>` +
-        `<button type="button" class="count-audit-mobile-recount-live-btn" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar em tempo real</button>` +
+        `<button type="button" class="count-audit-mobile-recount-live-btn${recountBtnRequestedClass}" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar em tempo real</button>` +
         `<button type="button" class="btn-secondary count-audit-mobile-detail-toggle" data-action="toggle" data-code="${encodeURIComponent(code)}">${isExpanded ? 'Ocultar detalhe' : 'Ver detalhe'}</button>` +
       `</div>` +
       `${isExpanded ? `<div class="count-audit-mobile-inline-detail">${buildCountAuditDetailMarkup(row, detail, isLoading, true)}</div>` : ''}` +
@@ -11590,9 +11736,11 @@ async function postRecountLiveSignal(codeRaw) {
       return;
     }
     const okMsg = `Recontagem em tempo real enviada para ${code} (dia ${formatDateBR(op)}). O conferente verá o alerta roxo na Contagem com essa mesma data.`;
+    markCountAuditRecountRequestedForActiveDay(code);
     countAuditRecountFeedbackPreserveUntil = Date.now() + 12000;
     countAuditRecountFeedbackPreserveMessage = okMsg;
     setCountAuditFeedback(okMsg, false);
+    renderCountAuditRows(getCountAuditRowsFromState());
   } catch {
     setCountAuditFeedback('Erro de conexão ao solicitar recontagem.', true);
   }
@@ -11660,6 +11808,7 @@ function openCountAuditRecount(code) {
 }
 
 function bindCountAuditEvents() {
+  hydrateCountAuditRequestedRecountByDay();
   if (!countAuditVisibilityBound) {
     countAuditVisibilityBound = true;
     document.addEventListener('visibilitychange', () => {
