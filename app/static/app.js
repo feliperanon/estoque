@@ -241,45 +241,8 @@ function countProductRowNetCxUnZero(codRaw) {
   return vCx === 0 && vUn === 0;
 }
 
-// Filtro de produtos por grupo e ativo
-function filtrarProdutos() {
-  const grupo = (document.getElementById('count-group')?.value || '').trim().toLowerCase();
-  const onlyNoCountBtn = document.getElementById('count-filter-only-nocount-btn');
-  const onlyNoCount = onlyNoCountBtn && onlyNoCountBtn.getAttribute('aria-pressed') === 'true';
-  let totalVisiveis = 0;
-  const visiveis = [];
-  document.querySelectorAll('#count-products-list .count-product-item').forEach(item => {
-    let show = true;
-    // Filtro de ativos: só mostra ativos (is-inactive = oculto)
-    if (item.classList.contains('is-inactive')) show = false;
-    // Filtro de grupo: se preenchido, só mostra se o grupo bate
-    if (grupo) {
-      const desc = item.querySelector('.count-product-desc')?.textContent?.toLowerCase() || '';
-      show = show && desc.includes(grupo);
-    }
-    if (show && onlyNoCount) {
-      const cod = item.dataset.codProduto || '';
-      show = countProductRowNetCxUnZero(cod);
-    }
-    item.style.display = show ? '' : 'none';
-    if (show) {
-      totalVisiveis++;
-      visiveis.push(item);
-    }
-  });
-  // Atualiza o total exibido
-  const totalSpan = document.getElementById('count-products-total');
-  if (totalSpan) {
-    totalSpan.textContent = `${totalVisiveis} ${totalVisiveis === 1 ? 'item' : 'itens'}`;
-  }
-  // Atualiza barra de progresso após filtro
-  updateCountProgress(visiveis.map(item => {
-    const inp = item.querySelector('input.count-product-qty[data-coderef]');
-    const codRef = inp?.getAttribute('data-coderef');
-    const cod_produto = codRef ? decodeURIComponent(codRef) : '';
-    return { cod_produto };
-  }));
-  // Atualiza chips de grupo selecionado
+function updateCountGroupChipsFromFilter() {
+  const grupo = (document.getElementById('count-group')?.value || '').trim();
   const chipsContainer = document.getElementById('count-group-chips');
   if (chipsContainer) {
     chipsContainer.innerHTML = '';
@@ -290,19 +253,11 @@ function filtrarProdutos() {
       chipsContainer.appendChild(chip);
     }
   }
+}
 
-  const countShell = document.querySelector('#sub-count .count-products-shell');
-  const doneWrap = document.getElementById('count-products-done-wrap');
-  if (doneWrap && countShell) {
-    if (onlyNoCount) {
-      doneWrap.hidden = true;
-    } else {
-      const vis = countShell.dataset.doneSectionVisible;
-      if (vis === '1' || vis === '0') {
-        doneWrap.hidden = vis !== '1';
-      }
-    }
-  }
+/** Filtro grupo / só sem contagem passou a ser aplicado na fonte (renderCountProducts), não display:none em centenas de nós. */
+function filtrarProdutos() {
+  refreshCountProductListView();
 }
 
 // Data da contagem predefinida: hoje em America/Sao_Paulo (não UTC)
@@ -923,6 +878,35 @@ let userEditOriginalUsername = '';
 let usersAdminCache = [];
 
 let syncInProgress = false;
+/** Chart.js: carregado sob demanda (módulo Análise / BI), não no primeiro paint. */
+let chartJsLoadPromise = null;
+function loadChartJsIfNeeded() {
+  if (typeof globalThis.Chart === 'function') return Promise.resolve();
+  if (chartJsLoadPromise) return chartJsLoadPromise;
+  chartJsLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = '/static/vendor/chart.umd.min.js?v=4.4.3';
+    s.async = true;
+    s.charset = 'utf-8';
+    s.onload = () => resolve();
+    s.onerror = () => {
+      chartJsLoadPromise = null;
+      reject(new Error('Falha ao carregar Chart.js'));
+    };
+    document.head.appendChild(s);
+  });
+  return chartJsLoadPromise;
+}
+
+/** Contagem: lista em janelas para não dominar memória no celular. */
+const COUNT_LIST_CHUNK = 30;
+let countPendingDisplayLimit = COUNT_LIST_CHUNK;
+let countDoneDisplayLimit = COUNT_LIST_CHUNK;
+let lastCountRenderSourceProducts = null;
+let lastCountDeltaItemCode = null;
+let countListScrollObserver = null;
+let countSyncDebounceTimer = null;
+
 let breakSyncInProgress = false;
 let selectedProductFile = null;
 let currentRole = 'conferente';
@@ -3241,7 +3225,147 @@ function updateValidityPendingBadges() {
   });
 }
 
-function renderCountProducts(products) {
+function resetCountListPaging() {
+  countPendingDisplayLimit = COUNT_LIST_CHUNK;
+  countDoneDisplayLimit = COUNT_LIST_CHUNK;
+}
+
+function countItemFullyConferredForProduct(codRaw) {
+  const pair = getCountSaldoPair(codRaw);
+  const hasTxt = countImportBalancesState.hasTxt;
+  const netCx = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'caixa');
+  const netUn = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'unidade');
+  const dimCx = countDimensionMatchesSaldo(codRaw, 'caixa', netCx, pair ? pair.import_caixa : 0);
+  const dimUn = countDimensionMatchesSaldo(codRaw, 'unidade', netUn, pair ? pair.import_unidade : 0);
+  return !!(hasTxt && pair && dimCx === true && dimUn === true);
+}
+
+function applyCountPortalOperationalFilters(pending, done) {
+  const grupo = (document.getElementById('count-group')?.value || '').trim().toLowerCase();
+  const onlyNoCountBtn = document.getElementById('count-filter-only-nocount-btn');
+  const onlyNoCount = onlyNoCountBtn && onlyNoCountBtn.getAttribute('aria-pressed') === 'true';
+  const haystack = (p) =>
+    `${p.cod_grup_descricao || ''} ${p.cod_grup_segmento || ''} ${p.cod_grup_marca || ''} ${p.cod_produto || ''}`.toLowerCase();
+  const filtPending = pending.filter((p) => {
+    if (grupo && !haystack(p).includes(grupo)) return false;
+    if (onlyNoCount && !countProductRowNetCxUnZero(p.cod_produto)) return false;
+    return true;
+  });
+  let filtDone = done.filter((p) => {
+    if (grupo && !haystack(p).includes(grupo)) return false;
+    return true;
+  });
+  if (onlyNoCount) filtDone = [];
+  return { filtPending, filtDone };
+}
+
+function setupCountListInfiniteScroll(hasMorePending) {
+  if (countListScrollObserver) {
+    countListScrollObserver.disconnect();
+    countListScrollObserver = null;
+  }
+  const sentinel = document.getElementById('count-pending-sentinel');
+  if (!sentinel) return;
+  sentinel.hidden = !hasMorePending;
+  if (!hasMorePending) return;
+  if (typeof IntersectionObserver === 'undefined') return;
+  countListScrollObserver = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        countListScrollObserver.disconnect();
+        countListScrollObserver = null;
+        countPendingDisplayLimit += COUNT_LIST_CHUNK;
+        const src = lastCountRenderSourceProducts;
+        if (src) renderCountProducts(src, { keepPaging: true });
+        else refreshCountProductListView({ keepPaging: true });
+      }
+    },
+    { root: null, rootMargin: '280px', threshold: 0 },
+  );
+  countListScrollObserver.observe(sentinel);
+}
+
+function tryPatchCountProductDomRow(codRaw) {
+  const cod = normalizeItemCode(String(codRaw || ''));
+  if (!cod) return false;
+  const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const liP = document.querySelector(`#count-products-list > li.count-product-item[data-cod-produto="${esc}"]`);
+  const liD = document.querySelector(`#count-products-list-done > li.count-product-item[data-cod-produto="${esc}"]`);
+  const li = liP || liD;
+  if (!li) return false;
+  const shouldDone = countItemFullyConferredForProduct(cod);
+  const inDone = !!liD;
+  if (shouldDone !== inDone) return false;
+
+  const rowClassFromMatch = (m) => {
+    if (m === null) return 'count-control-row--neutral';
+    if (m === true) return 'count-control-row--ok';
+    return 'count-control-row--recount';
+  };
+  const pair = getCountSaldoPair(cod);
+  const hasTxt = countImportBalancesState.hasTxt;
+  const netCx = getCountNetMergedWithMateTrocaForTxtCompare(cod, 'caixa');
+  const netUn = getCountNetMergedWithMateTrocaForTxtCompare(cod, 'unidade');
+  const netPl = getCountNetMergedWithMateTrocaForTxtCompare(cod, 'palete');
+  const dimCx = countDimensionMatchesSaldo(cod, 'caixa', netCx, pair ? pair.import_caixa : 0);
+  const dimUn = countDimensionMatchesSaldo(cod, 'unidade', netUn, pair ? pair.import_unidade : 0);
+  const vCx = Math.max(0, Math.round(Number(netCx) || 0));
+  const vUn = Math.max(0, Math.round(Number(netUn) || 0));
+  const vPl = Math.max(0, Math.round(Number(netPl) || 0));
+  const badgeCx =
+    hasTxt && pair
+      ? dimCx === false
+        ? '<span class="count-row-badge count-row-badge--recount">Divergência</span>'
+        : dimCx === true
+          ? '<span class="count-row-badge count-row-badge--ok">OK</span>'
+          : ''
+      : '';
+  const badgeUn =
+    hasTxt && pair
+      ? dimUn === false
+        ? '<span class="count-row-badge count-row-badge--recount">Divergência</span>'
+        : dimUn === true
+          ? '<span class="count-row-badge count-row-badge--ok">OK</span>'
+          : '';
+
+  const rows = li.querySelectorAll('.count-control-row');
+  if (rows.length < 3) return false;
+  const patchRow = (rowEl, dim, val, badgeHtml) => {
+    rowEl.className = `count-control-row ${rowClassFromMatch(dim)}`.trim();
+    const rv = rowEl.querySelector('.count-product-readout-value');
+    if (rv) rv.textContent = formatIntegerBR(val);
+    const tail = rowEl.querySelector('.count-control-tail');
+    if (tail) {
+      tail.querySelectorAll('.count-row-badge').forEach((b) => b.remove());
+      if (badgeHtml) tail.insertAdjacentHTML('beforeend', badgeHtml);
+    }
+  };
+  patchRow(rows[0], dimCx, vCx, badgeCx);
+  patchRow(rows[1], dimUn, vUn, badgeUn);
+  patchRow(rows[2], null, vPl, '');
+
+  let cardClass = 'count-product-item';
+  if (serverRecountSignalCodes.has(String(codRaw))) cardClass += ' count-product-item--analyst-recount';
+  if (hasTxt && pair) {
+    if (dimCx === true && dimUn === true) cardClass += ' count-product-item--conferido';
+    else if (dimCx === false || dimUn === false) cardClass += ' count-product-item--recontagem';
+  }
+  li.className = cardClass;
+  return true;
+}
+
+function refreshCountProductVisualAfterEdit() {
+  const cod = lastCountDeltaItemCode;
+  if (cod && tryPatchCountProductDomRow(cod)) return;
+  refreshCountProductListView({ keepPaging: true });
+}
+
+function renderCountProducts(products, opts = {}) {
+  const keepPaging = opts.keepPaging === true;
+  if (!keepPaging) resetCountListPaging();
+  lastCountRenderSourceProducts = Array.isArray(products) ? products : [];
+
   // Filtra itens ativos considerando sinônimos do backend (null/vazio, 'S', '1', 'Sim', etc)
   const isActive = (status) => {
     const s = String(status || '').trim().toLowerCase();
@@ -3270,21 +3394,18 @@ function renderCountProducts(products) {
   showDashboard();
   countProductsList.hidden = false;
   countProductsList.innerHTML = '';
-  if (countProductsTotal) {
-    const n = ativos.length;
-    countProductsTotal.textContent = `${n} ${n === 1 ? 'item' : 'itens'}`;
-  }
   const feedback = document.getElementById('count-feedback');
   if (feedback) feedback.textContent = '';
 
   if (!ativos.length) {
+    if (countProductsTotal) countProductsTotal.textContent = '0 itens';
     countProductsList.innerHTML = '<li><span>Nenhum produto ATIVO encontrado para o filtro atual.</span><strong>0</strong></li>';
     if (countProductsListDone) countProductsListDone.innerHTML = '';
     if (countProductsDoneWrap) countProductsDoneWrap.hidden = true;
     updateCountProgress([]);
     const countShellEmpty = document.querySelector('#sub-count .count-products-shell');
     if (countShellEmpty) countShellEmpty.dataset.doneSectionVisible = '0';
-    filtrarProdutos();
+    updateCountGroupChipsFromFilter();
     // Garante que o menu de módulos e dashboard continuam visíveis
     const moduleNav = document.getElementById('module-nav');
     if (moduleNav) moduleNav.style.display = '';
@@ -3305,9 +3426,7 @@ function renderCountProducts(products) {
     const codRaw = String(product.cod_produto || '');
     const desc = escapeHtml(product.cod_grup_descricao || '');
     const codRef = encodeURIComponent(codRaw);
-    const codHtml = codRaw
-      ? ` <span class="count-product-cod">· ${escapeHtml(codRaw)}</span>`
-      : '';
+    const codBadge = codRaw ? `<span class="count-product-cod">${escapeHtml(codRaw)}</span>` : '';
     const netCx = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'caixa');
     const netUn = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'unidade');
     const netPl = getCountNetMergedWithMateTrocaForTxtCompare(codRaw, 'palete');
@@ -3318,14 +3437,6 @@ function renderCountProducts(products) {
     const vCx = Math.max(0, Math.round(Number(netCx) || 0));
     const vUn = Math.max(0, Math.round(Number(netUn) || 0));
     const vPl = Math.max(0, Math.round(Number(netPl) || 0));
-    const isMateForReadout = mateCouroCatalogHasCode(getMateCouroCodSet(), codRaw);
-    const titleCx = isMateForReadout
-      ? 'Total físico em caixas: contagem (equipe + pendente neste aparelho) + saldo Base de Troca Mate. Os botões +/− alteram só a contagem operacional.'
-      : 'Total em caixas: equipe (sincronizado) + pendente neste aparelho';
-    const titleUn = isMateForReadout
-      ? 'Total físico em unidades: contagem (equipe + pendente neste aparelho) + saldo Base de Troca Mate. Os botões +/− alteram só a contagem operacional.'
-      : 'Total em unidades: equipe (sincronizado) + pendente neste aparelho';
-    const titlePl = 'Total em paletes: equipe (sincronizado) + pendente neste aparelho';
 
     let cardClass = 'count-product-item';
     const analystLiveRecount = serverRecountSignalCodes.has(codRaw);
@@ -3358,13 +3469,11 @@ function renderCountProducts(products) {
     const li = document.createElement('li');
     li.className = cardClass;
     li.dataset.codProduto = codRaw;
-    /* Input sempre vazio na lista: total só no readout; após +/− ou lançamento por teclado o campo não replica o saldo. */
     li.innerHTML = `
-      <div class="count-product-label">
-        <span class="count-product-title-row">
-          ${analystLiveRecount ? '<span class="count-product-recount-flag" role="status">Recontar</span>' : ''}
-          <span class="count-product-desc">${desc}${codHtml}</span>
-        </span>
+      <div class="count-product-head">
+        ${analystLiveRecount ? '<span class="count-product-recount-flag" role="status">Recontar</span>' : ''}
+        <strong class="count-product-desc">${desc}</strong>
+        ${codBadge}
       </div>
       <div class="count-product-controls">
         <div class="count-control-row ${rowClassFromMatch(dimCx)}">
@@ -3374,10 +3483,8 @@ function renderCountProducts(products) {
             data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
           <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="${escapeHtml(titleCx)}">
-              <span class="count-product-readout-inner">
-                <strong class="count-product-readout-value">${formatIntegerBR(vCx)}</strong>
-              </span>
+            <div class="count-product-readout count-product-readout--by-control">
+              <strong class="count-product-readout-value">${formatIntegerBR(vCx)}</strong>
             </div>
             ${badgeCx}
           </div>
@@ -3389,25 +3496,21 @@ function renderCountProducts(products) {
             data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
           <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="${escapeHtml(titleUn)}">
-              <span class="count-product-readout-inner">
-                <strong class="count-product-readout-value">${formatIntegerBR(vUn)}</strong>
-              </span>
+            <div class="count-product-readout count-product-readout--by-control">
+              <strong class="count-product-readout-value">${formatIntegerBR(vUn)}</strong>
             </div>
             ${badgeUn}
           </div>
         </div>
-        <div class="count-control-row count-control-row--neutral">
+        <div class="count-control-row count-control-row--neutral count-control-row--pl">
           <span class="count-control-type">PL</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="palete" data-delta="-1" aria-label="Menos palete">−</button>
           <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
             data-coderef="${codRef}" data-count-type="palete" value="" aria-label="Quantidade em paletes" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="palete" data-delta="1" aria-label="Mais palete">+</button>
           <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control" aria-live="polite" title="${escapeHtml(titlePl)}">
-              <span class="count-product-readout-inner">
-                <strong class="count-product-readout-value">${formatIntegerBR(vPl)}</strong>
-              </span>
+            <div class="count-product-readout count-product-readout--by-control">
+              <strong class="count-product-readout-value">${formatIntegerBR(vPl)}</strong>
             </div>
           </div>
         </div>
@@ -3431,29 +3534,52 @@ function renderCountProducts(products) {
     else pending.push(product);
   }
 
+  const { filtPending, filtDone } = applyCountPortalOperationalFilters(pending, done);
+  const progressScopeProducts = [...filtPending, ...filtDone];
+  const totalFiltrado = progressScopeProducts.length;
+
+  if (countProductsTotal) {
+    const pendShown = Math.min(countPendingDisplayLimit, filtPending.length);
+    const extra = filtPending.length > pendShown ? ` · mostrando ${pendShown} pendentes` : '';
+    countProductsTotal.textContent =
+      totalFiltrado === ativos.length
+        ? `${totalFiltrado} ${totalFiltrado === 1 ? 'item' : 'itens'}${extra}`
+        : `${totalFiltrado} filtrados${extra}`;
+  }
+
+  const pendingSlice = filtPending.slice(0, countPendingDisplayLimit);
+  const doneSlice = filtDone.slice(0, countDoneDisplayLimit);
+
   countProductsList.innerHTML = '';
-  if (pending.length === 0 && ativos.length > 0) {
+  if (filtPending.length === 0 && ativos.length > 0) {
     countProductsList.innerHTML =
       '<li class="count-all-done-msg"><span class="muted">Nenhum item pendente neste filtro: conferidos com o saldo do TXT (lista abaixo).</span></li>';
+    setupCountListInfiniteScroll(false);
   } else {
-    for (const product of pending) appendCard(countProductsList, product);
+    for (const product of pendingSlice) appendCard(countProductsList, product);
+    const sentinel = document.createElement('li');
+    sentinel.id = 'count-pending-sentinel';
+    sentinel.className = 'count-load-sentinel';
+    sentinel.setAttribute('aria-hidden', 'true');
+    countProductsList.appendChild(sentinel);
+    setupCountListInfiniteScroll(filtPending.length > pendingSlice.length);
   }
 
   if (countProductsListDone && countProductsDoneWrap) {
     countProductsListDone.innerHTML = '';
-    if (done.length) {
+    if (filtDone.length) {
       countProductsDoneWrap.hidden = false;
-      for (const product of done) appendCard(countProductsListDone, product);
+      for (const product of doneSlice) appendCard(countProductsListDone, product);
     } else {
       countProductsDoneWrap.hidden = true;
     }
   }
 
-  updateCountProgress(ativos);
+  updateCountProgress(progressScopeProducts.length ? progressScopeProducts : ativos);
   updateCountReadOnlyState();
   const countShell = document.querySelector('#sub-count .count-products-shell');
-  if (countShell) countShell.dataset.doneSectionVisible = done.length ? '1' : '0';
-  filtrarProdutos();
+  if (countShell) countShell.dataset.doneSectionVisible = filtDone.length ? '1' : '0';
+  updateCountGroupChipsFromFilter();
   // Garante que o menu de módulos e dashboard continuam visíveis
   const moduleNav = document.getElementById('module-nav');
   if (moduleNav) moduleNav.style.display = '';
@@ -3511,11 +3637,13 @@ function filterCountProductsByTerm(term, sourceList) {
 }
 
 /** Re-renderiza a lista de contagem respeitando o filtro de busca atual. */
-function refreshCountProductListView() {
+function refreshCountProductListView(opts = {}) {
+  const keepPaging = opts.keepPaging === true;
+  if (!keepPaging) resetCountListPaging();
   const input = document.getElementById('item-code');
   const term = (input && input.value || '').trim();
   const toShow = term ? filterCountProductsByTerm(term) : countProductsCache;
-  renderCountProducts(toShow);
+  renderCountProducts(toShow, { keepPaging });
 }
 
 /**
@@ -9123,6 +9251,11 @@ function dispatchCountRowPlusClick(inp) {
  * + soma o valor digitado ao total; − subtrai (mínimo 0). Input = quantidade da operação, não total absoluto.
  */
 function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
+  try {
+    lastCountDeltaItemCode = normalizeItemCode(decodeURIComponent(String(codRefEnc || '')));
+  } catch {
+    lastCountDeltaItemCode = normalizeItemCode(String(codRefEnc || ''));
+  }
   const opQty = parseOperationQtyFromInputEl(inp);
   if (opQty == null) {
     setFeedback(
@@ -9157,7 +9290,7 @@ function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
     }
     if (deltaCx === 0) {
       if (inp) inp.value = '';
-      refreshCountProductListView();
+      refreshCountProductVisualAfterEdit();
       return;
     }
     registerCountDelta(itemCode, deltaCx, 'caixa', {
@@ -9172,7 +9305,7 @@ function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
   if (direction > 0 && opQty === 0) {
     registerCountDelta(itemCode, 0, ct);
     if (inp) inp.value = '';
-    refreshCountProductListView();
+    refreshCountProductVisualAfterEdit();
     return;
   }
   let delta;
@@ -9183,7 +9316,7 @@ function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
   }
   if (delta === 0) {
     if (inp) inp.value = '';
-    refreshCountProductListView();
+    refreshCountProductVisualAfterEdit();
     return;
   }
   registerCountDelta(itemCode, delta, ct);
@@ -9197,6 +9330,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
     return false;
   }
   const itemCode = normalizeItemCode(itemCodeInput);
+  lastCountDeltaItemCode = itemCode || null;
   const quantity = Number(qtyDeltaInput);
   const countType = normalizeCountType(countTypeInput);
 
@@ -9321,9 +9455,26 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   }
 
   if (navigator.onLine) {
-    syncPendingEvents();
+    scheduleSyncPendingEvents();
   }
   return true;
+}
+
+function scheduleSyncPendingEvents() {
+  if (!navigator.onLine) return;
+  if (countSyncDebounceTimer) clearTimeout(countSyncDebounceTimer);
+  countSyncDebounceTimer = setTimeout(() => {
+    countSyncDebounceTimer = null;
+    void syncPendingEvents();
+  }, 1000);
+}
+
+function flushScheduledCountSync() {
+  if (countSyncDebounceTimer) {
+    clearTimeout(countSyncDebounceTimer);
+    countSyncDebounceTimer = null;
+    void syncPendingEvents();
+  }
 }
 
 function exportBackup() {
@@ -9455,6 +9606,10 @@ function bindCountEvents() {
 
   if (btnSync) {
     btnSync.addEventListener('click', () => {
+      if (countSyncDebounceTimer) {
+        clearTimeout(countSyncDebounceTimer);
+        countSyncDebounceTimer = null;
+      }
       syncPendingEvents();
     });
   }
@@ -9505,7 +9660,7 @@ function bindCountEvents() {
   if (countShell && countShell.dataset.countDelegates !== '1') {
     countShell.dataset.countDelegates = '1';
     const refreshCountListAfterEdit = () => {
-      refreshCountProductListView();
+      refreshCountProductVisualAfterEdit();
     };
     countShell.addEventListener(
       'pointerdown',
@@ -9603,6 +9758,33 @@ function bindCountEvents() {
       },
       { passive: false },
     );
+  }
+
+  const COUNT_FAST_LS = 'estoque_count_fast_mobile_v1';
+  const fastBtn = document.getElementById('count-fast-mobile-btn');
+  const subCountEl = document.getElementById('sub-count');
+  if (fastBtn && subCountEl && !fastBtn.dataset.fastBound) {
+    fastBtn.dataset.fastBound = '1';
+    const applyFast = () => {
+      const on = localStorage.getItem(COUNT_FAST_LS) === '1';
+      subCountEl.classList.toggle('count-page--fast-mobile', on);
+      fastBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    };
+    applyFast();
+    fastBtn.addEventListener('click', () => {
+      localStorage.setItem(COUNT_FAST_LS, localStorage.getItem(COUNT_FAST_LS) === '1' ? '0' : '1');
+      applyFast();
+    });
+  }
+
+  if (!window.__estoqueCountPagehideBound) {
+    window.__estoqueCountPagehideBound = '1';
+    window.addEventListener('pagehide', () => {
+      if (!countSyncDebounceTimer) return;
+      clearTimeout(countSyncDebounceTimer);
+      countSyncDebounceTimer = null;
+      void syncPendingEvents();
+    });
   }
 
   window.addEventListener('online', () => {
@@ -14266,6 +14448,11 @@ function _biQuebrasRenderNoPriceAlert(items) {
 
 async function loadBiQuebras() {
   _biQuebrasEnsureLayout();
+  try {
+    await loadChartJsIfNeeded();
+  } catch {
+    /* gráficos opcionais se o script não carregar */
+  }
   const fromEl = document.getElementById('bi-quebras-date-from');
   const toEl = document.getElementById('bi-quebras-date-to');
   const loading = document.getElementById('bi-quebras-loading-chip');
