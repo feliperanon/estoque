@@ -881,7 +881,7 @@ let syncInProgress = false;
 /** Chart.js: carregado sob demanda (módulo Análise / BI), não no primeiro paint. */
 let chartJsLoadPromise = null;
 function loadChartJsIfNeeded() {
-  if (typeof globalThis.Chart === 'function') return Promise.resolve();
+  if (typeof window !== 'undefined' && typeof window.Chart === 'function') return Promise.resolve();
   if (chartJsLoadPromise) return chartJsLoadPromise;
   chartJsLoadPromise = new Promise((resolve, reject) => {
     const s = document.createElement('script');
@@ -901,7 +901,6 @@ function loadChartJsIfNeeded() {
 /** Contagem: lista em janelas para não dominar memória no celular. */
 const COUNT_LIST_CHUNK = 30;
 let countPendingDisplayLimit = COUNT_LIST_CHUNK;
-let countDoneDisplayLimit = COUNT_LIST_CHUNK;
 let lastCountRenderSourceProducts = null;
 let lastCountDeltaItemCode = null;
 let countListScrollObserver = null;
@@ -3227,7 +3226,6 @@ function updateValidityPendingBadges() {
 
 function resetCountListPaging() {
   countPendingDisplayLimit = COUNT_LIST_CHUNK;
-  countDoneDisplayLimit = COUNT_LIST_CHUNK;
 }
 
 function countItemFullyConferredForProduct(codRaw) {
@@ -3483,7 +3481,7 @@ function renderCountProducts(products, opts = {}) {
             data-coderef="${codRef}" data-count-type="caixa" value="" aria-label="Quantidade em caixas" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="caixa" data-delta="1" aria-label="Mais caixa">+</button>
           <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control">
+            <div class="count-product-readout count-product-readout--by-control count-readout-box">
               <strong class="count-product-readout-value">${formatIntegerBR(vCx)}</strong>
             </div>
             ${badgeCx}
@@ -3496,7 +3494,7 @@ function renderCountProducts(products, opts = {}) {
             data-coderef="${codRef}" data-count-type="unidade" value="" aria-label="Quantidade em unidades" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="unidade" data-delta="1" aria-label="Mais unidade">+</button>
           <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control">
+            <div class="count-product-readout count-product-readout--by-control count-readout-box">
               <strong class="count-product-readout-value">${formatIntegerBR(vUn)}</strong>
             </div>
             ${badgeUn}
@@ -3509,7 +3507,7 @@ function renderCountProducts(products, opts = {}) {
             data-coderef="${codRef}" data-count-type="palete" value="" aria-label="Quantidade em paletes" />
           <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="palete" data-delta="1" aria-label="Mais palete">+</button>
           <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control">
+            <div class="count-product-readout count-product-readout--by-control count-readout-box">
               <strong class="count-product-readout-value">${formatIntegerBR(vPl)}</strong>
             </div>
           </div>
@@ -3548,7 +3546,7 @@ function renderCountProducts(products, opts = {}) {
   }
 
   const pendingSlice = filtPending.slice(0, countPendingDisplayLimit);
-  const doneSlice = filtDone.slice(0, countDoneDisplayLimit);
+  const doneSlice = filtDone;
 
   countProductsList.innerHTML = '';
   if (filtPending.length === 0 && ativos.length > 0) {
@@ -9330,7 +9328,6 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
     return false;
   }
   const itemCode = normalizeItemCode(itemCodeInput);
-  lastCountDeltaItemCode = itemCode || null;
   const quantity = Number(qtyDeltaInput);
   const countType = normalizeCountType(countTypeInput);
 
@@ -9402,6 +9399,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
 
   events.push(event);
   saveCountEventsForDate(dayKey, events);
+  lastCountDeltaItemCode = itemCode;
   const netAfterType = getNetByProductAndType(itemCode, countType);
   if (netAfterType !== 0) setCountExplicitZero(itemCode, countType, false);
   else if (quantity === 0) setCountExplicitZero(itemCode, countType, true);

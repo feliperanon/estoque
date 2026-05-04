@@ -11423,3 +11423,100 @@ body.bi-quebras-presentation-open {
     justify-content: center;
   }
 }
+
+/* ── Contagem: performance mobile / modo rápido ── */
+.count-fast-mode-btn {
+  margin: 0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink-muted, #64748b);
+  background: transparent;
+  border: 1px solid rgba(100, 116, 139, 0.35);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+.count-fast-mode-btn[aria-pressed="true"] {
+  color: var(--primary-blue, #2563eb);
+  border-color: rgba(37, 99, 235, 0.45);
+  background: rgba(239, 246, 255, 0.9);
+}
+.count-product-head {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.count-product-head .count-product-desc {
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--ink, #0f172a);
+}
+.count-product-head .count-product-cod {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+.count-load-sentinel {
+  list-style: none;
+  height: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+#sub-count #count-products-list {
+  contain: content;
+}
+#sub-count #count-products-list > li.count-product-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 92px;
+}
+.count-control-tail .count-product-readout.count-readout-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px 6px;
+  min-width: var(--cc-readout-w, 3.75rem);
+  border-radius: 6px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+.count-control-tail .count-readout-box .count-product-readout-value {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+#sub-count.count-page--fast-mobile .count-product-item {
+  transition: none;
+}
+#sub-count.count-page--fast-mobile .count-product-item:hover {
+  background: #fff;
+}
+#sub-count.count-page--fast-mobile .btn-count-adjust {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1.05rem;
+}
+#sub-count.count-page--fast-mobile .count-control-row--pl {
+  display: none;
+}
+@media (max-width: 900px) {
+  #sub-count .info-card.master-container.count-main-card {
+    box-shadow: none;
+  }
+  #sub-count .count-products-shell {
+    box-shadow: none;
+  }
+}
