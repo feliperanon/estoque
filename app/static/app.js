@@ -3325,6 +3325,7 @@ function tryPatchCountProductDomRow(codRaw) {
         ? '<span class="count-row-badge count-row-badge--recount">Divergência</span>'
         : dimUn === true
           ? '<span class="count-row-badge count-row-badge--ok">OK</span>'
+          : ''
           : '';
 
   const rows = li.querySelectorAll('.count-control-row');
