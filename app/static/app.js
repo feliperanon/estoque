@@ -12284,7 +12284,7 @@ function parsePriceFromInputEl(el) {
   const raw = String(el.value || '').trim();
   if (!raw) return null;
   const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
-  const n = parseFloat(normalized, 10);
+  const n = parseFloat(normalized);
   return Number.isFinite(n) ? n : null;
 }
 
@@ -12577,6 +12577,10 @@ async function loadProducts() {
 }
 
 async function saveProductManual() {
+  if (!getToken()) {
+    setProductFeedback('Faça login para salvar o produto.', true);
+    return;
+  }
   const payload = readProductPayloadFromForm();
   if (payload.__invalidConversionFactor) {
     setProductFeedback('Fator de conversão deve ser um número maior que zero (ou deixe em branco).', true);
@@ -12599,7 +12603,7 @@ async function saveProductManual() {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      setProductFeedback(err.detail || 'Falha ao salvar produto.', true);
+      setProductFeedback(formatApiErrorDetail(err, response.status), true);
       return;
     }
 
@@ -12607,8 +12611,11 @@ async function saveProductManual() {
     applyProductDefaultsToForms();
     setProductFeedback('Produto salvo com sucesso.');
     await loadProducts();
-  } catch {
-    setProductFeedback('Sem conexao para salvar agora. Tente novamente.', true);
+  } catch (e) {
+    setProductFeedback(
+      e && e.message ? `Erro ao salvar: ${e.message}` : 'Sem conexao para salvar agora. Tente novamente.',
+      true,
+    );
   }
 }
 
@@ -13105,9 +13112,16 @@ async function openEditProduct(id) {
 }
 
 async function updateProduct() {
-  const id = document.getElementById('edit-product-id').value;
+  const id = document.getElementById('edit-product-id')?.value;
   const token = getToken();
-  if (!token || !id) return;
+  if (!token) {
+    setEditFeedback('Sessão expirada ou sem login. Entre de novo.', true);
+    return;
+  }
+  if (!id) {
+    setEditFeedback('Produto não identificado. Feche e abra a edição de novo.', true);
+    return;
+  }
 
   const cf = parseConversionFactorInput('edit-fator-conversao');
   const pcf = parseConversionFactorInput('edit-fator-palete');
@@ -13117,14 +13131,14 @@ async function updateProduct() {
   }
 
   const payload = {
-    cod_grup_cia: document.getElementById('edit-cod-cia').value.trim() || null,
-    cod_grup_tipo: document.getElementById('edit-cod-tipo').value.trim() || null,
-    cod_grup_segmento: document.getElementById('edit-cod-segmento').value.trim() || null,
-    cod_grup_marca: document.getElementById('edit-cod-marca').value.trim() || null,
-    cod_produto: document.getElementById('edit-codigo').value.trim(),
-    cod_grup_descricao: document.getElementById('edit-produto').value.trim(),
-    cod_grup_sku: document.getElementById('edit-sku').value.trim(),
-    price: parseFloat(document.getElementById('edit-custo').value) || null,
+    cod_grup_cia: document.getElementById('edit-cod-cia')?.value.trim() || null,
+    cod_grup_tipo: document.getElementById('edit-cod-tipo')?.value.trim() || null,
+    cod_grup_segmento: document.getElementById('edit-cod-segmento')?.value.trim() || null,
+    cod_grup_marca: document.getElementById('edit-cod-marca')?.value.trim() || null,
+    cod_produto: document.getElementById('edit-codigo')?.value.trim(),
+    cod_grup_descricao: document.getElementById('edit-produto')?.value.trim(),
+    cod_grup_sku: document.getElementById('edit-sku')?.value.trim(),
+    price: parsePriceFromInputEl(document.getElementById('edit-custo')),
     conversion_factor: cf.value,
     pallet_conversion_factor: pcf.value,
   };
@@ -13145,15 +13159,15 @@ async function updateProduct() {
     }
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
-      setEditFeedback(err.detail || 'Falha ao atualizar produto.', true);
+      setEditFeedback(formatApiErrorDetail(err, resp.status), true);
       return;
     }
     setEditFeedback('Produto atualizado com sucesso.');
     closeProductEditPanel();
     await searchProdutos();
     await loadProducts();
-  } catch {
-    setEditFeedback('Sem conexão.', true);
+  } catch (e) {
+    setEditFeedback(e && e.message ? `Erro: ${e.message}` : 'Sem conexão.', true);
   }
 }
 
