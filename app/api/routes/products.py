@@ -1216,6 +1216,23 @@ def _record_history(session: Session, product_id: int, field: str, old_val, new_
     ))
 
 
+_NUMERIC_PRODUCT_UPDATE_FIELDS = frozenset({"price", "conversion_factor", "pallet_conversion_factor"})
+
+
+def _product_update_values_differ(field: str, old_val: object, new_val: object) -> bool:
+    """Evita tratar 6 e 6.0 como mudança e reduz histórico/UPDATE espúrios."""
+    if old_val is None and new_val is None:
+        return False
+    if old_val is None or new_val is None:
+        return True
+    if field in _NUMERIC_PRODUCT_UPDATE_FIELDS:
+        try:
+            return not math.isclose(float(old_val), float(new_val), rel_tol=0, abs_tol=1e-9)
+        except (TypeError, ValueError):
+            return str(old_val) != str(new_val)
+    return str(old_val).strip() != str(new_val).strip()
+
+
 @router.get("/{product_id}", response_model=ProductRead)
 def get_product(
     product_id: int,
@@ -1258,7 +1275,7 @@ def update_product(
 
     for field, new_value in update_data.items():
         old_value = getattr(product, field, None)
-        if str(old_value) != str(new_value):
+        if _product_update_values_differ(field, old_value, new_value):
             _record_history(session, product.id, field, old_value, new_value, user.username)
             setattr(product, field, new_value)
 

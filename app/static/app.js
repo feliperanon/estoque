@@ -9059,6 +9059,7 @@ function bindValidityEvents() {
 }
 
 function setProductFeedback(message, isError = false) {
+  if (!productFeedback) return;
   productFeedback.textContent = message;
   productFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
 }
@@ -12255,6 +12256,38 @@ function getAuthHeaders() {
   return h;
 }
 
+/** Mensagem legível a partir do JSON de erro do FastAPI (detail string, lista 422, etc.). */
+function formatApiErrorDetail(errBody, httpStatus) {
+  if (errBody == null || typeof errBody !== 'object') {
+    return httpStatus ? `Erro HTTP ${httpStatus}.` : 'Falha na requisição.';
+  }
+  const d = errBody.detail;
+  if (Array.isArray(d)) {
+    return d
+      .map((x) => {
+        if (x && typeof x === 'object' && x.msg) {
+          const loc = Array.isArray(x.loc) ? x.loc.filter(Boolean).join('.') : '';
+          return loc ? `${loc}: ${x.msg}` : String(x.msg);
+        }
+        return JSON.stringify(x);
+      })
+      .join(' ');
+  }
+  if (typeof d === 'string') return d;
+  if (d != null) return String(d);
+  return httpStatus ? `Erro HTTP ${httpStatus}.` : 'Falha na requisição.';
+}
+
+/** Custo: aceita vírgula decimal; preserva 0 (não trata como vazio). */
+function parsePriceFromInputEl(el) {
+  if (!el) return null;
+  const raw = String(el.value || '').trim();
+  if (!raw) return null;
+  const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
+  const n = parseFloat(normalized, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Valida token antes de montar o dashboard; evita rajada de 401 com sessão expirada. */
 async function validateSessionOrClear() {
   const token = getToken();
@@ -12477,7 +12510,7 @@ function readProductPayloadFromForm() {
     cod_grup_sku: document.getElementById('prod-sku').value.trim(),
     status: null,
     grup_prioridade: null,
-    price: parseFloat(document.getElementById('prod-custo').value) || null,
+    price: parsePriceFromInputEl(document.getElementById('prod-custo')),
     conversion_factor: cf.value,
     pallet_conversion_factor: pcf.value,
     source_system: 'manual',
