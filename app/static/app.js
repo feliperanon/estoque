@@ -1962,9 +1962,11 @@ function handleUnauthorizedResponse(response) {
   if (unauthorizedRedirectInProgress) return true;
   unauthorizedRedirectInProgress = true;
   clearSession();
-  loginForm.reset();
+  if (loginForm) loginForm.reset();
   history.replaceState(null, '', historyBasePathNoHash());
-  loginError.textContent = 'Sessao expirada neste ambiente. Faca login novamente.';
+  if (loginError) {
+    loginError.textContent = 'Sessao expirada neste ambiente. Faca login novamente.';
+  }
   showLogin();
   return true;
 }
@@ -11795,6 +11797,10 @@ async function loadCountAuditAnalysis() {
   if (!countAuditImport || !countAuditList) return;
   const token = getToken();
   if (!token) return;
+  if (isAccessTokenExpired(token)) {
+    handleUnauthorizedResponse({ status: 401 });
+    return;
+  }
 
   try {
     if (btnCountAuditRefresh) btnCountAuditRefresh.disabled = true;
