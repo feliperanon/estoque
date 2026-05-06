@@ -9064,6 +9064,7 @@ function setProductFeedback(message, isError = false) {
 }
 
 function setProductImportFeedback(message, isError = false) {
+  if (!productImportFeedback) return;
   productImportFeedback.textContent = message;
   productImportFeedback.style.color = isError ? 'var(--error)' : 'var(--accent)';
 }
@@ -12752,8 +12753,21 @@ async function uploadProductsExcelFactors() {
     }
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      setProductImportFeedback(String(err.detail || 'Falha ao aplicar fatores.'), true);
+      let detail = `Erro ${response.status} ao aplicar fatores.`;
+      if (response.status === 404) {
+        detail =
+          'Servidor não tem a função "Aplicar fatores" (rota não encontrada). Faça deploy da versão nova do sistema ou peça suporte.';
+      } else {
+        try {
+          const err = await response.json();
+          const d = err.detail;
+          detail = Array.isArray(d) ? d.map((x) => x.msg || JSON.stringify(x)).join(' ') : String(d || detail);
+        } catch {
+          const t = await response.text();
+          if (t && t.length < 500) detail = t;
+        }
+      }
+      setProductImportFeedback(detail, true);
       return;
     }
 
@@ -12762,15 +12776,22 @@ async function uploadProductsExcelFactors() {
     const missing = Number(data.missing) || 0;
     const noChange = Number(data.no_change) || 0;
     const inFile = Number(data.codes_in_file) || 0;
-    let msg = `Fatores: ${updated} produto(s) atualizado(s), ${noChange} já iguais, ${missing} código(s) não encontrado(s) no cadastro (${inFile} código(s) na planilha).`;
+    let msg = `Fatores: ${updated} produto(s) atualizado(s), ${noChange} já iguais (sem mudança), ${missing} código(s) não encontrado(s) no cadastro. Planilha: ${inFile} código(s).`;
     if (paleteNaColunaUnCx) {
       msg += ' Modo Palete: coluna UN/CX gravada como CX por PL.';
     }
+    if (updated === 0 && missing > 0) {
+      msg +=
+        ' Nenhum registro alterado: confira se o código no Excel é exatamente o mesmo do cadastro (aba Produtos).';
+    }
+    if (updated === 0 && missing === 0 && noChange > 0) {
+      msg += ' Os valores da planilha já batiam com o cadastro; nada a gravar.';
+    }
     if (missing > 0 && Array.isArray(data.missing_codes) && data.missing_codes.length) {
       const sample = data.missing_codes.slice(0, 12).join(', ');
-      msg += ` Ex.: ${sample}${data.missing_codes.length > 12 ? '…' : ''}`;
+      msg += ` Códigos não encontrados (amostra): ${sample}${data.missing_codes.length > 12 ? '…' : ''}`;
     }
-    setProductImportFeedback(msg);
+    setProductImportFeedback(msg, updated === 0 && missing > 0);
     selectedProductFile = null;
     if (productExcelFile) productExcelFile.value = '';
     await loadProducts();

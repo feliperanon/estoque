@@ -277,6 +277,8 @@ HEADER_ALIASES = {
     "pl_para_cx": "pallet_conversion_factor",
     # Cabeçalho completo (planilhas tipo Palete com CX por PL)
     "fator_de_conversao_cx_por_1_pl": "pallet_conversion_factor",
+    # Ex.: coluna "Fator de conversão (CX por Palete)" — mesmo significado: caixas em 1 palete
+    "fator_de_conversao_cx_por_palete": "pallet_conversion_factor",
 }
 
 # Importação por planilha: obrigatório código do produto + nome/descrição. SKU é opcional (espelha o código se vazio).
@@ -987,11 +989,12 @@ async def import_products_excel(
 @router.post("/import-excel-factors")
 async def import_products_excel_factors(
     file: UploadFile = File(...),
-    palete_na_coluna_un_cx: bool = Form(False),
+    palete_na_coluna_un_cx: str = Form(default="false"),
     session: Session = Depends(get_session),
     user: User = Depends(require_cadastro_access),
 ) -> dict:
     """Atualiza apenas fatores (UN/CX e/ou CX/PL) por codigo. Nao cria produtos novos."""
+    palete_flag = str(palete_na_coluna_un_cx or "").strip().lower() in ("true", "1", "on", "yes")
     _ensure_product_pallet_conversion_factor_column(session)
     filename = (file.filename or "").lower()
     if not (filename.endswith(".xlsx") or filename.endswith(".xlsm")):
@@ -1047,7 +1050,7 @@ async def import_products_excel_factors(
         except ValueError:
             pass
 
-        if palete_na_coluna_un_cx and i_cx is None:
+        if palete_flag and i_cx is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Modo palete na coluna UN/CX exige a coluna reconhecida como UN por CX.",
@@ -1086,7 +1089,7 @@ async def import_products_excel_factors(
             delta: dict[str, float] = {}
             if i_cx is not None:
                 raw = row[i_cx] if i_cx < len(row) else None
-                if palete_na_coluna_un_cx:
+                if palete_flag:
                     tmp_pf: dict[str, str | float | None] = {"pallet_conversion_factor": raw}
                     _coerce_pallet_conversion_factor_in_row(tmp_pf)
                     v_pf = tmp_pf.get("pallet_conversion_factor")
@@ -1170,7 +1173,7 @@ async def import_products_excel_factors(
                     "updated": updated,
                     "missing": len(missing_list),
                     "no_change": no_change,
-                    "palete_na_coluna_un_cx": palete_na_coluna_un_cx,
+                    "palete_na_coluna_un_cx": palete_flag,
                     "codes_in_file": len(merged),
                 },
             )
@@ -1182,7 +1185,7 @@ async def import_products_excel_factors(
             "missing_codes": sorted(set(missing_list))[:500],
             "no_change": no_change,
             "codes_in_file": len(merged),
-            "palete_na_coluna_un_cx": palete_na_coluna_un_cx,
+            "palete_na_coluna_un_cx": palete_flag,
         }
     except HTTPException:
         session.rollback()
