@@ -1187,14 +1187,21 @@ const ACCESS_CATEGORIES = [
 
 // ── Troca de views ─────────────────────────────────────────────
 function showLogin() {
-  viewDashboard.style.display = 'none';
-  viewLogin.style.display     = 'flex';
-  document.getElementById('username').focus();
+  if (viewDashboard) viewDashboard.style.display = 'none';
+  if (viewLogin) viewLogin.style.display = 'flex';
+  const u = document.getElementById('username');
+  if (u && typeof u.focus === 'function') {
+    try {
+      u.focus();
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 function showDashboard() {
-  viewLogin.style.display     = 'none';
-  viewDashboard.style.display = 'block';
+  if (viewLogin) viewLogin.style.display = 'none';
+  if (viewDashboard) viewDashboard.style.display = 'block';
 }
 
 function normalizeRole(role) {
@@ -13575,9 +13582,11 @@ function bindAdminPurge() {
 
 // ── Login ───────────────────────────────────────────────────────
 function setLoading(on) {
-  btnLogin.disabled        = on;
-  btnLogin.querySelector('.btn-label').style.display  = on ? 'none' : 'inline';
-  btnSpinner.style.display = on ? 'inline-block' : 'none';
+  if (!btnLogin) return;
+  btnLogin.disabled = on;
+  const label = btnLogin.querySelector('.btn-label');
+  if (label) label.style.display = on ? 'none' : 'inline';
+  if (btnSpinner) btnSpinner.style.display = on ? 'inline-block' : 'none';
 }
 
 async function resolveLocalUserInfo(token, username) {
@@ -13613,24 +13622,24 @@ async function resolveLocalUserInfo(token, username) {
   };
 }
 
-loginForm.addEventListener('submit', async (e) => {
+if (loginForm) loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (loginForm.dataset.loginInFlight === '1') {
     return;
   }
-  loginError.textContent = '';
+  if (loginError) loginError.textContent = '';
 
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
   const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username);
 
   if (!username || !password) {
-    loginError.textContent = 'Preencha e-mail e senha.';
+    if (loginError) loginError.textContent = 'Preencha e-mail e senha.';
     return;
   }
 
   if (!looksLikeEmail) {
-    loginError.textContent = 'Informe um e-mail corporativo válido.';
+    if (loginError) loginError.textContent = 'Informe um e-mail corporativo válido.';
     return;
   }
 
@@ -13645,18 +13654,22 @@ loginForm.addEventListener('submit', async (e) => {
     });
     let resp = await doLoginRequest();
     if (resp.status >= 500) {
-      loginError.textContent = 'Servidor de autenticacao temporariamente indisponivel. Tentando novamente...';
+      if (loginError) {
+        loginError.textContent = 'Servidor de autenticacao temporariamente indisponivel. Tentando novamente...';
+      }
       await new Promise((resolve) => setTimeout(resolve, 2500));
       resp = await doLoginRequest();
     }
 
     if (!resp.ok) {
       if (resp.status >= 500) {
-        loginError.textContent = 'Servidor temporariamente indisponível. Tente novamente em alguns segundos.';
+        if (loginError) {
+          loginError.textContent = 'Servidor temporariamente indisponível. Tente novamente em alguns segundos.';
+        }
         return;
       }
       const err = await resp.json().catch(() => ({}));
-      loginError.textContent = err.detail || 'E-mail ou senha incorretos.';
+      if (loginError) loginError.textContent = err.detail || 'E-mail ou senha incorretos.';
       return;
     }
 
@@ -13667,7 +13680,9 @@ loginForm.addEventListener('submit', async (e) => {
     initDashboard(user);
 
   } catch {
-    loginError.textContent = 'Erro de conexão. Verifique sua internet e tente novamente.';
+    if (loginError) {
+      loginError.textContent = 'Erro de conexão. Verifique sua internet e tente novamente.';
+    }
   } finally {
     loginForm.dataset.loginInFlight = '0';
     setLoading(false);
@@ -13869,7 +13884,7 @@ if (userEditForm) {
 // ── Dashboard ───────────────────────────────────────────────────
 function initDashboard(user) {
   const label = user?.full_name || user?.name || user?.username || 'Usuário';
-  userDisplay.textContent = label;
+  if (userDisplay) userDisplay.textContent = label;
   currentRole = normalizeRole(user?.role || 'conferente') || 'conferente';
   currentAllowedPages = Array.isArray(user?.allowed_pages)
     ? user.allowed_pages.map((p) => String(p).trim().toLowerCase()).filter(Boolean)
@@ -13906,19 +13921,21 @@ function initDashboard(user) {
 }
 
 // ── Logout ──────────────────────────────────────────────────────
-btnLogout.addEventListener('click', () => {
-  stopCountKpiTicker();
-  clearSession();
-  countServerCountState = { ok: false, balances: {}, meta: null };
-  bumpCountProgressStatsRevision();
-  if (kpiCountUser) {
-    kpiCountUser.textContent = 'Servidor: \u2014 \u00b7 Voc\u00ea: \u2014';
-  }
-  loginForm.reset();
-  history.replaceState(null, '', historyBasePathNoHash());
-  showLogin();
-  closeSidebar();
-});
+if (btnLogout) {
+  btnLogout.addEventListener('click', () => {
+    stopCountKpiTicker();
+    clearSession();
+    countServerCountState = { ok: false, balances: {}, meta: null };
+    bumpCountProgressStatsRevision();
+    if (kpiCountUser) {
+      kpiCountUser.textContent = 'Servidor: \u2014 \u00b7 Voc\u00ea: \u2014';
+    }
+    if (loginForm) loginForm.reset();
+    history.replaceState(null, '', historyBasePathNoHash());
+    showLogin();
+    closeSidebar();
+  });
+}
 
 // Sidebar (drawer): alinhado a sidebar-shell.js
 function openSidebar() {

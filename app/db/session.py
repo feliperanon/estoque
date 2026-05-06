@@ -17,7 +17,14 @@ def get_engine():
             raise RuntimeError("DATABASE_URL environment variable is not set")
 
         _is_sqlite = _database_url.startswith("sqlite")
-        _connect_args = {"check_same_thread": False} if _is_sqlite else {}
+        _connect_args = (
+            {"check_same_thread": False}
+            if _is_sqlite
+            else {
+                # Evita pendurar o processo minutos em TCP quando o host DB está inacessível (deploy / rede).
+                "connect_timeout": 15,
+            }
+        )
         _engine = create_engine(_database_url, pool_pre_ping=True, connect_args=_connect_args)
 
         # SQLite não suporta schemas — remove-os para compatibilidade local

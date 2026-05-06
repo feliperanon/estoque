@@ -1356,7 +1356,8 @@ body.app-body--shell {
 
 /* ── Views ─────────────────────────────────────────── */
 #view-login {
-  display: none;            /* controlado pelo app.js: flex */
+  /* Visível por padrão: se o JS falhar (rede, SW, erro de script), o usuário ainda vê o login. */
+  display: flex;
   min-height: 100vh;
   align-items: center;
   justify-content: center;

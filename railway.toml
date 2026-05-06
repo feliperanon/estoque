@@ -1,0 +1,10 @@
+# Config as Code — Railway (https://docs.railway.app/deploy/config-as-code)
+# Ajuste healthcheckPath no painel se este arquivo não for o selecionado em "Config Source".
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
