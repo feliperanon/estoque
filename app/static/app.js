@@ -13092,8 +13092,8 @@ function renderProdutosTable(products) {
       <td>${p.cod_produto || '\u2014'}</td>
       <td>${p.cod_grup_descricao || '\u2014'}</td>
       <td>${formatPrice(p.price)}</td>
-      <td title="Unidades por 1 caixa">${formatConversionFactor(p.conversion_factor)}</td>
-      <td title="Caixas por 1 palete">${formatPalletConversionFactor(p.pallet_conversion_factor)}</td>
+      <td title="UN por 1 CX (unidades em 1 caixa)">${formatConversionFactor(p.conversion_factor)}</td>
+      <td title="CX por 1 PL (caixas em 1 palete)">${formatPalletConversionFactor(p.pallet_conversion_factor)}</td>
       <td><span class="status-badge ${st.cls}">${st.label}</span></td>
       <td>${formatDate(p.created_at)}</td>
       <td class="actions-cell">
