@@ -2986,7 +2986,7 @@ def delete_recount_signal(
     cod_produto: str = Query(..., min_length=1, max_length=120),
     operational_date: date | None = Query(default=None),
     session: Session = Depends(get_session),
-    user: User = Depends(require_stock_analysis_access),
+    _: User = Depends(require_stock_analysis_access),
 ):
     """Remove a solicitação de recontagem em tempo real para o dia operacional (analista)."""
     _ensure_recount_signals_table()

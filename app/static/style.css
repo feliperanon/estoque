@@ -4671,6 +4671,57 @@ form#break-op-form.count-form {
   background: #6d28d9;
 }
 
+.count-audit-cancel-recount-btn,
+.count-audit-mobile-cancel-recount-btn {
+  width: 100%;
+  min-height: 2.05rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--audit-ink);
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.25;
+}
+
+.count-audit-cancel-recount-btn:hover,
+.count-audit-mobile-cancel-recount-btn:hover {
+  background: #f1f5f9;
+}
+
+.count-audit-mobile-cancel-recount-btn {
+  min-height: 2.35rem;
+  font-size: 0.78rem;
+}
+
+.count-audit-feedback-line {
+  margin: 0.35rem 0 0;
+  min-height: 1.25em;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--audit-ink);
+}
+
+.count-audit-feedback-line.is-error {
+  color: var(--error, #b91c1c);
+}
+
+.count-product-recount-actions {
+  margin-top: 0.5rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed rgba(91, 33, 182, 0.22);
+}
+
+.count-product-recount-actions .btn-count-cancel-recount {
+  width: 100%;
+  min-height: 2.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 .count-audit-detail-action-btn {
   min-height: 2.1rem;
   border-radius: 6px;

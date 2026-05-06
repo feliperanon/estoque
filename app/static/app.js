@@ -3514,6 +3514,11 @@ function renderCountProducts(products, opts = {}) {
           </div>
         </div>
       </div>
+      ${
+        analystLiveRecount
+          ? `<div class="count-product-recount-actions"><button type="button" class="btn-secondary btn-count-cancel-recount" data-action="cancel-recount-live" data-code="${codRef}" aria-label="Cancelar solicitação de recontagem para este produto">Cancelar solicitação de recontagem</button></div>`
+          : ''
+      }
     `;
     ul.appendChild(li);
   };
@@ -9671,6 +9676,12 @@ function bindCountEvents() {
       true,
     );
     countShell.addEventListener('click', (e) => {
+      const cancelRec = e.target.closest('[data-action="cancel-recount-live"]');
+      if (cancelRec && countShell.contains(cancelRec)) {
+        e.preventDefault();
+        void deleteRecountLiveSignal(decodeURIComponent(cancelRec.getAttribute('data-code') || ''));
+        return;
+      }
       const btn = e.target.closest('.btn-count-adjust');
       if (!btn || !countShell.contains(btn)) return;
       e.preventDefault();
@@ -10359,6 +10370,24 @@ function markCountAuditRecountRequestedForActiveDay(codeRaw) {
   persistCountAuditRequestedRecountByDay();
 }
 
+function unmarkCountAuditRecountRequestedForActiveDay(codeRaw) {
+  const code = String(codeRaw || '').trim();
+  if (!code) return;
+  const dayKey = String(getActiveCountDateKey() || '').slice(0, 10);
+  if (!dayKey) return;
+  const daySet = countAuditRequestedRecountByDay.get(dayKey);
+  if (!daySet) return;
+  daySet.delete(code);
+  if (!daySet.size) countAuditRequestedRecountByDay.delete(dayKey);
+  persistCountAuditRequestedRecountByDay();
+}
+
+function countAuditShowCancelRecountForCode(codeRaw) {
+  const code = String(codeRaw || '').trim();
+  if (!code) return false;
+  return serverRecountSignalCodes.has(code) || isCountAuditRecountRequestedForActiveDay(code);
+}
+
 function countAuditRecountRequestedBadgeMarkup(codeRaw) {
   if (!isCountAuditRecountRequestedForActiveDay(codeRaw)) return '';
   return '<span class="count-audit-recount-requested-badge" title="Recontagem já solicitada para este item no dia operacional atual.">Recontagem solicitada</span>';
@@ -10781,7 +10810,12 @@ function getCountAuditRowByCode(code, rows = getCountAuditRowsFromState()) {
   return rows.find((row) => String(row.cod_produto || '') === String(code || '')) || null;
 }
 
-function setCountAuditFeedback() {}
+function setCountAuditFeedback(message, isError = false) {
+  const el = document.getElementById('count-audit-feedback');
+  if (!el) return;
+  el.textContent = message || '';
+  el.classList.toggle('is-error', !!isError);
+}
 
 function updateCountAuditSummarySelection() {
   if (!countAuditSummary) return;
@@ -11320,6 +11354,9 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
   const trailSubtitle = compact ? 'Contexto do item' : 'Contexto para validação e decisão';
   const recountLabel = compact ? 'Recontagem' : 'Abrir recontagem';
   const refreshLabel = compact ? 'Atualizar' : 'Atualizar detalhe';
+  const cancelRecountHtml = countAuditShowCancelRecountForCode(code)
+    ? `<button type="button" class="count-audit-cancel-recount-btn" data-action="cancel-recount-live" data-code="${encodeURIComponent(code)}">Cancelar solicitação de recontagem</button>`
+    : '';
   const expIsoDetail = countAuditMergedDisplayExpiryIso(code);
   const expRiskDetail = expIsoDetail ? countAuditValidityRiskClass(expIsoDetail) : '';
   const expDetailLine = expIsoDetail
