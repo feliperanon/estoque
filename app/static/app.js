@@ -11408,6 +11408,7 @@ function buildCountAuditDetailMarkup(row, detail, isLoading = false, compact = f
       `<div class="count-audit-detail-actions">` +
         `<button type="button" class="count-audit-recount-live-btn" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar em tempo real</button>` +
         `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-audit-recount="${encodeURIComponent(code)}">${recountLabel}</button>` +
+        `${cancelRecountHtml}` +
         `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-audit-refresh-detail="${encodeURIComponent(code)}">${refreshLabel}</button>` +
         `${compact ? `<button type="button" class="btn-secondary count-audit-detail-action-btn" data-action="collapse" data-code="${encodeURIComponent(code)}">Fechar</button>` : ''}` +
       `</div>` +
@@ -11420,6 +11421,9 @@ function renderCountAuditDesktopRowMarkup(row) {
   const code = String(row.cod_produto || '');
   const requestedBadge = countAuditRecountRequestedBadgeMarkup(code);
   const recountBtnRequestedClass = isCountAuditRecountRequestedForActiveDay(code) ? ' count-audit-btn-recount-live--requested' : '';
+  const cancelRecountHtml = countAuditShowCancelRecountForCode(code)
+    ? `<button type="button" class="count-audit-cancel-recount-btn" data-action="cancel-recount-live" data-code="${encodeURIComponent(code)}">Cancelar solicitação</button>`
+    : '';
   return (
     `<li class="count-audit-item" data-state="${meta.stateKey}" data-code="${escapeHtml(code)}">` +
       `<div class="count-audit-row">` +
@@ -11446,6 +11450,7 @@ function renderCountAuditDesktopRowMarkup(row) {
         `<div class="count-audit-cell count-audit-cell--actions">` +
           `<button type="button" class="count-audit-btn-recount-live${recountBtnRequestedClass}" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar</button>` +
           `<button type="button" class="count-audit-detail-btn" data-action="detail" data-code="${encodeURIComponent(code)}">Detalhe</button>` +
+          `${cancelRecountHtml}` +
         `</div>` +
       `</div>` +
     `</li>`
@@ -11476,6 +11481,9 @@ function renderCountAuditMobileRowMarkup(row) {
   const code = String(row.cod_produto || '');
   const requestedBadge = countAuditRecountRequestedBadgeMarkup(code);
   const recountBtnRequestedClass = isCountAuditRecountRequestedForActiveDay(code) ? ' count-audit-mobile-recount-live-btn--requested' : '';
+  const cancelRecountHtml = countAuditShowCancelRecountForCode(code)
+    ? `<button type="button" class="count-audit-mobile-cancel-recount-btn" data-action="cancel-recount-live" data-code="${encodeURIComponent(code)}">Cancelar solicitação de recontagem</button>`
+    : '';
   const isExpanded = String(countAuditState.selectedCode || '') === code;
   const detail = getCountAuditCachedDetail(code);
   const isLoading = isExpanded && String(countAuditState.loadingDetailCode || '') === code && !detail;
@@ -11501,6 +11509,7 @@ function renderCountAuditMobileRowMarkup(row) {
         `</button>` +
         `<button type="button" class="count-audit-mobile-recount-live-btn${recountBtnRequestedClass}" data-action="recount-live" data-code="${encodeURIComponent(code)}">Recontar em tempo real</button>` +
         `<button type="button" class="btn-secondary count-audit-mobile-detail-toggle" data-action="toggle" data-code="${encodeURIComponent(code)}">${isExpanded ? 'Ocultar detalhe' : 'Ver detalhe'}</button>` +
+        `${cancelRecountHtml}` +
       `</div>` +
       `${isExpanded ? `<div class="count-audit-mobile-inline-detail">${buildCountAuditDetailMarkup(row, detail, isLoading, true)}</div>` : ''}` +
     `</li>`
@@ -11855,6 +11864,8 @@ async function loadCountAuditAnalysis() {
     countAuditState.detailCache.clear();
     window.lastCountAuditRows = countAuditState.rows;
 
+    await refreshRecountSignalsFromServer();
+
     populateCountAuditGroups(countAuditState.rows);
     updateCountAuditHeaderContext();
     syncCountAuditFiltersPresentation();
@@ -11954,6 +11965,7 @@ async function postRecountLiveSignal(codeRaw) {
       return;
     }
     const okMsg = `Recontagem em tempo real enviada para ${code} (dia ${formatDateBR(op)}). O conferente verá o alerta roxo na Contagem com essa mesma data.`;
+    serverRecountSignalCodes.add(code);
     markCountAuditRecountRequestedForActiveDay(code);
     countAuditRecountFeedbackPreserveUntil = Date.now() + 12000;
     countAuditRecountFeedbackPreserveMessage = okMsg;
@@ -11964,9 +11976,50 @@ async function postRecountLiveSignal(codeRaw) {
   }
 }
 
+async function deleteRecountLiveSignal(codeRaw) {
+  const code = String(codeRaw || '').trim();
+  if (!code) return;
+  if (!getToken()) return;
+  const op = getActiveCountDateKey();
+  const params = new URLSearchParams({ cod_produto: code, operational_date: op });
+  try {
+    const r = await apiFetch(`${API_RECOUNT_SIGNAL}?${params.toString()}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (handleUnauthorizedResponse(r)) return;
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      const msg = String(err.detail || 'Não foi possível cancelar a solicitação de recontagem.');
+      setCountAuditFeedback(msg, true);
+      setFeedback(msg, true);
+      return;
+    }
+    serverRecountSignalCodes.delete(code);
+    unmarkCountAuditRecountRequestedForActiveDay(code);
+    const okMsg = `Solicitação de recontagem cancelada para ${code} (dia ${formatDateBR(op)}).`;
+    setCountAuditFeedback(okMsg, false);
+    setFeedback(okMsg, false, true);
+    if (document.getElementById('sub-count-audit')?.classList.contains('active')) {
+      renderCountAuditRows(getCountAuditRowsFromState());
+      if (String(countAuditState.selectedCode || '') === code) {
+        loadCountAuditDetail(code, false);
+      }
+    }
+    refreshCountProductListView({ keepPaging: true });
+  } catch {
+    setCountAuditFeedback('Erro de conexão ao cancelar recontagem.', true);
+    setFeedback('Erro de conexão ao cancelar recontagem.', true);
+  }
+}
+
 async function refreshRecountSignalsFromServer() {
   const subCount = document.getElementById('sub-count');
-  if (!subCount || !subCount.classList.contains('active')) return;
+  const subAudit = document.getElementById('sub-count-audit');
+  const recountContextVisible =
+    (subCount && subCount.classList.contains('active')) ||
+    (subAudit && subAudit.classList.contains('active'));
+  if (!recountContextVisible) return;
   const token = getToken();
   if (!token || isAccessTokenExpired(token)) return;
   const op = getActiveCountDateKey();
@@ -12099,6 +12152,11 @@ function bindCountAuditEvents() {
         selectCountAuditRow(decodeURIComponent(refreshBtn.dataset.auditRefreshDetail || ''), { forceReload: true });
         return;
       }
+      const cancelRecBtn = e.target.closest('[data-action="cancel-recount-live"]');
+      if (cancelRecBtn) {
+        void deleteRecountLiveSignal(decodeURIComponent(cancelRecBtn.getAttribute('data-code') || ''));
+        return;
+      }
       const recountLiveBtn = e.target.closest('[data-action="recount-live"]');
       if (recountLiveBtn) {
         postRecountLiveSignal(decodeURIComponent(recountLiveBtn.getAttribute('data-code') || ''));
@@ -12133,6 +12191,11 @@ function bindCountAuditEvents() {
   if (countAuditDetailPanel && !countAuditDetailPanel.dataset.auditBound) {
     countAuditDetailPanel.dataset.auditBound = '1';
     countAuditDetailPanel.addEventListener('click', (e) => {
+      const cancelRecBtn = e.target.closest('[data-action="cancel-recount-live"]');
+      if (cancelRecBtn) {
+        void deleteRecountLiveSignal(decodeURIComponent(cancelRecBtn.getAttribute('data-code') || ''));
+        return;
+      }
       const recountLiveBtn = e.target.closest('[data-action="recount-live"]');
       if (recountLiveBtn) {
         postRecountLiveSignal(decodeURIComponent(recountLiveBtn.getAttribute('data-code') || ''));

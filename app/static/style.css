@@ -5196,6 +5196,7 @@ body.count-audit-drawer-open {
 
 .count-audit-mobile-select:focus-visible,
 .count-audit-mobile-detail-toggle:focus-visible,
+.count-audit-mobile-cancel-recount-btn:focus-visible,
 .count-audit-mobile-missing-toggle:focus-visible {
   outline: 2px solid var(--audit-focus);
   outline-offset: 3px;

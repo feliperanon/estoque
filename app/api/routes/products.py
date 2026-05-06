@@ -274,6 +274,8 @@ HEADER_ALIASES = {
     "caixas_por_palete": "pallet_conversion_factor",
     "cx_por_pl": "pallet_conversion_factor",
     "pl_para_cx": "pallet_conversion_factor",
+    # Cabeçalho completo (planilhas tipo Palete com CX por PL)
+    "fator_de_conversao_cx_por_1_pl": "pallet_conversion_factor",
 }
 
 # Importação por planilha: obrigatório código do produto + nome/descrição. SKU é opcional (espelha o código se vazio).
