@@ -13003,7 +13003,10 @@ function parseConversionFactorInput(elementId) {
   return { ok: true, value: n };
 }
 
-/** Rótulos iguais ao cadastro / edição — histórico e mensagens ficam consistentes. */
+/**
+ * Histórico: mesmos rótulos da tabela de produtos (<th>UN por 1 CX</th> e <th>CX por 1 PL</th>).
+ * Evita "Fator de conversão" genérico (confunde com palete) e "Fator palete" (não bate com a coluna).
+ */
 const PRODUCT_HISTORY_FIELD_LABELS = {
   cod_grup_sp: 'Cod. Grup SP',
   cod_grup_cia: 'Cia',
@@ -13017,8 +13020,8 @@ const PRODUCT_HISTORY_FIELD_LABELS = {
   status: 'Status',
   grup_prioridade: 'Prioridade',
   price: 'Custo',
-  conversion_factor: 'Fator de conversão (UN por 1 CX)',
-  pallet_conversion_factor: 'Fator de conversão (CX por 1 PL)',
+  conversion_factor: 'UN por 1 CX',
+  pallet_conversion_factor: 'CX por 1 PL',
 };
 
 function productHistoryFieldLabel(fieldName) {
