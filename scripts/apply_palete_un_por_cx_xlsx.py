@@ -10,6 +10,9 @@ Colunas são mapeadas pelos mesmos aliases da importação em Cadastro (HEADER_A
 Uso (na raiz do projeto, com DATABASE_URL no ambiente ou .env):
   python scripts/apply_palete_un_por_cx_xlsx.py "C:\\Users\\...\\Palete.xlsx"
   python scripts/apply_palete_un_por_cx_xlsx.py caminho.xlsx --dry-run
+
+Planilha Palete (cabeçalho "UN por 1 CX" mas valores = caixas por 1 palete, ex. 100):
+  python scripts/apply_palete_un_por_cx_xlsx.py Palete.xlsx --palete-na-coluna-un-cx --dry-run
 """
 from __future__ import annotations
 
@@ -125,6 +128,14 @@ def main() -> int:
         default="script:apply_palete_factors",
         help="Identificador gravado em product_history / auditoria",
     )
+    parser.add_argument(
+        "--palete-na-coluna-un-cx",
+        action="store_true",
+        help=(
+            "A coluna mapeada como UN/CX na planilha na verdade traz CX por 1 palete "
+            "(ex.: 100 = 100 caixas = 1 palete). Grava em pallet_conversion_factor, não em conversion_factor."
+        ),
+    )
     args = parser.parse_args()
     path: Path = args.xlsx.expanduser()
     if not path.is_file():
@@ -167,6 +178,16 @@ def main() -> int:
         print(f"Mapeado: {list(zip(first, mapped))}", file=sys.stderr)
         return 1
 
+    if args.palete_na_coluna_un_cx and i_cx is None:
+        print("--palete-na-coluna-un-cx exige a coluna reconhecida como UN/CX na planilha.", file=sys.stderr)
+        return 1
+
+    if args.palete_na_coluna_un_cx:
+        print(
+            "Modo --palete-na-coluna-un-cx: coluna UN/CX grava pallet_conversion_factor (CX por 1 PL).",
+            file=sys.stderr,
+        )
+
     # cod -> { 'conversion_factor': float?, 'pallet_conversion_factor': float? }
     merged: dict[str, dict[str, float]] = {}
     order: list[str] = []
@@ -181,9 +202,14 @@ def main() -> int:
         delta: dict[str, float] = {}
         if i_cx is not None:
             raw_cx = row[i_cx] if i_cx < len(row) else None
-            v = _factor_un_per_cx_from_cell(raw_cx)
-            if v is not None:
-                delta["conversion_factor"] = v
+            if args.palete_na_coluna_un_cx:
+                v = _factor_cx_per_pl_from_cell(raw_cx)
+                if v is not None:
+                    delta["pallet_conversion_factor"] = v
+            else:
+                v = _factor_un_per_cx_from_cell(raw_cx)
+                if v is not None:
+                    delta["conversion_factor"] = v
         if i_pl is not None:
             raw_pl = row[i_pl] if i_pl < len(row) else None
             v = _factor_cx_per_pl_from_cell(raw_pl)
@@ -272,6 +298,7 @@ def main() -> int:
                     "products_touched": updated_products,
                     "missing_codes": missing,
                     "columns": {"conversion_factor": i_cx is not None, "pallet_conversion_factor": i_pl is not None},
+                    "palete_na_coluna_un_cx": bool(args.palete_na_coluna_un_cx),
                 },
             )
             session.commit()
