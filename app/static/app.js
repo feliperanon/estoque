@@ -12630,7 +12630,10 @@ async function saveProductManual() {
   }
   const payload = readProductPayloadFromForm();
   if (payload.__invalidConversionFactor) {
-    setProductFeedback('Fator de conversão deve ser um número maior que zero (ou deixe em branco).', true);
+    setProductFeedback(
+      'UN por 1 CX e CX por 1 PL: informe número maior que zero ou deixe em branco.',
+      true,
+    );
     return;
   }
   if (!payload.cod_produto || !payload.cod_grup_descricao || !payload.cod_grup_sku) {
@@ -13000,10 +13003,22 @@ function parseConversionFactorInput(elementId) {
   return { ok: true, value: n };
 }
 
+/** Rótulos iguais ao cadastro / edição — histórico e mensagens ficam consistentes. */
 const PRODUCT_HISTORY_FIELD_LABELS = {
-  conversion_factor: 'Fator de conversão',
-  pallet_conversion_factor: 'Fator palete',
+  cod_grup_sp: 'Cod. Grup SP',
+  cod_grup_cia: 'Cia',
+  cod_grup_tipo: 'Tipo',
+  cod_grup_familia: 'Família',
+  cod_grup_segmento: 'Segmento',
+  cod_grup_marca: 'Marca',
+  cod_produto: 'Código',
+  cod_grup_descricao: 'Produto',
+  cod_grup_sku: 'SKU',
+  status: 'Status',
+  grup_prioridade: 'Prioridade',
   price: 'Custo',
+  conversion_factor: 'Fator de conversão (UN por 1 CX)',
+  pallet_conversion_factor: 'Fator de conversão (CX por 1 PL)',
 };
 
 function productHistoryFieldLabel(fieldName) {
@@ -13173,7 +13188,7 @@ async function updateProduct() {
   const cf = parseConversionFactorInput('edit-fator-conversao');
   const pcf = parseConversionFactorInput('edit-fator-palete');
   if (!cf.ok || !pcf.ok) {
-    setEditFeedback('Fatores de conversão devem ser números maiores que zero (ou deixe em branco).', true);
+    setEditFeedback('UN por 1 CX e CX por 1 PL: número maior que zero ou em branco.', true);
     return;
   }
 
