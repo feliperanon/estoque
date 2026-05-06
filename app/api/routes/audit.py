@@ -2981,6 +2981,31 @@ def post_recount_signal(
     return {"ok": True, "cod_produto": cod, "operational_date": op_date.isoformat()}
 
 
+@router.delete("/recount-signal")
+def delete_recount_signal(
+    cod_produto: str = Query(..., min_length=1, max_length=120),
+    operational_date: date | None = Query(default=None),
+    session: Session = Depends(get_session),
+    user: User = Depends(require_stock_analysis_access),
+):
+    """Remove a solicitação de recontagem em tempo real para o dia operacional (analista)."""
+    _ensure_recount_signals_table()
+    cod = _normalize_item_code(cod_produto)
+    if not cod:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Codigo do produto invalido.")
+    op_date = operational_date or _brazil_today_date()
+    row = session.exec(
+        select(RecountSignal).where(
+            RecountSignal.operational_date == op_date,
+            RecountSignal.cod_produto == cod,
+        )
+    ).first()
+    if row:
+        session.delete(row)
+        session.commit()
+    return {"ok": True, "removed": bool(row), "cod_produto": cod, "operational_date": op_date.isoformat()}
+
+
 @router.get("/recount-signals", response_model=RecountSignalsOut)
 def get_recount_signals(
     operational_date: date | None = Query(default=None),
