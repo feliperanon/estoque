@@ -13438,13 +13438,15 @@ function bindExtraModules() {
 }
 
 function bindModuleEvents() {
-  moduleNav.addEventListener('click', (event) => {
-    const btn = event.target.closest('.module-btn');
-    if (!btn) return;
-    const moduleKey = btn.dataset.module;
-    if (!canAccessModule(moduleKey)) return;
-    setActiveModule(moduleKey);
-  });
+  if (moduleNav) {
+    moduleNav.addEventListener('click', (event) => {
+      const btn = event.target.closest('.module-btn');
+      if (!btn) return;
+      const moduleKey = btn.dataset.module;
+      if (!canAccessModule(moduleKey)) return;
+      setActiveModule(moduleKey);
+    });
+  }
 
   document.addEventListener('click', (event) => {
     const hub = event.target.closest('.module-hub-card');
@@ -14910,4 +14912,15 @@ bindBiQuebrasEvents();
     return;
   }
   initDashboard(getUser() || user);
-})();
+})().catch((e) => {
+  try {
+    console.error('init', e);
+  } catch {
+    /* ignore */
+  }
+  if (loginError) {
+    loginError.textContent =
+      'Não foi possível iniciar o aplicativo. Atualize a página (Ctrl+F5). Se persistir, limpe o cache do site ou desinstale o app instalado e tente de novo.';
+  }
+  showLogin();
+});
