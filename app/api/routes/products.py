@@ -1,10 +1,11 @@
 from io import BytesIO
 import logging
+import math
 import re
 import unicodedata
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from openpyxl import load_workbook
 from sqlalchemy import String, and_, cast, func, or_, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -545,6 +546,46 @@ def _map_headers(raw_headers: tuple) -> tuple[list[str | None], int]:
     return mapped, len(recognized)
 
 
+def _lookup_product_flexible_cod(session: Session, cod_raw: str | None) -> Product | None:
+    """Resolve cod_produto com variações (010 vs 10), alinhado ao script de planilha Palete."""
+    row_data: dict[str, str | None] = {"cod_produto": cod_raw}
+    _normalize_codigo_import(row_data)
+    cod = (row_data.get("cod_produto") or "").strip()
+    if not cod:
+        return None
+    variants: list[str] = []
+    seen: set[str] = set()
+
+    def add(x: str) -> None:
+        x = (x or "").strip()
+        if x and x not in seen:
+            seen.add(x)
+            variants.append(x)
+
+    add(cod)
+    try:
+        n = int(float(cod.replace(",", ".")))
+        s = str(n)
+        add(s)
+        for w in (2, 3, 4, 5, 6):
+            add(s.zfill(w))
+    except (ValueError, OverflowError):
+        pass
+    for key in variants:
+        p = session.exec(select(Product).where(Product.cod_produto == key)).first()
+        if p:
+            return p
+    return None
+
+
+def _numeric_field_equal(a, b) -> bool:
+    if a is None and b is None:
+        return True
+    if a is None or b is None:
+        return False
+    return math.isclose(float(a), float(b), rel_tol=0, abs_tol=1e-9)
+
+
 def _parse_optional_price_query(q: str) -> float | None:
     """Interpreta texto como valor monetário para busca pelo campo custo (price)."""
     raw = (q or "").strip()
@@ -941,6 +982,225 @@ async def import_products_excel(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Falha inesperada ao importar planilha. Erro: {exc}",
         )
+
+
+@router.post("/import-excel-factors")
+async def import_products_excel_factors(
+    file: UploadFile = File(...),
+    palete_na_coluna_un_cx: bool = Form(False),
+    session: Session = Depends(get_session),
+    user: User = Depends(require_cadastro_access),
+) -> dict:
+    """Atualiza apenas fatores (UN/CX e/ou CX/PL) por codigo. Nao cria produtos novos."""
+    _ensure_product_pallet_conversion_factor_column(session)
+    filename = (file.filename or "").lower()
+    if not (filename.endswith(".xlsx") or filename.endswith(".xlsm")):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Envie um arquivo .xlsx")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo vazio")
+
+    try:
+        wb = load_workbook(filename=BytesIO(content), data_only=True, read_only=True)
+        ws = wb.active
+        all_rows = list(ws.iter_rows(values_only=True))
+        if not all_rows:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Planilha sem cabecalho")
+
+        header_row_index = -1
+        mapped_headers: list[str | None] = []
+        best_score = 0
+        for idx, row in enumerate(all_rows[:30]):
+            current_mapped, score = _map_headers(row)
+            if score > best_score:
+                best_score = score
+                mapped_headers = current_mapped
+                header_row_index = idx
+
+        if best_score < 2 or header_row_index < 0:
+            first_line_preview = [str(v or "").strip() for v in all_rows[0][:12]]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Nao foi possivel reconhecer codigo e pelo menos um fator no cabecalho. "
+                    f"Cabecalho lido: {first_line_preview}"
+                ),
+            )
+
+        try:
+            i_cod = mapped_headers.index("cod_produto")
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Coluna de codigo do produto nao encontrada no cabecalho.",
+            ) from exc
+
+        i_cx: int | None = None
+        i_pl: int | None = None
+        try:
+            i_cx = mapped_headers.index("conversion_factor")
+        except ValueError:
+            pass
+        try:
+            i_pl = mapped_headers.index("pallet_conversion_factor")
+        except ValueError:
+            pass
+
+        if palete_na_coluna_un_cx and i_cx is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Modo palete na coluna UN/CX exige a coluna reconhecida como UN por CX.",
+            )
+
+        if i_cx is None and i_pl is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nenhuma coluna de fator (UN/CX ou CX/PL) encontrada.",
+            )
+
+        merged: dict[str, dict[str, float]] = {}
+        order: list[str] = []
+        dup: list[str] = []
+
+        for row in all_rows[header_row_index + 1 :]:
+            if not row or not any(v not in (None, "") for v in row):
+                continue
+            row_dict: dict[str, str | None] = {}
+            for idx, value in enumerate(row):
+                if idx >= len(mapped_headers):
+                    break
+                mapped = mapped_headers[idx]
+                if not mapped:
+                    continue
+                if value is None:
+                    row_dict[mapped] = None
+                else:
+                    row_dict[mapped] = str(value).strip()
+
+            _normalize_codigo_import(row_dict)
+            cod = (row_dict.get("cod_produto") or "").strip()
+            if not cod:
+                continue
+
+            delta: dict[str, float] = {}
+            if i_cx is not None:
+                raw = row[i_cx] if i_cx < len(row) else None
+                if palete_na_coluna_un_cx:
+                    tmp_pf: dict[str, str | float | None] = {"pallet_conversion_factor": raw}
+                    _coerce_pallet_conversion_factor_in_row(tmp_pf)
+                    v_pf = tmp_pf.get("pallet_conversion_factor")
+                    if v_pf is not None:
+                        delta["pallet_conversion_factor"] = float(v_pf)
+                else:
+                    tmp_cf: dict[str, str | float | None] = {"conversion_factor": raw}
+                    _coerce_conversion_factor_in_row(tmp_cf)
+                    v_cf = tmp_cf.get("conversion_factor")
+                    if v_cf is not None:
+                        delta["conversion_factor"] = float(v_cf)
+            if i_pl is not None:
+                raw_pl = row[i_pl] if i_pl < len(row) else None
+                tmp_pl: dict[str, str | float | None] = {"pallet_conversion_factor": raw_pl}
+                _coerce_pallet_conversion_factor_in_row(tmp_pl)
+                v_pl = tmp_pl.get("pallet_conversion_factor")
+                if v_pl is not None:
+                    delta["pallet_conversion_factor"] = float(v_pl)
+
+            if not delta:
+                continue
+
+            if cod in merged:
+                dup.append(cod)
+            elif cod not in merged:
+                order.append(cod)
+            merged.setdefault(cod, {}).update(delta)
+
+        if dup:
+            logger.info("import_excel_factors: codigos repetidos (ultimo vence): %s", sorted(set(dup)))
+
+        updated = 0
+        missing_list: list[str] = []
+        no_change = 0
+        from app.models.entities import utcnow
+
+        for cod in order:
+            plan = merged.get(cod) or {}
+            product = _lookup_product_flexible_cod(session, cod)
+            if not product:
+                missing_list.append(cod)
+                continue
+            changed_any = False
+            if "conversion_factor" in plan:
+                new_v = plan["conversion_factor"]
+                old_v = product.conversion_factor
+                if not _numeric_field_equal(old_v, new_v):
+                    _record_history(session, product.id or 0, "conversion_factor", old_v, new_v, user.username)
+                    product.conversion_factor = new_v
+                    changed_any = True
+            if "pallet_conversion_factor" in plan:
+                new_v = plan["pallet_conversion_factor"]
+                old_v = product.pallet_conversion_factor
+                if not _numeric_field_equal(old_v, new_v):
+                    _record_history(
+                        session,
+                        product.id or 0,
+                        "pallet_conversion_factor",
+                        old_v,
+                        new_v,
+                        user.username,
+                    )
+                    product.pallet_conversion_factor = new_v
+                    changed_any = True
+            if changed_any:
+                product.updated_at = utcnow()
+                apply_common_source_fields(product, None, "excel_factors")
+                session.add(product)
+                updated += 1
+            else:
+                no_change += 1
+
+        if updated:
+            _safe_log_change(
+                session,
+                "products",
+                0,
+                "import_excel_factors",
+                user.username,
+                {
+                    "updated": updated,
+                    "missing": len(missing_list),
+                    "no_change": no_change,
+                    "palete_na_coluna_un_cx": palete_na_coluna_un_cx,
+                    "codes_in_file": len(merged),
+                },
+            )
+        session.commit()
+
+        return {
+            "updated": updated,
+            "missing": len(missing_list),
+            "missing_codes": sorted(set(missing_list))[:500],
+            "no_change": no_change,
+            "codes_in_file": len(merged),
+            "palete_na_coluna_un_cx": palete_na_coluna_un_cx,
+        }
+    except HTTPException:
+        session.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        session.rollback()
+        logger.exception("Erro SQL na importacao de fatores")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Falha de banco ao aplicar fatores. Erro: {exc}",
+        ) from exc
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Falha inesperada na importacao de fatores")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Falha ao processar planilha de fatores. Erro: {exc}",
+        ) from exc
 
 
 def _record_history(session: Session, product_id: int, field: str, old_val, new_val, actor: str) -> None:

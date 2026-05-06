@@ -1595,7 +1595,12 @@
                   <label class="btn-secondary btn-dark file-btn" for="product-excel-file">Selecionar Excel</label>
                   <input id="product-excel-file" type="file" accept=".xlsx,.xlsm" hidden />
                   <button id="btn-product-upload" class="btn-secondary btn-dark" type="button">Importar arquivo</button>
+                  <button id="btn-product-upload-factors" class="btn-secondary btn-dark" type="button" title="Só atualiza fatores de conversão em produtos já cadastrados">Aplicar fatores (Excel)</button>
                 </div>
+                <label class="inline-check cadastro-produto-factors-palete-flag" style="display:flex;align-items:center;gap:0.4rem;margin:0.35rem 0 0;font-size:0.88rem;">
+                  <input type="checkbox" id="product-excel-factors-palete-col" />
+                  <span>Planilha tipo Palete: a coluna <strong>UN por 1 CX</strong> traz na verdade <strong>caixas por 1 palete</strong> (ex.: 100).</span>
+                </label>
                 <p class="muted cadastro-produto-import-hint">
                   Planilha padrão: primeira linha com colunas
                   <strong>Cia</strong>, <strong>Tipo</strong>, <strong>Segmento</strong>, <strong>Marca</strong>,
@@ -1603,6 +1608,7 @@
                   (custo numérico ou texto tipo R$ 0,00). Opcional: <strong>Fator_conversao</strong> / <strong>Unidades_por_caixa</strong>
                   (quantas unidades em 1 caixa; ex.: 6) e <strong>Fator_conversao_palete</strong> / <strong>Caixas_por_palete</strong>
                   (quantas caixas em 1 palete; ex.: 100).
+                  <strong>Aplicar fatores</strong>: apenas <strong>Código</strong> + coluna(s) de fator (UN/CX e/ou CX/PL); não cria produto novo — só atualiza itens já existentes.
                 </p>
               </div>
               <form id="product-form" class="product-form product-form--cadastro" autocomplete="off">
@@ -1918,7 +1924,7 @@
       </main>
     </div>
 
-    <script src="/static/app.js?v=94" charset="utf-8"></script>
+    <script src="/static/app.js?v=95" charset="utf-8"></script>
     <script src="/static/pwa-install.js?v=6" charset="utf-8"></script>
   </body>
 </html>

@@ -446,6 +446,7 @@ const IMPORT_TXT_DETAIL_ITEMS_LIMIT = 20000;
 const API_PRODUCTS_CATALOG = '/products/catalog';
 const API_AUTH_ME = '/auth/me';
 const API_PRODUCTS_IMPORT_EXCEL = '/products/import-excel';
+const API_PRODUCTS_IMPORT_EXCEL_FACTORS = '/products/import-excel-factors';
 const APP_BASE_PATH = (() => {
   const p = window.location.pathname.replace(/\/$/, '');
   if (!p || p === '/') return '';
@@ -12725,6 +12726,59 @@ async function uploadProductsExcel() {
   }
 }
 
+async function uploadProductsExcelFactors() {
+  if (!selectedProductFile) {
+    setProductImportFeedback('Selecione um arquivo Excel primeiro.', true);
+    return;
+  }
+
+  const token = getToken();
+  const paleteNaColunaUnCx = document.getElementById('product-excel-factors-palete-col')?.checked === true;
+  const formData = new FormData();
+  formData.append('file', selectedProductFile);
+  formData.append('palete_na_coluna_un_cx', paleteNaColunaUnCx ? 'true' : 'false');
+
+  try {
+    const response = await apiFetch(API_PRODUCTS_IMPORT_EXCEL_FACTORS, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (handleUnauthorizedResponse(response)) {
+      return;
+    }
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      setProductImportFeedback(String(err.detail || 'Falha ao aplicar fatores.'), true);
+      return;
+    }
+
+    const data = await response.json();
+    const updated = Number(data.updated) || 0;
+    const missing = Number(data.missing) || 0;
+    const noChange = Number(data.no_change) || 0;
+    const inFile = Number(data.codes_in_file) || 0;
+    let msg = `Fatores: ${updated} produto(s) atualizado(s), ${noChange} já iguais, ${missing} código(s) não encontrado(s) no cadastro (${inFile} código(s) na planilha).`;
+    if (paleteNaColunaUnCx) {
+      msg += ' Modo Palete: coluna UN/CX gravada como CX por PL.';
+    }
+    if (missing > 0 && Array.isArray(data.missing_codes) && data.missing_codes.length) {
+      const sample = data.missing_codes.slice(0, 12).join(', ');
+      msg += ` Ex.: ${sample}${data.missing_codes.length > 12 ? '…' : ''}`;
+    }
+    setProductImportFeedback(msg);
+    selectedProductFile = null;
+    if (productExcelFile) productExcelFile.value = '';
+    await loadProducts();
+  } catch {
+    setProductImportFeedback('Falha de conexão ao aplicar fatores.', true);
+  }
+}
+
 function bindProductEvents() {
   if (!productForm) return;
 
@@ -12743,6 +12797,13 @@ function bindProductEvents() {
   btnProductUpload.addEventListener('click', async () => {
     await uploadProductsExcel();
   });
+
+  const btnProductUploadFactors = document.getElementById('btn-product-upload-factors');
+  if (btnProductUploadFactors) {
+    btnProductUploadFactors.addEventListener('click', async () => {
+      await uploadProductsExcelFactors();
+    });
+  }
 
   document.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-new-option-target]');
