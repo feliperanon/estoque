@@ -5584,18 +5584,22 @@ async function ensureMateCouroCatalogLoaded() {
   ) {
     return;
   }
-  const params = new URLSearchParams();
-  params.set('limit', '20000');
-  params.set('status', 'todos');
-  params.set('cia', MATE_COURO_CIA);
-  const response = await apiFetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
-    headers: getAuthHeaders(),
-    cache: 'no-store',
-  });
-  if (!response.ok) return;
-  const data = await response.json();
-  mateCouroProductsCache = Array.isArray(data) ? data : [];
-  mateCouroCatalogLoadComplete = true;
+  try {
+    const params = new URLSearchParams();
+    params.set('limit', '20000');
+    params.set('status', 'todos');
+    params.set('cia', MATE_COURO_CIA);
+    const response = await apiFetch(`${API_PRODUCTS_CATALOG}?${params.toString()}`, {
+      headers: getAuthHeaders(),
+      cache: 'no-store',
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    mateCouroProductsCache = Array.isArray(data) ? data : [];
+    mateCouroCatalogLoadComplete = true;
+  } catch {
+    /* Análise de contagem não deve falhar só por catálogo Mate; próximo GET tenta de novo. */
+  }
 }
 
 function getMateCouroCodSet() {
@@ -11814,11 +11818,28 @@ async function loadCountAuditAnalysis() {
       mateTrocaBaseV2LastMergedRows = [];
       countAuditRecountFeedbackPreserveUntil = 0;
       countAuditRecountFeedbackPreserveMessage = '';
-      setCountAuditFeedback(err.detail || 'Falha ao carregar análise de contagem.', true);
+      const apiMsg = formatApiErrorDetail(err, response.status);
+      setCountAuditFeedback(
+        apiMsg && apiMsg !== `Erro HTTP ${response.status}.`
+          ? apiMsg
+          : `Falha ao carregar análise (${response.status}). Verifique permissão “análise de contagem” e tente de novo.`,
+        true,
+      );
       return;
     }
 
-    const payload = await response.json();
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (parseErr) {
+      countAuditRecountFeedbackPreserveUntil = 0;
+      countAuditRecountFeedbackPreserveMessage = '';
+      setCountAuditFeedback(
+        'Resposta inválida do servidor ao carregar a análise. Atualize a página ou tente em instantes.',
+        true,
+      );
+      return;
+    }
     const info = payload.import;
     if (!info) {
       countAuditState.rows = [];
@@ -11897,10 +11918,23 @@ async function loadCountAuditAnalysis() {
         setCountAuditFeedback(`Base TXT: ${formatDateBR(info.reference_date || '')} · ${info.file_name || 'arquivo'}`, false);
       }
     }
-  } catch {
+  } catch (e) {
     countAuditRecountFeedbackPreserveUntil = 0;
     countAuditRecountFeedbackPreserveMessage = '';
-    setCountAuditFeedback('Erro de conexão ao carregar análise de contagem.', true);
+    const name = e && e.name ? String(e.name) : '';
+    const msg = e && e.message ? String(e.message) : '';
+    if (name === 'TypeError' && /fetch|network|failed to fetch/i.test(msg)) {
+      setCountAuditFeedback('Erro de conexão ao carregar análise de contagem. Verifique a internet e o servidor.', true);
+    } else if (msg) {
+      setCountAuditFeedback(`Não foi possível carregar a análise: ${msg}`, true);
+    } else {
+      setCountAuditFeedback('Erro inesperado ao carregar análise de contagem. Atualize a página e tente de novo.', true);
+    }
+    try {
+      console.error('loadCountAuditAnalysis', e);
+    } catch {
+      /* ignore */
+    }
   } finally {
     if (btnCountAuditRefresh) btnCountAuditRefresh.disabled = false;
   }
