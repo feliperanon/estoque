@@ -264,6 +264,8 @@ HEADER_ALIASES = {
     "un_por_cx": "conversion_factor",
     "unidades_por_cx": "conversion_factor",
     "cx_para_un": "conversion_factor",
+    # Cabeçalho completo de planilhas operacionais (ex.: Palete.xlsx)
+    "fator_de_conversao_un_por_1_cx": "conversion_factor",
     # Fator PL→CX (caixas por 1 palete)
     "pallet_conversion_factor": "pallet_conversion_factor",
     "fator_conversao_palete": "pallet_conversion_factor",
