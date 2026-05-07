@@ -9205,6 +9205,12 @@ async function syncPendingEvents() {
   const allEv = flattenAllCountEventsFromBucket();
   const pending = allEv.filter((event) => !event.synced);
   if (pending.length === 0) return;
+  const pendingCodes = new Set(
+    pending
+      .map((e) => normalizeItemCode(String(e.item_code || '')))
+      .filter(Boolean),
+  );
+  pendingCodes.forEach((cod) => setCountItemInlineStatus(cod, 'saving', 'Salvando...'));
 
   syncInProgress = true;
   if (btnSync) btnSync.disabled = true;
@@ -9237,16 +9243,31 @@ async function syncPendingEvents() {
       } else {
         setFeedback('Falha ao sincronizar agora. Seus dados continuam salvos localmente.', true);
       }
+      pendingCodes.forEach((cod) => setCountItemInlineStatus(cod, 'error', 'Erro ao salvar'));
       return;
     }
 
     const data = await response.json();
     const syncedIds = new Set(data.synced_ids || []);
     markEventsSyncedInBucket(syncedIds);
+    const syncedCodes = new Set(
+      pending
+        .filter((event) => syncedIds.has(event.client_event_id))
+        .map((event) => normalizeItemCode(String(event.item_code || '')))
+        .filter(Boolean),
+    );
+    syncedCodes.forEach((cod) => setCountItemInlineStatus(cod, 'saved', 'Salvo'));
+    pendingCodes.forEach((cod) => {
+      if (!syncedCodes.has(cod)) setCountItemInlineStatus(cod, 'pending', 'Pendente');
+    });
     renderCounts();
     setFeedback(`Sincronizacao concluida: ${syncedIds.size} evento(s) enviado(s).`);
     await loadServerCountTotals();
-    refreshCountProductListView();
+    const refreshTargets = syncedCodes.size ? syncedCodes : pendingCodes;
+    refreshTargets.forEach((cod) => {
+      lastCountDeltaItemCode = cod;
+      refreshCountProductVisualAfterEdit();
+    });
     // Atualiza análise em tempo real se a aba estiver aberta
     const auditVisible = document.getElementById('sub-count-audit')?.classList.contains('active');
     if (auditVisible) {
@@ -9254,6 +9275,7 @@ async function syncPendingEvents() {
     }
   } catch {
     setFeedback('Sem conexao no momento. Contagem continua segura neste dispositivo.', true);
+    pendingCodes.forEach((cod) => setCountItemInlineStatus(cod, 'error', 'Erro ao salvar'));
   } finally {
     syncInProgress = false;
     if (btnSync) btnSync.disabled = false;
@@ -9421,6 +9443,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
 
   const dayKey = getActiveCountDateKey();
   const events = loadCountEventsForDate(dayKey);
+  setCountItemInlineStatus(itemCode, 'saving', 'Salvando...');
 
   let clientEventId = makeEventId();
   if (quantity === 0) {
@@ -9533,6 +9556,7 @@ function registerCountDelta(itemCodeInput, qtyDeltaInput, countTypeInput = 'caix
   if (navigator.onLine) {
     scheduleSyncPendingEvents();
   }
+  setCountItemInlineStatus(itemCode, 'pending', navigator.onLine ? 'Salvo' : 'Pendente');
   return true;
 }
 
@@ -9765,9 +9789,38 @@ function bindCountEvents() {
       if (deltaBtn !== 1 && deltaBtn !== -1) return;
       const row = btn.closest('.count-control-row');
       const inp = row ? row.querySelector('input.count-product-qty') : null;
-      applyCountRowOperation(codRefEnc, countType, inp, deltaBtn);
+      if (inp) {
+        const key = getCountInputDebounceKey(inp);
+        const existing = countInputDebounceByKey.get(key);
+        if (existing) {
+          window.clearTimeout(existing);
+          countInputDebounceByKey.delete(key);
+        }
+      }
+      runCountWithScrollProtection(() => {
+        applyCountRowOperation(codRefEnc, countType, inp, deltaBtn);
+      });
       if (inp && typeof inp.focus === 'function') inp.focus({ preventScroll: true });
       refreshCountListAfterEdit();
+    });
+    countShell.addEventListener('input', (e) => {
+      const inp = e.target;
+      if (!inp || !inp.classList?.contains('count-product-qty')) return;
+      const key = getCountInputDebounceKey(inp);
+      const existing = countInputDebounceByKey.get(key);
+      if (existing) window.clearTimeout(existing);
+      const timer = window.setTimeout(() => {
+        countInputDebounceByKey.delete(key);
+        if (!inp.isConnected) return;
+        if (document.activeElement !== inp) return;
+        const qty = parseOperationQtyFromInputEl(inp);
+        if (qty == null) return;
+        if (qty === 0) return;
+        runCountWithScrollProtection(() => {
+          dispatchCountRowPlusClick(inp);
+        });
+      }, 500);
+      countInputDebounceByKey.set(key, timer);
     });
     countShell.addEventListener('focusout', (e) => {
       const inp = e.target;
@@ -9782,6 +9835,12 @@ function bindCountEvents() {
       const ctNorm = normalizeCountType(ct);
       // PL não usa o atalho de "+ automático no blur"; evita lançamento duplicado (+100 após -100).
       if (ctNorm === 'palete') {
+        const key = getCountInputDebounceKey(inp);
+        const existing = countInputDebounceByKey.get(key);
+        if (existing) {
+          window.clearTimeout(existing);
+          countInputDebounceByKey.delete(key);
+        }
         refreshCountListAfterEdit();
         return;
       }
@@ -9790,11 +9849,23 @@ function bindCountEvents() {
       const opParsedBlur = parseOperationQtyFromInputEl(inp);
       /* 0 = confirmação explícita: não dispara o + automático do blur (evita duplicar ez0_). */
       if (opParsedBlur === 0) {
+        const key = getCountInputDebounceKey(inp);
+        const existing = countInputDebounceByKey.get(key);
+        if (existing) {
+          window.clearTimeout(existing);
+          countInputDebounceByKey.delete(key);
+        }
         refreshCountListAfterEdit();
         return;
       }
       /* Campo vazio: não re-renderiza a lista inteira (no mobile destrói o DOM e o próximo tap falha). Só atualiza se houve confirmação zero gravada. */
       if (opParsedBlur == null) {
+        const key = getCountInputDebounceKey(inp);
+        const existing = countInputDebounceByKey.get(key);
+        if (existing) {
+          window.clearTimeout(existing);
+          countInputDebounceByKey.delete(key);
+        }
         if (zeroConfirmedOnBlur) refreshCountListAfterEdit();
         return;
       }
@@ -9813,7 +9884,9 @@ function bindCountEvents() {
           refreshCountListAfterEdit();
           return;
         }
-        dispatchCountRowPlusClick(inp);
+        runCountWithScrollProtection(() => {
+          dispatchCountRowPlusClick(inp);
+        });
         refreshCountListAfterEdit();
       };
       window.requestAnimationFrame(() => {
@@ -9829,7 +9902,15 @@ function bindCountEvents() {
       if (!isEnter) return;
       e.preventDefault();
       e.stopPropagation();
-      dispatchCountRowPlusClick(inp);
+      const key = getCountInputDebounceKey(inp);
+      const existing = countInputDebounceByKey.get(key);
+      if (existing) {
+        window.clearTimeout(existing);
+        countInputDebounceByKey.delete(key);
+      }
+      runCountWithScrollProtection(() => {
+        dispatchCountRowPlusClick(inp);
+      });
     });
     countShell.addEventListener(
       'wheel',
@@ -9876,7 +9957,13 @@ function bindCountEvents() {
     const snapBefore = countServerCountSnapshotForListRefresh();
     loadServerCountTotals().then(() => {
       if (countServerCountSnapshotForListRefresh() !== snapBefore) {
-        refreshCountProductListView();
+        const visibleRows = document.querySelectorAll('#count-products-list > li.count-product-item, #count-products-list-done > li.count-product-item');
+        visibleRows.forEach((li) => {
+          const cod = normalizeItemCode(String(li?.dataset?.codProduto || ''));
+          if (!cod) return;
+          lastCountDeltaItemCode = cod;
+          refreshCountProductVisualAfterEdit();
+        });
       }
     });
     loadServerBreakTotals().then(() => {
@@ -9905,7 +9992,13 @@ function bindCountEvents() {
       const snapBefore = countServerCountSnapshotForListRefresh();
       loadServerCountTotals().then(() => {
         if (countServerCountSnapshotForListRefresh() !== snapBefore) {
-          refreshCountProductListView();
+          const visibleRows = document.querySelectorAll('#count-products-list > li.count-product-item, #count-products-list-done > li.count-product-item');
+          visibleRows.forEach((li) => {
+            const cod = normalizeItemCode(String(li?.dataset?.codProduto || ''));
+            if (!cod) return;
+            lastCountDeltaItemCode = cod;
+            refreshCountProductVisualAfterEdit();
+          });
         }
       });
     }, 200);

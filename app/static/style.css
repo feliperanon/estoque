@@ -11517,6 +11517,24 @@ body.bi-quebras-presentation-open {
   color: #64748b;
   font-variant-numeric: tabular-nums;
 }
+.count-item-sync-status {
+  min-height: 1em;
+  line-height: 1;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #64748b;
+  pointer-events: none;
+}
+.count-item-sync-status[data-tone="saving"] {
+  color: #b45309;
+}
+.count-item-sync-status[data-tone="saved"] {
+  color: #047857;
+}
+.count-item-sync-status[data-tone="error"] {
+  color: #b91c1c;
+}
 .count-load-sentinel {
   list-style: none;
   height: 2px;
@@ -11529,7 +11547,8 @@ body.bi-quebras-presentation-open {
 #sub-count #count-products-list {
   contain: content;
 }
-#sub-count #count-products-list > li.count-product-item {
+#sub-count #count-products-list > li.count-product-item,
+#sub-count #count-products-list-done > li.count-product-item {
   content-visibility: auto;
   contain-intrinsic-size: auto 92px;
 }
@@ -11566,6 +11585,10 @@ body.bi-quebras-presentation-open {
   display: none;
 }
 @media (max-width: 900px) {
+  #sub-count .count-product-item {
+    box-shadow: none;
+    transition: none;
+  }
   #sub-count .info-card.master-container.count-main-card {
     box-shadow: none;
   }
