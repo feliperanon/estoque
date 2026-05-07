@@ -3440,24 +3440,8 @@ function patchCountProductRecountIndicators(codRaw) {
       flag.remove();
     }
   }
-  let actions = li.querySelector('.count-product-recount-actions');
-  if (analystLiveRecount) {
-    if (!actions) {
-      actions = document.createElement('div');
-      actions.className = 'count-product-recount-actions';
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn-secondary btn-count-cancel-recount';
-      btn.dataset.action = 'cancel-recount-live';
-      btn.dataset.code = encodeURIComponent(cod);
-      btn.setAttribute('aria-label', 'Cancelar solicitação de recontagem para este produto');
-      btn.textContent = 'Cancelar solicitação de recontagem';
-      actions.appendChild(btn);
-      li.appendChild(actions);
-    }
-  } else if (actions) {
-    actions.remove();
-  }
+  const actions = li.querySelector('.count-product-recount-actions');
+  if (actions) actions.remove();
   return true;
 }
 
@@ -3634,11 +3618,6 @@ function renderCountProducts(products, opts = {}) {
         </div>
         ${plControlRow}
       </div>
-      ${
-        analystLiveRecount
-          ? `<div class="count-product-recount-actions"><button type="button" class="btn-secondary btn-count-cancel-recount" data-action="cancel-recount-live" data-code="${codRef}" aria-label="Cancelar solicitação de recontagem para este produto">Cancelar solicitação de recontagem</button></div>`
-          : ''
-      }
     `;
     ul.appendChild(li);
   };
@@ -9407,18 +9386,6 @@ function runCountWithScrollProtection(callback) {
   });
 }
 
-const countInputDebounceByKey = new Map();
-let countInputDebounceSeq = 0;
-
-function getCountInputDebounceKey(inp) {
-  if (!inp) return '';
-  if (!inp.dataset.countInputDebounceKey) {
-    countInputDebounceSeq += 1;
-    inp.dataset.countInputDebounceKey = `k${countInputDebounceSeq}`;
-  }
-  return inp.dataset.countInputDebounceKey;
-}
-
 /**
  * + soma o valor digitado ao total; − subtrai (mínimo 0). Input = quantidade da operação, não total absoluto.
  */
@@ -9428,14 +9395,8 @@ function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
   } catch {
     lastCountDeltaItemCode = normalizeItemCode(String(codRefEnc || ''));
   }
-  const opQty = parseOperationQtyFromInputEl(inp);
-  if (opQty == null) {
-    setFeedback(
-      'Digite a quantidade da operação. Use 0 e + para confirmar saldo zero quando o TXT estiver 0 nesta dimensão.',
-      true,
-    );
-    return;
-  }
+  const parsedQty = parseOperationQtyFromInputEl(inp);
+  const opQty = parsedQty == null ? 1 : parsedQty;
   const refDecoded = decodeURIComponent(String(codRefEnc || ''));
   const itemCode = normalizeItemCode(refDecoded);
   const ct = normalizeCountType(countTypeRaw || 'caixa');
@@ -9846,12 +9807,6 @@ function bindCountEvents() {
       true,
     );
     countShell.addEventListener('click', (e) => {
-      const cancelRec = e.target.closest('[data-action="cancel-recount-live"]');
-      if (cancelRec && countShell.contains(cancelRec)) {
-        e.preventDefault();
-        void deleteRecountLiveSignal(decodeURIComponent(cancelRec.getAttribute('data-code') || ''));
-        return;
-      }
       const btn = e.target.closest('.btn-count-adjust');
       if (!btn || !countShell.contains(btn)) return;
       e.preventDefault();
@@ -9863,111 +9818,11 @@ function bindCountEvents() {
       if (deltaBtn !== 1 && deltaBtn !== -1) return;
       const row = btn.closest('.count-control-row');
       const inp = row ? row.querySelector('input.count-product-qty') : null;
-      if (inp) {
-        const key = getCountInputDebounceKey(inp);
-        const existing = countInputDebounceByKey.get(key);
-        if (existing) {
-          window.clearTimeout(existing);
-          countInputDebounceByKey.delete(key);
-        }
-      }
       runCountWithScrollProtection(() => {
         applyCountRowOperation(codRefEnc, countType, inp, deltaBtn);
       });
       if (inp && typeof inp.focus === 'function') inp.focus({ preventScroll: true });
       refreshCountListAfterEdit();
-    });
-    countShell.addEventListener('input', (e) => {
-      const inp = e.target;
-      if (!inp || !inp.classList?.contains('count-product-qty')) return;
-      const key = getCountInputDebounceKey(inp);
-      const existing = countInputDebounceByKey.get(key);
-      if (existing) window.clearTimeout(existing);
-      const timer = window.setTimeout(() => {
-        countInputDebounceByKey.delete(key);
-        if (!inp.isConnected) return;
-        if (document.activeElement !== inp) return;
-        const qty = parseOperationQtyFromInputEl(inp);
-        if (qty == null) return;
-        if (qty === 0) return;
-        runCountWithScrollProtection(() => {
-          dispatchCountRowPlusClick(inp);
-        });
-      }, 500);
-      countInputDebounceByKey.set(key, timer);
-    });
-    countShell.addEventListener('focusout', (e) => {
-      const inp = e.target;
-      if (!inp || !inp.classList || !inp.classList.contains('count-product-qty')) return;
-      if (!countShell.contains(inp)) return;
-      const next = e.relatedTarget;
-      if (next && typeof next.closest === 'function' && next.closest('.btn-count-adjust') && countShell.contains(next)) {
-        return;
-      }
-      const ref = inp.getAttribute('data-coderef') || '';
-      const ct = inp.getAttribute('data-count-type') || 'caixa';
-      const ctNorm = normalizeCountType(ct);
-      // PL não usa o atalho de "+ automático no blur"; evita lançamento duplicado (+100 após -100).
-      if (ctNorm === 'palete') {
-        const key = getCountInputDebounceKey(inp);
-        const existing = countInputDebounceByKey.get(key);
-        if (existing) {
-          window.clearTimeout(existing);
-          countInputDebounceByKey.delete(key);
-        }
-        refreshCountListAfterEdit();
-        return;
-      }
-      const zeroConfirmedOnBlur = tryConfirmExplicitZeroOnBlur(ref, ct);
-      const genAtBlur = countAdjustGestureGeneration;
-      const opParsedBlur = parseOperationQtyFromInputEl(inp);
-      /* 0 = confirmação explícita: não dispara o + automático do blur (evita duplicar ez0_). */
-      if (opParsedBlur === 0) {
-        const key = getCountInputDebounceKey(inp);
-        const existing = countInputDebounceByKey.get(key);
-        if (existing) {
-          window.clearTimeout(existing);
-          countInputDebounceByKey.delete(key);
-        }
-        refreshCountListAfterEdit();
-        return;
-      }
-      /* Campo vazio: não re-renderiza a lista inteira (no mobile destrói o DOM e o próximo tap falha). Só atualiza se houve confirmação zero gravada. */
-      if (opParsedBlur == null) {
-        const key = getCountInputDebounceKey(inp);
-        const existing = countInputDebounceByKey.get(key);
-        if (existing) {
-          window.clearTimeout(existing);
-          countInputDebounceByKey.delete(key);
-        }
-        if (zeroConfirmedOnBlur) refreshCountListAfterEdit();
-        return;
-      }
-      const runDeferredAutoPlus = () => {
-        const ae = document.activeElement;
-        if (
-          ae &&
-          typeof ae.closest === 'function' &&
-          ae.closest('.btn-count-adjust') &&
-          countShell.contains(ae)
-        ) {
-          refreshCountListAfterEdit();
-          return;
-        }
-        if (countAdjustGestureGeneration > genAtBlur) {
-          refreshCountListAfterEdit();
-          return;
-        }
-        runCountWithScrollProtection(() => {
-          dispatchCountRowPlusClick(inp);
-        });
-        refreshCountListAfterEdit();
-      };
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          window.setTimeout(runDeferredAutoPlus, 0);
-        });
-      });
     });
     countShell.addEventListener('keydown', (e) => {
       const inp = e.target;
@@ -9976,15 +9831,7 @@ function bindCountEvents() {
       if (!isEnter) return;
       e.preventDefault();
       e.stopPropagation();
-      const key = getCountInputDebounceKey(inp);
-      const existing = countInputDebounceByKey.get(key);
-      if (existing) {
-        window.clearTimeout(existing);
-        countInputDebounceByKey.delete(key);
-      }
-      runCountWithScrollProtection(() => {
-        dispatchCountRowPlusClick(inp);
-      });
+      // Input não lança sozinho; operação só em clique explícito no + ou -.
     });
     countShell.addEventListener(
       'wheel',
