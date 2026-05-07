@@ -3576,7 +3576,10 @@ function renderCountProducts(products, opts = {}) {
           ? '<span class="count-row-badge count-row-badge--ok">OK</span>'
           : '')
       : '';
-    const plControlRow = `
+    const palletFactorRaw = Number(product?.pallet_conversion_factor);
+    const hasPalletConversion = Number.isFinite(palletFactorRaw) && palletFactorRaw > 0;
+    const plControlRow = hasPalletConversion
+      ? `
         <div class="count-control-row count-control-row--neutral count-control-row--pl">
           <span class="count-control-type">PL</span>
           <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="palete" data-delta="-1" aria-label="Menos palete">−</button>
@@ -3589,7 +3592,8 @@ function renderCountProducts(products, opts = {}) {
             </div>
           </div>
         </div>
-    `;
+    `
+      : '';
 
     const li = document.createElement('li');
     li.className = cardClass;
