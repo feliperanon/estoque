@@ -3576,6 +3576,20 @@ function renderCountProducts(products, opts = {}) {
           ? '<span class="count-row-badge count-row-badge--ok">OK</span>'
           : '')
       : '';
+    const plControlRow = `
+        <div class="count-control-row count-control-row--neutral count-control-row--pl">
+          <span class="count-control-type">PL</span>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="palete" data-delta="-1" aria-label="Menos palete">−</button>
+          <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+            data-coderef="${codRef}" data-count-type="palete" value="" aria-label="Quantidade em paletes" />
+          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="palete" data-delta="1" aria-label="Mais palete">+</button>
+          <div class="count-control-tail">
+            <div class="count-product-readout count-product-readout--by-control count-readout-box">
+              <strong class="count-product-readout-value">${formatIntegerBR(vPl)}</strong>
+            </div>
+          </div>
+        </div>
+    `;
 
     const li = document.createElement('li');
     li.className = cardClass;
