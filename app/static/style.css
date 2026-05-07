@@ -11603,36 +11603,57 @@ body.bi-quebras-presentation-open {
 }
 
 #sub-count .count-list-flat .count-product-item {
-  display: grid;
-  grid-template-columns: minmax(240px, 1.5fr) minmax(168px, 1fr) minmax(168px, 1fr) minmax(168px, 1fr) minmax(150px, 0.9fr);
-  align-items: center;
-  gap: 6px 8px;
-  padding: 5px 8px;
-  min-height: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px 10px;
+  min-height: 0;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 #sub-count .count-product-head {
-  grid-column: 1;
   display: grid;
-  align-content: center;
-  gap: 2px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "flag code"
+    "desc code"
+    "sync code";
+  align-items: start;
+  gap: 2px 10px;
   min-width: 0;
 }
 
+#sub-count .count-product-head .count-product-recount-flag {
+  grid-area: flag;
+}
+
 #sub-count .count-product-head .count-product-desc {
-  font-size: 0.78rem;
-  line-height: 1.18;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
+  grid-area: desc;
+  font-size: 0.84rem;
+  line-height: 1.2;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+#sub-count .count-item-sync-status {
+  grid-area: sync;
+  justify-self: start;
 }
 
 #sub-count .count-product-head .count-product-cod {
-  font-size: 0.66rem;
+  grid-area: code;
+  justify-self: end;
+  align-self: start;
+  text-align: right;
+  font-size: 0.72rem;
 }
 
 #sub-count .count-product-controls {
-  display: contents;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
 }
 
 #sub-count .count-product-controls .count-control-row {
@@ -11649,10 +11670,6 @@ body.bi-quebras-presentation-open {
     minmax(3.55rem, auto);
   column-gap: 5px;
 }
-
-#sub-count .count-product-controls .count-control-row:nth-child(1) { grid-column: 2; }
-#sub-count .count-product-controls .count-control-row:nth-child(2) { grid-column: 3; }
-#sub-count .count-product-controls .count-control-row:nth-child(3) { grid-column: 4; }
 
 #sub-count .count-control-type {
   height: 30px;
@@ -11694,28 +11711,6 @@ body.bi-quebras-presentation-open {
   font-size: 0.52rem;
 }
 
-#sub-count .count-product-recount-actions {
-  grid-column: 5;
-  margin: 0;
-  padding: 0;
-  border-top: none;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-#sub-count .count-product-recount-actions .btn-count-cancel-recount {
-  width: auto;
-  min-height: 30px;
-  padding: 0.25rem 0.55rem;
-  border-radius: 6px;
-  border-color: rgba(124, 58, 237, 0.28);
-  color: #5b21b6;
-  background: rgba(245, 243, 255, 0.78);
-  font-size: 0.69rem;
-  line-height: 1.15;
-}
-
 #sub-count .count-product-item--analyst-recount {
   background: #fff !important;
   border-left: 3px solid #7c3aed !important;
@@ -11746,7 +11741,13 @@ body.bi-quebras-presentation-open {
   }
 
   #sub-count .count-product-head {
-    grid-column: 1;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "flag"
+      "desc"
+      "code"
+      "sync";
+    gap: 3px;
   }
 
   #sub-count .count-product-controls {
@@ -11757,12 +11758,6 @@ body.bi-quebras-presentation-open {
     overflow: visible;
   }
 
-  #sub-count .count-product-controls .count-control-row:nth-child(1),
-  #sub-count .count-product-controls .count-control-row:nth-child(2),
-  #sub-count .count-product-controls .count-control-row:nth-child(3) {
-    grid-column: auto;
-  }
-
   #sub-count .count-product-controls .count-control-row {
     grid-template-columns: 2rem 36px minmax(3.2rem, 1fr) 36px minmax(3.55rem, auto);
     padding: 4px 5px;
@@ -11770,16 +11765,9 @@ body.bi-quebras-presentation-open {
     min-width: 0;
   }
 
-  #sub-count .count-product-recount-actions {
-    grid-column: 1;
-    justify-content: flex-end;
-    margin-top: 2px;
-  }
-
-  #sub-count .count-product-recount-actions .btn-count-cancel-recount {
-    width: 100%;
-    min-height: 34px;
-    font-size: 0.72rem;
+  #sub-count .count-product-head .count-product-cod {
+    justify-self: start;
+    text-align: left;
   }
 }
 

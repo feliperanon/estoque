@@ -3344,8 +3344,10 @@ function tryPatchCountProductDomRow(codRaw) {
           : ''
           : '';
 
-  const rows = li.querySelectorAll('.count-control-row');
-  if (rows.length < 3) return false;
+  const rowCx = li.querySelector('.count-control-row .count-product-qty[data-count-type="caixa"]')?.closest('.count-control-row') || null;
+  const rowUn = li.querySelector('.count-control-row .count-product-qty[data-count-type="unidade"]')?.closest('.count-control-row') || null;
+  const rowPl = li.querySelector('.count-control-row .count-product-qty[data-count-type="palete"]')?.closest('.count-control-row') || null;
+  if (!rowCx || !rowUn) return false;
   const patchRow = (rowEl, dim, val, badgeHtml) => {
     rowEl.className = `count-control-row ${rowClassFromMatch(dim)}`.trim();
     const rv = rowEl.querySelector('.count-product-readout-value');
@@ -3356,9 +3358,9 @@ function tryPatchCountProductDomRow(codRaw) {
       if (badgeHtml) tail.insertAdjacentHTML('beforeend', badgeHtml);
     }
   };
-  patchRow(rows[0], dimCx, vCx, badgeCx);
-  patchRow(rows[1], dimUn, vUn, badgeUn);
-  patchRow(rows[2], null, vPl, '');
+  patchRow(rowCx, dimCx, vCx, badgeCx);
+  patchRow(rowUn, dimUn, vUn, badgeUn);
+  if (rowPl) patchRow(rowPl, null, vPl, '');
 
   let cardClass = 'count-product-item';
   if (serverRecountSignalCodes.has(String(codRaw))) cardClass += ' count-product-item--analyst-recount';
@@ -9335,39 +9337,15 @@ function registerCount(itemCodeInput) {
   registerCountDelta(itemCodeInput, 1, 'caixa');
 }
 
-/** Confirma saldo zero com TXT quando total e saldo são 0 (sem substituir total pelo input). @returns {boolean} */
-function tryConfirmExplicitZeroOnBlur(codRefEnc, countTypeRaw) {
-  const codRaw = decodeURIComponent(String(codRefEnc || ''));
-  const itemCode = normalizeItemCode(codRaw);
-  const countType = normalizeCountType(countTypeRaw || 'caixa');
-  if (countType === 'palete') return false;
-  if (!itemCode || !isCountOperationalEditable()) return false;
-  const current = getNetByProductAndType(itemCode, countType);
-  if (current !== 0) return false;
-  if (!countImportBalancesState.hasTxt) return false;
-  const pair = getCountSaldoPair(itemCode);
-  if (!pair) return false;
-  const s = countType === 'caixa' ? pair.import_caixa : pair.import_unidade;
-  if (Math.max(0, Math.round(Number(s) || 0)) !== 0) return false;
-  return registerCountDelta(itemCode, 0, countType);
-}
-
 function parseOperationQtyFromInputEl(inp) {
-  if (!inp) return null;
-  const digitsOnly = String(inp.value ?? '').trim().replace(/\D/g, '');
-  if (digitsOnly === '') return null;
+  if (!inp) return 1;
+  const raw = String(inp.value ?? '').trim();
+  if (!raw) return 1;
+  const digitsOnly = raw.replace(/\D/g, '');
+  if (digitsOnly === '') return 1;
   const n = Number.parseInt(digitsOnly, 10);
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) return null;
-  return n;
-}
-
-/** Mesmo fluxo do clique no botão + da linha (delegação existente em .count-products-shell). */
-function dispatchCountRowPlusClick(inp) {
-  if (!inp || !inp.classList?.contains('count-product-qty')) return;
-  const row = inp.closest('.count-control-row');
-  const plusBtn = row?.querySelector('.btn-count-adjust.btn-plus');
-  if (!plusBtn || plusBtn.disabled) return;
-  plusBtn.click();
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return 1;
+  return Math.abs(n);
 }
 
 function runCountWithScrollProtection(callback) {
@@ -9387,8 +9365,7 @@ function applyCountRowOperation(codRefEnc, countTypeRaw, inp, direction) {
   } catch {
     lastCountDeltaItemCode = normalizeItemCode(String(codRefEnc || ''));
   }
-  const parsedQty = parseOperationQtyFromInputEl(inp);
-  const opQty = parsedQty == null ? 1 : parsedQty;
+  const opQty = parseOperationQtyFromInputEl(inp);
   const refDecoded = decodeURIComponent(String(codRefEnc || ''));
   const itemCode = normalizeItemCode(refDecoded);
   const ct = normalizeCountType(countTypeRaw || 'caixa');
@@ -9659,14 +9636,6 @@ async function importBackup(file) {
   }
 }
 
-/**
- * Safari/iOS: o blur/focusout do input costuma ocorrer antes do pointerdown no botão +/−.
- * Incrementamos `countAdjustGestureGeneration` no pointerdown (captura) do `.btn-count-adjust`.
- * No focusout, não decidimos na mesma volta: `setTimeout(0)` pode rodar antes do pointerdown no iOS,
- * disparando o "+ automático" por engano. Usamos dois rAF para decidir após o pipeline de entrada.
- */
-let countAdjustGestureGeneration = 0;
-
 function bindGlobalAdjustButtonKeyboardRetention() {
   if (document.documentElement.dataset.adjustKeyboardBound === '1') return;
   document.documentElement.dataset.adjustKeyboardBound = '1';
@@ -9687,7 +9656,6 @@ function bindGlobalAdjustButtonKeyboardRetention() {
       /* Só na contagem/quebra: evita bloquear gestos em outras telas. */
       if (!btn.closest('#sub-count') && !btn.closest('#sub-break')) return;
       touchAdjustStartBtn = btn;
-      countAdjustGestureGeneration += 1;
       e.preventDefault();
     },
     { capture: true, passive: false },
@@ -9789,15 +9757,6 @@ function bindCountEvents() {
     const refreshCountListAfterEdit = () => {
       refreshCountProductVisualAfterEdit();
     };
-    countShell.addEventListener(
-      'pointerdown',
-      (e) => {
-        const btn = e.target.closest('.btn-count-adjust');
-        if (!btn || !countShell.contains(btn)) return;
-        countAdjustGestureGeneration += 1;
-      },
-      true,
-    );
     countShell.addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-count-adjust');
       if (!btn || !countShell.contains(btn)) return;
