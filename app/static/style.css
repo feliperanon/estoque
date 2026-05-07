@@ -11596,3 +11596,214 @@ body.bi-quebras-presentation-open {
     box-shadow: none;
   }
 }
+
+/* ── Contagem: grid operacional compacto (desktop) ── */
+#sub-count .count-products-shell {
+  overflow: hidden;
+}
+
+#sub-count .count-list-flat .count-product-item {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.5fr) minmax(168px, 1fr) minmax(168px, 1fr) minmax(168px, 1fr) minmax(150px, 0.9fr);
+  align-items: center;
+  gap: 6px 8px;
+  padding: 5px 8px;
+  min-height: 54px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+#sub-count .count-product-head {
+  grid-column: 1;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+#sub-count .count-product-head .count-product-desc {
+  font-size: 0.78rem;
+  line-height: 1.18;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+#sub-count .count-product-head .count-product-cod {
+  font-size: 0.66rem;
+}
+
+#sub-count .count-product-controls {
+  display: contents;
+}
+
+#sub-count .count-product-controls .count-control-row {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 5px 6px;
+  border-radius: 8px;
+  grid-template-columns:
+    1.9rem
+    30px
+    minmax(3.15rem, 1fr)
+    30px
+    minmax(3.55rem, auto);
+  column-gap: 5px;
+}
+
+#sub-count .count-product-controls .count-control-row:nth-child(1) { grid-column: 2; }
+#sub-count .count-product-controls .count-control-row:nth-child(2) { grid-column: 3; }
+#sub-count .count-product-controls .count-control-row:nth-child(3) { grid-column: 4; }
+
+#sub-count .count-control-type {
+  height: 30px;
+  font-size: 0.58rem;
+}
+
+#sub-count .count-control-row .count-product-qty {
+  min-height: 30px;
+  height: 30px;
+  padding: 0 4px;
+  font-size: 0.8rem;
+}
+
+#sub-count .btn-count-adjust {
+  min-width: 30px;
+  width: 30px;
+  min-height: 30px;
+  height: 30px;
+  font-size: 0.95rem;
+}
+
+#sub-count .count-control-tail {
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+#sub-count .count-control-tail .count-product-readout.count-readout-box {
+  min-width: 3.45rem;
+  padding: 2px 5px;
+}
+
+#sub-count .count-control-tail .count-readout-box .count-product-readout-value {
+  font-size: 0.75rem;
+}
+
+#sub-count .count-row-badge {
+  min-width: 3.7rem;
+  padding: 3px 6px;
+  font-size: 0.52rem;
+}
+
+#sub-count .count-product-recount-actions {
+  grid-column: 5;
+  margin: 0;
+  padding: 0;
+  border-top: none;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+#sub-count .count-product-recount-actions .btn-count-cancel-recount {
+  width: auto;
+  min-height: 30px;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  border-color: rgba(124, 58, 237, 0.28);
+  color: #5b21b6;
+  background: rgba(245, 243, 255, 0.78);
+  font-size: 0.69rem;
+  line-height: 1.15;
+}
+
+#sub-count .count-product-item--analyst-recount {
+  background: #fff !important;
+  border-left: 3px solid #7c3aed !important;
+  box-shadow: none;
+}
+
+#sub-count .count-product-recount-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  background: rgba(245, 243, 255, 0.7);
+  color: #5b21b6;
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+}
+
+/* ── Mobile: foco operacional (sem overflow horizontal) ── */
+@media (max-width: 920px) {
+  #sub-count .count-list-flat .count-product-item {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding: 6px 7px;
+    min-height: 0;
+  }
+
+  #sub-count .count-product-head {
+    grid-column: 1;
+  }
+
+  #sub-count .count-product-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  #sub-count .count-product-controls .count-control-row:nth-child(1),
+  #sub-count .count-product-controls .count-control-row:nth-child(2),
+  #sub-count .count-product-controls .count-control-row:nth-child(3) {
+    grid-column: auto;
+  }
+
+  #sub-count .count-product-controls .count-control-row {
+    grid-template-columns: 2rem 36px minmax(3.2rem, 1fr) 36px minmax(3.55rem, auto);
+    padding: 4px 5px;
+    column-gap: 5px;
+    min-width: 0;
+  }
+
+  #sub-count .count-product-recount-actions {
+    grid-column: 1;
+    justify-content: flex-end;
+    margin-top: 2px;
+  }
+
+  #sub-count .count-product-recount-actions .btn-count-cancel-recount {
+    width: 100%;
+    min-height: 34px;
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 600px) {
+  #sub-count .count-product-item,
+  #sub-count .count-product-item:hover,
+  #sub-count .count-products-shell,
+  #sub-count .count-main-card,
+  #sub-count .count-control-row {
+    box-shadow: none !important;
+    transition: none !important;
+    backdrop-filter: none !important;
+  }
+
+  #sub-count .btn-count-adjust {
+    min-width: 38px;
+    width: 38px;
+    min-height: 38px;
+    height: 38px;
+  }
+
+  #sub-count .count-control-row .count-product-qty {
+    min-height: 38px;
+    height: 38px;
+    font-size: 0.86rem;
+  }
+}

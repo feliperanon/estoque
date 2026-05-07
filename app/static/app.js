@@ -3416,6 +3416,62 @@ function setCountItemInlineStatus(itemCodeInput, tone, text) {
   statusEl.textContent = String(text || '');
 }
 
+function patchCountProductRecountIndicators(codRaw) {
+  const cod = normalizeItemCode(String(codRaw || ''));
+  if (!cod) return false;
+  const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const li =
+    document.querySelector(`#count-products-list > li.count-product-item[data-cod-produto="${esc}"]`)
+    || document.querySelector(`#count-products-list-done > li.count-product-item[data-cod-produto="${esc}"]`);
+  if (!li) return false;
+  const analystLiveRecount = serverRecountSignalCodes.has(cod);
+  const head = li.querySelector('.count-product-head');
+  if (head) {
+    let flag = head.querySelector('.count-product-recount-flag');
+    if (analystLiveRecount) {
+      if (!flag) {
+        flag = document.createElement('span');
+        flag.className = 'count-product-recount-flag';
+        flag.setAttribute('role', 'status');
+        flag.textContent = 'Recontar';
+        head.insertAdjacentElement('afterbegin', flag);
+      }
+    } else if (flag) {
+      flag.remove();
+    }
+  }
+  let actions = li.querySelector('.count-product-recount-actions');
+  if (analystLiveRecount) {
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'count-product-recount-actions';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-secondary btn-count-cancel-recount';
+      btn.dataset.action = 'cancel-recount-live';
+      btn.dataset.code = encodeURIComponent(cod);
+      btn.setAttribute('aria-label', 'Cancelar solicitação de recontagem para este produto');
+      btn.textContent = 'Cancelar solicitação de recontagem';
+      actions.appendChild(btn);
+      li.appendChild(actions);
+    }
+  } else if (actions) {
+    actions.remove();
+  }
+  return true;
+}
+
+function refreshCountRowsByCodes(codes) {
+  const uniq = new Set(Array.isArray(codes) ? codes : [...codes || []]);
+  uniq.forEach((raw) => {
+    const cod = normalizeItemCode(String(raw || ''));
+    if (!cod) return;
+    lastCountDeltaItemCode = cod;
+    refreshCountProductVisualAfterEdit();
+    patchCountProductRecountIndicators(cod);
+  });
+}
+
 function renderCountProducts(products, opts = {}) {
   const keepPaging = opts.keepPaging === true;
   if (!keepPaging) resetCountListPaging();
@@ -12165,6 +12221,7 @@ async function postRecountLiveSignal(codeRaw) {
     }
     const okMsg = `Recontagem em tempo real enviada para ${code} (dia ${formatDateBR(op)}). O conferente verá o alerta roxo na Contagem com essa mesma data.`;
     serverRecountSignalCodes.add(code);
+    refreshCountRowsByCodes([code]);
     markCountAuditRecountRequestedForActiveDay(code);
     countAuditRecountFeedbackPreserveUntil = Date.now() + 12000;
     countAuditRecountFeedbackPreserveMessage = okMsg;
@@ -12205,7 +12262,7 @@ async function deleteRecountLiveSignal(codeRaw) {
         loadCountAuditDetail(code, false);
       }
     }
-    refreshCountProductListView({ keepPaging: true });
+    refreshCountRowsByCodes([code]);
   } catch {
     setCountAuditFeedback('Erro de conexão ao cancelar recontagem.', true);
     setFeedback('Erro de conexão ao cancelar recontagem.', true);
@@ -12231,6 +12288,7 @@ async function refreshRecountSignalsFromServer() {
     if (!r.ok) return;
     const data = await r.json();
     const codes = Array.isArray(data.codes) ? data.codes : [];
+    const prevSet = serverRecountSignalCodes;
     const nextSet = new Set(codes.map((c) => String(c)));
     let recountSetChanged = nextSet.size !== serverRecountSignalCodes.size;
     if (!recountSetChanged) {
@@ -12243,7 +12301,14 @@ async function refreshRecountSignalsFromServer() {
     }
     serverRecountSignalCodes = nextSet;
     if (recountSetChanged && Array.isArray(countProductsCache) && countProductsCache.length) {
-      refreshCountProductListView();
+      const changedCodes = new Set();
+      prevSet.forEach((c) => {
+        if (!nextSet.has(c)) changedCodes.add(c);
+      });
+      nextSet.forEach((c) => {
+        if (!prevSet.has(c)) changedCodes.add(c);
+      });
+      refreshCountRowsByCodes(changedCodes);
     }
   } catch {
     /* offline */
