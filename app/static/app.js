@@ -2805,6 +2805,23 @@ function renderUsersList(users) {
     return;
   }
   for (const user of users) {
+    const palletFactorRaw = Number(product?.pallet_conversion_factor);
+    const hasPalletConversion = Number.isFinite(palletFactorRaw) && palletFactorRaw > 0;
+    const plControlRow = hasPalletConversion
+      ? `<div class="count-control-row count-control-row--neutral count-control-row--pl">
+          <span class="count-control-type">PL</span>
+          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="palete" data-delta="-1" aria-label="Menos palete">−</button>
+          <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
+            data-coderef="${codRef}" data-count-type="palete" value="" aria-label="Quantidade em paletes" />
+          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="palete" data-delta="1" aria-label="Mais palete">+</button>
+          <div class="count-control-tail">
+            <div class="count-product-readout count-product-readout--by-control count-readout-box">
+              <strong class="count-product-readout-value">${formatIntegerBR(vPl)}</strong>
+            </div>
+          </div>
+        </div>`
+      : '';
+
     const li = document.createElement('li');
     li.className = 'users-list-item';
     li.setAttribute('role', 'button');
@@ -3302,9 +3319,6 @@ function tryPatchCountProductDomRow(codRaw) {
   const liD = document.querySelector(`#count-products-list-done > li.count-product-item[data-cod-produto="${esc}"]`);
   const li = liP || liD;
   if (!li) return false;
-  const shouldDone = countItemFullyConferredForProduct(cod);
-  const inDone = !!liD;
-  if (shouldDone !== inDone) return false;
 
   const rowClassFromMatch = (m) => {
     if (m === null) return 'count-control-row--neutral';
@@ -3366,8 +3380,40 @@ function tryPatchCountProductDomRow(codRaw) {
 
 function refreshCountProductVisualAfterEdit() {
   const cod = lastCountDeltaItemCode;
-  if (cod && tryPatchCountProductDomRow(cod)) return;
-  refreshCountProductListView({ keepPaging: true });
+  if (cod) {
+    if (tryPatchCountProductDomRow(cod)) {
+      updateCountProgress(countProductsCache);
+      updateCountKpi(countProductsCache);
+      return;
+    }
+    return;
+  }
+  updateCountProgress(countProductsCache);
+  updateCountKpi(countProductsCache);
+}
+
+function setCountItemInlineStatus(itemCodeInput, tone, text) {
+  const cod = normalizeItemCode(String(itemCodeInput || ''));
+  if (!cod) return;
+  const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(cod) : cod.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const li =
+    document.querySelector(`#count-products-list > li.count-product-item[data-cod-produto="${esc}"]`)
+    || document.querySelector(`#count-products-list-done > li.count-product-item[data-cod-produto="${esc}"]`);
+  if (!li) return;
+  let statusEl = li.querySelector('.count-item-sync-status');
+  if (!statusEl) {
+    statusEl = document.createElement('span');
+    statusEl.className = 'count-item-sync-status';
+    statusEl.setAttribute('aria-live', 'polite');
+    const head = li.querySelector('.count-product-head');
+    if (head) head.appendChild(statusEl);
+  }
+  const normalizedTone =
+    tone === 'saving' || tone === 'saved' || tone === 'error' || tone === 'pending'
+      ? tone
+      : 'pending';
+  statusEl.dataset.tone = normalizedTone;
+  statusEl.textContent = String(text || '');
 }
 
 function renderCountProducts(products, opts = {}) {
@@ -3483,6 +3529,7 @@ function renderCountProducts(products, opts = {}) {
         ${analystLiveRecount ? '<span class="count-product-recount-flag" role="status">Recontar</span>' : ''}
         <strong class="count-product-desc">${desc}</strong>
         ${codBadge}
+        <span class="count-item-sync-status" aria-live="polite" data-tone="pending"></span>
       </div>
       <div class="count-product-controls">
         <div class="count-control-row ${rowClassFromMatch(dimCx)}">
@@ -3511,18 +3558,7 @@ function renderCountProducts(products, opts = {}) {
             ${badgeUn}
           </div>
         </div>
-        <div class="count-control-row count-control-row--neutral count-control-row--pl">
-          <span class="count-control-type">PL</span>
-          <button type="button" class="btn-count-adjust btn-minus" data-coderef="${codRef}" data-count-type="palete" data-delta="-1" aria-label="Menos palete">−</button>
-          <input type="number" class="count-product-qty" min="0" step="1" inputmode="numeric" autocomplete="off" enterkeyhint="done"
-            data-coderef="${codRef}" data-count-type="palete" value="" aria-label="Quantidade em paletes" />
-          <button type="button" class="btn-count-adjust btn-plus" data-coderef="${codRef}" data-count-type="palete" data-delta="1" aria-label="Mais palete">+</button>
-          <div class="count-control-tail">
-            <div class="count-product-readout count-product-readout--by-control count-readout-box">
-              <strong class="count-product-readout-value">${formatIntegerBR(vPl)}</strong>
-            </div>
-          </div>
-        </div>
+        ${plControlRow}
       </div>
       ${
         analystLiveRecount
@@ -9265,6 +9301,26 @@ function dispatchCountRowPlusClick(inp) {
   const plusBtn = row?.querySelector('.btn-count-adjust.btn-plus');
   if (!plusBtn || plusBtn.disabled) return;
   plusBtn.click();
+}
+
+function runCountWithScrollProtection(callback) {
+  const yBefore = window.scrollY;
+  callback();
+  window.requestAnimationFrame(() => {
+    if (Math.abs(window.scrollY - yBefore) > 2) window.scrollTo(0, yBefore);
+  });
+}
+
+const countInputDebounceByKey = new Map();
+let countInputDebounceSeq = 0;
+
+function getCountInputDebounceKey(inp) {
+  if (!inp) return '';
+  if (!inp.dataset.countInputDebounceKey) {
+    countInputDebounceSeq += 1;
+    inp.dataset.countInputDebounceKey = `k${countInputDebounceSeq}`;
+  }
+  return inp.dataset.countInputDebounceKey;
 }
 
 /**
