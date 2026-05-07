@@ -4,7 +4,7 @@ const PRECACHE_URLS = [
   "/",
   "/app",
   "/static/style.css?v=72",
-  "/static/app.js?v=105",
+  "/static/app.js?v=107",
   "/static/manifest.json",
   "/static/favicon.svg",
 ];

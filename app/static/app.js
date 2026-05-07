@@ -13004,8 +13004,7 @@ function parseConversionFactorInput(elementId) {
 }
 
 /**
- * Histórico: UN/CX e CX/PL com texto igual ao modal de edição (evita rótulo genérico ou "Fator palete").
- * Cabeçalho da tabela continua <th>UN por 1 CX</th> — só o histórico usa a frase completa.
+ * Histórico: mesmo texto do <label> do modal (frase completa). A tabela usa <th> curto "UN por 1 CX" — é o mesmo campo.
  */
 const PRODUCT_HISTORY_FIELD_LABELS = {
   cod_grup_sp: 'Cod. Grup SP',
@@ -13026,6 +13025,17 @@ const PRODUCT_HISTORY_FIELD_LABELS = {
 
 function productHistoryFieldLabel(fieldName) {
   return PRODUCT_HISTORY_FIELD_LABELS[fieldName] || fieldName;
+}
+
+/** Exibe valores do histórico como na grade (ex.: 6 em vez de 6.0). */
+function formatProductHistoryValue(fieldName, raw) {
+  if (raw == null || raw === '') return '\u2014';
+  const t = String(raw).trim();
+  if (!t) return '\u2014';
+  if (fieldName === 'conversion_factor') return formatConversionFactor(raw);
+  if (fieldName === 'pallet_conversion_factor') return formatPalletConversionFactor(raw);
+  if (fieldName === 'price') return formatPrice(raw);
+  return escapeHtml(t);
 }
 
 function produtoStatusBadgeMeta(p) {
@@ -13296,7 +13306,10 @@ async function showProductHistory(id, label) {
     } else {
       for (const h of items) {
         const li = document.createElement('li');
-        li.innerHTML = `<span><strong>${productHistoryFieldLabel(h.field_name)}</strong>: "${h.old_value || '\u2014'}" → "${h.new_value || '\u2014'}" <small>(por ${h.changed_by || '?'} em ${formatDate(h.changed_at)})</small></span>`;
+        const label = escapeHtml(productHistoryFieldLabel(h.field_name));
+        const ov = formatProductHistoryValue(h.field_name, h.old_value);
+        const nv = formatProductHistoryValue(h.field_name, h.new_value);
+        li.innerHTML = `<span><strong>${label}</strong>: "${ov}" → "${nv}" <small>(por ${escapeHtml(h.changed_by || '?')} em ${escapeHtml(formatDate(h.changed_at))})</small></span>`;
         list.appendChild(li);
       }
     }
