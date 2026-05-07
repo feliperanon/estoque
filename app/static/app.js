@@ -2356,12 +2356,13 @@ function updateCountProgress(products = countProductsCache) {
   if (!fillDim) return;
   const stats = computeCountProgressStats(products);
   const { total, percent, productPercent, usesDimProgress } = stats;
-  // Segunda barra só com importação TXT: metades (CX/UN) na primeira, produtos com lançamento na segunda.
+  // Com TXT: metades (CX/UN) na primeira e produtos com lançamento na segunda.
+  // Sem TXT: a barra de produtos também aparece e mostra produtos com lançamento no escopo.
   const dual = Boolean(
     total && countImportBalancesState.hasTxt && usesDimProgress && stats.dimTotal > 0,
   );
 
-  if (blockProducts) blockProducts.hidden = !dual;
+  if (blockProducts) blockProducts.hidden = !total;
 
   if (!total) {
     fillDim.style.width = '0%';
@@ -2372,34 +2373,25 @@ function updateCountProgress(products = countProductsCache) {
     }
     const percentSpan = document.getElementById('count-progress-percent');
     if (percentSpan) percentSpan.textContent = '0%';
-    if (percentProductsSpan) percentProductsSpan.textContent = dual ? '0%' : '';
+    if (percentProductsSpan) percentProductsSpan.textContent = '0%';
     if (detailDimEl) detailDimEl.textContent = countProgressDetailDimLabel(stats);
-    if (detailProductsEl) {
-      detailProductsEl.textContent = dual ? countProgressDetailProductsLabel(stats) : '';
-    }
+    if (detailProductsEl) detailProductsEl.textContent = countProgressDetailProductsLabel(stats);
     return;
   }
 
   fillDim.style.width = `${percent}%`;
   applyCountProgressFillTier(fillDim, percent);
-  if (dual && fillProducts) {
+  if (fillProducts) {
     fillProducts.style.width = `${productPercent}%`;
     applyCountProgressFillTier(fillProducts, productPercent);
-  } else if (fillProducts) {
-    fillProducts.style.width = '0%';
-    applyCountProgressFillTier(fillProducts, 0);
   }
 
   const percentSpan = document.getElementById('count-progress-percent');
   if (percentSpan) percentSpan.textContent = `${percent}%`;
-  if (percentProductsSpan) {
-    percentProductsSpan.textContent = dual ? `${productPercent}%` : '';
-  }
+  if (percentProductsSpan) percentProductsSpan.textContent = `${productPercent}%`;
 
   if (detailDimEl) detailDimEl.textContent = countProgressDetailDimLabel(stats);
-  if (detailProductsEl) {
-    detailProductsEl.textContent = dual ? countProgressDetailProductsLabel(stats) : '';
-  }
+  if (detailProductsEl) detailProductsEl.textContent = countProgressDetailProductsLabel(stats);
 }
 
 function getDeviceName() {
